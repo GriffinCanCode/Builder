@@ -1,4 +1,4 @@
-module languages.scripting.r.builders.base;
+module languages.scripting.r.tooling.builders.base;
 
 import config.schema.schema;
 import languages.scripting.r.core.config;

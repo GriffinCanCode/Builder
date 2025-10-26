@@ -4,6 +4,7 @@ import std.stdio;
 import std.process;
 import std.string;
 import std.algorithm;
+import std.array;
 import std.regex;
 import std.conv;
 import std.typecons;

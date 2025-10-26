@@ -69,7 +69,7 @@ class BuilderFactory
     /// Auto-detect and create appropriate builder
     static Builder createAuto(string[] sources, WorkspaceConfig workspace)
     {
-        import languages.scripting.ruby.tools;
+        import languages.scripting.ruby.tooling.info;
         
         string projectRoot = workspace.root;
         if (!sources.empty)

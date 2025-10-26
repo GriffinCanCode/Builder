@@ -1,4 +1,4 @@
-module languages.scripting.r.builders.rmarkdown;
+module languages.scripting.r.tooling.builders.rmarkdown;
 
 import std.stdio;
 import std.process;
@@ -9,7 +9,7 @@ import std.algorithm;
 import std.array;
 import config.schema.schema;
 import languages.scripting.r.core.config;
-import languages.scripting.r.builders.base;
+import languages.scripting.r.tooling.builders.base;
 import utils.files.hash;
 import utils.logging.logger;
 

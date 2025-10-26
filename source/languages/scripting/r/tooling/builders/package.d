@@ -1,6 +1,7 @@
-module languages.scripting.r.builders;
+module languages.scripting.r.tooling.builders;
 
-public import languages.scripting.r.builders.base;
-public import languages.scripting.r.builders.script;
-public import languages.scripting.r.builders.shiny;
-public import languages.scripting.r.builders.rmarkdown;
+public import languages.scripting.r.tooling.builders.base;
+public import languages.scripting.r.tooling.builders.script;
+public import languages.scripting.r.tooling.builders.shiny;
+public import languages.scripting.r.tooling.builders.rmarkdown;
+public import languages.scripting.r.tooling.builders.packagebuilder;

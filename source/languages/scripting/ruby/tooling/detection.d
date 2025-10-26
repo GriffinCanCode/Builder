@@ -4,6 +4,7 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.algorithm;
+import std.range;
 import languages.scripting.ruby.core.config;
 
 /// Ruby project structure detection

@@ -16,7 +16,7 @@ import languages.scripting.r.managers.packages;
 import languages.scripting.r.managers.environments;
 import languages.scripting.r.tooling.checkers;
 import languages.scripting.r.analysis.dependencies;
-import languages.scripting.r.builders;
+import languages.scripting.r.tooling.builders;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;
@@ -156,7 +156,15 @@ class RHandler : BaseLanguageHandler
             return result;
         }
         
-        return builder.build(target, config, rConfig, rConfig.rExecutable);
+        // Build and convert result
+        auto buildResult = builder.build(target, config, rConfig, rConfig.rExecutable);
+        LanguageBuildResult result;
+        result.success = buildResult.success;
+        result.error = buildResult.error;
+        result.outputHash = buildResult.outputHash;
+        result.outputs = buildResult.outputs;
+        
+        return result;
     }
     
     /// Build library target (R package)

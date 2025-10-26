@@ -81,7 +81,7 @@ class FormatterFactory
     {
         // Priority: StandardRB > RuboCop > Reek
         
-        import languages.scripting.ruby.formatters.standard;
+        import languages.scripting.ruby.tooling.formatters.standard;
         auto standard = new StandardFormatter();
         if (standard.isAvailable())
         {
@@ -89,7 +89,7 @@ class FormatterFactory
             return standard;
         }
         
-        import languages.scripting.ruby.formatters.rubocop;
+        import languages.scripting.ruby.tooling.formatters.rubocop;
         auto rubocop = new RuboCopFormatter();
         if (rubocop.isAvailable())
         {

@@ -1,5 +1,7 @@
 module languages.scripting.ruby.tooling.results;
 
+import std.range;
+
 /// Build result specific to builders
 struct BuildResult
 {

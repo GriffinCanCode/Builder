@@ -1,4 +1,4 @@
-module languages.scripting.r.builders.script;
+module languages.scripting.r.tooling.builders.script;
 
 import std.stdio;
 import std.process;
@@ -8,7 +8,7 @@ import std.string;
 import std.algorithm;
 import config.schema.schema;
 import languages.scripting.r.core.config;
-import languages.scripting.r.builders.base;
+import languages.scripting.r.tooling.builders.base;
 import languages.scripting.r.tooling.checkers;
 import utils.files.hash;
 import utils.logging.logger;
