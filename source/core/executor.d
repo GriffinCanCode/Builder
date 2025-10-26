@@ -32,6 +32,7 @@ import languages.lua;
 import utils.logger;
 import utils.pool;
 import errors;
+import cli.events;
 
 /// Executes builds based on the dependency graph
 class BuildExecutor
@@ -46,11 +47,13 @@ class BuildExecutor
     private shared size_t activeTasks;
     private shared size_t failedTasks;
     private size_t workerCount;
+    private EventPublisher eventPublisher;
     
-    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0)
+    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null)
     {
         this.graph = graph;
         this.config = config;
+        this.eventPublisher = eventPublisher;
         
         // Initialize cache with configuration from environment
         auto cacheConfig = CacheConfig.fromEnvironment();
@@ -106,6 +109,13 @@ class BuildExecutor
         
         auto sorted = graph.topologicalSort();
         Logger.info("Building " ~ sorted.length.to!string ~ " targets...");
+        
+        // Publish build started event
+        if (eventPublisher !is null)
+        {
+            auto event = new BuildStartedEvent(sorted.length, workerCount, sw.peek());
+            eventPublisher.publish(event);
+        }
         
         size_t built = 0;
         size_t cached = 0;
@@ -181,7 +191,42 @@ class BuildExecutor
         // Get cache statistics
         auto cacheStats = cache.getStats();
         
-        // Print summary
+        // Publish build completed/failed event
+        if (eventPublisher !is null)
+        {
+            if (failed > 0)
+            {
+                auto event = new BuildFailedEvent("Build failed", failed, sw.peek(), sw.peek());
+                eventPublisher.publish(event);
+            }
+            else
+            {
+                auto event = new BuildCompletedEvent(built, cached, failed, sw.peek(), sw.peek());
+                eventPublisher.publish(event);
+            }
+            
+            // Publish statistics
+            CacheStats stats;
+            stats.hits = cacheStats.metadataHits;
+            stats.misses = cacheStats.contentHashes;
+            stats.totalEntries = cacheStats.totalEntries;
+            stats.totalSize = cacheStats.totalSize;
+            stats.hitRate = cacheStats.metadataHitRate;
+            
+            BuildStats buildStats;
+            buildStats.totalTargets = sorted.length;
+            buildStats.completedTargets = built;
+            buildStats.cachedTargets = cached;
+            buildStats.failedTargets = failed;
+            buildStats.elapsed = sw.peek();
+            buildStats.targetsPerSecond = sorted.length > 0 ? 
+                (sorted.length * 1000.0) / sw.peek().total!"msecs" : 0.0;
+            
+            auto statsEvent = new StatisticsEvent(stats, buildStats, sw.peek());
+            eventPublisher.publish(statsEvent);
+        }
+        
+        // Print summary (legacy)
         writeln();
         Logger.info("Build Summary:");
         Logger.info("  Built: " ~ built.to!string);
@@ -219,10 +264,20 @@ class BuildExecutor
     {
         BuildResult result;
         result.targetId = node.id;
+        auto nodeTimer = StopWatch(AutoStart.yes);
         
         try
         {
             Logger.info("Building " ~ node.id ~ "...");
+            
+            // Publish target started event
+            if (eventPublisher !is null)
+            {
+                auto sorted = graph.topologicalSort();
+                auto index = sorted.countUntil(node) + 1;
+                auto event = new TargetStartedEvent(node.id, index, sorted.length, nodeTimer.peek());
+                eventPublisher.publish(event);
+            }
             
             auto target = node.target;
             auto deps = node.dependencies.map!(d => d.id).array;
@@ -233,6 +288,14 @@ class BuildExecutor
                 Logger.success("  ✓ " ~ node.id ~ " (cached)");
                 result.success = true;
                 result.cached = true;
+                
+                // Publish cached event
+                if (eventPublisher !is null)
+                {
+                    auto event = new TargetCachedEvent(node.id, nodeTimer.peek());
+                    eventPublisher.publish(event);
+                }
+                
                 return result;
             }
             
@@ -259,12 +322,28 @@ class BuildExecutor
                 cache.update(node.id, target.sources, deps, outputHash);
                 Logger.success("  ✓ " ~ node.id);
                 result.success = true;
+                
+                // Publish target completed event
+                if (eventPublisher !is null)
+                {
+                    nodeTimer.stop();
+                    auto event = new TargetCompletedEvent(node.id, nodeTimer.peek(), 0, nodeTimer.peek());
+                    eventPublisher.publish(event);
+                }
             }
             else
             {
                 auto error = buildResult.unwrapErr();
                 result.error = error.message();
                 Logger.error(format(error));
+                
+                // Publish target failed event
+                if (eventPublisher !is null)
+                {
+                    nodeTimer.stop();
+                    auto event = new TargetFailedEvent(node.id, error.message(), nodeTimer.peek(), nodeTimer.peek());
+                    eventPublisher.publish(event);
+                }
             }
         }
         catch (Exception e)
@@ -273,6 +352,14 @@ class BuildExecutor
             error.addContext(ErrorContext("building node", "exception caught"));
             result.error = error.message();
             Logger.error(format(error));
+            
+            // Publish target failed event
+            if (eventPublisher !is null)
+            {
+                nodeTimer.stop();
+                auto event = new TargetFailedEvent(node.id, error.message(), nodeTimer.peek(), nodeTimer.peek());
+                eventPublisher.publish(event);
+            }
         }
         
         return result;

@@ -27,7 +27,9 @@ class BuildNode
     /// Check if this node is ready to build (all deps built)
     bool isReady() const
     {
-        return dependencies.all!(dep => dep.status == BuildStatus.Success);
+        return dependencies.all!(dep => 
+            dep.status == BuildStatus.Success || 
+            dep.status == BuildStatus.Cached);
     }
     
     /// Get topological depth for scheduling

@@ -7,6 +7,7 @@ import core.atomic;
 import std.algorithm;
 import std.range;
 import std.exception;
+import std.conv : to;
 import std.parallelism : totalCPUs;
 
 /// Persistent thread pool for reusable parallel execution
@@ -106,10 +107,8 @@ class ThreadPool
                 
                 if (idx >= jobs.length)
                 {
-                    if (atomicLoad(pendingJobs) == 0)
-                        jobAvailable.wait();
-                    else
-                        return null; // All jobs claimed
+                    // All jobs claimed or no jobs available, wait for more work
+                    jobAvailable.wait();
                     continue;
                 }
                 

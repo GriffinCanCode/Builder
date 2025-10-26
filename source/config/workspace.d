@@ -149,13 +149,49 @@ struct WorkspaceParser
         size_t line = token.line;
         size_t col = token.column;
         
-        // Get field name (identifier)
-        if (!check(TokenType.Identifier))
-        {
-            return error!(WorkspaceField)("Expected field name");
-        }
+        // Get field name (keyword or identifier)
+        string fieldName;
         
-        string fieldName = advance().value;
+        switch (token.type)
+        {
+            case TokenType.Type:
+                fieldName = "type";
+                advance();
+                break;
+            case TokenType.Language:
+                fieldName = "language";
+                advance();
+                break;
+            case TokenType.Sources:
+                fieldName = "sources";
+                advance();
+                break;
+            case TokenType.Deps:
+                fieldName = "deps";
+                advance();
+                break;
+            case TokenType.Flags:
+                fieldName = "flags";
+                advance();
+                break;
+            case TokenType.Env:
+                fieldName = "env";
+                advance();
+                break;
+            case TokenType.Output:
+                fieldName = "output";
+                advance();
+                break;
+            case TokenType.Includes:
+                fieldName = "includes";
+                advance();
+                break;
+            case TokenType.Identifier:
+                fieldName = advance().value;
+                break;
+            default:
+                return error!(WorkspaceField)("Expected field name");
+        }
         
         // Expect: :
         if (!match(TokenType.Colon))

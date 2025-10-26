@@ -116,6 +116,7 @@ void buildCommand(string target, bool showGraph)
     // Execute build
     auto executor = new BuildExecutor(graph, config);
     executor.execute();
+    executor.shutdown();
     
     Logger.success("Build completed successfully!");
 }
