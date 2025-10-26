@@ -3,9 +3,14 @@ module config.ast;
 import std.conv;
 import std.algorithm;
 import std.array;
+import std.typecons : Rebindable, rebindable;
 import config.schema;
 
 /// Abstract syntax tree node types for BUILD DSL
+/// 
+/// Memory Safety: All heap allocations are GC-managed. Pointers in unions
+/// are used only to break recursive struct dependencies and are always
+/// valid for the lifetime of the owning ExpressionValue.
 
 /// Base AST node
 interface ASTNode
@@ -62,7 +67,7 @@ struct ArrayLiteral
 /// Map literal expression (for env)
 struct MapLiteral
 {
-    string[string] pairs;
+    ExpressionValue[string] pairs;
     size_t line;
     size_t column;
     
@@ -70,8 +75,15 @@ struct MapLiteral
 }
 
 /// Tagged union for expression values
+/// 
+/// Memory Safety Design:
+/// - Uses tagged union pattern with discriminator field (kind)
+/// - Pointers are GC-managed (automatic memory management)
+/// - Type-safe accessors prevent accessing wrong union member
+/// - Const correctness enforced throughout
 struct ExpressionValue
 {
+    /// Discriminator for tagged union
     enum Kind
     {
         String,
@@ -81,65 +93,154 @@ struct ExpressionValue
         Map
     }
     
+    /// Current variant type
     Kind kind;
     
-    union
+    /// Union storage - only one active at a time based on kind
+    /// Pointers used to break recursive type dependencies
+    private union Storage
     {
         StringLiteral stringValue;
         NumberLiteral numberValue;
         Identifier identifierValue;
-        ArrayLiteral* arrayValue;
-        MapLiteral* mapValue;
+        ArrayLiteral* arrayValue;  // GC-managed, breaks recursion
+        MapLiteral* mapValue;      // GC-managed, breaks recursion
     }
     
-    static ExpressionValue fromString(string value, size_t line, size_t col)
+    private Storage _storage;
+    
+    // Factory methods (type-safe constructors)
+    
+    /// Create string literal expression
+    static ExpressionValue fromString(string value, size_t line, size_t col) pure
     {
         ExpressionValue expr;
         expr.kind = Kind.String;
-        expr.stringValue = StringLiteral(value, line, col);
+        expr._storage.stringValue = StringLiteral(value, line, col);
         return expr;
     }
     
-    static ExpressionValue fromNumber(long value, size_t line, size_t col)
+    /// Create number literal expression
+    static ExpressionValue fromNumber(long value, size_t line, size_t col) pure nothrow @nogc
     {
         ExpressionValue expr;
         expr.kind = Kind.Number;
-        expr.numberValue = NumberLiteral(value, line, col);
+        expr._storage.numberValue = NumberLiteral(value, line, col);
         return expr;
     }
     
-    static ExpressionValue fromIdentifier(string name, size_t line, size_t col)
+    /// Create identifier expression
+    static ExpressionValue fromIdentifier(string name, size_t line, size_t col) pure
     {
         ExpressionValue expr;
         expr.kind = Kind.Identifier;
-        expr.identifierValue = Identifier(name, line, col);
+        expr._storage.identifierValue = Identifier(name, line, col);
         return expr;
     }
     
+    /// Create array expression (allocates on GC heap)
     static ExpressionValue fromArray(ExpressionValue[] elements, size_t line, size_t col)
     {
         ExpressionValue expr;
         expr.kind = Kind.Array;
-        expr.arrayValue = new ArrayLiteral(elements, line, col);
+        expr._storage.arrayValue = new ArrayLiteral(elements, line, col);
         return expr;
     }
     
-    static ExpressionValue fromMap(string[string] pairs, size_t line, size_t col)
+    /// Create map expression (allocates on GC heap)
+    static ExpressionValue fromMap(ExpressionValue[string] pairs, size_t line, size_t col)
     {
         ExpressionValue expr;
         expr.kind = Kind.Map;
-        expr.mapValue = new MapLiteral(pairs, line, col);
+        expr._storage.mapValue = new MapLiteral(pairs, line, col);
         return expr;
     }
+    
+    /// Create map expression from string pairs (convenience for simple maps)
+    static ExpressionValue fromStringMap(string[string] stringPairs, size_t line, size_t col)
+    {
+        ExpressionValue[string] pairs;
+        foreach (key, value; stringPairs)
+        {
+            pairs[key] = ExpressionValue.fromString(value, line, col);
+        }
+        return fromMap(pairs, line, col);
+    }
+    
+    // Type-safe accessors
+    
+    /// Get string value (checked at runtime)
+    @property inout(StringLiteral)* getString() inout pure nothrow @nogc
+    {
+        return kind == Kind.String ? &_storage.stringValue : null;
+    }
+    
+    /// Get number value (checked at runtime)
+    @property inout(NumberLiteral)* getNumber() inout pure nothrow @nogc
+    {
+        return kind == Kind.Number ? &_storage.numberValue : null;
+    }
+    
+    /// Get identifier value (checked at runtime)
+    @property inout(Identifier)* getIdentifier() inout pure nothrow @nogc
+    {
+        return kind == Kind.Identifier ? &_storage.identifierValue : null;
+    }
+    
+    /// Get array value (checked at runtime)
+    @property inout(ArrayLiteral)* getArray() inout pure nothrow @nogc
+    {
+        return kind == Kind.Array ? _storage.arrayValue : null;
+    }
+    
+    /// Get map value (checked at runtime)
+    @property inout(MapLiteral)* getMap() inout pure nothrow @nogc
+    {
+        return kind == Kind.Map ? _storage.mapValue : null;
+    }
+    
+    // Legacy accessors for backward compatibility (unchecked - use with care)
+    // These are kept to maintain existing code compatibility
+    @property ref inout(StringLiteral) stringValue() inout pure return
+    in (kind == Kind.String, "Accessed stringValue on non-string ExpressionValue")
+    {
+        return _storage.stringValue;
+    }
+    
+    @property ref inout(NumberLiteral) numberValue() inout pure return
+    in (kind == Kind.Number, "Accessed numberValue on non-number ExpressionValue")
+    {
+        return _storage.numberValue;
+    }
+    
+    @property ref inout(Identifier) identifierValue() inout pure return
+    in (kind == Kind.Identifier, "Accessed identifierValue on non-identifier ExpressionValue")
+    {
+        return _storage.identifierValue;
+    }
+    
+    @property inout(ArrayLiteral)* arrayValue() inout pure nothrow @nogc
+    in (kind == Kind.Array, "Accessed arrayValue on non-array ExpressionValue")
+    {
+        return _storage.arrayValue;
+    }
+    
+    @property inout(MapLiteral)* mapValue() inout pure nothrow @nogc
+    in (kind == Kind.Map, "Accessed mapValue on non-map ExpressionValue")
+    {
+        return _storage.mapValue;
+    }
+    
+    // Semantic conversion methods
     
     /// Convert to string (for semantic analysis)
     string asString() const
     {
         final switch (kind)
         {
-            case Kind.String: return stringValue.value;
-            case Kind.Identifier: return identifierValue.name;
-            case Kind.Number: return numberValue.value.to!string;
+            case Kind.String: return _storage.stringValue.value;
+            case Kind.Identifier: return _storage.identifierValue.name;
+            case Kind.Number: return _storage.numberValue.value.to!string;
             case Kind.Array: throw new Exception("Cannot convert array to string");
             case Kind.Map: throw new Exception("Cannot convert map to string");
         }
@@ -151,22 +252,48 @@ struct ExpressionValue
         if (kind != Kind.Array)
             throw new Exception("Expression is not an array");
         
-        return arrayValue.elements.map!(e => e.asString()).array;
+        return _storage.arrayValue.elements.map!(e => e.asString()).array;
     }
     
-    /// Convert to map
+    /// Convert to map (converting values to strings)
     string[string] asMap() const
     {
         if (kind != Kind.Map)
             throw new Exception("Expression is not a map");
         
-        return cast(string[string]) mapValue.pairs;
+        string[string] result;
+        foreach (key, value; _storage.mapValue.pairs)
+        {
+            result[key] = value.asString();
+        }
+        return result;
     }
     
+    // Utility methods
+    
     /// Check if is specific identifier
-    bool isIdentifier(string name) const
+    bool isIdentifier(string name) const pure
     {
-        return kind == Kind.Identifier && identifierValue.name == name;
+        return kind == Kind.Identifier && _storage.identifierValue.name == name;
+    }
+    
+    /// Match pattern for type-safe exhaustive handling
+    U match(U)(
+        U delegate(ref const StringLiteral) onString,
+        U delegate(ref const NumberLiteral) onNumber,
+        U delegate(ref const Identifier) onIdentifier,
+        U delegate(const ArrayLiteral*) onArray,
+        U delegate(const MapLiteral*) onMap
+    ) const
+    {
+        final switch (kind)
+        {
+            case Kind.String: return onString(_storage.stringValue);
+            case Kind.Number: return onNumber(_storage.numberValue);
+            case Kind.Identifier: return onIdentifier(_storage.identifierValue);
+            case Kind.Array: return onArray(_storage.arrayValue);
+            case Kind.Map: return onMap(_storage.mapValue);
+        }
     }
 }
 
@@ -279,11 +406,11 @@ struct ASTPrinter
                 return value.identifierValue.name;
             case ExpressionValue.Kind.Array:
                 return "[" ~ value.arrayValue.elements
-                    .map!(e => valueToString(e))
+                    .map!(e => valueToString(cast()e))
                     .join(", ") ~ "]";
             case ExpressionValue.Kind.Map:
                 return "{" ~ value.mapValue.pairs.byKeyValue
-                    .map!(kv => kv.key ~ ": " ~ kv.value)
+                    .map!(kv => kv.key ~ ": " ~ valueToString(cast()kv.value))
                     .join(", ") ~ "}";
         }
     }

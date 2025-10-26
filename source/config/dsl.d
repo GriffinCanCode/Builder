@@ -269,7 +269,7 @@ struct DSLParser
         
         advance(); // {
         
-        string[string] pairs;
+        ExpressionValue[string] pairs;
         
         while (!check(TokenType.RightBrace) && !isAtEnd())
         {
@@ -287,15 +287,12 @@ struct DSLParser
                 return error!(ExpressionValue)("Expected ':' after map key");
             }
             
-            // Parse value (must be string for now)
-            if (!check(TokenType.String))
-            {
-                return error!(ExpressionValue)("Expected string value in map");
-            }
+            // Parse value (can be any expression type)
+            auto valueResult = parseExpression();
+            if (valueResult.isErr)
+                return Err!(ExpressionValue, BuildError)(valueResult.unwrapErr());
             
-            string value = advance().value;
-            
-            pairs[key] = value;
+            pairs[key] = valueResult.unwrap();
             
             if (!check(TokenType.RightBrace))
             {

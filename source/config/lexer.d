@@ -157,8 +157,17 @@ struct Lexer
             case ',': advance(); return ok(TokenType.Comma, ",", startLine, startCol);
             case '"': case '\'': return scanString(c);
             default:
-                if (isDigit(c) || (c == '-' && peekNext().isDigit))
+                if (isDigit(c))
                     return scanNumber();
+                if (c == '-' && peekNext().isDigit)
+                {
+                    // Only treat '-' as part of number after whitespace/operators
+                    // This prevents treating '-' after '[' or ',' as identifier
+                    if (position == 0 || isWhite(source[position - 1]) || 
+                        source[position - 1] == '(' || source[position - 1] == '[' ||
+                        source[position - 1] == ',' || source[position - 1] == ':')
+                        return scanNumber();
+                }
                 if (isAlpha(c) || c == '_')
                     return scanIdentifier();
                 
