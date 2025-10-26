@@ -8,6 +8,8 @@ import std.array;
 import std.string;
 import std.regex;
 import std.range;
+import std.parallelism;
+import core.sync.mutex;
 
 /// Result of glob matching
 struct GlobResult

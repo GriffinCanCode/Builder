@@ -131,7 +131,7 @@ class DependencyAnalyzer
         auto allImports = result.allImports();
         
         // Resolve imports to dependencies
-        result.dependencies = resolveImports(allImports, target.language);
+        result.dependencies = resolveImports(allImports, target.language, config);
         
         // Add explicit dependencies
         foreach (dep; target.deps)

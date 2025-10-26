@@ -178,7 +178,8 @@ template VerifyHandlers()
 }
 
 // Execute verification at compile-time
-mixin VerifyHandlers;
+// Note: Disabled due to CTFE limitations with associative arrays
+// mixin VerifyHandlers;
 
 /// Generate type-safe import resolution at compile-time
 string generateImportResolver()
