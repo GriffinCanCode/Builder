@@ -87,6 +87,57 @@ target("my-binary",
 );
 ```
 
+## Testing
+
+Builder has a comprehensive test infrastructure:
+
+```bash
+# Run all tests
+dub test
+
+# Run with script (includes coverage)
+./run-tests.sh --verbose --coverage
+
+# Run specific tests
+dub test -- --filter="glob"
+
+# Parallel execution
+dub test -- --parallel
+```
+
+See [docs/TESTING.md](docs/TESTING.md) for complete testing guide.
+
+## Development
+
+### Project Structure
+
+- `source/` - Main source code
+- `tests/` - Comprehensive test suite
+  - `unit/` - Unit tests mirroring source/
+  - `integration/` - Integration tests
+  - `bench/` - Performance benchmarks
+- `docs/` - Documentation
+- `examples/` - Example projects
+
+### Running Tests
+
+```bash
+# Quick test
+dub test
+
+# With coverage
+./run-tests.sh --coverage
+
+# Verbose output
+./run-tests.sh --verbose
+```
+
+## Documentation
+
+- [Architecture Guide](docs/ARCHITECTURE.md) - System design and internals
+- [Testing Guide](docs/TESTING.md) - How to write and run tests
+- [Examples](docs/EXAMPLES.md) - Usage examples
+
 ## Why D?
 
 - **True Compile-time Metaprogramming**: Generate code, validate types, and optimize dispatch at compile-time using templates, mixins, and CTFE

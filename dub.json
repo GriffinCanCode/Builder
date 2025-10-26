@@ -19,6 +19,17 @@
             "name": "library",
             "targetType": "library",
             "excludedSourceFiles": ["source/app.d"]
+        },
+        {
+            "name": "unittest",
+            "targetType": "executable",
+            "targetName": "test-runner",
+            "targetPath": "bin",
+            "mainSourceFile": "tests/runner.d",
+            "sourcePaths": ["source", "tests"],
+            "importPaths": ["source", "tests"],
+            "excludedSourceFiles": ["source/app.d"],
+            "buildOptions": ["unittests", "debugMode", "debugInfo"]
         }
     ],
     "buildTypes": {
