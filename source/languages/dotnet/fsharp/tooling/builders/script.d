@@ -1,0 +1,91 @@
+module languages.dotnet.fsharp.tooling.builders.script;
+
+import std.process;
+import std.file;
+import std.path;
+import std.algorithm;
+import std.array;
+import std.string;
+import std.datetime.stopwatch;
+import languages.dotnet.fsharp.tooling.builders.base;
+import languages.dotnet.fsharp.core.config;
+import analysis.targets.types;
+import config.schema.schema;
+import utils.files.hash;
+import utils.logging.logger;
+
+/// Builder for F# scripts (.fsx)
+class ScriptBuilder : FSharpBuilder
+{
+    FSharpBuildResult build(string[] sources, FSharpConfig config, Target target, WorkspaceConfig workspaceConfig)
+    {
+        FSharpBuildResult result;
+        auto sw = StopWatch(AutoStart.yes);
+        
+        // Find .fsx script file
+        auto scriptFile = sources.find!(s => s.endsWith(".fsx"));
+        
+        if (scriptFile.empty)
+        {
+            result.error = "No .fsx script file found in sources";
+            return result;
+        }
+        
+        // Execute script with F# Interactive
+        string[] cmd = ["dotnet", "fsi"];
+        
+        // Add FSI arguments
+        cmd ~= config.fsi.arguments;
+        
+        // Add load scripts
+        foreach (loadScript; config.fsi.loadScripts)
+            cmd ~= ["--load:" ~ loadScript];
+        
+        // Add references
+        foreach (ref_; config.fsi.references)
+            cmd ~= ["--reference:" ~ ref_];
+        
+        // Add defines
+        foreach (define; config.fsi.defines)
+            cmd ~= ["--define:" ~ define];
+        
+        // Enable readline
+        if (config.fsi.readline)
+            cmd ~= ["--readline+"];
+        
+        // Add script file
+        cmd ~= [scriptFile.front];
+        
+        auto res = execute(cmd);
+        
+        sw.stop();
+        result.buildTime = sw.peek().total!"msecs";
+        
+        if (res.status != 0)
+        {
+            result.error = "Script execution failed: " ~ res.output;
+            return result;
+        }
+        
+        result.success = true;
+        // Scripts don't produce output files, use source hash
+        result.outputHash = FastHash.hashStrings(sources);
+        
+        Logger.info("Script executed successfully");
+        Logger.debug_("Output: " ~ res.output);
+        
+        return result;
+    }
+    
+    FSharpBuildMode getMode()
+    {
+        return FSharpBuildMode.Script;
+    }
+    
+    bool isAvailable()
+    {
+        auto res = execute(["dotnet", "fsi", "--help"]);
+        return res.status == 0;
+    }
+}
+

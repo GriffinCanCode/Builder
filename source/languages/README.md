@@ -15,7 +15,9 @@ The languages package provides language-specific build handlers and dependency a
 - **rust/** - Rust with Cargo (modular)
 - **java.d** - Java with Maven/Gradle
 - **cpp/** - C/C++ comprehensive modular support with compilers, build systems, analysis, and tools
-- **csharp.d** - C# with .NET
+- **dotnet/** - .NET languages (modular)
+  - **csharp.d** - C# with .NET
+  - **fsharp/** - F# with functional programming, FAKE, Paket, Fantomas, Fable
 - **ruby.d** - Ruby with Bundler
 - **php/** - PHP with Composer (modular - analysis, formatting, packaging)
 - **swift.d** - Swift with SPM

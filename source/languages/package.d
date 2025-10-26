@@ -33,20 +33,17 @@ module languages;
 
 public import languages.base.base;
 public import languages.scripting.python;
-public import languages.scripting.javascript;
-public import languages.scripting.typescript;
+public import languages.web;
 public import languages.scripting.go;
 public import languages.compiled.rust;
 public import languages.compiled.d;
-public import languages.jvm.java;
+public import languages.jvm;
 public import languages.compiled.cpp;
-public import languages.dotnet.csharp;  // Now modular!
+public import languages.dotnet;
 public import languages.scripting.ruby;
 public import languages.scripting.php;
 public import languages.scripting.r;
 public import languages.compiled.swift;
-public import languages.jvm.kotlin;
-public import languages.jvm.scala;
 public import languages.scripting.elixir;
 public import languages.scripting.lua;
 public import languages.compiled.nim;
