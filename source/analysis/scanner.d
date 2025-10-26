@@ -24,9 +24,10 @@ class FileScanner
             
             foreach (match; matchAll(content, pattern))
             {
-                if (match.length > 1)
+                // Check both capture groups (for "from X import" and "import X")
+                for (size_t i = 1; i < match.length; i++)
                 {
-                    auto importName = match[1].strip();
+                    auto importName = match[i].strip();
                     if (!importName.empty && !imports.canFind(importName))
                         imports ~= importName;
                 }

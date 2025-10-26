@@ -22,6 +22,7 @@ import errors;
 class BuildCache
 {
     private string cacheDir;
+    private string cacheFilePath;  // Pre-computed to avoid allocation in destructor
     private CacheEntry[string] entries;
     private bool dirty;
     private EvictionPolicy eviction;
@@ -32,6 +33,7 @@ class BuildCache
     this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init)
     {
         this.cacheDir = cacheDir;
+        this.cacheFilePath = buildPath(cacheDir, "cache.bin");  // Pre-compute path
         this.config = config;
         this.dirty = false;
         this.eviction = EvictionPolicy(config.maxSize, config.maxEntries, config.maxAge);
@@ -43,10 +45,24 @@ class BuildCache
     }
     
     /// Destructor: ensure cache is written
+    /// Skip if called during GC to avoid InvalidMemoryOperationError
     ~this()
     {
-        if (dirty)
-            flush();
+        import core.memory : GC;
+        
+        // Don't flush during GC - it allocates memory which is forbidden
+        // The cache will be saved on next run instead
+        if (dirty && !GC.inFinalizer())
+        {
+            try
+            {
+                flush(false); // Don't evict during destruction
+            }
+            catch (Exception e)
+            {
+                // Best effort - ignore errors during destruction
+            }
+        }
     }
     
     /// Check if a target is cached and up-to-date
@@ -155,27 +171,39 @@ class BuildCache
     
     /// Flush cache to disk (lazy write)
     /// This is called once at the end of build instead of on every update
-    void flush()
+    /// @param runEviction: whether to run eviction policy (default true, false in destructor)
+    void flush(bool runEviction = true)
     {
         if (!dirty)
             return;
         
-        // Run eviction policy before saving
-        auto currentSize = eviction.calculateTotalSize(entries);
-        auto toEvict = eviction.selectEvictions(entries, currentSize);
-        
-        foreach (key; toEvict)
-            entries.remove(key);
+        // Run eviction policy before saving (skip in destructor to avoid GC issues)
+        if (runEviction)
+        {
+            try
+            {
+                auto currentSize = eviction.calculateTotalSize(entries);
+                auto toEvict = eviction.selectEvictions(entries, currentSize);
+                
+                foreach (key; toEvict)
+                    entries.remove(key);
+                
+                // Log eviction if any
+                if (toEvict.length > 0)
+                {
+                    writeln("Cache evicted ", toEvict.length, " entries");
+                }
+            }
+            catch (Exception e)
+            {
+                // If eviction fails, just save what we have
+                writeln("Warning: Cache eviction failed, saving without eviction");
+            }
+        }
         
         // Save to binary format
         saveCache();
         dirty = false;
-        
-        // Log eviction if any
-        if (toEvict.length > 0)
-        {
-            writeln("Cache evicted ", toEvict.length, " entries");
-        }
     }
     
     /// Get cache statistics
@@ -217,9 +245,7 @@ class BuildCache
     
     private void loadCache()
     {
-        string cacheFile = buildPath(cacheDir, "cache.bin");
-        
-        if (!exists(cacheFile))
+        if (!exists(cacheFilePath))
         {
             // Try loading old JSON format for migration
             string jsonCacheFile = buildPath(cacheDir, "cache.json");
@@ -248,7 +274,7 @@ class BuildCache
         
         try
         {
-            auto data = cast(ubyte[])std.file.read(cacheFile);
+            auto data = cast(ubyte[])std.file.read(cacheFilePath);
             entries = BinaryStorage.deserialize!CacheEntry(data);
         }
         catch (Exception e)
@@ -259,23 +285,22 @@ class BuildCache
             
             // Log with new error system
             auto error = new CacheError(e.msg, ErrorCode.CacheCorrupted);
-            error.addContext(ErrorContext("loading binary cache", cacheFile));
-            error.cachePath = cacheFile;
+            error.addContext(ErrorContext("loading binary cache", cacheFilePath));
+            error.cachePath = cacheFilePath;
         }
     }
     
-    private void saveCache()
+    private void saveCache() nothrow
     {
-        string cacheFile = buildPath(cacheDir, "cache.bin");
-        
         try
         {
             auto data = BinaryStorage.serialize(entries);
-            std.file.write(cacheFile, data);
+            std.file.write(cacheFilePath, data);
         }
         catch (Exception e)
         {
-            writeln("Warning: Could not save cache: ", e.msg);
+            // Can't print during GC, just fail silently
+            try { writeln("Warning: Could not save cache: ", e.msg); } catch (Exception) {}
         }
     }
     

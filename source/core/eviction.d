@@ -95,7 +95,12 @@ struct EvictionPolicy
     /// Calculate total cache size
     size_t calculateTotalSize(T)(T[string] entries)
     {
-        return entries.values.map!(e => estimateEntrySize(e)).sum;
+        size_t total = 0;
+        foreach (entry; entries.byValue)
+        {
+            total += estimateEntrySize(entry);
+        }
+        return total;
     }
     
     /// Get eviction statistics

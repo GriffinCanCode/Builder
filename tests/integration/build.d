@@ -66,11 +66,14 @@ unittest
         foreach (dep; target.deps)
         {
             // Find matching target
+            // Handle both "//lib1" matching "//lib1:lib1" and "//lib1:lib1" matching "//lib1:lib1"
             foreach (ref depTarget; config.targets)
             {
-                if (depTarget.name == dep)
+                if (depTarget.name == dep ||
+                    (depTarget.name.startsWith(dep) && depTarget.name.length > dep.length && depTarget.name[dep.length] == ':'))
                 {
                     graph.addDependency(target.name, depTarget.name);
+                    break;
                 }
             }
         }
@@ -162,11 +165,18 @@ unittest
     {
         foreach (dep; target.deps)
         {
+            // The dep might be "//lib1" and the target name might be "//lib1:lib1"
+            // Or dep might be a full path like "//lib1:lib1"
+            // Match if the target name starts with the dep path
             foreach (ref depTarget; config.targets)
             {
-                if (depTarget.name == dep)
+                // Check if target name matches the dependency
+                // Handle both "//lib1" matching "//lib1:lib1" and "//lib1:lib1" matching "//lib1:lib1"
+                if (depTarget.name == dep ||  // Exact match
+                    (depTarget.name.startsWith(dep) && depTarget.name.length > dep.length && depTarget.name[dep.length] == ':'))
                 {
                     graph.addDependency(target.name, depTarget.name);
+                    break;
                 }
             }
         }
@@ -227,9 +237,11 @@ unittest
         {
             foreach (ref depTarget; config.targets)
             {
-                if (depTarget.name == dep)
+                if (depTarget.name == dep ||
+                    (depTarget.name.startsWith(dep) && depTarget.name.length > dep.length && depTarget.name[dep.length] == ':'))
                 {
                     graph.addDependency(target.name, depTarget.name);
+                    break;
                 }
             }
         }
