@@ -1,0 +1,11 @@
+// Nim workspace configuration
+
+workspace("nim-example") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    incremental: true;
+    verbose: false;
+}
+

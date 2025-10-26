@@ -148,6 +148,15 @@ class BuildExecutor
                     continue;
                 }
                 
+                // Mark nodes as Building BEFORE submitting to prevent duplicates
+                foreach (node; ready)
+                {
+                    Logger.debug_("Marking " ~ node.id ~ " as Building (was " ~ node.status.to!string ~ ")");
+                    node.status = BuildStatus.Building;
+                }
+                
+                Logger.debug_("Ready nodes: " ~ ready.map!(n => n.id).join(", "));
+                
                 atomicOp!"+="(activeTasks, ready.length);
             }
             

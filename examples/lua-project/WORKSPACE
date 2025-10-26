@@ -1,0 +1,11 @@
+// Lua workspace configuration
+
+workspace("lua-example") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    incremental: true;
+    verbose: false;
+}
+

@@ -80,11 +80,16 @@ class PHPHandler : BaseLanguageHandler
         if (!outputs.empty && !target.sources.empty)
         {
             auto outputPath = outputs[0];
+            auto outputDir = dirName(outputPath);
             auto mainFile = target.sources[0];
             
-            // Create wrapper script
+            // Ensure output directory exists
+            if (!exists(outputDir))
+                mkdirRecurse(outputDir);
+            
+            // Create wrapper script  
             auto wrapper = "#!/usr/bin/env php\n";
-            wrapper ~= "<?php\nrequire_once '" ~ mainFile ~ "';\n";
+            wrapper ~= "<?php\nrequire_once dirname(__FILE__) . '/../" ~ mainFile ~ "';\n";
             
             std.file.write(outputPath, wrapper);
             

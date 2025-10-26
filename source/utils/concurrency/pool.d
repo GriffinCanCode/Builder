@@ -63,9 +63,8 @@ class ThreadPool
             foreach (i, ref item; items)
             {
                 jobs[i].id = i;
-                jobs[i].work = () {
-                    results[i] = func(item);
-                };
+                // Use a helper function to properly capture by value
+                jobs[i].work = makeWork(i, item, results, func);
                 jobs[i].completed = false;
             }
             
@@ -79,6 +78,14 @@ class ThreadPool
         }
         
         return results;
+    }
+    
+    /// Helper to create work delegate with proper value capture
+    private void delegate() makeWork(T, R)(size_t index, T item, ref R[] results, R delegate(T) func)
+    {
+        return () {
+            results[index] = func(item);
+        };
     }
     
     /// Shutdown pool and wait for workers

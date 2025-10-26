@@ -51,8 +51,9 @@ class PyWrapperGenerator
         auto moduleDir = dirName(config.mainFile);
         
         // Calculate relative path from output to project root
-        auto outputDir = dirName(config.outputPath);
-        auto relPath = relativePath(config.projectRoot, outputDir);
+        auto outputDir = absolutePath(dirName(config.outputPath));
+        auto projectRoot = absolutePath(config.projectRoot);
+        auto relPath = relativePath(projectRoot, outputDir);
         
         // Build wrapper components
         string wrapper = "#!/usr/bin/env python3\n";
@@ -71,18 +72,13 @@ class PyWrapperGenerator
         // Handle different entry point patterns
         if (config.isExecutable)
         {
-            // File has if __name__ == "__main__" - just execute it
-            wrapper ~= "# Execute module with main guard\n";
+            // File has if __name__ == "__main__" - execute as __main__ module
+            wrapper ~= "# Execute module with main guard using runpy\n";
             wrapper ~= "if __name__ == '__main__':\n";
+            wrapper ~= "    import runpy\n";
             
-            // Import and execute
-            if (moduleDir.empty || moduleDir == ".")
-                wrapper ~= "    import " ~ moduleName ~ "\n";
-            else
-            {
-                auto importPath = moduleDir.replace("/", ".").replace("\\", ".");
-                wrapper ~= "    import " ~ importPath ~ "." ~ moduleName ~ "\n";
-            }
+            auto modulePath = config.mainFile;
+            wrapper ~= "    runpy.run_path(" ~ escapeString(modulePath) ~ ", run_name='__main__')\n";
         }
         else if (config.hasMain)
         {

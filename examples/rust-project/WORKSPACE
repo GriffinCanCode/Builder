@@ -1,0 +1,11 @@
+// Rust workspace configuration
+
+workspace("rust-example") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    incremental: true;
+    verbose: false;
+}
+

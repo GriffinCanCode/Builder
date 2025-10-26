@@ -80,11 +80,18 @@ class LuaHandler : BaseLanguageHandler
         if (!outputs.empty && !target.sources.empty)
         {
             auto outputPath = outputs[0];
+            auto outputDir = dirName(outputPath);
             auto mainFile = target.sources[0];
+            
+            // Ensure output directory exists
+            if (!exists(outputDir))
+                mkdirRecurse(outputDir);
             
             // Create wrapper script
             auto wrapper = "#!/usr/bin/env lua\n";
-            wrapper ~= "dofile('" ~ mainFile ~ "')\n";
+            auto absPath = "arg[0]:match('(.*/)')";
+            wrapper ~= "local script_dir = " ~ absPath ~ " or './'\n";
+            wrapper ~= "dofile(script_dir .. '../" ~ mainFile ~ "')\n";
             
             std.file.write(outputPath, wrapper);
             

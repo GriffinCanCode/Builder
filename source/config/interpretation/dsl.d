@@ -544,6 +544,16 @@ struct SemanticAnalyzer
             case "cpp": case "c++": return TargetLanguage.Cpp;
             case "c": return TargetLanguage.C;
             case "java": return TargetLanguage.Java;
+            case "kotlin": case "kt": return TargetLanguage.Kotlin;
+            case "csharp": case "cs": case "c#": return TargetLanguage.CSharp;
+            case "zig": return TargetLanguage.Zig;
+            case "swift": return TargetLanguage.Swift;
+            case "ruby": case "rb": return TargetLanguage.Ruby;
+            case "php": return TargetLanguage.PHP;
+            case "scala": return TargetLanguage.Scala;
+            case "elixir": case "ex": return TargetLanguage.Elixir;
+            case "nim": return TargetLanguage.Nim;
+            case "lua": return TargetLanguage.Lua;
             default: return TargetLanguage.Generic;
         }
     }

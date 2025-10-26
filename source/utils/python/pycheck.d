@@ -49,11 +49,11 @@ class PyValidator
     static this()
     {
         // Get validator script path (in same directory as this module)
-        validatorPath = buildPath(thisExePath().dirName(), "..", "source", "utils", "pyvalidator.py");
+        validatorPath = buildPath(thisExePath().dirName(), "..", "source", "utils", "python", "pyvalidator.py");
         
         // Fallback to relative path if not found
         if (!exists(validatorPath))
-            validatorPath = buildPath("source", "utils", "pyvalidator.py");
+            validatorPath = buildPath("source", "utils", "python", "pyvalidator.py");
     }
     
     /// Validate multiple Python files in a single batch

@@ -6,8 +6,7 @@ target("d-hello") {
     sources: ["hello.d"];
     flags: [
         "-O2",
-        "-release",
-        "-inline"
+        "-release"
     ];
     output: "bin/d-hello";
 }

@@ -80,11 +80,16 @@ class RubyHandler : BaseLanguageHandler
         if (!outputs.empty && !target.sources.empty)
         {
             auto outputPath = outputs[0];
+            auto outputDir = dirName(outputPath);
             auto mainFile = target.sources[0];
+            
+            // Ensure output directory exists
+            if (!exists(outputDir))
+                mkdirRecurse(outputDir);
             
             // Create wrapper script
             auto wrapper = "#!/usr/bin/env ruby\n";
-            wrapper ~= "require_relative '" ~ mainFile ~ "'\n";
+            wrapper ~= "load File.join(File.dirname(__FILE__), '..', '" ~ mainFile ~ "')\n";
             
             std.file.write(outputPath, wrapper);
             
