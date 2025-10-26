@@ -3,7 +3,7 @@ module languages.compiled.cpp.builders.base;
 import std.range;
 import std.string;
 import std.conv;
-import languages.compiled.cpp.config;
+import languages.compiled.cpp.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 
@@ -104,7 +104,7 @@ class CppBuilderFactory
     /// Detect build system from current directory
     private static BuildSystem detectBuildSystem()
     {
-        import languages.compiled.cpp.toolchain;
+        import languages.compiled.cpp.tooling.toolchain;
         import std.file;
         import std.path;
         
@@ -151,7 +151,7 @@ abstract class BaseCppBuilder : CppBuilder
     protected string getCompilerCommand(string source, CppConfig config)
     {
         import std.path : extension;
-        import languages.compiled.cpp.toolchain;
+        import languages.compiled.cpp.tooling.toolchain;
         
         auto compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
         

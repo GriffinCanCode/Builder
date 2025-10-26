@@ -1,4 +1,4 @@
-module languages.compiled.rust.builders.cargo;
+module languages.compiled.rust.tooling.builders.cargo;
 
 import std.process;
 import std.file;
@@ -7,10 +7,10 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.conv;
-import languages.compiled.rust.builders.base;
-import languages.compiled.rust.config;
-import languages.compiled.rust.manifest;
-import languages.compiled.rust.toolchain;
+import languages.compiled.rust.tooling.builders.base;
+import languages.compiled.rust.core.config;
+import languages.compiled.rust.analysis.manifest;
+import languages.compiled.rust.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;

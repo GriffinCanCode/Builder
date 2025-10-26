@@ -1,4 +1,4 @@
-module languages.compiled.rust.handler;
+module languages.compiled.rust.core.handler;
 
 import std.stdio;
 import std.process;
@@ -9,10 +9,10 @@ import std.array;
 import std.json;
 import std.string;
 import languages.base.base;
-import languages.compiled.rust.config;
-import languages.compiled.rust.manifest;
-import languages.compiled.rust.toolchain;
-import languages.compiled.rust.builders;
+import languages.compiled.rust.core.config;
+import languages.compiled.rust.analysis.manifest;
+import languages.compiled.rust.managers.toolchain;
+import languages.compiled.rust.tooling.builders;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;

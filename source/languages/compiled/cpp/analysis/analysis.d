@@ -1,4 +1,4 @@
-module languages.compiled.cpp.analysis;
+module languages.compiled.cpp.analysis.analysis;
 
 import std.stdio;
 import std.file;

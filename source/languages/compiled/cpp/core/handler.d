@@ -1,4 +1,4 @@
-module languages.compiled.cpp.handler;
+module languages.compiled.cpp.core.handler;
 
 import std.stdio;
 import std.process;
@@ -9,10 +9,10 @@ import std.array;
 import std.json;
 import std.conv;
 import languages.base.base;
-import languages.compiled.cpp.config;
-import languages.compiled.cpp.toolchain;
-import languages.compiled.cpp.analysis;
-import languages.compiled.cpp.tools;
+import languages.compiled.cpp.core.config;
+import languages.compiled.cpp.tooling.toolchain;
+import languages.compiled.cpp.analysis.analysis;
+import languages.compiled.cpp.tooling.tools;
 import languages.compiled.cpp.builders;
 import config.schema.schema;
 import analysis.targets.types;

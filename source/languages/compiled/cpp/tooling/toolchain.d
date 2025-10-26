@@ -1,4 +1,4 @@
-module languages.compiled.cpp.toolchain;
+module languages.compiled.cpp.tooling.toolchain;
 
 import std.process;
 import std.string;
@@ -8,7 +8,7 @@ import std.file;
 import std.path;
 import std.conv;
 import std.regex;
-import languages.compiled.cpp.config;
+import languages.compiled.cpp.core.config;
 import utils.logging.logger;
 
 /// Compiler information

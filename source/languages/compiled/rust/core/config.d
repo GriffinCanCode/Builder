@@ -1,4 +1,4 @@
-module languages.compiled.rust.config;
+module languages.compiled.rust.core.config;
 
 import std.json;
 import std.string;

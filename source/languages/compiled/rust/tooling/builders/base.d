@@ -1,7 +1,7 @@
-module languages.compiled.rust.builders.base;
+module languages.compiled.rust.tooling.builders.base;
 
 import std.range;
-import languages.compiled.rust.config;
+import languages.compiled.rust.core.config;
 import config.schema.schema;
 
 /// Base interface for Rust builders
@@ -51,9 +51,9 @@ class RustBuilderFactory
     /// Auto-detect best available builder
     private static RustBuilder createAuto(RustConfig config)
     {
-        import languages.compiled.rust.builders.cargo;
-        import languages.compiled.rust.builders.rustc;
-        import languages.compiled.rust.manifest;
+        import languages.compiled.rust.tooling.builders.cargo;
+        import languages.compiled.rust.tooling.builders.rustc;
+        import languages.compiled.rust.analysis.manifest;
         
         // If Cargo.toml exists or is specified, prefer cargo
         if (!config.manifest.empty)
@@ -131,7 +131,7 @@ class NullRustBuilder : RustBuilder
     
     string getVersion()
     {
-        import languages.compiled.rust.toolchain;
+        import languages.compiled.rust.managers.toolchain;
         return Rustc.getVersion();
     }
     

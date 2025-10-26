@@ -1,4 +1,4 @@
-module languages.compiled.rust.manifest;
+module languages.compiled.rust.analysis.manifest;
 
 import std.file;
 import std.path;

@@ -1,4 +1,4 @@
-module languages.compiled.rust.toolchain;
+module languages.compiled.rust.managers.toolchain;
 
 import std.process;
 import std.string;

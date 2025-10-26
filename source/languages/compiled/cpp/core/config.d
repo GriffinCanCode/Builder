@@ -1,4 +1,4 @@
-module languages.compiled.cpp.config;
+module languages.compiled.cpp.core.config;
 
 import std.json;
 import std.string;
