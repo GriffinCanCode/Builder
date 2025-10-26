@@ -5,8 +5,7 @@ import std.process;
 import std.file;
 import std.path;
 import std.string;
-import languages.base.base : LanguageBuildResult;
-import config.schema.schema : WorkspaceConfig, Target;
+import config.schema.schema;
 import languages.scripting.r.core.config;
 import languages.scripting.r.builders.base;
 import languages.scripting.r.tooling.checkers;
@@ -16,14 +15,14 @@ import utils.logging.logger;
 /// Shiny app builder - validates and prepares Shiny applications
 class RShinyBuilder : RBuilder
 {
-    override LanguageBuildResult build(
+    override BuildResult build(
         Target target,
         WorkspaceConfig config,
         RConfig rConfig,
         string rCmd
     )
     {
-        LanguageBuildResult result;
+        BuildResult result;
         
         if (target.sources.empty)
         {

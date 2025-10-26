@@ -1,4 +1,4 @@
-module languages.scripting.ruby.checker;
+module languages.scripting.ruby.tooling.checkers;
 
 import std.stdio;
 import std.process;
@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import languages.scripting.ruby.config;
+import languages.scripting.ruby.core.config;
 import utils.logging.logger;
 
 /// Type check result

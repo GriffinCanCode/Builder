@@ -1,4 +1,4 @@
-module languages.scripting.ruby.config;
+module languages.scripting.ruby.core.config;
 
 import std.json;
 import std.string;
@@ -437,7 +437,7 @@ struct DocConfig
         bool protected_ = true;
         
         /// Template to use
-        string template = "default";
+        string template_ = "default";
         
         /// Additional files to include
         string[] files;
@@ -792,7 +792,7 @@ struct RubyConfig
                 if ("markup" in y) config.documentation.yard.markup = y["markup"].str;
                 if ("private" in y) config.documentation.yard.private_ = y["private"].type == JSONType.true_;
                 if ("protected" in y) config.documentation.yard.protected_ = y["protected"].type == JSONType.true_;
-                if ("template" in y) config.documentation.yard.template = y["template"].str;
+                if ("template" in y) config.documentation.yard.template_ = y["template"].str;
                 
                 if ("files" in y)
                     config.documentation.yard.files = y["files"].array.map!(e => e.str).array;

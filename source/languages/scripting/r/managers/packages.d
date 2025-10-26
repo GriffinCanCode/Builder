@@ -8,6 +8,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.info;
 import utils.logging.logger;
@@ -527,7 +528,7 @@ PackageInstallResult installFromDESCRIPTION(
     }
     
     // Fallback: parse DESCRIPTION and install manually
-    import languages.scripting.r.dependencies : parseDESCRIPTION;
+    import languages.scripting.r.analysis.dependencies : parseDESCRIPTION;
     
     auto deps = parseDESCRIPTION(descPath);
     return installPackages(deps, manager, rCmd, workDir, config);

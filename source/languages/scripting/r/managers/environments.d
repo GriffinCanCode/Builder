@@ -8,6 +8,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.info;
 import utils.logging.logger;

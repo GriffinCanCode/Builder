@@ -1,4 +1,4 @@
-module languages.scripting.ruby.formatters.rubocop;
+module languages.scripting.ruby.tooling.formatters.rubocop;
 
 import std.stdio;
 import std.process;
@@ -8,8 +8,8 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.conv;
-import languages.scripting.ruby.config;
-import languages.scripting.ruby.formatters.base;
+import languages.scripting.ruby.core.config;
+import languages.scripting.ruby.tooling.formatters.base;
 import utils.logging.logger;
 
 /// RuboCop formatter/linter

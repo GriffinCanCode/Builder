@@ -1,4 +1,4 @@
-module languages.scripting.ruby.formatters.base;
+module languages.scripting.ruby.tooling.formatters.base;
 
 import std.stdio;
 import std.process;
@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import languages.scripting.ruby.config;
+import languages.scripting.ruby.core.config;
 import utils.logging.logger;
 
 /// Format/lint result
@@ -64,10 +64,10 @@ class FormatterFactory
             case RubyFormatter.Auto:
                 return detectBest();
             case RubyFormatter.RuboCop:
-                import languages.scripting.ruby.formatters.rubocop;
+                import languages.scripting.ruby.tooling.formatters.rubocop;
                 return new RuboCopFormatter();
             case RubyFormatter.Standard:
-                import languages.scripting.ruby.formatters.standard;
+                import languages.scripting.ruby.tooling.formatters.standard;
                 return new StandardFormatter();
             case RubyFormatter.Reek:
                 return new ReekFormatter();

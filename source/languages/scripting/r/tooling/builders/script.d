@@ -6,8 +6,7 @@ import std.file;
 import std.path;
 import std.string;
 import std.algorithm;
-import languages.base.base : LanguageBuildResult;
-import config.schema.schema : WorkspaceConfig, Target;
+import config.schema.schema;
 import languages.scripting.r.core.config;
 import languages.scripting.r.builders.base;
 import languages.scripting.r.tooling.checkers;
@@ -17,14 +16,14 @@ import utils.logging.logger;
 /// Script builder - creates executable wrappers for R scripts
 class RScriptBuilder : RBuilder
 {
-    override LanguageBuildResult build(
+    override BuildResult build(
         Target target,
         WorkspaceConfig config,
         RConfig rConfig,
         string rCmd
     )
     {
-        LanguageBuildResult result;
+        BuildResult result;
         
         if (target.sources.empty)
         {

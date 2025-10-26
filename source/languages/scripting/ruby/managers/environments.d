@@ -1,4 +1,4 @@
-module languages.scripting.ruby.environments;
+module languages.scripting.ruby.managers.environments;
 
 import std.stdio;
 import std.process;
@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.conv;
-import languages.scripting.ruby.config;
+import languages.scripting.ruby.core.config;
 import utils.logging.logger;
 
 /// Ruby version manager interface

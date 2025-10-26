@@ -1,7 +1,7 @@
-module languages.scripting.ruby.formatters;
+module languages.scripting.ruby.tooling.formatters;
 
-public import languages.scripting.ruby.formatters.base;
-public import languages.scripting.ruby.formatters.rubocop;
-public import languages.scripting.ruby.formatters.standard;
+public import languages.scripting.ruby.tooling.formatters.base;
+public import languages.scripting.ruby.tooling.formatters.rubocop;
+public import languages.scripting.ruby.tooling.formatters.standard;
 
 

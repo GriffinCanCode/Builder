@@ -7,8 +7,7 @@ import std.path;
 import std.string;
 import std.algorithm;
 import std.array;
-import languages.base.base : LanguageBuildResult;
-import config.schema.schema : WorkspaceConfig, Target;
+import config.schema.schema;
 import languages.scripting.r.core.config;
 import languages.scripting.r.builders.base;
 import utils.files.hash;
@@ -17,14 +16,14 @@ import utils.logging.logger;
 /// RMarkdown builder - renders RMarkdown documents
 class RMarkdownBuilder : RBuilder
 {
-    override LanguageBuildResult build(
+    override BuildResult build(
         Target target,
         WorkspaceConfig config,
         RConfig rConfig,
         string rCmd
     )
     {
-        LanguageBuildResult result;
+        BuildResult result;
         
         if (target.sources.empty)
         {

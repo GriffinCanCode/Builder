@@ -1,14 +1,23 @@
 module languages.scripting.r.builders.base;
 
-import languages.base.base : LanguageBuildResult;
-import config.schema.schema : WorkspaceConfig, Target;
+import config.schema.schema;
 import languages.scripting.r.core.config;
+
+/// Build result specific to builders
+struct BuildResult
+{
+    bool success;
+    string error;
+    string[] outputs;
+    string outputHash;
+    string[] toolWarnings;
+}
 
 /// Base interface for R builders
 interface RBuilder
 {
     /// Build the target
-    LanguageBuildResult build(
+    BuildResult build(
         Target target,
         WorkspaceConfig config,
         RConfig rConfig,

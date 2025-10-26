@@ -1,4 +1,4 @@
-module languages.scripting.ruby.builders.gem;
+module languages.scripting.ruby.tooling.builders.gem;
 
 import std.stdio;
 import std.process;
@@ -7,10 +7,10 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import languages.scripting.ruby.config;
-import languages.scripting.ruby.builders.base;
-import languages.scripting.ruby.tools;
-import languages.scripting.ruby.gems;
+import languages.scripting.ruby.core.config;
+import languages.scripting.ruby.tooling.builders.base;
+import languages.scripting.ruby.tooling.info;
+import languages.scripting.ruby.managers.rubygems;
 import languages.base.base;
 import config.schema.schema;
 import analysis.targets.types;

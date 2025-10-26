@@ -1,4 +1,4 @@
-module languages.scripting.ruby.tools;
+module languages.scripting.ruby.tooling.info;
 
 import std.stdio;
 import std.process;
@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import languages.scripting.ruby.config;
+import languages.scripting.ruby.core.config;
 import utils.logging.logger;
 
 /// Ruby tool availability checking and execution
@@ -217,9 +217,9 @@ class DocGenerator
         }
         
         // Template
-        if (!config.yard.template.empty && config.yard.template != "default")
+        if (!config.yard.template_.empty && config.yard.template_ != "default")
         {
-            cmd ~= ["--template", config.yard.template];
+            cmd ~= ["--template", config.yard.template_];
         }
         
         // Visibility

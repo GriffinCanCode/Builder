@@ -1,8 +1,8 @@
-module languages.scripting.ruby.builders;
+module languages.scripting.ruby.tooling.builders;
 
-public import languages.scripting.ruby.builders.base;
-public import languages.scripting.ruby.builders.script;
-public import languages.scripting.ruby.builders.gem;
-public import languages.scripting.ruby.builders.rails;
+public import languages.scripting.ruby.tooling.builders.base;
+public import languages.scripting.ruby.tooling.builders.script;
+public import languages.scripting.ruby.tooling.builders.gem;
+public import languages.scripting.ruby.tooling.builders.rails;
 
 

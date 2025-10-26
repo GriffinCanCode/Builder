@@ -1,4 +1,4 @@
-module languages.scripting.ruby.handler;
+module languages.scripting.ruby.core.handler;
 
 import std.stdio;
 import std.process;
@@ -9,13 +9,12 @@ import std.array;
 import std.conv;
 import std.json;
 import languages.base.base;
-import languages.scripting.ruby.config;
-import languages.scripting.ruby.tools;
-import languages.scripting.ruby.gems;
-import languages.scripting.ruby.environments;
-import languages.scripting.ruby.checker;
-import languages.scripting.ruby.formatters;
-import languages.scripting.ruby.builders;
+import languages.scripting.ruby.core.config;
+import languages.scripting.ruby.tooling.info;
+import languages.scripting.ruby.managers;
+import languages.scripting.ruby.tooling.checkers;
+import languages.scripting.ruby.tooling.formatters;
+import languages.scripting.ruby.tooling.builders;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;

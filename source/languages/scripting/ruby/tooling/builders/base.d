@@ -1,4 +1,4 @@
-module languages.scripting.ruby.builders.base;
+module languages.scripting.ruby.tooling.builders.base;
 
 import std.stdio;
 import std.file;
@@ -6,7 +6,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import languages.base.base;
-import languages.scripting.ruby.config;
+import languages.scripting.ruby.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 
@@ -49,19 +49,19 @@ class BuilderFactory
             case RubyBuildMode.Script:
             case RubyBuildMode.Library:
             case RubyBuildMode.CLI:
-                import languages.scripting.ruby.builders.script;
+                import languages.scripting.ruby.tooling.builders.script;
                 return new ScriptBuilder();
             
             case RubyBuildMode.Gem:
-                import languages.scripting.ruby.builders.gem;
+                import languages.scripting.ruby.tooling.builders.gem;
                 return new GemBuilder();
             
             case RubyBuildMode.Rails:
-                import languages.scripting.ruby.builders.rails;
+                import languages.scripting.ruby.tooling.builders.rails;
                 return new RailsBuilder();
             
             case RubyBuildMode.Rack:
-                import languages.scripting.ruby.builders.script;
+                import languages.scripting.ruby.tooling.builders.script;
                 return new ScriptBuilder(); // Rack apps are similar to scripts
         }
     }
