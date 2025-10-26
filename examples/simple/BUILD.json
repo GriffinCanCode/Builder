@@ -1,0 +1,16 @@
+[
+    {
+        "name": "utils",
+        "type": "library",
+        "language": "python",
+        "sources": ["utils.py"]
+    },
+    {
+        "name": "app",
+        "type": "executable",
+        "language": "python",
+        "sources": ["main.py"],
+        "deps": [":utils"]
+    }
+]
+

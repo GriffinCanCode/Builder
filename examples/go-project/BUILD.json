@@ -1,0 +1,10 @@
+[
+    {
+        "name": "main",
+        "type": "executable",
+        "language": "go",
+        "sources": ["greeter.go", "main.go"],
+        "output": "go-app"
+    }
+]
+

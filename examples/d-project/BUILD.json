@@ -1,0 +1,10 @@
+[
+    {
+        "name": "hello",
+        "type": "executable",
+        "language": "d",
+        "sources": ["hello.d"],
+        "output": "d-hello"
+    }
+]
+

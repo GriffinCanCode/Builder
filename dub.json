@@ -1,0 +1,36 @@
+{
+    "name": "builder",
+    "description": "Build system for mixed-language monorepos with compile-time dependency analysis",
+    "authors": ["Griffin"],
+    "copyright": "Copyright © 2025",
+    "license": "MIT",
+    "targetType": "executable",
+    "targetPath": "bin",
+    "mainSourceFile": "source/app.d",
+    "sourcePaths": ["source"],
+    "importPaths": ["source"],
+    "dependencies": {},
+    "configurations": [
+        {
+            "name": "executable",
+            "targetType": "executable"
+        },
+        {
+            "name": "library",
+            "targetType": "library",
+            "excludedSourceFiles": ["source/app.d"]
+        }
+    ],
+    "buildTypes": {
+        "debug": {
+            "buildOptions": ["debugMode", "debugInfo"]
+        },
+        "release": {
+            "buildOptions": ["releaseMode", "optimize", "inline"]
+        },
+        "release-debug": {
+            "buildOptions": ["releaseMode", "optimize", "debugInfo"]
+        }
+    }
+}
+

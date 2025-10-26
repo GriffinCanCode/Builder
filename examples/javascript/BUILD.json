@@ -1,0 +1,16 @@
+[
+    {
+        "name": "utils",
+        "type": "library",
+        "language": "javascript",
+        "sources": ["utils.js"]
+    },
+    {
+        "name": "app",
+        "type": "executable",
+        "language": "javascript",
+        "sources": ["app.js"],
+        "deps": [":utils"]
+    }
+]
+

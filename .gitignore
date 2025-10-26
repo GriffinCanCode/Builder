@@ -1,0 +1,38 @@
+# D build artifacts
+.dub
+dub.selections.json
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+bin/
+*.lst
+
+
+
+.builder-cache/
+.__pycache__/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build cache
+.builder-cache/
+build/
+dist/
+
+# Logs
+*.log
+
