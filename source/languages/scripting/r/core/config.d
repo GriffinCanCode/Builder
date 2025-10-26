@@ -1,4 +1,4 @@
-module languages.scripting.r.config;
+module languages.scripting.r.core.config;
 
 import std.json;
 import std.string;

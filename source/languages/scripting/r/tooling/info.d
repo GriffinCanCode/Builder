@@ -1,4 +1,4 @@
-module languages.scripting.r.tools;
+module languages.scripting.r.tooling.info;
 
 import std.stdio;
 import std.process;
@@ -7,7 +7,7 @@ import std.algorithm;
 import std.regex;
 import std.conv;
 import std.typecons;
-import languages.scripting.r.config;
+import languages.scripting.r.core.config;
 import utils.logging.logger;
 
 /// R tool availability and version information

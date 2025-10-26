@@ -1,4 +1,4 @@
-module languages.scripting.r.handler;
+module languages.scripting.r.core.handler;
 
 import std.stdio;
 import std.process;
@@ -9,12 +9,12 @@ import std.array;
 import std.json;
 import std.string;
 import languages.base.base;
-import languages.scripting.r.config;
-import languages.scripting.r.tools;
-import languages.scripting.r.packages;
-import languages.scripting.r.environments;
-import languages.scripting.r.checker;
-import languages.scripting.r.dependencies;
+import languages.scripting.r.core.config;
+import languages.scripting.r.tooling.info;
+import languages.scripting.r.managers.packages;
+import languages.scripting.r.managers.environments;
+import languages.scripting.r.tooling.checkers;
+import languages.scripting.r.analysis.dependencies;
 import languages.scripting.r.builders;
 import config.schema.schema;
 import analysis.targets.types;

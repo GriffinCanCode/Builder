@@ -1,4 +1,4 @@
-module languages.scripting.r.dependencies;
+module languages.scripting.r.analysis.dependencies;
 
 import std.stdio;
 import std.file;
@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.regex;
-import languages.scripting.r.config;
+import languages.scripting.r.core.config;
 import utils.logging.logger;
 
 /// Parse dependencies from DESCRIPTION file
@@ -321,7 +321,7 @@ RPackageDep[] scanRFile(string filePath)
         
         // Match library() and require() calls
         // library(pkg) or library("pkg") or library('pkg')
-        auto libraryRegex = regex(r"(?:library|require)\s*\(\s*['\"]?([a-zA-Z0-9.]+)['\"]?\s*\)", "g");
+        auto libraryRegex = regex(`(?:library|require)\s*\(\s*['\"]?([a-zA-Z0-9.]+)['\"]?\s*\)`, "g");
         
         foreach (match; matchAll(content, libraryRegex))
         {
@@ -391,7 +391,7 @@ string getMinimumRVersion(string descPath)
         string content = readText(descPath);
         
         // Look for "Depends: R (>= x.y.z)"
-        auto rVersionRegex = regex(r"Depends:.*\bR\s*\(>=?\s*([\d.]+)\)", "m");
+        auto rVersionRegex = regex(`Depends:.*\bR\s*\(>=?\s*([\d.]+)\)`, "m");
         auto match = matchFirst(content, rVersionRegex);
         
         if (!match.empty)
@@ -418,7 +418,7 @@ string getPackageVersion(string descPath)
         string content = readText(descPath);
         
         // Look for "Version: x.y.z"
-        auto versionRegex = regex(r"Version:\s*([\d.]+)", "m");
+        auto versionRegex = regex(`Version:\s*([\d.]+)`, "m");
         auto match = matchFirst(content, versionRegex);
         
         if (!match.empty)
@@ -498,24 +498,24 @@ PackageMetadata getPackageMetadata(string descPath)
         metadata.rVersion = getMinimumRVersion(descPath);
         
         // Parse title
-        auto titleMatch = matchFirst(content, regex(r"Title:\s*([^\n]+)", "m"));
+        auto titleMatch = matchFirst(content, regex(`Title:\s*([^\n]+)`, "m"));
         if (!titleMatch.empty)
             metadata.title = titleMatch[1].strip();
         
         // Parse description (can be multi-line)
-        auto descMatch = matchFirst(content, regex(r"Description:\s*([^\n]*(?:\n\s+[^\n]+)*)", "m"));
+        auto descMatch = matchFirst(content, regex(`Description:\s*([^\n]*(?:\n\s+[^\n]+)*)`, "m"));
         if (!descMatch.empty)
         {
             metadata.description = descMatch[1].replaceAll(regex(r"\s+"), " ").strip();
         }
         
         // Parse license
-        auto licenseMatch = matchFirst(content, regex(r"License:\s*([^\n]+)", "m"));
+        auto licenseMatch = matchFirst(content, regex(`License:\s*([^\n]+)`, "m"));
         if (!licenseMatch.empty)
             metadata.license = licenseMatch[1].strip();
         
         // Parse maintainer
-        auto maintainerMatch = matchFirst(content, regex(r"Maintainer:\s*([^\n]+)", "m"));
+        auto maintainerMatch = matchFirst(content, regex(`Maintainer:\s*([^\n]+)`, "m"));
         if (!maintainerMatch.empty)
             metadata.maintainer = maintainerMatch[1].strip();
         

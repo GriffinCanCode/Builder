@@ -1,4 +1,4 @@
-module languages.scripting.r.checker;
+module languages.scripting.r.tooling.checkers;
 
 import std.stdio;
 import std.process;
@@ -8,8 +8,8 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.json;
-import languages.scripting.r.config;
-import languages.scripting.r.tools;
+import languages.scripting.r.core.config;
+import languages.scripting.r.tooling.info;
 import utils.logging.logger;
 
 /// Lint result

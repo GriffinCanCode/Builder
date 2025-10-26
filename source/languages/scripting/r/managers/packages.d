@@ -1,4 +1,4 @@
-module languages.scripting.r.packages;
+module languages.scripting.r.managers.packages;
 
 import std.stdio;
 import std.process;
@@ -8,8 +8,8 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.json;
-import languages.scripting.r.config;
-import languages.scripting.r.tools;
+import languages.scripting.r.core.config;
+import languages.scripting.r.tooling.info;
 import utils.logging.logger;
 
 /// Result of package installation
@@ -185,8 +185,8 @@ private PackageInstallResult installWithInstallPackages(
             string installCmd;
             if (pkg.repository == RRepository.GitHub)
             {
-                string ref = pkg.gitRef.empty ? "" : `@ref="` ~ pkg.gitRef ~ `"`;
-                installCmd = `remotes::install_github("` ~ pkg.customUrl ~ `"` ~ ref ~ `)`;
+                string refStr = pkg.gitRef.empty ? "" : `@ref="` ~ pkg.gitRef ~ `"`;
+                installCmd = `remotes::install_github("` ~ pkg.customUrl ~ `"` ~ refStr ~ `)`;
             }
             else // GitLab
             {
@@ -456,8 +456,8 @@ private PackageInstallResult installWithRemotes(
                 installCmd = `remotes::install_bioc("` ~ pkg.name ~ `")`;
                 break;
             case RRepository.GitHub:
-                string ref = pkg.gitRef.empty ? "" : `, ref="` ~ pkg.gitRef ~ `"`;
-                installCmd = `remotes::install_github("` ~ pkg.customUrl ~ `"` ~ ref ~ `)`;
+                string refParam = pkg.gitRef.empty ? "" : `, ref="` ~ pkg.gitRef ~ `"`;
+                installCmd = `remotes::install_github("` ~ pkg.customUrl ~ `"` ~ refParam ~ `)`;
                 break;
             case RRepository.GitLab:
                 installCmd = `remotes::install_gitlab("` ~ pkg.customUrl ~ `")`;

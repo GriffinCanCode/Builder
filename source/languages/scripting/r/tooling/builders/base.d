@@ -2,7 +2,7 @@ module languages.scripting.r.builders.base;
 
 import languages.base.base : LanguageBuildResult;
 import config.schema.schema : WorkspaceConfig, Target;
-import languages.scripting.r.config;
+import languages.scripting.r.core.config;
 
 /// Base interface for R builders
 interface RBuilder

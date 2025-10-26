@@ -8,9 +8,9 @@ import std.string;
 import std.algorithm;
 import languages.base.base : LanguageBuildResult;
 import config.schema.schema : WorkspaceConfig, Target;
-import languages.scripting.r.config;
+import languages.scripting.r.core.config;
 import languages.scripting.r.builders.base;
-import languages.scripting.r.checker;
+import languages.scripting.r.tooling.checkers;
 import utils.files.hash;
 import utils.logging.logger;
 
