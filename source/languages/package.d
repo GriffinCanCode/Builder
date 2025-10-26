@@ -19,7 +19,7 @@ module languages;
 ///   swift.d      - Swift language support
 ///   kotlin.d     - Kotlin language support
 ///   scala.d      - Scala language support
-///   elixir.d     - Elixir language support
+///   elixir/      - Elixir language support (modular - scripts, Mix, Phoenix, Umbrella, Escript, Nerves)
 ///   lua.d        - Lua language support
 ///   nim.d        - Nim language support
 ///   zig.d        - Zig language support

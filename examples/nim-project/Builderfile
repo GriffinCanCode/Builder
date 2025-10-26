@@ -1,10 +1,65 @@
-// Nim project Builderfile
+// Nim project Builderfile demonstrating modular Nim language support
 
+// Basic executable
 target("nim-app") {
     type: executable;
     language: nim;
     sources: ["main.nim"];
-    flags: ["-d:release"];
     output: "nim-app";
 }
 
+// Optimized release build with all the bells and whistles
+target("nim-app-release") {
+    type: executable;
+    language: nim;
+    sources: ["main.nim"];
+    langConfig: {
+        "nim": "{
+            \"release\": true,
+            \"optimize\": \"speed\",
+            \"gc\": \"orc\",
+            \"backend\": \"c\",
+            \"output\": \"nim-app-opt\"
+        }"
+    };
+}
+
+// JavaScript backend example
+target("nim-js") {
+    type: executable;
+    language: nim;
+    sources: ["main.nim"];
+    langConfig: {
+        "nim": "{
+            \"backend\": \"js\",
+            \"output\": \"app.js\"
+        }"
+    };
+}
+
+// Static library
+target("nim-lib") {
+    type: library;
+    language: nim;
+    sources: ["main.nim"];
+    langConfig: {
+        "nim": "{
+            \"appType\": \"staticlib\",
+            \"release\": true,
+            \"optimize\": \"size\"
+        }"
+    };
+}
+
+// Check only (no compilation)
+target("nim-check") {
+    type: custom;
+    language: nim;
+    sources: ["main.nim"];
+    langConfig: {
+        "nim": "{
+            \"mode\": \"check\",
+            \"runFormat\": true
+        }"
+    };
+}
