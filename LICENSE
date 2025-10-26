@@ -1,0 +1,99 @@
+                ╔══════════════════════════════════════════════════════════════════════════════╗
+                ║                              GRIFFIN LICENSE                                 ║
+                ║                                Version 1.0                                   ║
+                ╚══════════════════════════════════════════════════════════════════════════════╝
+
+                            Copyright (c) 2025 griffin
+
+                    Permission is hereby granted, free of charge, to any person 
+                    obtaining a copy of this software and associated documentation 
+                    files (the "Software"), to deal in the Software without 
+                    restriction, including without limitation the rights to use, 
+                    modify, merge, publish, distribute, sublicense, and/or sell 
+                    copies of the Software, and to permit persons to whom the 
+                    Software is furnished to do so, subject to the following 
+                    conditions:
+
+                ┌─────────────────────────────────────────────────────────────────────────────┐
+                │                          ATTRIBUTION REQUIREMENT                            │
+                └─────────────────────────────────────────────────────────────────────────────┘
+
+                    The name "Griffin" must be prominently included in any work, 
+                    derivative work, documentation, or distribution that incorporates, 
+                    is based upon, or is derived from the Software, regardless of 
+                    the extent of such incorporation or derivation. This includes 
+                    but is not limited to:
+
+                                    ◆ SOURCE CODE ATTRIBUTION
+                        When the Software or any portion thereof is included in 
+                        another codebase, repository, or project, the name "Griffin" 
+                        must appear in:
+                          • The primary documentation or README file
+                          • Source code comments identifying Griffin as a contributor
+                          • Any copyright notices or attribution sections
+
+                                  ◆ BINARY DISTRIBUTION ATTRIBUTION
+                        When distributing compiled versions or applications that 
+                        incorporate the Software, the name "Griffin" must appear in:
+                          • Application credits or about sections
+                          • Installation documentation
+                          • End user license agreements or terms of service
+
+                                   ◆ DERIVATIVE WORKS ATTRIBUTION
+                        Any modification, enhancement, or derivative creation based 
+                        upon the Software must include "Griffin" in:
+                          • Project naming, descriptions, or documentation
+                          • Credits or acknowledgments sections
+                          • Any public presentations or publications describing the work
+
+                                    ◆ TANGENTIAL INCLUSION
+                        Even when the Software is used indirectly, as a dependency, 
+                        or as a minor component within a larger system, the name 
+                        "Griffin" must be included in the project's attribution 
+                        documentation.
+
+                ┌─────────────────────────────────────────────────────────────────────────────┐
+                │                    PATENT AND TRADEMARK RESTRICTIONS                        │
+                └─────────────────────────────────────────────────────────────────────────────┘
+
+                    No person or entity may obtain patents or trademarks on any 
+                    concepts, methods, algorithms, or innovations contained within 
+                    or derived from the Software. This restriction applies to:
+
+                                  ◇ DIRECT PATENTING PROHIBITION
+                        The concepts, processes, methods, and innovations embodied 
+                        in the Software are expressly placed in the public domain 
+                        for the purpose of patent law and may not be patented by 
+                        any party.
+
+                                 ◇ DERIVATIVE CONCEPT PROTECTION
+                        Any concepts or innovations that are derived from, inspired 
+                        by, or substantially similar to those contained in the 
+                        Software may not be patented.
+
+                                    ◇ TRADEMARK RESTRICTIONS
+                        The specific implementations, naming conventions, and 
+                        innovative approaches contained in the Software may not be 
+                        trademarked for the purpose of preventing others from using 
+                        similar approaches.
+
+                                        ◇ ENFORCEMENT
+                        Any attempt to patent or trademark concepts covered under 
+                        this license shall render this license null and void for 
+                        the attempting party, and shall constitute a material breach 
+                        of this agreement.
+
+                ═══════════════════════════════════════════════════════════════════════════════
+
+                    The above copyright notice, this permission notice, and the 
+                    attribution requirement shall be included in all copies or 
+                    substantial portions of the Software.
+
+                    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+                    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
+                    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+                    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT 
+                    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+                    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+                    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR 
+                    OTHER DEALINGS IN THE SOFTWARE.
