@@ -27,6 +27,7 @@ enum TargetLanguage
     Java,
     Kotlin,
     CSharp,
+    FSharp,
     Zig,
     Swift,
     Ruby,
@@ -36,6 +37,7 @@ enum TargetLanguage
     Nim,
     Lua,
     R,
+    CSS,
     Generic
 }
 

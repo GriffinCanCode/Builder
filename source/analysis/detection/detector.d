@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import config.schema.schema;
+import utils.files.ignore;
 import utils.logging.logger;
 
 /// Language detection result
@@ -75,12 +76,6 @@ struct ProjectMetadata
 class ProjectDetector
 {
     private string projectDir;
-    private immutable string[] commonIgnoreDirs = [
-        ".git", ".svn", ".hg",
-        "node_modules", "__pycache__", ".pytest_cache",
-        "target", "build", "dist", "out", "bin",
-        ".builder-cache", ".cache"
-    ];
     
     this(string projectDir)
     {
@@ -137,8 +132,9 @@ class ProjectDetector
             {
                 immutable name = baseName(entry.name);
                 
-                // Skip ignored directories
-                if (entry.isDir && commonIgnoreDirs.canFind(name))
+                // Skip ignored directories using centralized ignore registry
+                // This prevents scanning dependency folders like node_modules, venv, etc.
+                if (entry.isDir && IgnoreRegistry.shouldIgnoreDirectoryAny(entry.name))
                     continue;
                 
                 if (entry.isFile)

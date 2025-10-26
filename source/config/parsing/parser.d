@@ -11,6 +11,7 @@ import std.json;
 import config.schema.schema;
 import config.interpretation.dsl;
 import config.workspace.workspace;
+import analysis.detection.inference;
 import utils.logging.logger;
 import utils.files.glob;
 import errors;
@@ -33,44 +34,93 @@ class ConfigParser
         
         // Find all Builderfile files
         auto buildFiles = findBuildFiles(root);
-        Logger.debug_("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
         
-        // Parse each Builderfile with error aggregation
-        auto aggregated = aggregateFlatMap(
-            buildFiles,
-            (string buildFile) => parseBuildFile(buildFile, root),
-            policy
-        );
-        
-        // Log results
-        if (aggregated.hasErrors)
+        // Zero-config mode: infer targets if no Builderfiles found
+        if (buildFiles.empty)
         {
-            Logger.warning(
-                "Failed to parse " ~ aggregated.errors.length.to!string ~
-                " Builderfile file(s)"
-            );
+            Logger.info("No Builderfile found - attempting zero-config inference...");
             
-            // Log each error with full context
-            import errors.formatting.format : format;
-            foreach (error; aggregated.errors)
+            try
             {
-                Logger.error(format(error));
+                auto inference = new TargetInference(root);
+                config.targets = inference.inferTargets();
+                
+                if (config.targets.empty)
+                {
+                    auto error = new ParseError(root, 
+                        "No Builderfile found and no targets could be inferred", 
+                        ErrorCode.ParseFailed);
+                    error.addContext(ErrorContext("workspace initialization", 
+                        "Run 'builder init' to create a Builderfile"));
+                    return Err!(WorkspaceConfig, BuildError)(error);
+                }
+                
+                Logger.success("Zero-config mode: inferred " ~ 
+                    config.targets.length.to!string ~ " target(s)");
+            }
+            catch (Exception e)
+            {
+                auto error = new ParseError(root, 
+                    "Failed to infer targets: " ~ e.msg, 
+                    ErrorCode.ParseFailed);
+                return Err!(WorkspaceConfig, BuildError)(error);
             }
         }
-        
-        if (aggregated.hasSuccesses)
+        else
         {
-            config.targets = aggregated.successes;
-            Logger.debug_(
-                "Successfully parsed " ~ aggregated.successes.length.to!string ~
-                " target(s) from " ~ buildFiles.length.to!string ~ " Builderfile file(s)"
+            Logger.debug_("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
+            
+            // Parse each Builderfile with error aggregation
+            auto aggregated = aggregateFlatMap(
+                buildFiles,
+                (string buildFile) => parseBuildFile(buildFile, root),
+                policy
             );
-        }
-        
-        // If policy is fail-fast and we have errors, return early
-        if (policy == AggregationPolicy.FailFast && aggregated.hasErrors)
-        {
-            return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
+            
+            // Log results
+            if (aggregated.hasErrors)
+            {
+                Logger.warning(
+                    "Failed to parse " ~ aggregated.errors.length.to!string ~
+                    " Builderfile file(s)"
+                );
+                
+                // Log each error with full context
+                import errors.formatting.format : format;
+                foreach (error; aggregated.errors)
+                {
+                    Logger.error(format(error));
+                }
+            }
+            
+            if (aggregated.hasSuccesses)
+            {
+                config.targets = aggregated.successes;
+                Logger.debug_(
+                    "Successfully parsed " ~ aggregated.successes.length.to!string ~
+                    " target(s) from " ~ buildFiles.length.to!string ~ " Builderfile file(s)"
+                );
+            }
+            
+            // If policy is fail-fast and we have errors, return early
+            if (policy == AggregationPolicy.FailFast && aggregated.hasErrors)
+            {
+                return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
+            }
+            
+            // For zero-config mode check after parsing
+            // Return success if we have at least one target or no errors
+            // This allows partial success: some Builderfile files failed but others succeeded
+            if (aggregated.hasSuccesses || !aggregated.hasErrors)
+            {
+                return Ok!(WorkspaceConfig, BuildError)(config);
+            }
+            
+            // Complete failure - no targets parsed and we have errors
+            if (aggregated.hasErrors)
+            {
+                return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
+            }
         }
         
         // Load workspace config if exists
@@ -100,15 +150,14 @@ class ConfigParser
             }
         }
         
-        // Return success if we have at least one target or no errors
-        // This allows partial success: some Builderfile files failed but others succeeded
-        if (aggregated.hasSuccesses || !aggregated.hasErrors)
+        // For zero-config mode, we already have targets  
+        if (buildFiles.empty && !config.targets.empty)
         {
             return Ok!(WorkspaceConfig, BuildError)(config);
         }
         
-        // Complete failure - no targets parsed and we have errors
-        return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
+        // Should not reach here, but provide a fallback
+        return Ok!(WorkspaceConfig, BuildError)(config);
     }
     
     /// Find all Builderfile files in directory tree
@@ -229,6 +278,19 @@ class ConfigParser
             case "c++": case "cpp": return TargetLanguage.Cpp;
             case "c": return TargetLanguage.C;
             case "java": return TargetLanguage.Java;
+            case "kotlin": case "kt": return TargetLanguage.Kotlin;
+            case "csharp": case "cs": case "c#": return TargetLanguage.CSharp;
+            case "fsharp": case "fs": case "f#": return TargetLanguage.FSharp;
+            case "zig": return TargetLanguage.Zig;
+            case "swift": return TargetLanguage.Swift;
+            case "ruby": case "rb": return TargetLanguage.Ruby;
+            case "php": return TargetLanguage.PHP;
+            case "scala": return TargetLanguage.Scala;
+            case "elixir": case "ex": return TargetLanguage.Elixir;
+            case "nim": return TargetLanguage.Nim;
+            case "lua": return TargetLanguage.Lua;
+            case "r": return TargetLanguage.R;
+            case "css": return TargetLanguage.CSS;
             default: return TargetLanguage.Generic;
         }
     }
@@ -245,13 +307,26 @@ class ConfigParser
         {
             case ".d": return TargetLanguage.D;
             case ".py": return TargetLanguage.Python;
-            case ".js": return TargetLanguage.JavaScript;
-            case ".ts": return TargetLanguage.TypeScript;
+            case ".js": case ".jsx": case ".mjs": return TargetLanguage.JavaScript;
+            case ".ts": case ".tsx": return TargetLanguage.TypeScript;
             case ".go": return TargetLanguage.Go;
             case ".rs": return TargetLanguage.Rust;
-            case ".cpp": case ".cc": case ".cxx": return TargetLanguage.Cpp;
-            case ".c": return TargetLanguage.C;
+            case ".cpp": case ".cc": case ".cxx": case ".c++": case ".hpp": case ".hxx": return TargetLanguage.Cpp;
+            case ".c": case ".h": return TargetLanguage.C;
             case ".java": return TargetLanguage.Java;
+            case ".kt": case ".kts": return TargetLanguage.Kotlin;
+            case ".cs": return TargetLanguage.CSharp;
+            case ".fs": case ".fsi": case ".fsx": return TargetLanguage.FSharp;
+            case ".zig": return TargetLanguage.Zig;
+            case ".swift": return TargetLanguage.Swift;
+            case ".rb": return TargetLanguage.Ruby;
+            case ".php": return TargetLanguage.PHP;
+            case ".scala": case ".sc": return TargetLanguage.Scala;
+            case ".ex": case ".exs": return TargetLanguage.Elixir;
+            case ".nim": return TargetLanguage.Nim;
+            case ".lua": return TargetLanguage.Lua;
+            case ".r": case ".R": return TargetLanguage.R;
+            case ".css": case ".scss": case ".sass": case ".less": return TargetLanguage.CSS;
             default: return TargetLanguage.Generic;
         }
     }

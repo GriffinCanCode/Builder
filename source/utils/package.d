@@ -6,6 +6,7 @@ module utils;
 /// Architecture:
 ///   glob.d      - Glob pattern matching
 ///   hash.d      - File hashing and checksums (now uses BLAKE3)
+///   ignore.d    - Ignore patterns for dependency and build directories
 ///   parallel.d  - Parallel processing utilities
 ///   pool.d      - Thread pool implementation
 ///   chunking.d  - File chunking utilities
@@ -32,6 +33,7 @@ module utils;
 
 public import utils.files.glob;
 public import utils.files.hash;
+public import utils.files.ignore;
 public import utils.concurrency.parallel;
 public import utils.concurrency.pool;
 public import utils.concurrency.simd;

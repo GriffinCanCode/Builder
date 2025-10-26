@@ -10,6 +10,7 @@ import std.regex;
 import std.range;
 import std.parallelism;
 import core.sync.mutex;
+import utils.files.ignore;
 
 /// Result of glob matching
 struct GlobResult
@@ -140,7 +141,11 @@ class GlobMatcher
                 {
                     if (entry.isDir)
                     {
-                        directories ~= entry.name;
+                        // Skip ignored directories to avoid scanning dependency folders
+                        if (!IgnoreRegistry.shouldIgnoreDirectoryAny(entry.name))
+                        {
+                            directories ~= entry.name;
+                        }
                     }
                 }
             }

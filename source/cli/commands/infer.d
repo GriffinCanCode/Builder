@@ -3,6 +3,8 @@ module cli.commands.infer;
 import std.stdio;
 import std.path;
 import std.conv;
+import std.range;
+import std.algorithm;
 import analysis.detection.inference;
 import analysis.detection.templates;
 import analysis.detection.detector;

@@ -1,0 +1,72 @@
+# Builder Ignore File
+# Patterns listed here will be ignored during source scanning and target detection
+# Syntax is similar to .gitignore
+
+# Version control
+.git/
+.svn/
+.hg/
+
+# Builder's own cache
+.builder-cache/
+
+# Language-specific dependency directories
+# (These are automatically handled, but you can add custom ones)
+
+# JavaScript/Node.js
+node_modules/
+bower_components/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Ruby
+vendor/bundle/
+
+# Go
+vendor/
+
+# Rust
+target/
+
+# Java/Kotlin/Scala
+.gradle/
+.m2/
+target/
+build/
+
+# C#/F#
+bin/
+obj/
+packages/
+
+# Build outputs
+dist/
+out/
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# IDE directories
+.idea/
+.vscode/
+.vs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Custom patterns
+# Add your own patterns below:
+
