@@ -1,7 +1,7 @@
-module languages.scripting.typescript.bundlers.base;
+module languages.scripting.typescript.tooling.bundlers.base;
 
 import std.array;
-import languages.scripting.typescript.config;
+import languages.scripting.typescript.core.config;
 import config.schema.schema;
 
 /// Base interface for TypeScript compilers/bundlers
@@ -34,9 +34,9 @@ class TSBundlerFactory
     /// Create bundler based on type
     static TSBundler create(TSCompiler type, TSConfig config)
     {
-        import languages.scripting.typescript.bundlers.tsc;
-        import languages.scripting.typescript.bundlers.swc;
-        import languages.scripting.typescript.bundlers.esbuild;
+        import languages.scripting.typescript.tooling.bundlers.tsc;
+        import languages.scripting.typescript.tooling.bundlers.swc;
+        import languages.scripting.typescript.tooling.bundlers.esbuild;
         
         final switch (type)
         {
@@ -56,9 +56,9 @@ class TSBundlerFactory
     /// Auto-detect best available bundler
     private static TSBundler createAuto(TSConfig config)
     {
-        import languages.scripting.typescript.bundlers.tsc;
-        import languages.scripting.typescript.bundlers.swc;
-        import languages.scripting.typescript.bundlers.esbuild;
+        import languages.scripting.typescript.tooling.bundlers.tsc;
+        import languages.scripting.typescript.tooling.bundlers.swc;
+        import languages.scripting.typescript.tooling.bundlers.esbuild;
         
         // For library mode with declarations, prefer tsc (most accurate)
         if (config.mode == TSBuildMode.Library && config.declaration)
@@ -96,7 +96,7 @@ class NullTSBundler : TSBundler
         WorkspaceConfig workspace
     )
     {
-        import languages.scripting.typescript.checker;
+        import languages.scripting.typescript.tooling.checker;
         import utils.files.hash : FastHash;
         
         TSCompileResult result;
@@ -121,7 +121,7 @@ class NullTSBundler : TSBundler
     
     bool isAvailable()
     {
-        import languages.scripting.typescript.checker;
+        import languages.scripting.typescript.tooling.checker;
         return TypeChecker.isTSCAvailable();
     }
     
@@ -132,7 +132,7 @@ class NullTSBundler : TSBundler
     
     string getVersion()
     {
-        import languages.scripting.typescript.checker;
+        import languages.scripting.typescript.tooling.checker;
         return TypeChecker.getTSCVersion();
     }
     

@@ -1,4 +1,4 @@
-module languages.scripting.typescript.checker;
+module languages.scripting.typescript.tooling.checker;
 
 import std.process;
 import std.file;
@@ -8,7 +8,7 @@ import std.array;
 import std.json;
 import std.string;
 import std.conv;
-import languages.scripting.typescript.config;
+import languages.scripting.typescript.core.config;
 import utils.logging.logger;
 
 /// Type checking result

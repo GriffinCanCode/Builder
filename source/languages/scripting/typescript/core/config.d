@@ -1,4 +1,4 @@
-module languages.scripting.typescript.config;
+module languages.scripting.typescript.core.config;
 
 import std.json;
 import std.string;

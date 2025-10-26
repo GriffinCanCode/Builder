@@ -1,4 +1,4 @@
-module languages.scripting.typescript.handler;
+module languages.scripting.typescript.core.handler;
 
 import std.stdio;
 import std.process;
@@ -9,9 +9,9 @@ import std.array;
 import std.json;
 import std.string;
 import languages.base.base;
-import languages.scripting.typescript.config;
-import languages.scripting.typescript.checker;
-import languages.scripting.typescript.bundlers;
+import languages.scripting.typescript.core.config;
+import languages.scripting.typescript.tooling.checker;
+import languages.scripting.typescript.tooling.bundlers;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;

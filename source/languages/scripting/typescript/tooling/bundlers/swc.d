@@ -1,8 +1,8 @@
-module languages.scripting.typescript.bundlers.swc;
+module languages.scripting.typescript.tooling.bundlers.swc;
 
-import languages.scripting.typescript.bundlers.base;
-import languages.scripting.typescript.config;
-import languages.scripting.typescript.checker;
+import languages.scripting.typescript.tooling.bundlers.base;
+import languages.scripting.typescript.core.config;
+import languages.scripting.typescript.tooling.checker;
 import config.schema.schema;
 import std.process;
 import std.path;
