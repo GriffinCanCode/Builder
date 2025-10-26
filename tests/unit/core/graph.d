@@ -98,9 +98,8 @@ unittest
     // Create cycle: a -> b -> a
     graph.addDependency("a", "b");
     
-    Assert.throws!Exception({
-        graph.addDependency("b", "a");
-    });
+    void addCycle() { graph.addDependency("b", "a"); }
+    Assert.throws!Exception(addCycle());
     
     writeln("\x1b[32m  ✓ Cycle detection prevents circular dependencies\x1b[0m");
 }

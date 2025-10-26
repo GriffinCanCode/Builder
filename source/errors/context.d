@@ -2,6 +2,7 @@ module errors.context;
 
 import std.conv;
 import std.datetime;
+import std.array : empty;
 
 /// Error context entry - represents one layer in the error chain
 struct ErrorContext

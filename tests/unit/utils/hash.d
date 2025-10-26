@@ -15,10 +15,10 @@ unittest
     
     // Create file and hash it
     auto filePath = buildPath(tempDir.getPath(), "test.txt");
-    write(filePath, "Hello, World!");
+    std.file.write(filePath, "Hello, World!");
     
-    auto hash1 = computeHash(filePath);
-    auto hash2 = computeHash(filePath);
+    auto hash1 = FastHash.hashFile(filePath);
+    auto hash2 = FastHash.hashFile(filePath);
     
     Assert.equal(hash1, hash2);
     Assert.notEmpty([hash1]);
@@ -35,11 +35,11 @@ unittest
     auto file1 = buildPath(tempDir.getPath(), "file1.txt");
     auto file2 = buildPath(tempDir.getPath(), "file2.txt");
     
-    write(file1, "Content A");
-    write(file2, "Content B");
+    std.file.write(file1, "Content A");
+    std.file.write(file2, "Content B");
     
-    auto hash1 = computeHash(file1);
-    auto hash2 = computeHash(file2);
+    auto hash1 = FastHash.hashFile(file1);
+    auto hash2 = FastHash.hashFile(file2);
     
     Assert.notEqual(hash1, hash2);
     
@@ -53,18 +53,18 @@ unittest
     auto tempDir = scoped(new TempDir("hash-test"));
     
     auto filePath = buildPath(tempDir.getPath(), "mutable.txt");
-    write(filePath, "Original");
-    auto hashBefore = computeHash(filePath);
+    std.file.write(filePath, "Original");
+    auto hashBefore = FastHash.hashFile(filePath);
     
     // Modify file
-    write(filePath, "Modified");
-    auto hashAfter = computeHash(filePath);
+    std.file.write(filePath, "Modified");
+    auto hashAfter = FastHash.hashFile(filePath);
     
     Assert.notEqual(hashBefore, hashAfter);
     
     // Restore content
-    write(filePath, "Original");
-    auto hashRestored = computeHash(filePath);
+    std.file.write(filePath, "Original");
+    auto hashRestored = FastHash.hashFile(filePath);
     
     Assert.equal(hashBefore, hashRestored);
     
@@ -78,9 +78,9 @@ unittest
     auto tempDir = scoped(new TempDir("hash-test"));
     
     auto emptyFile = buildPath(tempDir.getPath(), "empty.txt");
-    write(emptyFile, "");
+    std.file.write(emptyFile, "");
     
-    auto hash = computeHash(emptyFile);
+    auto hash = FastHash.hashFile(emptyFile);
     Assert.notEmpty([hash]); // Should still produce a hash
     
     writeln("\x1b[32m  ✓ Empty file produces valid hash\x1b[0m");

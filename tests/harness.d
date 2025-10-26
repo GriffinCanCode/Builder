@@ -7,6 +7,8 @@ import std.array;
 import std.conv;
 import std.traits;
 import std.meta;
+import std.format;
+import std.range;
 
 /// Test result status
 enum TestStatus
@@ -25,7 +27,7 @@ struct TestResult
     TestStatus status;
     string message;
     Duration duration;
-    SourceLocation location;
+    TestSourceLocation location;
     
     bool passed() const pure nothrow
     {
@@ -34,7 +36,7 @@ struct TestResult
 }
 
 /// Source location for test failures
-struct SourceLocation
+struct TestSourceLocation
 {
     string file;
     size_t line;
@@ -75,12 +77,12 @@ struct TestStats
 /// Test assertion exception
 class AssertionError : Exception
 {
-    SourceLocation location;
+    TestSourceLocation location;
     
     this(string msg, string file = __FILE__, size_t line = __LINE__)
     {
         super(msg);
-        location = SourceLocation(file, line);
+        location = TestSourceLocation(file, line);
     }
 }
 
@@ -297,13 +299,13 @@ struct Assert
             expr();
             throw new AssertionError("Expected exception was not thrown", file, line);
         }
-        catch (E e)
-        {
-            // Expected exception caught
-        }
         catch (AssertionError e)
         {
             throw e;
+        }
+        catch (E e)
+        {
+            // Expected exception caught
         }
         catch (Throwable t)
         {

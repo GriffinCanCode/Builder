@@ -5,6 +5,8 @@ import std.array;
 import config.schema;
 import core.graph;
 import languages.base;
+import errors;
+import analysis.types;
 
 /// Mock build node for testing
 class MockBuildNode
@@ -36,19 +38,28 @@ class MockLanguageHandler : LanguageHandler
     bool buildCalled;
     bool needsRebuildValue;
     string[] outputPaths;
-    LanguageBuildResult buildResult;
+    bool shouldSucceed = true;
+    string outputHash = "mock-hash";
+    string errorMessage = "Mock build failed";
     
     this(bool shouldRebuild = true)
     {
         needsRebuildValue = shouldRebuild;
-        buildResult.success = true;
-        buildResult.message = "Mock build successful";
     }
     
-    override LanguageBuildResult build(Target target, WorkspaceConfig config)
+    override Result!(string, BuildError) build(Target target, WorkspaceConfig config)
     {
         buildCalled = true;
-        return buildResult;
+        
+        if (shouldSucceed)
+        {
+            return Ok!(string, BuildError)(outputHash);
+        }
+        else
+        {
+            auto error = new BuildFailureError(target.name, errorMessage);
+            return Err!(string, BuildError)(error);
+        }
     }
     
     override bool needsRebuild(Target target, WorkspaceConfig config)
@@ -64,6 +75,12 @@ class MockLanguageHandler : LanguageHandler
     override string[] getOutputs(Target target, WorkspaceConfig config)
     {
         return outputPaths;
+    }
+    
+    override Import[] analyzeImports(string[] sources)
+    {
+        // Mock implementation - return empty array
+        return [];
     }
     
     void reset()

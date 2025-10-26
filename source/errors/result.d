@@ -151,19 +151,170 @@ Result!(T, E) Err(T, E)(E error)
     return Result!(T, E).err(error);
 }
 
-/// Void result type (for operations that don't return a value)
-alias VoidResult(E) = Result!(void, E);
+/// Specialized Result for void type (operations that don't return a value)
+/// This specialization is necessary because void cannot be stored in unions or fields
+struct Result(E) if (is(E))
+{
+    private bool _isOk;
+    private E _error;
+    
+    /// Create a successful void result
+    static Result ok()
+    {
+        Result r;
+        r._isOk = true;
+        return r;
+    }
+    
+    /// Create an error result
+    static Result err(E error)
+    {
+        Result r;
+        r._isOk = false;
+        r._error = error;
+        return r;
+    }
+    
+    /// Check if result is Ok
+    @property bool isOk() const pure nothrow @nogc
+    {
+        return _isOk;
+    }
+    
+    /// Check if result is Err
+    @property bool isErr() const pure nothrow @nogc
+    {
+        return !_isOk;
+    }
+    
+    /// Unwrap (throws if error, returns void if ok)
+    void unwrap()
+    {
+        if (!_isOk)
+        {
+            static if (is(typeof(_error.toString()) : string))
+                throw new Exception("Called unwrap on an error: " ~ _error.toString());
+            else
+                throw new Exception("Called unwrap on an error");
+        }
+    }
+    
+    /// Get error (throws if ok)
+    E unwrapErr()
+    {
+        if (_isOk)
+            throw new Exception("Called unwrapErr on an Ok value");
+        return _error;
+    }
+    
+    /// Map success to new type (delegate takes no parameters)
+    Result!(U, E) map(U)(U delegate() fn)
+    {
+        if (_isOk)
+            return Result!(U, E).ok(fn());
+        else
+            return Result!(U, E).err(_error);
+    }
+    
+    /// Map to another void result (delegate takes no parameters)
+    Result!E map()(void delegate() fn)
+    {
+        if (_isOk)
+        {
+            fn();
+            return Result!E.ok();
+        }
+        else
+            return Result!E.err(_error);
+    }
+    
+    /// Map error to new type
+    Result!F mapErr(F)(F delegate(E) fn)
+    {
+        if (_isOk)
+            return Result!F.ok();
+        else
+            return Result!F.err(fn(_error));
+    }
+    
+    /// Chain operations (flatMap/bind) - delegate takes no parameters
+    Result!(U, E) andThen(U)(Result!(U, E) delegate() fn)
+    {
+        if (_isOk)
+            return fn();
+        else
+            return Result!(U, E).err(_error);
+    }
+    
+    /// Chain to another void result - delegate takes no parameters
+    Result!E andThen()(Result!E delegate() fn)
+    {
+        if (_isOk)
+            return fn();
+        else
+            return Result!E.err(_error);
+    }
+    
+    /// Apply function if error
+    Result!E orElse(Result!E delegate(E) fn)
+    {
+        if (_isOk)
+            return Result!E.ok();
+        else
+            return fn(_error);
+    }
+    
+    /// Inspect success without consuming (delegate takes no parameters)
+    ref Result inspect(void delegate() fn) return
+    {
+        if (_isOk)
+            fn();
+        return this;
+    }
+    
+    /// Inspect error without consuming
+    ref Result inspectErr(void delegate(ref const E) fn) return
+    {
+        if (!_isOk)
+            fn(_error);
+        return this;
+    }
+    
+    /// Match on result (pattern matching style) - onOk takes no parameters
+    U match(U)(U delegate() onOk, U delegate(E) onErr)
+    {
+        if (_isOk)
+            return onOk();
+        else
+            return onErr(_error);
+    }
+}
+
+/// Void result type alias (for operations that don't return a value)
+alias VoidResult(E) = Result!E;
 
 /// Create a successful void result
-VoidResult!E success(E)()
+Result!E success(E)()
 {
-    return VoidResult!E.ok();
+    return Result!E.ok();
 }
 
 /// Create an error void result
-VoidResult!E failure(E)(E error)
+Result!E failure(E)(E error)
 {
-    return VoidResult!E.err(error);
+    return Result!E.err(error);
+}
+
+/// Helper to create Ok void result (type-inferred from error type)
+Result!E Ok(E)()
+{
+    return Result!E.ok();
+}
+
+/// Helper to create Err void result (explicit)
+Result!E Err(E)(E error)
+{
+    return Result!E.err(error);
 }
 
 /// Collect results into a single result (stops at first error)
@@ -214,5 +365,94 @@ unittest
     // Test andThen
     auto r4 = r1.andThen((int x) => Result!(string, string).ok(x.to!string));
     assert(r4.unwrap() == "42");
+}
+
+unittest
+{
+    // Test void Result - Ok path
+    auto v1 = Result!string.ok();
+    assert(v1.isOk);
+    assert(!v1.isErr);
+    v1.unwrap(); // Should not throw
+    
+    // Test void Result - Err path
+    auto v2 = Result!string.err("operation failed");
+    assert(v2.isErr);
+    assert(!v2.isOk);
+    assert(v2.unwrapErr() == "operation failed");
+    
+    // Test map from void to value
+    auto v3 = v1.map(() => 42);
+    assert(v3.isOk);
+    assert(v3.unwrap() == 42);
+    
+    // Test map from void to void
+    bool called = false;
+    auto v4 = v1.map(() { called = true; });
+    assert(v4.isOk);
+    assert(called);
+    
+    // Test map preserves error
+    auto v5 = v2.map(() => 42);
+    assert(v5.isErr);
+    assert(v5.unwrapErr() == "operation failed");
+    
+    // Test andThen from void to value
+    auto v6 = v1.andThen(() => Result!(int, string).ok(99));
+    assert(v6.isOk);
+    assert(v6.unwrap() == 99);
+    
+    // Test andThen from void to void
+    auto v7 = v1.andThen(() => Result!string.ok());
+    assert(v7.isOk);
+    
+    // Test andThen preserves error
+    auto v8 = v2.andThen(() => Result!(int, string).ok(99));
+    assert(v8.isErr);
+    assert(v8.unwrapErr() == "operation failed");
+    
+    // Test mapErr
+    auto v9 = v2.mapErr((string s) => s.length);
+    assert(v9.isErr);
+    assert(v9.unwrapErr() == "operation failed".length);
+    
+    // Test inspect
+    bool inspected = false;
+    v1.inspect(() { inspected = true; });
+    assert(inspected);
+    
+    // Test inspectErr
+    bool inspectedErr = false;
+    v2.inspectErr((ref const string s) { inspectedErr = true; });
+    assert(inspectedErr);
+    
+    // Test match
+    auto matched = v1.match(
+        () => "success",
+        (string e) => "error: " ~ e
+    );
+    assert(matched == "success");
+    
+    auto matchedErr = v2.match(
+        () => "success",
+        (string e) => "error: " ~ e
+    );
+    assert(matchedErr == "error: operation failed");
+    
+    // Test helper functions
+    auto v10 = success!string();
+    assert(v10.isOk);
+    
+    auto v11 = failure!string("helper error");
+    assert(v11.isErr);
+    assert(v11.unwrapErr() == "helper error");
+    
+    // Test Ok/Err helpers
+    auto v12 = Ok!string();
+    assert(v12.isOk);
+    
+    auto v13 = Result!string.err("explicit error");
+    assert(v13.isErr);
+    assert(v13.unwrapErr() == "explicit error");
 }
 

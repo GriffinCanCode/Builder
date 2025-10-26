@@ -87,11 +87,11 @@ Result!(T, E) wrapAs(T, E : BaseBuildError)(lazy T expression, E delegate(Except
 }
 
 /// Assert with error result
-Result!(void, BuildError) ensure(bool condition, lazy BuildError error)
+Result!BuildError ensure(bool condition, lazy BuildError error)
 {
     if (!condition)
-        return Err!(void, BuildError)(error);
-    return Ok!(void, BuildError)();
+        return Result!BuildError.err(error);
+    return Result!BuildError.ok();
 }
 
 /// Create error result from condition
@@ -100,5 +100,13 @@ Result!(T, BuildError) check(T)(bool condition, T value, lazy BuildError error)
     if (condition)
         return Ok!(T, BuildError)(value);
     return Err!(T, BuildError)(error);
+}
+
+/// Create void result from condition
+Result!BuildError checkVoid(bool condition, lazy BuildError error)
+{
+    if (condition)
+        return Result!BuildError.ok();
+    return Result!BuildError.err(error);
 }
 

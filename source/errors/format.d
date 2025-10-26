@@ -4,8 +4,11 @@ import std.conv;
 import std.algorithm;
 import std.array;
 import std.range;
+import std.format : formattedWrite;
 import errors.types;
 import errors.codes;
+
+private import std.string : sformat = format;
 
 /// ANSI color codes for terminal output
 private enum Color : string
@@ -193,7 +196,7 @@ private string formatCodeSnippet(string code, size_t errorLine, FormatOptions op
         if (opts.colors)
             result ~= Color.Gray;
         
-        result ~= format("%4d | ", lineNum);
+        result ~= sformat("%4d | ", lineNum);
         
         if (opts.colors && i == 0)
             result ~= Color.Red;
@@ -234,7 +237,7 @@ string formatTree(const BuildError[] errors, FormatOptions opts = FormatOptions.
     
     foreach (i, error; errors)
     {
-        result ~= format("Error %d:\n", i + 1);
+        result ~= sformat("Error %d:\n", i + 1);
         result ~= indent(format(error, opts), 2);
         result ~= "\n";
     }
@@ -254,7 +257,7 @@ string summarize(const BuildError[] errors)
     
     foreach (cat; counts.keys.sort())
     {
-        result ~= format("  %s: %d\n", cat.to!string, counts[cat]);
+        result ~= sformat("  %s: %d\n", cat.to!string, counts[cat]);
     }
     
     return result;

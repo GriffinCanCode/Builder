@@ -5,6 +5,7 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
+import std.conv;
 import config.schema;
 
 /// Base fixture interface
@@ -50,7 +51,7 @@ class TempDir : Fixture
         auto dir = dirName(fullPath);
         if (!exists(dir))
             mkdirRecurse(dir);
-        write(fullPath, content);
+        std.file.write(fullPath, content);
     }
     
     /// Create a directory in the temp directory
@@ -118,7 +119,7 @@ class MockWorkspace : Fixture
         config["deps"] = JSONValue(deps);
         
         auto buildFile = buildPath(targetPath, "BUILD.json");
-        write(buildFile, config.toPrettyString());
+        std.file.write(buildFile, config.toPrettyString());
         
         // Create source files
         foreach (src; sources)
@@ -130,7 +131,7 @@ class MockWorkspace : Fixture
             
             // Create minimal valid source file
             string content = getMinimalSourceContent(src);
-            write(srcPath, content);
+            std.file.write(srcPath, content);
         }
     }
     
@@ -192,7 +193,7 @@ struct TargetBuilder
     
     TargetBuilder withLanguage(string lang)
     {
-        target.language = lang;
+        target.language = lang.to!TargetLanguage;
         return this;
     }
     
