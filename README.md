@@ -4,6 +4,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 
 ## Features
 
+- **Modern DSL**: Clean, readable D-based DSL for BUILD files with comprehensive error messages
 - **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers at compile-time with zero runtime overhead
 - **Strongly Typed Domain**: Type-safe Import, Dependency, and Analysis types eliminate runtime errors
 - **Multi-language Support**: Python, JavaScript, TypeScript, Go, Rust, C/C++, D, Java with pluggable architecture
@@ -31,6 +32,9 @@ source/
 │   ├── go.d                # Go support
 │   └── rust.d              # Rust support
 ├── config/                  # Configuration management
+│   ├── lexer.d             # DSL tokenization
+│   ├── ast.d               # AST node types
+│   ├── dsl.d               # DSL parser and semantic analysis
 │   ├── parser.d            # Config file parser
 │   └── schema.d            # Build configuration schema
 └── utils/                   # Utilities
@@ -70,22 +74,24 @@ builder graph
 
 ## Configuration
 
-Create a `BUILD` file in your project directories:
+Create a `BUILD` file in your project directories using the modern DSL syntax:
 
 ```d
-// BUILD
-target("my-library",
-    type: TargetType.Library,
-    sources: ["src/**/*.py"],
-    deps: ["//common:utils"]
-);
+// BUILD file - Clean DSL syntax
+target("my-library") {
+    type: library;
+    sources: ["src/**/*.py"];
+    deps: ["//common:utils"];
+}
 
-target("my-binary",
-    type: TargetType.Executable,
-    sources: ["main.py"],
-    deps: [":my-library"]
-);
+target("my-binary") {
+    type: executable;
+    sources: ["main.py"];
+    deps: [":my-library"];
+}
 ```
+
+The system also supports legacy JSON format (`BUILD.json`) with automatic detection.
 
 ## Testing
 
@@ -135,6 +141,7 @@ dub test
 ## Documentation
 
 - [Architecture Guide](docs/ARCHITECTURE.md) - System design and internals
+- [DSL Specification](docs/DSL.md) - BUILD file DSL syntax and semantics
 - [Testing Guide](docs/TESTING.md) - How to write and run tests
 - [Examples](docs/EXAMPLES.md) - Usage examples
 

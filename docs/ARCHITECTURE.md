@@ -124,29 +124,35 @@ Add new languages by implementing `LanguageHandler` interface.
 
 ### 6. Configuration System (`config/`)
 
-Flexible configuration with JSON and DSL support.
+Modern D-based DSL with JSON backward compatibility.
 
-**Configuration Format:**
-```json
-{
-    "name": "target-name",
-    "type": "executable|library|test|custom",
-    "language": "python|javascript|go|rust|d|...",
-    "sources": ["src/**/*.py"],
-    "deps": ["//path/to:other-target"],
-    "flags": ["-O2", "-Wall"],
-    "env": {"KEY": "value"}
+**DSL Format:**
+```d
+target("target-name") {
+    type: executable;  // or library, test, custom
+    language: python;  // optional, inferred from sources
+    sources: ["src/**/*.py"];
+    deps: ["//path/to:other-target"];
+    flags: ["-O2", "-Wall"];
+    env: {"KEY": "value"};
 }
 ```
 
+**Architecture:**
+- **Lexer** (`lexer.d`): Zero-allocation tokenization with comprehensive error tracking
+- **AST** (`ast.d`): Strongly-typed AST nodes with tagged unions
+- **Parser** (`dsl.d`): Recursive descent parser with parser combinator patterns
+- **Semantic Analysis** (`dsl.d`): Type checking and validation with Result monads
+- **Integration** (`parser.d`): Automatic JSON/DSL detection and fallback
+
 **Features:**
+- Clean, readable syntax with comment support (// /* */ #)
+- Compile-time validated token types and AST structure
+- Detailed error messages with line/column information
 - Advanced glob pattern expansion with full `**` recursive support
 - Negation patterns (`!pattern`) for exclusions
-- Single (`*`) and multi-level (`**`) wildcards
-- Character wildcards (`?`) and classes (`[abc]`)
-- Relative and absolute dependency references
 - Language inference from file extensions
-- Workspace-level configuration
+- Zero-cost abstractions via D's template system
 
 ## Design Decisions
 

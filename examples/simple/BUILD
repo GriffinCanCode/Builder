@@ -1,0 +1,15 @@
+// Simple BUILD file demonstrating D-based DSL syntax
+
+target("utils") {
+    type: library;
+    language: python;
+    sources: ["utils.py"];
+}
+
+target("app") {
+    type: executable;
+    language: python;
+    sources: ["main.py"];
+    deps: [":utils"];
+}
+

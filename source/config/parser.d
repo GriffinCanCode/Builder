@@ -9,6 +9,7 @@ import std.string;
 import std.conv;
 import std.json;
 import config.schema;
+import config.dsl;
 import utils.logger;
 import utils.glob;
 import errors;
@@ -90,8 +91,28 @@ class ConfigParser
                 }
                 else
                 {
-                    // TODO: Implement D-based DSL parser
-                    Logger.warning("D-based BUILD files not yet supported: " ~ path);
+                    // Use D-based DSL parser
+                    auto dslResult = parseDSL(content, path, root);
+                    if (dslResult.isOk)
+                    {
+                        targets = dslResult.unwrap();
+                        
+                        // Resolve glob patterns in sources
+                        string dir = dirName(path);
+                        foreach (ref target; targets)
+                        {
+                            target.sources = expandGlobs(target.sources, dir);
+                            
+                            // Generate full target name
+                            string relativeDir = relativePath(dir, root);
+                            target.name = "//" ~ relativeDir ~ ":" ~ target.name;
+                        }
+                    }
+                    else
+                    {
+                        // Return the error from DSL parser
+                        return Err!(Target[], BuildError)(dslResult.unwrapErr());
+                    }
                 }
             }
             
