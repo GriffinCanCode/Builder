@@ -35,6 +35,7 @@ enum TargetLanguage
     Elixir,
     Nim,
     Lua,
+    R,
     Generic
 }
 

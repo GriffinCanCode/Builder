@@ -87,6 +87,7 @@ class BuildExecutor
         handlers[TargetLanguage.Elixir] = new ElixirHandler();
         handlers[TargetLanguage.Nim] = new NimHandler();
         handlers[TargetLanguage.Lua] = new LuaHandler();
+        handlers[TargetLanguage.R] = new RHandler();
     }
     
     ~this()

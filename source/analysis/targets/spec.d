@@ -125,6 +125,15 @@ ImportKind detectRustImportKind(string moduleName, string fromFile) pure
     return ImportKind.External;
 }
 
+ImportKind detectRImportKind(string moduleName, string fromFile) pure
+{
+    // Relative if ends with .R or .r (source files)
+    if (moduleName.endsWith(".R") || moduleName.endsWith(".r"))
+        return ImportKind.Relative;
+    // External for CRAN/Bioconductor packages
+    return ImportKind.External;
+}
+
 /// Compile-time registry of all language specifications
 immutable LanguageSpec[TargetLanguage] LanguageSpecs;
 
@@ -317,6 +326,19 @@ shared static this()
             ImportPattern("require", `^\s*(?:local\s+\w+\s*=\s*)?require\s*\(?['"]([^'"]+)['"]\)?`)
         ],
         &detectRelativeImport
+    );
+    
+    // R
+    specs[TargetLanguage.R] = LanguageSpec(
+        TargetLanguage.R,
+        "R",
+        [
+            ImportPattern("library", `^\s*library\s*\(\s*['"]?([^'"(),\s]+)['"]?\s*\)`),
+            ImportPattern("require", `^\s*require\s*\(\s*['"]?([^'"(),\s]+)['"]?\s*\)`),
+            ImportPattern("source", `^\s*source\s*\(\s*['"]([^'"]+)['"]\s*\)`),
+            ImportPattern("load", `^\s*load\s*\(\s*['"]([^'"]+)['"]\s*\)`)
+        ],
+        &detectRImportKind
     );
     
     // Generic (no-op)

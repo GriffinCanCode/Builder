@@ -1,0 +1,28 @@
+// R Project Example
+// Demonstrates R script building with Builder
+
+target("r-app") {
+    type: executable;
+    language: r;
+    sources: ["main.R", "utils.R"];
+    outputPath: "r-app";
+    
+    config: {
+        mode: "script";
+        installDeps: false;
+    };
+}
+
+target("test") {
+    type: test;
+    language: r;
+    sources: ["test_utils.R"];
+    deps: ["r-app"];
+    
+    config: {
+        test: {
+            useTestthat: false;
+        };
+    };
+}
+

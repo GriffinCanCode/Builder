@@ -5,16 +5,17 @@ module languages;
 /// 
 /// Architecture:
 ///   base.d       - Base language interface
-///   python.d     - Python language support
-///   javascript.d - JavaScript/Node.js support
-///   typescript.d - TypeScript support with type checking
+///   python/      - Python language support (modular)
+///   javascript/  - JavaScript/Node.js support (modular)
+///   typescript/  - TypeScript support with type checking (modular)
 ///   go/          - Go language support (modular)
-///   rust.d       - Rust language support
+///   rust/        - Rust language support (modular)
 ///   java.d       - Java language support
 ///   cpp.d        - C++ language support
 ///   csharp.d     - C# language support
 ///   ruby.d       - Ruby language support
 ///   php.d        - PHP language support
+///   r.d          - R language support (scripts, packages, Shiny, RMarkdown)
 ///   swift.d      - Swift language support
 ///   kotlin.d     - Kotlin language support
 ///   scala.d      - Scala language support
@@ -42,6 +43,7 @@ public import languages.compiled.cpp;
 public import languages.dotnet.csharp;
 public import languages.scripting.ruby;
 public import languages.scripting.php;
+public import languages.scripting.r;
 public import languages.dotnet.swift;
 public import languages.jvm.kotlin;
 public import languages.jvm.scala;

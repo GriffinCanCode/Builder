@@ -584,6 +584,7 @@ struct SemanticAnalyzer
             case "elixir": case "ex": return TargetLanguage.Elixir;
             case "nim": return TargetLanguage.Nim;
             case "lua": return TargetLanguage.Lua;
+            case "r": return TargetLanguage.R;
             default: return TargetLanguage.Generic;
         }
     }
@@ -609,6 +610,7 @@ struct SemanticAnalyzer
             case ".cpp": case ".cc": case ".cxx": return TargetLanguage.Cpp;
             case ".c": return TargetLanguage.C;
             case ".java": return TargetLanguage.Java;
+            case ".R": case ".r": return TargetLanguage.R;
             default: return TargetLanguage.Generic;
         }
     }
