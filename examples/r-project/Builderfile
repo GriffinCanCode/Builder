@@ -8,8 +8,8 @@ target("r-app") {
     outputPath: "r-app";
     
     config: {
-        mode: "script";
-        installDeps: false;
+        "mode": "script",
+        "installDeps": false
     };
 }
 
@@ -20,9 +20,7 @@ target("test") {
     deps: ["r-app"];
     
     config: {
-        test: {
-            useTestthat: false;
-        };
+        "useTestthat": false
     };
 }
 
