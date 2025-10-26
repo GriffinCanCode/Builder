@@ -573,11 +573,20 @@ private bool compareVersions(string actual, string requirement)
     auto actualParts = actual.split(".").map!(p => p.to!int).array;
     auto reqParts = reqVer.split(".").map!(p => p.to!int).array;
     
-    // Pad to same length
-    while (actualParts.length < reqParts.length)
-        actualParts ~= 0;
-    while (reqParts.length < actualParts.length)
-        reqParts ~= 0;
+    // Pad to same length (avoid array concatenation in loop)
+    immutable maxLen = max(actualParts.length, reqParts.length);
+    if (actualParts.length < maxLen)
+    {
+        immutable oldLen = actualParts.length;
+        actualParts.length = maxLen;
+        actualParts[oldLen .. $] = 0;
+    }
+    if (reqParts.length < maxLen)
+    {
+        immutable oldLen = reqParts.length;
+        reqParts.length = maxLen;
+        reqParts[oldLen .. $] = 0;
+    }
     
     // Compare
     int cmp = 0;

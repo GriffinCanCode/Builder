@@ -8,7 +8,7 @@ import std.range;
 import config.schema.schema;
 
 /// Represents a node in the build graph
-class BuildNode
+final class BuildNode
 {
     string id;
     Target target;
@@ -17,7 +17,7 @@ class BuildNode
     BuildStatus status;
     string hash;
     
-    this(string id, Target target)
+    this(string id, Target target) @safe pure nothrow
     {
         this.id = id;
         this.target = target;
@@ -25,7 +25,7 @@ class BuildNode
     }
     
     /// Check if this node is ready to build (all deps built)
-    bool isReady() const
+    bool isReady() const @safe pure nothrow
     {
         return dependencies.all!(dep => 
             dep.status == BuildStatus.Success || 
@@ -33,7 +33,7 @@ class BuildNode
     }
     
     /// Get topological depth for scheduling
-    size_t depth() const
+    size_t depth() const @safe pure nothrow
     {
         if (dependencies.empty)
             return 0;
@@ -51,29 +51,29 @@ enum BuildStatus
 }
 
 /// Build graph with topological ordering and cycle detection
-class BuildGraph
+final class BuildGraph
 {
     BuildNode[string] nodes;
     BuildNode[] roots;
     
     /// Add a target to the graph
-    void addTarget(Target target)
+    void addTarget(Target target) @safe
     {
         if (target.name !in nodes)
         {
-            auto node = new BuildNode(target.name, target);
+            scope node = new BuildNode(target.name, target);
             nodes[target.name] = node;
         }
     }
     
     /// Add dependency between two targets
-    void addDependency(string from, string to)
+    void addDependency(string from, string to) @safe
     {
         if (from !in nodes || to !in nodes)
             throw new Exception("Target not found in graph: " ~ (from !in nodes ? from : to));
         
-        auto fromNode = nodes[from];
-        auto toNode = nodes[to];
+        scope fromNode = nodes[from];
+        scope toNode = nodes[to];
         
         // Check for cycles before adding
         if (wouldCreateCycle(fromNode, toNode))
@@ -84,11 +84,11 @@ class BuildGraph
     }
     
     /// Check if adding an edge would create a cycle
-    private bool wouldCreateCycle(BuildNode from, BuildNode to)
+    private bool wouldCreateCycle(scope BuildNode from, scope BuildNode to) @safe
     {
         bool[BuildNode] visited;
         
-        bool dfs(BuildNode node)
+        bool dfs(scope BuildNode node)
         {
             if (node == from)
                 return true;

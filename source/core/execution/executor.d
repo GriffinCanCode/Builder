@@ -38,7 +38,7 @@ import errors;
 import cli.events.events;
 
 /// Executes builds based on the dependency graph
-class BuildExecutor
+final class BuildExecutor
 {
     private BuildGraph graph;
     private WorkspaceConfig config;
@@ -49,17 +49,17 @@ class BuildExecutor
     private Condition tasksReady;
     private shared size_t activeTasks;
     private shared size_t failedTasks;
-    private size_t workerCount;
+    private immutable size_t workerCount;
     private EventPublisher eventPublisher;
     
-    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null)
+    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null) @safe
     {
         this.graph = graph;
         this.config = config;
         this.eventPublisher = eventPublisher;
         
         // Initialize cache with configuration from environment
-        auto cacheConfig = CacheConfig.fromEnvironment();
+        const cacheConfig = CacheConfig.fromEnvironment();
         this.cache = new BuildCache(".builder-cache", cacheConfig);
         
         this.stateMutex = new Mutex();
