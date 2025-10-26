@@ -94,6 +94,7 @@ class DependencyResolver
             case TargetLanguage.PHP:
             case TargetLanguage.Elixir:
             case TargetLanguage.Lua:
+            case TargetLanguage.R:
                 target = "";  // TODO: Implement scripting language resolution
                 break;
             case TargetLanguage.Generic:

@@ -10,6 +10,7 @@ import analysis.inference.analyzer;
 import utils.logging.logger;
 import errors;
 import cli;
+import tools;
 
 void main(string[] args)
 {
@@ -56,6 +57,9 @@ void main(string[] args)
             case "init":
                 initCommand();
                 break;
+            case "install-extension":
+                installExtensionCommand();
+                break;
             default:
                 Logger.error("Unknown command: " ~ command);
                 printHelp();
@@ -78,7 +82,8 @@ void printHelp()
     writeln("  build [target]    Build all targets or specific target");
     writeln("  clean             Clean build cache");
     writeln("  graph [target]    Show dependency graph");
-    writeln("  init              Initialize a new Builderfile\n");
+    writeln("  init              Initialize a new Builderfile");
+    writeln("  install-extension Install Builder VS Code extension\n");
     writeln("Options:");
     writeln("  -v, --verbose     Enable verbose output");
     writeln("  -g, --graph       Show dependency graph during build");
@@ -227,5 +232,10 @@ target("my-app",
     
     write("Builderfile", template_content);
     Logger.success("Created Builderfile");
+}
+
+void installExtensionCommand()
+{
+    VSCodeExtension.install();
 }
 

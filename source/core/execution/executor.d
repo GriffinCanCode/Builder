@@ -31,6 +31,7 @@ import languages.jvm.scala;
 import languages.scripting.elixir;
 import languages.compiled.nim;
 import languages.scripting.lua;
+import languages.scripting.r;
 import utils.logging.logger;
 import utils.concurrency.pool;
 import errors;

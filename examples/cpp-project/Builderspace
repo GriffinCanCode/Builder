@@ -1,2 +1,10 @@
-# C++ project workspace
+// C++ project workspace
 
+workspace("cpp-example") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    incremental: true;
+    verbose: false;
+}

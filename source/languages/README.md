@@ -8,12 +8,13 @@ The languages package provides language-specific build handlers and dependency a
 - **base.d** - Base language interface and factory
 
 ### Supported Languages
-- **python.d** - Python with pip and virtual environments
-- **javascript.d** - JavaScript/Node.js with npm/yarn
-- **go.d** - Go with modules support
-- **rust.d** - Rust with Cargo
+- **python/** - Python with pip and virtual environments (modular)
+- **javascript/** - JavaScript/Node.js with npm/yarn (modular)
+- **typescript/** - TypeScript with type checking (modular)
+- **go/** - Go with modules support (modular)
+- **rust/** - Rust with Cargo (modular)
 - **java.d** - Java with Maven/Gradle
-- **cpp.d** - C++ with various build systems
+- **cpp/** - C/C++ comprehensive modular support with compilers, build systems, analysis, and tools
 - **csharp.d** - C# with .NET
 - **ruby.d** - Ruby with Bundler
 - **php.d** - PHP with Composer

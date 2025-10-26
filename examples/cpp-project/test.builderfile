@@ -1,0 +1,1 @@
+target("test") { type: executable; language: cpp; sources: ["main.cpp"]; output: "test"; }
