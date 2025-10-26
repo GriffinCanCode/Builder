@@ -16,7 +16,7 @@ The languages package provides language-specific build handlers and dependency a
 - **java.d** - Java with Maven/Gradle
 - **cpp/** - C/C++ comprehensive modular support with compilers, build systems, analysis, and tools
 - **csharp.d** - C# with .NET
-- **ruby/** - Ruby with Bundler, version managers, type checking (modular)
+- **ruby.d** - Ruby with Bundler
 - **php/** - PHP with Composer (modular - analysis, formatting, packaging)
 - **swift.d** - Swift with SPM
 - **kotlin.d** - Kotlin with Gradle

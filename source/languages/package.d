@@ -41,7 +41,7 @@ public import languages.compiled.d;
 public import languages.jvm.java;
 public import languages.compiled.cpp;
 public import languages.dotnet.csharp;
-public import languages.scripting.ruby; // Modular (core, managers, tooling, analysis)
+public import languages.scripting.ruby;
 public import languages.scripting.php;
 public import languages.scripting.r;
 public import languages.dotnet.swift;
