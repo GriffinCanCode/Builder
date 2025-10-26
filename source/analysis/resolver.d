@@ -7,16 +7,19 @@ import std.string;
 import std.path;
 import std.conv;
 import config.schema;
+import analysis.types;
 
 /// Resolves import statements to build targets
 class DependencyResolver
 {
     private WorkspaceConfig config;
     private string[string] importCache;
+    private ImportIndex index;
     
     this(WorkspaceConfig config)
     {
         this.config = config;
+        this.index = new ImportIndex(config);
         buildImportCache();
     }
     
@@ -218,6 +221,72 @@ class DependencyResolver
         }
         
         return "";
+    }
+    
+    /// Resolve typed Import to Dependency
+    Dependency resolveTypedImport(Import imp, TargetLanguage language)
+    {
+        if (imp.isExternal)
+            return Dependency("", DependencyKind.Direct, []); // External, not tracked
+        
+        auto targetName = resolveImport(imp.moduleName, language);
+        
+        if (targetName.empty)
+            return Dependency("", DependencyKind.Implicit, [imp.moduleName]);
+        
+        return Dependency.direct(targetName, imp.moduleName);
+    }
+}
+
+/// Fast import-to-target lookup index
+class ImportIndex
+{
+    private string[string] moduleToTarget;
+    private WorkspaceConfig config;
+    
+    this(WorkspaceConfig config)
+    {
+        this.config = config;
+        buildIndex();
+    }
+    
+    /// Build the index from workspace configuration
+    private void buildIndex()
+    {
+        foreach (ref target; config.targets)
+        {
+            // Map each source file to this target
+            foreach (source; target.sources)
+            {
+                auto normalized = source.buildNormalizedPath;
+                moduleToTarget[normalized] = target.name;
+                
+                // Also index by base name without extension
+                auto baseName = source.baseName.stripExtension;
+                if (baseName !in moduleToTarget)
+                    moduleToTarget[baseName] = target.name;
+            }
+        }
+    }
+    
+    /// Look up target by module name (O(1) average case)
+    string lookup(string moduleName) const
+    {
+        if (auto target = moduleName in moduleToTarget)
+            return *target;
+        
+        // Try normalized path
+        auto normalized = moduleName.buildNormalizedPath;
+        if (auto target = normalized in moduleToTarget)
+            return *target;
+        
+        return "";
+    }
+    
+    /// Get all indexed modules
+    string[] allModules() const
+    {
+        return moduleToTarget.keys;
     }
 }
 

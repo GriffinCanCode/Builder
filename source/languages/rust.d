@@ -8,6 +8,8 @@ import std.algorithm;
 import std.array;
 import languages.base;
 import config.schema;
+import analysis.types;
+import analysis.spec;
 import utils.hash;
 import utils.logger;
 
@@ -146,6 +148,34 @@ class RustHandler : BaseLanguageHandler
         result.outputHash = FastHash.hashStrings(target.sources);
         return result;
     }
+    
+    override Import[] analyzeImports(string[] sources)
+    {
+        auto spec = getLanguageSpec(TargetLanguage.Rust);
+        if (spec is null)
+            return [];
+        
+        Import[] allImports;
+        
+        foreach (source; sources)
+        {
+            if (!exists(source) || !isFile(source))
+                continue;
+            
+            try
+            {
+                auto content = readText(source);
+                auto imports = spec.scanImports(source, content);
+                allImports ~= imports;
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to analyze imports in " ~ source);
+            }
+        }
+        
+        return allImports;
+    }
 }
 
 /// D language handler (for building D code within the build system)
@@ -244,6 +274,34 @@ class DHandler : BaseLanguageHandler
         result.success = true;
         result.outputHash = FastHash.hashStrings(target.sources);
         return result;
+    }
+    
+    override Import[] analyzeImports(string[] sources)
+    {
+        auto spec = getLanguageSpec(TargetLanguage.D);
+        if (spec is null)
+            return [];
+        
+        Import[] allImports;
+        
+        foreach (source; sources)
+        {
+            if (!exists(source) || !isFile(source))
+                continue;
+            
+            try
+            {
+                auto content = readText(source);
+                auto imports = spec.scanImports(source, content);
+                allImports ~= imports;
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to analyze imports in " ~ source);
+            }
+        }
+        
+        return allImports;
     }
 }
 

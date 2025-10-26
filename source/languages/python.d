@@ -8,8 +8,12 @@ import std.algorithm;
 import std.array;
 import languages.base;
 import config.schema;
+import analysis.types;
+import analysis.spec;
 import utils.hash;
 import utils.logger;
+import utils.pycheck;
+import utils.pywrap;
 
 /// Python build handler
 class PythonHandler : BaseLanguageHandler
@@ -58,55 +62,66 @@ class PythonHandler : BaseLanguageHandler
         return outputs;
     }
     
+    override Import[] analyzeImports(string[] sources)
+    {
+        auto spec = getLanguageSpec(TargetLanguage.Python);
+        if (spec is null)
+            return [];
+        
+        Import[] allImports;
+        
+        foreach (source; sources)
+        {
+            if (!exists(source) || !isFile(source))
+                continue;
+            
+            try
+            {
+                auto content = readText(source);
+                auto imports = spec.scanImports(source, content);
+                allImports ~= imports;
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to analyze imports in " ~ source);
+            }
+        }
+        
+        return allImports;
+    }
+    
     private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
-        // Validate Python syntax
-        foreach (source; target.sources)
+        // Batch validate Python syntax using AST parser (single process)
+        auto validationResult = PyValidator.validate(target.sources);
+        
+        if (!validationResult.success)
         {
-            auto cmd = ["python3", "-m", "py_compile", source];
-            auto res = execute(cmd);
-            
-            if (res.status != 0)
-            {
-                result.error = "Syntax error in " ~ source ~ ": " ~ res.output;
-                return result;
-            }
+            result.error = validationResult.firstError();
+            return result;
         }
         
-        // Create executable wrapper if needed
+        // Create smart executable wrapper
         auto outputs = getOutputs(target, config);
-        if (!outputs.empty)
+        if (!outputs.empty && !target.sources.empty)
         {
             auto outputPath = outputs[0];
-            auto outputDir = dirName(outputPath);
+            auto mainFile = target.sources[0];
             
-            if (!exists(outputDir))
-                mkdirRecurse(outputDir);
+            // Get entry point metadata from validation
+            auto mainFileResult = validationResult.files[0];
             
-            // Create a simple wrapper script
-            string wrapper = "#!/usr/bin/env python3\n";
-            wrapper ~= "import sys\n";
-            wrapper ~= "import os\n";
-            wrapper ~= "# Add source directory to path\n";
-            wrapper ~= "sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')\n";
+            WrapperConfig wrapperConfig;
+            wrapperConfig.mainFile = mainFile;
+            wrapperConfig.outputPath = outputPath;
+            wrapperConfig.projectRoot = config.root.empty ? "." : config.root;
+            wrapperConfig.hasMain = mainFileResult.hasMain;
+            wrapperConfig.hasMainGuard = mainFileResult.hasMainGuard;
+            wrapperConfig.isExecutable = mainFileResult.isExecutable;
             
-            if (!target.sources.empty)
-            {
-                auto mainFile = baseName(target.sources[0], ".py");
-                wrapper ~= "import " ~ mainFile ~ "\n";
-                wrapper ~= "if __name__ == '__main__':\n";
-                wrapper ~= "    " ~ mainFile ~ ".main()\n";
-            }
-            
-            std.file.write(outputPath, wrapper);
-            
-            version (Posix)
-            {
-                import core.sys.posix.sys.stat;
-                chmod(outputPath.ptr, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-            }
+            PyWrapperGenerator.generate(wrapperConfig);
         }
         
         result.success = true;
@@ -120,17 +135,13 @@ class PythonHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Validate Python syntax
-        foreach (source; target.sources)
+        // Batch validate Python syntax using AST parser (single process)
+        auto validationResult = PyValidator.validate(target.sources);
+        
+        if (!validationResult.success)
         {
-            auto cmd = ["python3", "-m", "py_compile", source];
-            auto res = execute(cmd);
-            
-            if (res.status != 0)
-            {
-                result.error = "Syntax error in " ~ source ~ ": " ~ res.output;
-                return result;
-            }
+            result.error = validationResult.firstError();
+            return result;
         }
         
         result.success = true;

@@ -3,21 +3,27 @@ module analysis.analyzer;
 import std.stdio;
 import std.algorithm;
 import std.array;
-import std.conv;
-import std.traits;
-import std.meta;
+import std.file;
+import std.datetime.stopwatch;
 import core.graph;
 import config.schema;
+import analysis.types;
+import analysis.spec;
+import analysis.metagen;
 import analysis.scanner;
 import analysis.resolver;
 import utils.logger;
+import utils.hash;
 
-/// Dependency analyzer using D's compile-time metaprogramming
+/// Modern dependency analyzer using compile-time metaprogramming
 class DependencyAnalyzer
 {
     private WorkspaceConfig config;
     private FileScanner scanner;
     private DependencyResolver resolver;
+    
+    // Inject compile-time generated analyzer functions
+    mixin LanguageAnalyzer;
     
     this(WorkspaceConfig config)
     {
@@ -30,46 +36,41 @@ class DependencyAnalyzer
     BuildGraph analyze(string targetFilter = "")
     {
         Logger.info("Analyzing dependencies...");
+        auto sw = StopWatch(AutoStart.yes);
         
         auto graph = new BuildGraph();
         
         // Add all targets to graph
         foreach (ref target; config.targets)
         {
-            if (targetFilter.empty || target.name == targetFilter || matchesPattern(target.name, targetFilter))
+            if (targetFilter.empty || matchesFilter(target.name, targetFilter))
             {
                 graph.addTarget(target);
             }
         }
         
-        // Resolve and add dependencies
+        // Analyze each target and resolve dependencies
         foreach (ref target; config.targets)
         {
             if (target.name !in graph.nodes)
                 continue;
             
-            // Analyze source files for implicit dependencies
-            auto implicitDeps = analyzeImplicitDependencies(target);
+            auto analysis = analyzeTarget(target);
             
-            // Combine explicit and implicit dependencies
-            auto allDeps = target.deps ~ implicitDeps;
-            
-            foreach (dep; allDeps)
+            if (!analysis.isValid)
             {
-                auto resolvedDep = resolver.resolve(dep, target.name);
-                
-                if (resolvedDep.empty)
-                {
-                    Logger.warning("Could not resolve dependency: " ~ dep ~ " for " ~ target.name);
-                    continue;
-                }
-                
-                // Add to graph if target exists
-                if (resolvedDep in graph.nodes)
+                Logger.warning("Analysis errors in " ~ target.name);
+                continue;
+            }
+            
+            // Add resolved dependencies to graph
+            foreach (dep; analysis.dependencies)
+            {
+                if (dep.targetName in graph.nodes)
                 {
                     try
                     {
-                        graph.addDependency(target.name, resolvedDep);
+                        graph.addDependency(target.name, dep.targetName);
                     }
                     catch (Exception e)
                     {
@@ -78,219 +79,94 @@ class DependencyAnalyzer
                     }
                 }
             }
+            
+            Logger.debug_("  " ~ target.name ~ ": " ~ 
+                         analysis.dependencies.length.to!string ~ " dependencies");
         }
         
-        Logger.success("Dependency analysis complete");
+        sw.stop();
+        Logger.success("Analysis complete (" ~ sw.peek().total!"msecs".to!string ~ "ms)");
+        
         return graph;
     }
     
-    /// Analyze source files for implicit dependencies using compile-time analysis
-    private string[] analyzeImplicitDependencies(ref Target target)
+    /// Analyze a single target
+    TargetAnalysis analyzeTarget(ref Target target)
     {
-        string[] deps;
+        auto sw = StopWatch(AutoStart.yes);
         
-        // Use compile-time dispatch based on language
-        final switch (target.language)
-        {
-            case TargetLanguage.D:
-                deps = analyzeDDependencies(target);
-                break;
-            case TargetLanguage.Python:
-                deps = analyzePythonDependencies(target);
-                break;
-            case TargetLanguage.JavaScript:
-            case TargetLanguage.TypeScript:
-                deps = analyzeJavaScriptDependencies(target);
-                break;
-            case TargetLanguage.Go:
-                deps = analyzeGoDependencies(target);
-                break;
-            case TargetLanguage.Rust:
-                deps = analyzeRustDependencies(target);
-                break;
-            case TargetLanguage.Cpp:
-            case TargetLanguage.C:
-                deps = analyzeCppDependencies(target);
-                break;
-            case TargetLanguage.Java:
-                deps = analyzeJavaDependencies(target);
-                break;
-            case TargetLanguage.Generic:
-                deps = [];
-                break;
-        }
+        TargetAnalysis result;
+        result.targetName = target.name;
         
-        return deps;
-    }
-    
-    /// Analyze D source files for imports
-    private string[] analyzeDDependencies(ref Target target)
-    {
-        import std.regex;
-        
-        string[] deps;
-        auto importRegex = regex(`^\s*import\s+([\w.]+)`, "m");
-        
+        // Analyze each source file
         foreach (source; target.sources)
         {
-            auto imports = scanner.scanImports(source, importRegex);
-            
-            // Map imports to targets
-            foreach (imp; imports)
+            if (!exists(source) || !isFile(source))
             {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.D);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
+                Logger.warning("Source file not found: " ~ source);
+                continue;
+            }
+            
+            try
+            {
+                auto content = readText(source);
+                auto hash = FastHash.hashString(content);
+                
+                // Use compile-time generated analyzer
+                auto fileAnalysis = analyzeFile(target.language, source, content);
+                fileAnalysis.contentHash = hash;
+                
+                result.files ~= fileAnalysis;
+            }
+            catch (Exception e)
+            {
+                Logger.error("Failed to analyze " ~ source ~ ": " ~ e.msg);
+                result.files ~= FileAnalysis(
+                    source, [], "", true, [e.msg]
+                );
             }
         }
         
-        return deps;
-    }
-    
-    /// Analyze Python imports
-    private string[] analyzePythonDependencies(ref Target target)
-    {
-        import std.regex;
+        // Collect all imports
+        auto allImports = result.allImports();
         
-        string[] deps;
-        auto importRegex = regex(`^\s*(?:import|from)\s+([\w.]+)`, "m");
+        // Resolve imports to dependencies
+        result.dependencies = resolveImports(allImports, target.language);
         
-        foreach (source; target.sources)
+        // Add explicit dependencies
+        foreach (dep; target.deps)
         {
-            auto imports = scanner.scanImports(source, importRegex);
-            
-            foreach (imp; imports)
+            auto resolved = resolver.resolve(dep, target.name);
+            if (!resolved.empty && !result.dependencies.canFind!(d => d.targetName == resolved))
             {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.Python);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
+                result.dependencies ~= Dependency.direct(resolved, dep);
             }
         }
         
-        return deps;
+        // Compute metrics
+        result.metrics = AnalysisMetrics(
+            result.files.length,
+            allImports.length,
+            result.dependencies.length,
+            sw.peek().total!"msecs",
+            0
+        );
+        
+        return result;
     }
     
-    /// Analyze JavaScript/TypeScript imports
-    private string[] analyzeJavaScriptDependencies(ref Target target)
-    {
-        import std.regex;
-        
-        string[] deps;
-        auto importRegex = regex(`^\s*(?:import|require)\s*\(?['"]([^'"]+)['"]`, "m");
-        
-        foreach (source; target.sources)
-        {
-            auto imports = scanner.scanImports(source, importRegex);
-            
-            foreach (imp; imports)
-            {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.JavaScript);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
-            }
-        }
-        
-        return deps;
-    }
+    /// Resolve imports to dependencies (uses compile-time generated code)
+    mixin(generateImportResolver());
     
-    /// Analyze Go imports
-    private string[] analyzeGoDependencies(ref Target target)
-    {
-        import std.regex;
-        
-        string[] deps;
-        auto importRegex = regex(`^\s*import\s+"([^"]+)"`, "m");
-        
-        foreach (source; target.sources)
-        {
-            auto imports = scanner.scanImports(source, importRegex);
-            
-            foreach (imp; imports)
-            {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.Go);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
-            }
-        }
-        
-        return deps;
-    }
-    
-    /// Analyze Rust dependencies
-    private string[] analyzeRustDependencies(ref Target target)
-    {
-        import std.regex;
-        
-        string[] deps;
-        auto useRegex = regex(`^\s*use\s+([\w:]+)`, "m");
-        
-        foreach (source; target.sources)
-        {
-            auto imports = scanner.scanImports(source, useRegex);
-            
-            foreach (imp; imports)
-            {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.Rust);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
-            }
-        }
-        
-        return deps;
-    }
-    
-    /// Analyze C/C++ includes
-    private string[] analyzeCppDependencies(ref Target target)
-    {
-        import std.regex;
-        
-        string[] deps;
-        auto includeRegex = regex(`^\s*#include\s+["<]([^">]+)[">]`, "m");
-        
-        foreach (source; target.sources)
-        {
-            auto imports = scanner.scanImports(source, includeRegex);
-            
-            foreach (imp; imports)
-            {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.Cpp);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
-            }
-        }
-        
-        return deps;
-    }
-    
-    /// Analyze Java imports
-    private string[] analyzeJavaDependencies(ref Target target)
-    {
-        import std.regex;
-        
-        string[] deps;
-        auto importRegex = regex(`^\s*import\s+([\w.]+)`, "m");
-        
-        foreach (source; target.sources)
-        {
-            auto imports = scanner.scanImports(source, importRegex);
-            
-            foreach (imp; imports)
-            {
-                auto dep = resolver.resolveImport(imp, TargetLanguage.Java);
-                if (!dep.empty && !deps.canFind(dep))
-                    deps ~= dep;
-            }
-        }
-        
-        return deps;
-    }
-    
-    /// Check if target name matches pattern
-    private bool matchesPattern(string name, string pattern)
+    /// Check if target matches filter pattern
+    private bool matchesFilter(string name, string pattern) const pure
     {
         import std.string : indexOf;
         
-        // Simple pattern matching for now
+        if (pattern.empty)
+            return true;
+        
+        // Simple pattern matching
         if (pattern.endsWith("..."))
         {
             auto prefix = pattern[0 .. $ - 3];
@@ -301,45 +177,9 @@ class DependencyAnalyzer
     }
 }
 
-/// Compile-time dependency analysis helpers
-template AnalyzeDependencies(alias T)
-{
-    // Use D's compile-time introspection to analyze dependencies
-    static if (is(T == struct) || is(T == class))
-    {
-        alias Members = __traits(allMembers, T);
-        
-        // Extract import information at compile time
-        enum string[] Imports = extractImports!T;
-    }
-}
+/// Compile-time verification
+static assert(is(typeof(DependencyAnalyzer.init.analyzeFile(TargetLanguage.Python, "", ""))),
+              "Generated analyzeFile function is invalid");
 
-/// Extract imports from a type at compile-time
-template extractImports(alias T)
-{
-    string[] extractImports()
-    {
-        string[] imports;
-        
-        static if (is(T == struct) || is(T == class))
-        {
-            foreach (member; __traits(allMembers, T))
-            {
-                // Get the module of each member's type
-                static if (__traits(compiles, __traits(getMember, T, member)))
-                {
-                    alias MemberType = typeof(__traits(getMember, T, member));
-                    static if (!is(MemberType == void))
-                    {
-                        enum moduleName = moduleName!MemberType;
-                        if (!imports.canFind(moduleName))
-                            imports ~= moduleName;
-                    }
-                }
-            }
-        }
-        
-        return imports;
-    }
-}
-
+/// Import for string conversion
+import std.conv : to;

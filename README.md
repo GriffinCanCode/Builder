@@ -1,14 +1,15 @@
 # Builder - Smart Build System
 
-A high-performance build system for mixed-language monorepos, leveraging D's compile-time metaprogramming for dependency analysis.
+A high-performance build system for mixed-language monorepos, leveraging D's compile-time metaprogramming for zero-cost abstractions and type-safe dependency analysis.
 
 ## Features
 
-- **Compile-time Dependency Analysis**: Uses D's metaprogramming to analyze dependencies at compile-time
-- **Multi-language Support**: Python, JavaScript, TypeScript, Go, Rust, C/C++, and more
-- **Incremental Builds**: Smart caching and change detection
-- **Parallel Execution**: Efficient task scheduling and parallel builds
-- **Monorepo Optimized**: Designed for large-scale monorepos with complex dependencies
+- **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers at compile-time with zero runtime overhead
+- **Strongly Typed Domain**: Type-safe Import, Dependency, and Analysis types eliminate runtime errors
+- **Multi-language Support**: Python, JavaScript, TypeScript, Go, Rust, C/C++, D, Java with pluggable architecture
+- **Incremental Builds**: Smart caching with SHA-256 content hashing
+- **Parallel Execution**: Wave-based parallel builds respecting dependency order
+- **Monorepo Optimized**: O(1) import resolution with indexed lookups for large-scale repos
 
 ## Architecture
 
@@ -88,11 +89,12 @@ target("my-binary",
 
 ## Why D?
 
-- **Compile-time Metaprogramming**: Analyze dependencies without runtime overhead
-- **Performance**: Native compilation with LLVM backend
-- **Memory Safety**: @safe by default with opt-in unsafe code
-- **Modern Language**: Ranges, UFCS, mixins, and more
-- **C/C++ Interop**: Easy integration with existing tools
+- **True Compile-time Metaprogramming**: Generate code, validate types, and optimize dispatch at compile-time using templates, mixins, and CTFE
+- **Zero-Cost Abstractions**: Strong typing and metaprogramming compiled away to optimal machine code
+- **Performance**: Native compilation with LLVM backend (LDC), comparable to C++ speed
+- **Memory Safety**: @safe by default with compile-time verification
+- **Modern Language**: Ranges, UFCS, templates, mixins, static introspection, and compile-time function execution
+- **C/C++ Interop**: Seamless integration with existing build tools and libraries
 
 ## License
 
