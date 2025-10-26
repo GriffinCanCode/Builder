@@ -32,7 +32,7 @@ final class BuildCache
     private size_t contentHashCount;  // Stats: how many content hashes performed
     private size_t metadataHitCount;  // Stats: how many metadata hits
     
-    this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @safe
+    this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @trusted
     {
         this.cacheDir = cacheDir;
         this.cacheFilePath = buildPath(cacheDir, "cache.bin");  // Pre-compute path
@@ -69,16 +69,14 @@ final class BuildCache
     
     /// Check if a target is cached and up-to-date
     /// Uses two-tier hashing for 1000x speedup on unchanged files
-    bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @safe
+    bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @trusted
     {
-        if (targetId !in entries)
+        auto entryPtr = targetId in entries;
+        if (entryPtr is null)
             return false;
         
-        auto entry = entries[targetId];
-        
-        // Update access time for LRU
-        entry.lastAccess = Clock.currTime();
-        entries[targetId] = entry;
+        // Update access time for LRU - use pointer to avoid copy
+        entryPtr.lastAccess = Clock.currTime();
         dirty = true;
         
         // Check if any source files changed (two-tier strategy)
@@ -88,7 +86,7 @@ final class BuildCache
                 return false;
             
             // Get old metadata hash if exists
-            immutable oldMetadataHash = entry.sourceMetadata.get(source, "");
+            immutable oldMetadataHash = entryPtr.sourceMetadata.get(source, "");
             
             // Two-tier hash: check metadata first
             const hashResult = FastHash.hashFileTwoTier(source, oldMetadataHash);
@@ -98,7 +96,7 @@ final class BuildCache
                 // Metadata changed, check content hash
                 contentHashCount++;
                 
-                immutable oldContentHash = entry.sourceHashes.get(source, "");
+                immutable oldContentHash = entryPtr.sourceHashes.get(source, "");
                 // Use SIMD-accelerated comparison for hash strings
                 if (!fastHashEquals(hashResult.contentHash, oldContentHash))
                     return false;
@@ -117,7 +115,7 @@ final class BuildCache
                 return false;
             
             // SIMD-accelerated hash comparison
-            if (!fastHashEquals(entries[dep].buildHash, entry.depHashes.get(dep, "")))
+            if (!fastHashEquals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
                 return false;
         }
         
@@ -127,7 +125,7 @@ final class BuildCache
     /// Update cache entry for a target
     /// Defers write until flush() is called
     /// Uses SIMD-aware parallel hashing for multiple sources
-    void update(string targetId, scope const(string)[] sources, scope const(string)[] deps, string outputHash) @safe
+    void update(string targetId, scope const(string)[] sources, scope const(string)[] deps, string outputHash) @trusted
     {
         CacheEntry entry;
         entry.targetId = targetId;
@@ -139,22 +137,37 @@ final class BuildCache
         if (sources.length > 4) {
             // Use SIMD-aware parallel processing for multiple files
             import utils.concurrency.simd;
+            import std.typecons : Tuple;
             
-            // Filter existing sources
-            auto existingSources = sources.filter!(s => exists(s)).array;
+            // Count existing sources first to avoid allocation
+            size_t existingCount = 0;
+            foreach (source; sources)
+                if (exists(source))
+                    existingCount++;
             
-            // Parallel hash with SIMD
-            auto hashes = SIMDParallel.mapSIMD(existingSources, (source) {
-                return tuple(
-                    source,
-                    FastHash.hashFile(source),
-                    FastHash.hashMetadata(source)
-                );
-            });
-            
-            foreach (result; hashes) {
-                entry.sourceHashes[result[0]] = result[1];
-                entry.sourceMetadata[result[0]] = result[2];
+            // Only allocate if we have sources to process
+            if (existingCount > 0) {
+                // Allocate exact size needed
+                auto existingSources = new string[existingCount];
+                size_t idx = 0;
+                foreach (source; sources)
+                    if (exists(source))
+                        existingSources[idx++] = source;
+                
+                // Parallel hash with SIMD
+                alias HashResult = Tuple!(string, string, string);
+                auto hashes = SIMDParallel.mapSIMD!(string, HashResult)(existingSources, (string source) {
+                    return tuple(
+                        source,
+                        FastHash.hashFile(source),
+                        FastHash.hashMetadata(source)
+                    );
+                });
+                
+                foreach (result; hashes) {
+                    entry.sourceHashes[result[0]] = result[1];
+                    entry.sourceMetadata[result[0]] = result[2];
+                }
             }
         } else {
             // Sequential for small number of files (avoid overhead)
@@ -180,14 +193,14 @@ final class BuildCache
     }
     
     /// Invalidate cache for a target
-    void invalidate(string targetId)
+    void invalidate(in string targetId) @safe nothrow
     {
         entries.remove(targetId);
         dirty = true;
     }
     
     /// Clear entire cache
-    void clear()
+    void clear() @trusted
     {
         entries.clear();
         dirty = false;
@@ -199,8 +212,9 @@ final class BuildCache
     
     /// Flush cache to disk (lazy write)
     /// This is called once at the end of build instead of on every update
-    /// @param runEviction: whether to run eviction policy (default true, false in destructor)
-    void flush(bool runEviction = true)
+    /// Params:
+    ///   runEviction = whether to run eviction policy (default true, false in destructor)
+    void flush(in bool runEviction = true) @trusted
     {
         if (!dirty)
             return;
@@ -210,7 +224,7 @@ final class BuildCache
         {
             try
             {
-                auto currentSize = eviction.calculateTotalSize(entries);
+                immutable currentSize = eviction.calculateTotalSize(entries);
                 auto toEvict = eviction.selectEvictions(entries, currentSize);
                 
                 foreach (key; toEvict)
@@ -246,7 +260,7 @@ final class BuildCache
         float metadataHitRate;   // Percentage of fast path hits
     }
     
-    CacheStats getStats()
+    CacheStats getStats() const @trusted
     {
         CacheStats stats;
         stats.totalEntries = entries.length;
@@ -257,21 +271,21 @@ final class BuildCache
         stats.oldestEntry = entries.values.map!(e => e.timestamp).minElement;
         stats.newestEntry = entries.values.map!(e => e.timestamp).maxElement;
         
-        // Calculate cache size
-        stats.totalSize = eviction.calculateTotalSize(entries);
+        // Calculate cache size (cast away const for calculation)
+        stats.totalSize = (cast(EvictionPolicy)eviction).calculateTotalSize(cast(CacheEntry[string])entries);
         
         // Hash statistics
         stats.contentHashes = contentHashCount;
         stats.metadataHits = metadataHitCount;
         
-        auto total = contentHashCount + metadataHitCount;
+        immutable total = contentHashCount + metadataHitCount;
         if (total > 0)
             stats.metadataHitRate = (metadataHitCount * 100.0) / total;
         
         return stats;
     }
     
-    private void loadCache()
+    private void loadCache() @trusted
     {
         if (!exists(cacheFilePath))
         {
@@ -302,8 +316,15 @@ final class BuildCache
         
         try
         {
+            // Read file data - ubyte[] is automatically allocated by read()
             auto data = cast(ubyte[])std.file.read(cacheFilePath);
+            
+            // Deserialize - uses zero-copy string slicing from data
+            // Keep data alive until entries are populated
             entries = BinaryStorage.deserialize!CacheEntry(data);
+            
+            // Note: data is now referenced by strings in entries
+            // GC will keep it alive as long as entries exist
         }
         catch (Exception e)
         {
@@ -364,7 +385,7 @@ final class BuildCache
     }
     
     /// Fast hash comparison using SIMD when beneficial
-    private bool fastHashEquals(string a, string b) const
+    private bool fastHashEquals(string a, string b) const @trusted
     {
         if (a.length != b.length) return false;
         if (a.length == 0) return true;
@@ -379,6 +400,11 @@ final class BuildCache
 }
 
 /// Cache entry with LRU tracking and metadata
+/// 
+/// Memory Management:
+/// - Strings reference data from deserialized file buffer (zero-copy)
+/// - Associative arrays are rehashed after bulk insertion for optimal layout
+/// - No postblit to avoid accidental copies (use pointers via 'in entries')
 private struct CacheEntry
 {
     string targetId;
@@ -399,9 +425,9 @@ struct CacheConfig
     size_t maxAge = 30;               // 30 days default
     
     /// Load from environment variables
-    static CacheConfig fromEnvironment()
+    static CacheConfig fromEnvironment() @safe
     {
-        import std.process;
+        import std.process : environment;
         
         CacheConfig config;
         
