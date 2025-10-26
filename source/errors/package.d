@@ -31,11 +31,12 @@ module errors;
 ///       writeln(format(result.unwrapErr()));
 ///   }
 
-public import errors.result;
-public import errors.codes;
-public import errors.types;
-public import errors.context;
-public import errors.format;
-public import errors.recovery;
-public import errors.aggregate;
+public import errors.handling.result;
+public import errors.handling.codes;
+public import errors.types.types;
+public import errors.types.context;
+public import errors.formatting.format;
+public import errors.handling.recovery;
+public import errors.handling.aggregate;
+public import errors.adaptation.adapt;
 

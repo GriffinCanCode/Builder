@@ -3,11 +3,11 @@ import std.getopt;
 import std.algorithm;
 import std.array;
 import std.conv;
-import core.graph;
-import core.executor;
-import config.parser;
-import analysis.analyzer;
-import utils.logger;
+import core.graph.graph;
+import core.execution.executor;
+import config.parsing.parser;
+import analysis.inference.analyzer;
+import utils.logging.logger;
 import errors;
 import cli;
 

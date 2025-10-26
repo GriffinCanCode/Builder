@@ -17,10 +17,10 @@ module cli;
 ///   publisher.subscribe(renderer);
 ///   publisher.publish(new BuildStartedEvent(...));
 
-public import cli.events;
-public import cli.terminal;
-public import cli.progress;
-public import cli.stream;
-public import cli.format;
-public import cli.render;
+public import cli.events.events;
+public import cli.control.terminal;
+public import cli.output.progress;
+public import cli.output.stream;
+public import cli.display.format;
+public import cli.display.render;
 
