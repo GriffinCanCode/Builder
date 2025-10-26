@@ -83,6 +83,7 @@ class DependencyResolver
                 target = resolveJavaImport(importName);  // Use Java resolution for JVM languages
                 break;
             case TargetLanguage.CSharp:
+            case TargetLanguage.FSharp:
             case TargetLanguage.Swift:
                 target = "";  // TODO: Implement .NET language resolution
                 break;
@@ -96,6 +97,9 @@ class DependencyResolver
             case TargetLanguage.Lua:
             case TargetLanguage.R:
                 target = "";  // TODO: Implement scripting language resolution
+                break;
+            case TargetLanguage.CSS:
+                target = "";  // CSS has no imports to resolve
                 break;
             case TargetLanguage.Generic:
                 target = "";
