@@ -1,0 +1,391 @@
+module languages.compiled.zig.core.handler;
+
+import std.stdio;
+import std.process;
+import std.file;
+import std.path;
+import std.algorithm;
+import std.array;
+import std.json;
+import languages.base.base;
+import languages.compiled.zig.core.config;
+import languages.compiled.zig.analysis.builder;
+import languages.compiled.zig.tooling.tools;
+import languages.compiled.zig.analysis.targets;
+import languages.compiled.zig.builders;
+import config.schema.schema;
+import analysis.targets.types;
+import analysis.targets.spec;
+import utils.files.hash;
+import utils.logging.logger;
+
+/// Advanced Zig build handler with build.zig and cross-compilation support
+class ZigHandler : BaseLanguageHandler
+{
+    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    {
+        LanguageBuildResult result;
+        
+        Logger.debug_("Building Zig target: " ~ target.name);
+        
+        // Parse Zig configuration
+        ZigConfig zigConfig = parseZigConfig(target);
+        
+        // Auto-detect and enhance configuration
+        enhanceConfigFromProject(zigConfig, target, config);
+        
+        // Run formatter if requested
+        if (zigConfig.runFmt)
+        {
+            auto fmtResult = formatCode(target.sources, zigConfig);
+            if (fmtResult.hasIssues())
+            {
+                Logger.info("Formatting issues found:");
+                foreach (warning; fmtResult.warnings)
+                {
+                    Logger.warning("  " ~ warning);
+                }
+            }
+        }
+        
+        // Run ast-check if requested
+        if (zigConfig.runCheck)
+        {
+            auto checkResult = ZigTools.astCheck(target.sources);
+            if (!checkResult.success)
+            {
+                Logger.warning("AST check found issues:");
+                foreach (error; checkResult.errors)
+                {
+                    Logger.warning("  " ~ error);
+                }
+            }
+        }
+        
+        // Build based on target type
+        final switch (target.type)
+        {
+            case TargetType.Executable:
+                result = buildExecutable(target, config, zigConfig);
+                break;
+            case TargetType.Library:
+                result = buildLibrary(target, config, zigConfig);
+                break;
+            case TargetType.Test:
+                result = runTests(target, config, zigConfig);
+                break;
+            case TargetType.Custom:
+                result = buildCustom(target, config, zigConfig);
+                break;
+        }
+        
+        return result;
+    }
+    
+    override string[] getOutputs(Target target, WorkspaceConfig config)
+    {
+        ZigConfig zigConfig = parseZigConfig(target);
+        
+        string[] outputs;
+        
+        if (!target.outputPath.empty)
+        {
+            outputs ~= buildPath(config.options.outputDir, target.outputPath);
+        }
+        else
+        {
+            auto name = target.name.split(":")[$ - 1];
+            
+            // Add platform-specific extension
+            version(Windows)
+            {
+                if (zigConfig.outputType == OutputType.Exe)
+                    name ~= ".exe";
+            }
+            
+            string outputDir = zigConfig.outputDir.empty ? 
+                              config.options.outputDir : 
+                              zigConfig.outputDir;
+            
+            outputs ~= buildPath(outputDir, name);
+        }
+        
+        return outputs;
+    }
+    
+    override Import[] analyzeImports(string[] sources)
+    {
+        auto spec = getLanguageSpec(TargetLanguage.Zig);
+        if (spec is null)
+            return [];
+        
+        Import[] allImports;
+        
+        foreach (source; sources)
+        {
+            if (!exists(source) || !isFile(source))
+                continue;
+            
+            try
+            {
+                auto content = readText(source);
+                auto imports = spec.scanImports(source, content);
+                allImports ~= imports;
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to analyze imports in " ~ source);
+            }
+        }
+        
+        return allImports;
+    }
+    
+    private LanguageBuildResult buildExecutable(
+        Target target,
+        WorkspaceConfig config,
+        ZigConfig zigConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        // Ensure output type is executable
+        zigConfig.outputType = OutputType.Exe;
+        
+        // Auto-detect entry point
+        if (zigConfig.entry.empty && !target.sources.empty)
+        {
+            // Look for main.zig first
+            foreach (source; target.sources)
+            {
+                if (baseName(source) == "main.zig")
+                {
+                    zigConfig.entry = source;
+                    break;
+                }
+            }
+            
+            // Fallback to first source
+            if (zigConfig.entry.empty)
+                zigConfig.entry = target.sources[0];
+        }
+        
+        // Build with selected builder
+        return compileTarget(target, config, zigConfig);
+    }
+    
+    private LanguageBuildResult buildLibrary(
+        Target target,
+        WorkspaceConfig config,
+        ZigConfig zigConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        // Set output type to library
+        if (zigConfig.outputType == OutputType.Exe)
+            zigConfig.outputType = OutputType.Lib;
+        
+        // Auto-detect entry point
+        if (zigConfig.entry.empty && !target.sources.empty)
+        {
+            // Look for lib.zig or root.zig first
+            foreach (source; target.sources)
+            {
+                string basename = baseName(source);
+                if (basename == "lib.zig" || basename == "root.zig")
+                {
+                    zigConfig.entry = source;
+                    break;
+                }
+            }
+            
+            // Fallback to first source
+            if (zigConfig.entry.empty)
+                zigConfig.entry = target.sources[0];
+        }
+        
+        return compileTarget(target, config, zigConfig);
+    }
+    
+    private LanguageBuildResult runTests(
+        Target target,
+        WorkspaceConfig config,
+        ZigConfig zigConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        // Set mode to test
+        zigConfig.mode = ZigBuildMode.Test;
+        
+        return compileTarget(target, config, zigConfig);
+    }
+    
+    private LanguageBuildResult buildCustom(
+        Target target,
+        WorkspaceConfig config,
+        ZigConfig zigConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        zigConfig.mode = ZigBuildMode.Custom;
+        
+        return compileTarget(target, config, zigConfig);
+    }
+    
+    private LanguageBuildResult compileTarget(
+        Target target,
+        WorkspaceConfig config,
+        ZigConfig zigConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        // Create builder
+        auto builder = ZigBuilderFactory.create(zigConfig.builder, zigConfig);
+        
+        if (!builder.isAvailable())
+        {
+            result.error = "Zig compiler not available. Install from: https://ziglang.org/download/";
+            return result;
+        }
+        
+        Logger.debug_("Using Zig builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        
+        // Compile
+        auto compileResult = builder.build(target.sources, zigConfig, target, config);
+        
+        if (!compileResult.success)
+        {
+            result.error = compileResult.error;
+            return result;
+        }
+        
+        // Report warnings
+        if (compileResult.hadWarnings && !compileResult.warnings.empty)
+        {
+            Logger.warning("Compilation warnings:");
+            foreach (warn; compileResult.warnings[0 .. min(5, $)])
+            {
+                Logger.warning("  " ~ warn);
+            }
+            if (compileResult.warnings.length > 5)
+            {
+                Logger.warning("  ... and " ~ (compileResult.warnings.length - 5).to!string ~ " more warnings");
+            }
+        }
+        
+        result.success = true;
+        result.outputs = compileResult.outputs ~ compileResult.artifacts;
+        result.outputHash = compileResult.outputHash;
+        
+        return result;
+    }
+    
+    private ZigConfig parseZigConfig(Target target)
+    {
+        ZigConfig config;
+        
+        // Try language-specific keys
+        string configKey = "";
+        if ("zig" in target.langConfig)
+            configKey = "zig";
+        else if ("zigConfig" in target.langConfig)
+            configKey = "zigConfig";
+        
+        if (!configKey.empty)
+        {
+            try
+            {
+                auto json = parseJSON(target.langConfig[configKey]);
+                config = ZigConfig.fromJSON(json);
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to parse Zig config, using defaults: " ~ e.msg);
+            }
+        }
+        
+        // Apply target flags to config
+        if (!target.flags.empty)
+        {
+            // Target flags are added during compilation
+        }
+        
+        return config;
+    }
+    
+    private void enhanceConfigFromProject(
+        ref ZigConfig config,
+        Target target,
+        WorkspaceConfig workspace
+    )
+    {
+        if (target.sources.empty)
+            return;
+        
+        string sourceDir = dirName(target.sources[0]);
+        
+        // Auto-detect build.zig
+        if (config.builder == ZigBuilder.Auto)
+        {
+            auto buildZigPath = BuildZigParser.findBuildZig(sourceDir);
+            if (!buildZigPath.empty)
+            {
+                Logger.debug_("Detected build.zig at: " ~ buildZigPath);
+                config.buildZig.path = buildZigPath;
+                config.builder = ZigBuilder.BuildZig;
+                
+                // Parse build.zig for project info
+                auto project = BuildZigParser.parseBuildZig(buildZigPath);
+                if (!project.name.empty)
+                {
+                    Logger.debug_("Project: " ~ project.name ~ 
+                                 (project.version_.empty ? "" : " v" ~ project.version_));
+                }
+            }
+            else
+            {
+                config.builder = ZigBuilder.Compile;
+            }
+        }
+        
+        // Auto-detect entry point
+        if (config.entry.empty && !target.sources.empty)
+        {
+            // Look for main.zig, lib.zig, or root.zig
+            foreach (source; target.sources)
+            {
+                string basename = baseName(source);
+                if (basename == "main.zig" || 
+                    basename == "lib.zig" || 
+                    basename == "root.zig")
+                {
+                    config.entry = source;
+                    break;
+                }
+            }
+            
+            // Fallback to first source
+            if (config.entry.empty)
+                config.entry = target.sources[0];
+        }
+        
+        // Initialize target manager
+        TargetManager.initialize();
+    }
+    
+    private ToolResult formatCode(string[] sources, ZigConfig config)
+    {
+        return ZigTools.format(
+            sources,
+            config.fmtCheck,  // check only
+            !config.fmtCheck, // write in place
+            config.fmtExclude // exclude pattern
+        );
+    }
+}
+
+
