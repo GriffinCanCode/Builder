@@ -16,7 +16,7 @@ import languages.base;
 import languages.python;
 import languages.javascript;
 import languages.go;
-import languages.rust;
+import languages.rust : RustHandler, DHandler;
 import utils.logger;
 import utils.pool;
 
@@ -38,7 +38,11 @@ class BuildExecutor
     {
         this.graph = graph;
         this.config = config;
-        this.cache = new BuildCache();
+        
+        // Initialize cache with configuration from environment
+        auto cacheConfig = CacheConfig.fromEnvironment();
+        this.cache = new BuildCache(".builder-cache", cacheConfig);
+        
         this.stateMutex = new Mutex();
         this.tasksReady = new Condition(stateMutex);
         
@@ -135,6 +139,12 @@ class BuildExecutor
         
         auto failed = atomicLoad(failedTasks);
         
+        // Flush cache to disk (lazy write optimization)
+        cache.flush();
+        
+        // Get cache statistics
+        auto cacheStats = cache.getStats();
+        
         // Print summary
         writeln();
         Logger.info("Build Summary:");
@@ -143,8 +153,29 @@ class BuildExecutor
         Logger.info("  Failed: " ~ failed.to!string);
         Logger.info("  Time: " ~ sw.peek().total!"msecs".to!string ~ "ms");
         
+        // Print cache performance statistics
+        if (cacheStats.metadataHits + cacheStats.contentHashes > 0)
+        {
+            Logger.info("Cache Performance:");
+            Logger.info("  Total entries: " ~ cacheStats.totalEntries.to!string);
+            Logger.info("  Cache size: " ~ formatSize(cacheStats.totalSize));
+            Logger.info("  Metadata hit rate: " ~ cacheStats.metadataHitRate.to!string[0..min(4, cacheStats.metadataHitRate.to!string.length)] ~ "%");
+        }
+        
         if (failed > 0)
             throw new Exception("Build failed with " ~ failed.to!string ~ " errors");
+    }
+    
+    /// Format size in human-readable format
+    private string formatSize(size_t bytes)
+    {
+        if (bytes < 1024)
+            return bytes.to!string ~ " B";
+        if (bytes < 1024 * 1024)
+            return (bytes / 1024).to!string ~ " KB";
+        if (bytes < 1024 * 1024 * 1024)
+            return (bytes / (1024 * 1024)).to!string ~ " MB";
+        return (bytes / (1024 * 1024 * 1024)).to!string ~ " GB";
     }
     
     /// Build a single node
