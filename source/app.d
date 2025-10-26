@@ -11,10 +11,11 @@ import utils.logging.logger;
 import utils.simd;
 import errors;
 import cli;
+import cli.commands;
 import tools;
 
 /// Initialize SIMD acceleration system
-void initializeSIMD()
+void initializeSIMD() @trusted
 {
     SIMDDispatch.initialize();
     
@@ -69,7 +70,10 @@ void main(string[] args)
                 graphCommand(target);
                 break;
             case "init":
-                initCommand();
+                InitCommand.execute();
+                break;
+            case "infer":
+                InferCommand.execute();
                 break;
             case "install-extension":
                 installExtensionCommand();
@@ -87,28 +91,34 @@ void main(string[] args)
     }
 }
 
-void printHelp()
+void printHelp() @safe
 {
     writeln("Builder - Smart Build System for Mixed-Language Monorepos\n");
     writeln("Usage:");
     writeln("  builder <command> [options] [target]\n");
     writeln("Commands:");
-    writeln("  build [target]    Build all targets or specific target");
+    writeln("  build [target]    Build all targets or specific target (zero-config supported!)");
     writeln("  clean             Clean build cache");
     writeln("  graph [target]    Show dependency graph");
-    writeln("  init              Initialize a new Builderfile");
+    writeln("  init              Initialize a new Builderfile with auto-detection");
+    writeln("  infer             Show what targets would be auto-detected (dry-run)");
     writeln("  install-extension Install Builder VS Code extension\n");
     writeln("Options:");
     writeln("  -v, --verbose     Enable verbose output");
     writeln("  -g, --graph       Show dependency graph during build");
     writeln("  -m, --mode MODE   CLI mode: auto, interactive, plain, verbose, quiet\n");
+    writeln("Zero-Config:");
+    writeln("  Builder can automatically detect project structure and build without");
+    writeln("  a Builderfile. Simply run 'builder build' in any supported project!\n");
     writeln("Examples:");
-    writeln("  builder build                    # Build all targets");
+    writeln("  builder build                    # Build all targets (auto-detects if no Builderfile)");
+    writeln("  builder infer                    # Preview what would be auto-detected");
+    writeln("  builder init                     # Create Builderfile based on project structure");
     writeln("  builder build //path/to:target   # Build specific target");
     writeln("  builder graph //path/to:target   # Show dependencies");
 }
 
-void buildCommand(string target, bool showGraph, string modeStr)
+void buildCommand(in string target, in bool showGraph, in string modeStr) @trusted
 {
     Logger.info("Starting build...");
     
@@ -137,7 +147,7 @@ void buildCommand(string target, bool showGraph, string modeStr)
     }
     
     // Determine render mode
-    RenderMode renderMode = parseRenderMode(modeStr);
+    immutable renderMode = parseRenderMode(modeStr);
     
     // Create event publisher and renderer
     auto publisher = new SimpleEventPublisher();
@@ -154,28 +164,26 @@ void buildCommand(string target, bool showGraph, string modeStr)
     Logger.success("Build completed successfully!");
 }
 
-RenderMode parseRenderMode(string mode)
+RenderMode parseRenderMode(in string mode) @safe pure
 {
     import std.string : toLower;
-    switch (mode.toLower)
-    {
-        case "auto":
-            return RenderMode.Auto;
-        case "interactive":
-            return RenderMode.Interactive;
-        case "plain":
-            return RenderMode.Plain;
-        case "verbose":
-            return RenderMode.Verbose;
-        case "quiet":
-            return RenderMode.Quiet;
-        default:
-            Logger.warning("Unknown render mode: " ~ mode ~ ", using auto");
-            return RenderMode.Auto;
-    }
+    import std.uni : sicmp;
+    
+    if (sicmp(mode, "auto") == 0)
+        return RenderMode.Auto;
+    else if (sicmp(mode, "interactive") == 0)
+        return RenderMode.Interactive;
+    else if (sicmp(mode, "plain") == 0)
+        return RenderMode.Plain;
+    else if (sicmp(mode, "verbose") == 0)
+        return RenderMode.Verbose;
+    else if (sicmp(mode, "quiet") == 0)
+        return RenderMode.Quiet;
+    else
+        return RenderMode.Auto; // Default fallback
 }
 
-void cleanCommand()
+void cleanCommand() @trusted
 {
     Logger.info("Cleaning build cache...");
     
@@ -190,7 +198,7 @@ void cleanCommand()
     Logger.success("Clean completed!");
 }
 
-void graphCommand(string target)
+void graphCommand(in string target) @trusted
 {
     Logger.info("Analyzing dependency graph...");
     
@@ -212,43 +220,7 @@ void graphCommand(string target)
     graph.print();
 }
 
-void initCommand()
-{
-    Logger.info("Initializing Builderfile...");
-    
-    import std.file : write, exists;
-    
-    if (exists("Builderfile"))
-    {
-        Logger.error("Builderfile already exists");
-        return;
-    }
-    
-    string template_content = `// Builderfile configuration file
-// Define your build targets here
-
-import builder.config;
-
-// Example library target
-target("my-lib",
-    type: TargetType.Library,
-    sources: ["src/**/*.d"],
-    deps: []
-);
-
-// Example executable target
-target("my-app",
-    type: TargetType.Executable,
-    sources: ["app.d"],
-    deps: [":my-lib"]
-);
-`;
-    
-    write("Builderfile", template_content);
-    Logger.success("Created Builderfile");
-}
-
-void installExtensionCommand()
+void installExtensionCommand() @trusted
 {
     VSCodeExtension.install();
 }

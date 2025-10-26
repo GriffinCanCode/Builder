@@ -10,6 +10,7 @@ module analysis;
 ///   analyzer.d  - Build target analysis
 ///   spec.d      - Build specification handling
 ///   metagen.d   - Metadata generation
+///   detection/  - Project detection and init templates
 ///
 /// Usage:
 ///   import analysis;
@@ -26,4 +27,5 @@ public import analysis.targets.types;
 public import analysis.inference.analyzer;
 public import analysis.targets.spec;
 public import analysis.metadata.metagen;
+public import analysis.detection;
 
