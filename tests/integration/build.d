@@ -10,6 +10,7 @@ import config.schema;
 import config.parser;
 import tests.harness;
 import tests.fixtures;
+import errors;
 
 unittest
 {
@@ -22,7 +23,9 @@ unittest
                           ["main.py"], []);
     
     // Parse workspace and build graph
-    auto config = ConfigParser.parseWorkspace(workspace.getPath());
+    auto configResult = ConfigParser.parseWorkspace(workspace.getPath());
+    Assert.isTrue(configResult.isOk);
+    auto config = configResult.unwrap();
     Assert.notEmpty(config.targets);
     
     auto graph = new BuildGraph();
@@ -50,7 +53,9 @@ unittest
     workspace.createTarget("app", TargetType.Executable, ["main.py"], ["//lib"]);
     
     // Parse workspace
-    auto config = ConfigParser.parseWorkspace(workspace.getPath());
+    auto configResult = ConfigParser.parseWorkspace(workspace.getPath());
+    Assert.isTrue(configResult.isOk);
+    auto config = configResult.unwrap();
     Assert.equal(config.targets.length, 2);
     
     // Build dependency graph
@@ -99,7 +104,9 @@ unittest
     
     workspace.createTarget("app", TargetType.Executable, ["main.py"], []);
     
-    auto config = ConfigParser.parseWorkspace(workspace.getPath());
+    auto configResult = ConfigParser.parseWorkspace(workspace.getPath());
+    Assert.isTrue(configResult.isOk);
+    auto config = configResult.unwrap();
     auto graph = new BuildGraph();
     
     foreach (ref target; config.targets)
@@ -151,7 +158,9 @@ unittest
     workspace.createTarget("app", TargetType.Executable, 
                           ["app.py"], ["//middleware"]);
     
-    auto config = ConfigParser.parseWorkspace(workspace.getPath());
+    auto configResult = ConfigParser.parseWorkspace(workspace.getPath());
+    Assert.isTrue(configResult.isOk);
+    auto config = configResult.unwrap();
     auto graph = new BuildGraph();
     
     // Build graph
@@ -223,7 +232,9 @@ unittest
     workspace.createTarget("app", TargetType.Executable, 
                           ["app.py"], ["//lib1", "//lib2", "//lib3"]);
     
-    auto config = ConfigParser.parseWorkspace(workspace.getPath());
+    auto configResult = ConfigParser.parseWorkspace(workspace.getPath());
+    Assert.isTrue(configResult.isOk);
+    auto config = configResult.unwrap();
     auto graph = new BuildGraph();
     
     foreach (ref target; config.targets)

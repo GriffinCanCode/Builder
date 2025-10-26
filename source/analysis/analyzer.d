@@ -56,7 +56,17 @@ class DependencyAnalyzer
             if (target.name !in graph.nodes)
                 continue;
             
-            auto analysis = analyzeTarget(target);
+            auto analysisResult = analyzeTarget(target);
+            
+            if (analysisResult.isErr)
+            {
+                auto error = analysisResult.unwrapErr();
+                Logger.warning("Analysis failed for " ~ target.name);
+                Logger.error(format(error));
+                continue;
+            }
+            
+            auto analysis = analysisResult.unwrap();
             
             if (!analysis.isValid)
             {
@@ -93,43 +103,71 @@ class DependencyAnalyzer
         return graph;
     }
     
-    /// Analyze a single target
-    TargetAnalysis analyzeTarget(ref Target target)
+    /// Analyze a single target with error aggregation
+    /// Returns Result with TargetAnalysis, collecting all file analysis errors
+    Result!(TargetAnalysis, BuildError) analyzeTarget(
+        ref Target target,
+        AggregationPolicy policy = AggregationPolicy.CollectAll)
     {
         auto sw = StopWatch(AutoStart.yes);
         
         TargetAnalysis result;
         result.targetName = target.name;
         
-        // Analyze each source file
-        foreach (source; target.sources)
+        // Aggregate file analysis results
+        auto aggregated = aggregateMap(
+            target.sources,
+            (string source) {
+                // Check file exists
+                if (!exists(source) || !isFile(source))
+                {
+                    auto error = new IOError(source, "Source file not found", ErrorCode.FileNotFound);
+                    error.addContext(ErrorContext("analyzing target", target.name));
+                    return Err!(FileAnalysis, BuildError)(error);
+                }
+                
+                try
+                {
+                    auto content = readText(source);
+                    auto hash = FastHash.hashString(content);
+                    
+                    // Use compile-time generated analyzer
+                    auto fileAnalysis = analyzeFile(target.language, source, content);
+                    fileAnalysis.contentHash = hash;
+                    
+                    return Ok!(FileAnalysis, BuildError)(fileAnalysis);
+                }
+                catch (Exception e)
+                {
+                    auto error = new AnalysisError(target.name, e.msg, ErrorCode.AnalysisFailed);
+                    error.addContext(ErrorContext("analyzing file", source));
+                    return Err!(FileAnalysis, BuildError)(error);
+                }
+            },
+            policy
+        );
+        
+        // Log analysis results
+        if (aggregated.hasErrors)
         {
-            if (!exists(source) || !isFile(source))
-            {
-                Logger.warning("Source file not found: " ~ source);
-                continue;
-            }
+            Logger.warning(
+                "Failed to analyze " ~ aggregated.errors.length.to!string ~
+                " source file(s) in " ~ target.name
+            );
             
-            try
+            foreach (error; aggregated.errors)
             {
-                auto content = readText(source);
-                auto hash = FastHash.hashString(content);
-                
-                // Use compile-time generated analyzer
-                auto fileAnalysis = analyzeFile(target.language, source, content);
-                fileAnalysis.contentHash = hash;
-                
-                result.files ~= fileAnalysis;
-            }
-            catch (Exception e)
-            {
-                auto error = new AnalysisError(target.name, e.msg, ErrorCode.AnalysisFailed);
-                error.addContext(ErrorContext("analyzing file", source));
                 Logger.error(format(error));
-                result.files ~= FileAnalysis(
-                    source, [], "", true, [e.msg]
-                );
             }
+        }
+        
+        // Store successfully analyzed files
+        result.files = aggregated.successes;
+        
+        // If all files failed to analyze, return error
+        if (aggregated.isFailed)
+        {
+            return Err!(TargetAnalysis, BuildError)(aggregated.errors[0]);
         }
         
         // Collect all imports
@@ -157,7 +195,7 @@ class DependencyAnalyzer
             0
         );
         
-        return result;
+        return Ok!(TargetAnalysis, BuildError)(result);
     }
     
     /// Resolve imports to dependencies (uses compile-time generated code)

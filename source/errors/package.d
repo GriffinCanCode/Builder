@@ -37,4 +37,5 @@ public import errors.types;
 public import errors.context;
 public import errors.format;
 public import errors.recovery;
+public import errors.aggregate;
 

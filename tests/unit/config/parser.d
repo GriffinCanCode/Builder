@@ -9,6 +9,7 @@ import config.parser;
 import config.schema;
 import tests.harness;
 import tests.fixtures;
+import errors;
 
 unittest
 {
@@ -29,8 +30,10 @@ unittest
     tempDir.createFile("utils.py", "# Utils file");
     
     // Parse the workspace
-    auto workspace = ConfigParser.parseWorkspace(tempDir.getPath());
+    auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
+    Assert.isTrue(wsResult.isOk);
     
+    auto workspace = wsResult.unwrap();
     Assert.notEmpty(workspace.targets);
     auto target = workspace.targets[0];
     
@@ -68,8 +71,10 @@ unittest
     tempDir.createFile("lib.py", "# Library");
     tempDir.createFile("app.py", "# Application");
     
-    auto workspace = ConfigParser.parseWorkspace(tempDir.getPath());
+    auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
+    Assert.isTrue(wsResult.isOk);
     
+    auto workspace = wsResult.unwrap();
     Assert.equal(workspace.targets.length, 2);
     Assert.isTrue(workspace.targets[0].name.canFind("lib"));
     Assert.isTrue(workspace.targets[1].name.canFind("app"));
@@ -92,8 +97,10 @@ unittest
     tempDir.createFile("BUILD.json", config.toPrettyString());
     tempDir.createFile("main.py", "# Python file");
     
-    auto workspace = ConfigParser.parseWorkspace(tempDir.getPath());
+    auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
+    Assert.isTrue(wsResult.isOk);
     
+    auto workspace = wsResult.unwrap();
     Assert.notEmpty(workspace.targets);
     auto target = workspace.targets[0];
     
@@ -122,8 +129,10 @@ unittest
     
     tempDir.createFile("BUILD.json", config.toPrettyString());
     
-    auto workspace = ConfigParser.parseWorkspace(tempDir.getPath());
+    auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
+    Assert.isTrue(wsResult.isOk);
     
+    auto workspace = wsResult.unwrap();
     Assert.notEmpty(workspace.targets);
     auto target = workspace.targets[0];
     
@@ -142,11 +151,13 @@ unittest
     // Create invalid JSON
     tempDir.createFile("BUILD.json", "{ invalid json }");
     
-    // Parser should handle gracefully
-    auto workspace = ConfigParser.parseWorkspace(tempDir.getPath());
+    // Parser should handle gracefully with CollectAll policy
+    // When ALL files fail, it returns an error (complete failure)
+    auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath(), AggregationPolicy.CollectAll);
     
-    // Should have no targets due to parse error
-    Assert.isEmpty(workspace.targets);
+    // With CollectAll, if all files fail, we get an error
+    // This is correct behavior - complete failure should return Err
+    Assert.isTrue(wsResult.isErr);
     
     writeln("\x1b[32m  ✓ Invalid JSON handled gracefully\x1b[0m");
 }

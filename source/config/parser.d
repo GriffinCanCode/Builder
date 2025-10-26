@@ -19,7 +19,14 @@ import errors;
 class ConfigParser
 {
     /// Parse entire workspace starting from root
-    static WorkspaceConfig parseWorkspace(string root)
+    /// Returns Result with WorkspaceConfig and accumulated errors
+    /// 
+    /// By default, uses CollectAll policy to gather all parsing errors
+    /// while still loading valid BUILD files. This maximizes information
+    /// available to the caller.
+    static Result!(WorkspaceConfig, BuildError) parseWorkspace(
+        string root,
+        AggregationPolicy policy = AggregationPolicy.CollectAll)
     {
         WorkspaceConfig config;
         config.root = absolutePath(root);
@@ -28,29 +35,80 @@ class ConfigParser
         auto buildFiles = findBuildFiles(root);
         Logger.debug_("Found " ~ buildFiles.length.to!string ~ " BUILD files");
         
-        // Parse each BUILD file
-        foreach (buildFile; buildFiles)
+        // Parse each BUILD file with error aggregation
+        auto aggregated = aggregateFlatMap(
+            buildFiles,
+            (string buildFile) => parseBuildFile(buildFile, root),
+            policy
+        );
+        
+        // Log results
+        if (aggregated.hasErrors)
         {
-            auto result = parseBuildFile(buildFile, root);
-            if (result.isOk)
+            Logger.warning(
+                "Failed to parse " ~ aggregated.errors.length.to!string ~
+                " BUILD file(s)"
+            );
+            
+            // Log each error with full context
+            import errors.format : format;
+            foreach (error; aggregated.errors)
             {
-                config.targets ~= result.unwrap();
+                Logger.error(format(error));
             }
-            else
-            {
-                // Log error but continue parsing other files
-                Logger.warning("Skipping " ~ buildFile ~ " due to parse error");
-            }
+        }
+        
+        if (aggregated.hasSuccesses)
+        {
+            config.targets = aggregated.successes;
+            Logger.debug_(
+                "Successfully parsed " ~ aggregated.successes.length.to!string ~
+                " target(s) from " ~ buildFiles.length.to!string ~ " BUILD file(s)"
+            );
+        }
+        
+        // If policy is fail-fast and we have errors, return early
+        if (policy == AggregationPolicy.FailFast && aggregated.hasErrors)
+        {
+            return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
         }
         
         // Load workspace config if exists
         string workspaceFile = buildPath(root, "WORKSPACE");
         if (exists(workspaceFile))
         {
-            parseWorkspaceFile(workspaceFile, config);
+            auto wsResult = parseWorkspaceFile(workspaceFile, config);
+            if (wsResult.isErr)
+            {
+                auto error = wsResult.unwrapErr();
+                Logger.error("Failed to parse WORKSPACE file");
+                import errors.format : format;
+                Logger.error(format(error));
+                
+                // For fail-fast policy, return immediately
+                if (policy == AggregationPolicy.FailFast)
+                {
+                    return Err!(WorkspaceConfig, BuildError)(error);
+                }
+                
+                // For other policies, this is a fatal error since WORKSPACE
+                // config affects all targets
+                if (policy == AggregationPolicy.StopAtFatal && !error.recoverable())
+                {
+                    return Err!(WorkspaceConfig, BuildError)(error);
+                }
+            }
         }
         
-        return config;
+        // Return success if we have at least one target or no errors
+        // This allows partial success: some BUILD files failed but others succeeded
+        if (aggregated.hasSuccesses || !aggregated.hasErrors)
+        {
+            return Ok!(WorkspaceConfig, BuildError)(config);
+        }
+        
+        // Complete failure - no targets parsed and we have errors
+        return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
     }
     
     /// Find all BUILD files in directory tree
@@ -226,7 +284,8 @@ class ConfigParser
     }
     
     /// Parse workspace-level configuration (DSL format only)
-    private static void parseWorkspaceFile(string path, ref WorkspaceConfig config)
+    /// Returns Result to allow proper error propagation
+    private static Result!BuildError parseWorkspaceFile(string path, ref WorkspaceConfig config)
     {
         try
         {
@@ -235,23 +294,23 @@ class ConfigParser
             
             if (result.isErr)
             {
-                auto error = result.unwrapErr();
-                Logger.error("Failed to parse WORKSPACE file: " ~ error.message);
-                import errors.format : format;
-                Logger.error(format(error));
+                return result;
             }
-            else
-            {
-                Logger.debug_("Parsed WORKSPACE configuration successfully");
-            }
+            
+            Logger.debug_("Parsed WORKSPACE configuration successfully");
+            return Result!BuildError.ok();
         }
         catch (FileException e)
         {
-            Logger.warning("Could not read WORKSPACE file: " ~ e.msg);
+            auto error = new IOError(path, e.msg, ErrorCode.FileReadFailed);
+            error.addContext(ErrorContext("reading WORKSPACE file"));
+            return Result!BuildError.err(error);
         }
         catch (Exception e)
         {
-            Logger.warning("Error parsing WORKSPACE file: " ~ e.msg);
+            auto error = new ParseError(path, e.msg, ErrorCode.ParseFailed);
+            error.addContext(ErrorContext("parsing WORKSPACE file"));
+            return Result!BuildError.err(error);
         }
     }
     

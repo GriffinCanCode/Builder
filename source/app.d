@@ -8,6 +8,7 @@ import core.executor;
 import config.parser;
 import analysis.analyzer;
 import utils.logger;
+import errors;
 
 void main(string[] args)
 {
@@ -88,8 +89,18 @@ void buildCommand(string target, bool showGraph)
 {
     Logger.info("Starting build...");
     
-    // Parse configuration
-    auto config = ConfigParser.parseWorkspace(".");
+    // Parse configuration with error handling
+    auto configResult = ConfigParser.parseWorkspace(".");
+    if (configResult.isErr)
+    {
+        Logger.error("Failed to parse workspace configuration");
+        import errors.format : format;
+        Logger.error(format(configResult.unwrapErr()));
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    
+    auto config = configResult.unwrap();
     Logger.info("Found " ~ config.targets.length.to!string ~ " targets");
     
     // Analyze dependencies
@@ -128,7 +139,18 @@ void graphCommand(string target)
 {
     Logger.info("Analyzing dependency graph...");
     
-    auto config = ConfigParser.parseWorkspace(".");
+    // Parse configuration with error handling
+    auto configResult = ConfigParser.parseWorkspace(".");
+    if (configResult.isErr)
+    {
+        Logger.error("Failed to parse workspace configuration");
+        import errors.format : format;
+        Logger.error(format(configResult.unwrapErr()));
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    
+    auto config = configResult.unwrap();
     auto analyzer = new DependencyAnalyzer(config);
     auto graph = analyzer.analyze(target);
     
