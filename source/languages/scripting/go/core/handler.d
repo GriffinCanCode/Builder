@@ -1,4 +1,4 @@
-module languages.scripting.go.handler;
+module languages.scripting.go.core.handler;
 
 import std.stdio;
 import std.process;
@@ -8,9 +8,9 @@ import std.algorithm;
 import std.array;
 import std.json;
 import languages.base.base;
-import languages.scripting.go.config;
-import languages.scripting.go.modules;
-import languages.scripting.go.tools;
+import languages.scripting.go.core.config;
+import languages.scripting.go.managers.modules;
+import languages.scripting.go.tooling.tools;
 import languages.scripting.go.builders;
 import config.schema.schema;
 import analysis.targets.types;

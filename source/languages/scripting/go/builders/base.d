@@ -1,6 +1,6 @@
 module languages.scripting.go.builders.base;
 
-import languages.scripting.go.config;
+import languages.scripting.go.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 

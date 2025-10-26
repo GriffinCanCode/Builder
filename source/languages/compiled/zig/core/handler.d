@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv;
 import languages.base.base;
 import languages.compiled.zig.core.config;
 import languages.compiled.zig.analysis.builder;
@@ -329,14 +330,14 @@ class ZigHandler : BaseLanguageHandler
         string sourceDir = dirName(target.sources[0]);
         
         // Auto-detect build.zig
-        if (config.builder == ZigBuilder.Auto)
+        if (config.builder == ZigBuilderType.Auto)
         {
             auto buildZigPath = BuildZigParser.findBuildZig(sourceDir);
             if (!buildZigPath.empty)
             {
                 Logger.debug_("Detected build.zig at: " ~ buildZigPath);
                 config.buildZig.path = buildZigPath;
-                config.builder = ZigBuilder.BuildZig;
+                config.builder = ZigBuilderType.BuildZig;
                 
                 // Parse build.zig for project info
                 auto project = BuildZigParser.parseBuildZig(buildZigPath);
@@ -348,7 +349,7 @@ class ZigHandler : BaseLanguageHandler
             }
             else
             {
-                config.builder = ZigBuilder.Compile;
+                config.builder = ZigBuilderType.Compile;
             }
         }
         

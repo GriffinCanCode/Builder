@@ -1,4 +1,4 @@
-module languages.compiled.zig.config;
+module languages.compiled.zig.core.config;
 
 import std.json;
 import std.string;
@@ -26,7 +26,7 @@ enum ZigBuildMode
 }
 
 /// Builder selection
-enum ZigBuilder
+enum ZigBuilderType
 {
     /// Auto-detect (prefer build.zig if exists)
     Auto,
@@ -210,7 +210,7 @@ struct BuildZigConfig
 }
 
 /// Cache configuration
-struct CacheConfig
+struct ZigCacheConfig
 {
     /// Enable global cache
     bool globalCache = true;
@@ -229,7 +229,7 @@ struct ZigConfig
     ZigBuildMode mode = ZigBuildMode.Compile;
     
     /// Builder selection
-    ZigBuilder builder = ZigBuilder.Auto;
+    ZigBuilderType builder = ZigBuilderType.Auto;
     
     /// Optimization mode
     OptMode optimize = OptMode.ReleaseFast;
@@ -328,7 +328,7 @@ struct ZigConfig
     TestConfig test;
     
     /// Cache configuration
-    CacheConfig cache;
+    ZigCacheConfig cache;
     
     /// Tooling options
     bool runFmt = false;
@@ -369,10 +369,10 @@ struct ZigConfig
             string builderStr = json["builder"].str.toLower;
             switch (builderStr)
             {
-                case "auto": config.builder = ZigBuilder.Auto; break;
-                case "build-zig": case "build": config.builder = ZigBuilder.BuildZig; break;
-                case "compile": config.builder = ZigBuilder.Compile; break;
-                default: config.builder = ZigBuilder.Auto; break;
+                case "auto": config.builder = ZigBuilderType.Auto; break;
+                case "build-zig": case "build": config.builder = ZigBuilderType.BuildZig; break;
+                case "compile": config.builder = ZigBuilderType.Compile; break;
+                default: config.builder = ZigBuilderType.Auto; break;
             }
         }
         

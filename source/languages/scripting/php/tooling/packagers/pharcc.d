@@ -8,12 +8,13 @@ import std.path;
 import std.string;
 import std.algorithm;
 import std.array;
+import std.conv;
 import utils.logging.logger;
 
 /// Pharcc packager - compile PHP to standalone binary
 class PharccPackager : Packager
 {
-    PackageResult package(
+    PackageResult createPackage(
         string[] sources,
         PHARConfig config,
         string projectRoot

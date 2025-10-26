@@ -4,6 +4,7 @@ import languages.scripting.php.core.config;
 import std.process;
 import std.path;
 import std.file;
+import std.range;
 
 /// Format result
 struct FormatResult
@@ -52,8 +53,8 @@ class FormatterFactory
     /// Create formatter based on type
     static Formatter create(PHPFormatter type, string projectRoot = ".")
     {
-        import languages.scripting.php.formatters.phpcsfixer;
-        import languages.scripting.php.formatters.phpcs;
+        import languages.scripting.php.tooling.formatters.phpcsfixer;
+        import languages.scripting.php.tooling.formatters.phpcs;
         
         final switch (type)
         {

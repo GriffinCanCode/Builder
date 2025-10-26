@@ -4,7 +4,7 @@ import std.process;
 import std.algorithm;
 import std.array;
 import std.string;
-import languages.scripting.python.config;
+import languages.scripting.python.core.config;
 import languages.scripting.python.tooling.results;
 import languages.scripting.python.tooling.detection;
 import utils.logging.logger;

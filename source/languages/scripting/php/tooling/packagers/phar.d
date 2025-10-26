@@ -8,12 +8,13 @@ import std.path;
 import std.string;
 import std.algorithm;
 import std.array;
+import std.conv;
 import utils.logging.logger;
 
 /// Native PHP PHAR packager
 class NativePharPackager : Packager
 {
-    PackageResult package(
+    PackageResult createPackage(
         string[] sources,
         PHARConfig config,
         string projectRoot

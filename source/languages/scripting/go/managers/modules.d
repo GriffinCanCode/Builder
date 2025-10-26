@@ -1,4 +1,4 @@
-module languages.scripting.go.modules;
+module languages.scripting.go.managers.modules;
 
 import std.file;
 import std.path;

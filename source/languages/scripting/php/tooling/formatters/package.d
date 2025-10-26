@@ -1,6 +1,6 @@
-module languages.scripting.php.formatters;
+module languages.scripting.php.tooling.formatters;
 
-public import languages.scripting.php.formatters.base;
-public import languages.scripting.php.formatters.phpcsfixer;
-public import languages.scripting.php.formatters.phpcs;
+public import languages.scripting.php.tooling.formatters.base;
+public import languages.scripting.php.tooling.formatters.phpcsfixer;
+public import languages.scripting.php.tooling.formatters.phpcs;
 

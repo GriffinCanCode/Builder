@@ -338,7 +338,7 @@ class PHPHandler : BaseLanguageHandler
         Logger.debug_("Using packager: " ~ packager.name() ~ " (" ~ packager.getVersion() ~ ")");
         
         // Package
-        auto packageResult = packager.package(target.sources, phpConfig.phar, config.root);
+        auto packageResult = packager.createPackage(target.sources, phpConfig.phar, config.root);
         
         if (!packageResult.success)
         {

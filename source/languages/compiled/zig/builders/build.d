@@ -7,6 +7,8 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.conv;
+import std.range;
+import std.string;
 import languages.compiled.zig.core.config;
 import languages.compiled.zig.analysis.builder;
 import languages.compiled.zig.tooling.tools;

@@ -4,6 +4,7 @@ import languages.scripting.php.core.config;
 import std.process;
 import std.path;
 import std.file;
+import std.range;
 
 /// Analysis result
 struct AnalysisResult

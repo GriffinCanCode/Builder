@@ -1,17 +1,9 @@
-// C++ project Builderfile - Demonstrating modular C++ support
+// C++ project Builderfile
 
 target("cpp-app") {
     type: executable;
     language: cpp;
     sources: ["main.cpp"];
-    langConfig: {
-        "cpp": "{
-            \"compiler\": \"auto\",
-            \"std\": \"c++17\",
-            \"optimization\": \"o2\",
-            \"warnings\": \"all\",
-            \"debugInfo\": true
-        }"
-    };
+    flags: ["-std=c++17", "-O2", "-Wall"];
     output: "cpp-app";
 }

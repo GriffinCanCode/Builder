@@ -7,6 +7,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.process;
+import std.range;
 import utils.logging.logger;
 
 /// Composer.json metadata
@@ -87,7 +88,7 @@ struct ComposerMetadata
     }
     
     /// Get all PSR-4 namespaces
-    string[string] getPSR4Namespaces() const
+    const(string[string]) getPSR4Namespaces() const
     {
         return autoload.psr4;
     }

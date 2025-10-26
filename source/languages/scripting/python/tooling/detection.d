@@ -1,10 +1,23 @@
 module languages.scripting.python.tooling.detection;
 
 import std.process;
+import std.string;
+import std.array;
 
 /// Tool detection utilities
 class ToolDetection
 {
+    /// Get Python version string
+    static string getPythonVersion(string pythonCmd = "python3")
+    {
+        auto res = execute([pythonCmd, "--version"]);
+        if (res.status == 0)
+        {
+            return res.output.strip;
+        }
+        return "Unknown";
+    }
+    
     /// Check if a command is available in PATH
     static bool isCommandAvailable(string command)
     {

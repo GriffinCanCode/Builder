@@ -1,5 +1,8 @@
 module languages.compiled.zig.builders.base;
 
+import std.algorithm;
+import std.range;
+import std.string;
 import languages.compiled.zig.core.config;
 import config.schema.schema;
 
@@ -31,18 +34,18 @@ interface ZigBuilder
 class ZigBuilderFactory
 {
     /// Create builder based on type
-    static ZigBuilder create(ZigBuilder builderType, ZigConfig config)
+    static ZigBuilder create(ZigBuilderType builderType, ZigConfig config)
     {
         import languages.compiled.zig.builders.build;
         import languages.compiled.zig.builders.compile;
         
         final switch (builderType)
         {
-            case ZigBuilder.Auto:
+            case ZigBuilderType.Auto:
                 return createAuto(config);
-            case ZigBuilder.BuildZig:
+            case ZigBuilderType.BuildZig:
                 return new BuildZigBuilder();
-            case ZigBuilder.Compile:
+            case ZigBuilderType.Compile:
                 return new CompileBuilder();
         }
     }

@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.regex;
+import std.conv;
 import languages.scripting.r.core.config;
 import utils.logging.logger;
 

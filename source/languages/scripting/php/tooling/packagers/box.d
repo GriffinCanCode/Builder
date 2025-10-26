@@ -10,12 +10,13 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv;
 import utils.logging.logger;
 
 /// Box PHAR packager (modern, recommended)
 class BoxPackager : Packager
 {
-    PackageResult package(
+    PackageResult createPackage(
         string[] sources,
         PHARConfig config,
         string projectRoot

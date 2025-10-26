@@ -1,4 +1,4 @@
-module languages.scripting.go.config;
+module languages.scripting.go.core.config;
 
 import std.json;
 import std.string;

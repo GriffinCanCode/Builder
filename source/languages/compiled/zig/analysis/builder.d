@@ -31,7 +31,7 @@ struct BuildZigProject
     string path;
     
     /// Check if project is valid
-    bool isValid() const pure nothrow
+    bool isValid() const nothrow
     {
         return !path.empty && exists(path);
     }

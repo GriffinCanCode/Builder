@@ -1,4 +1,4 @@
-module languages.scripting.go.tools;
+module languages.scripting.go.tooling.tools;
 
 import std.process;
 import std.file;

@@ -1,5 +1,7 @@
 module languages.scripting.python.tooling.results;
 
+import std.range;
+
 /// Result of running a Python tool
 struct ToolResult
 {

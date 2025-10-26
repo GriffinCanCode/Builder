@@ -4,6 +4,7 @@ import languages.scripting.php.core.config;
 import std.process;
 import std.path;
 import std.file;
+import std.range;
 
 /// Package result
 struct PackageResult
@@ -26,7 +27,7 @@ struct PackageResult
 interface Packager
 {
     /// Package PHP application
-    PackageResult package(
+    PackageResult createPackage(
         string[] sources,
         PHARConfig config,
         string projectRoot
@@ -93,7 +94,7 @@ class PackagerFactory
 /// Null packager - does nothing
 class NullPackager : Packager
 {
-    PackageResult package(
+    PackageResult createPackage(
         string[] sources,
         PHARConfig config,
         string projectRoot
