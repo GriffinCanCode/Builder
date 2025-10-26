@@ -290,7 +290,7 @@ class JavaHandler : BaseLanguageHandler
         final switch (javaConfig.buildTool)
         {
             case JavaBuildTool.Maven:
-                if (!MavenOps.package(config.root, javaConfig.maven.skipTests, useWrapper))
+                if (!MavenOps.packageProject(config.root, javaConfig.maven.skipTests, useWrapper))
                 {
                     result.error = "Maven build failed";
                     return result;
