@@ -34,8 +34,8 @@ class RustBuilderFactory
     /// Create builder based on compiler type
     static RustBuilder create(RustCompiler compiler, RustConfig config)
     {
-        import languages.compiled.rust.builders.cargo;
-        import languages.compiled.rust.builders.rustc;
+        import languages.compiled.rust.tooling.builders.cargo;
+        import languages.compiled.rust.tooling.builders.rustc;
         
         final switch (compiler)
         {
