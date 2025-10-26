@@ -206,12 +206,12 @@ class BuildExecutor
             }
             
             // Publish statistics
-            CacheStats stats;
-            stats.hits = cacheStats.metadataHits;
-            stats.misses = cacheStats.contentHashes;
-            stats.totalEntries = cacheStats.totalEntries;
-            stats.totalSize = cacheStats.totalSize;
-            stats.hitRate = cacheStats.metadataHitRate;
+            CacheStats cliCacheStats;
+            cliCacheStats.hits = cacheStats.metadataHits;
+            cliCacheStats.misses = cacheStats.contentHashes;
+            cliCacheStats.totalEntries = cacheStats.totalEntries;
+            cliCacheStats.totalSize = cacheStats.totalSize;
+            cliCacheStats.hitRate = cacheStats.metadataHitRate;
             
             BuildStats buildStats;
             buildStats.totalTargets = sorted.length;
@@ -222,7 +222,7 @@ class BuildExecutor
             buildStats.targetsPerSecond = sorted.length > 0 ? 
                 (sorted.length * 1000.0) / sw.peek().total!"msecs" : 0.0;
             
-            auto statsEvent = new StatisticsEvent(stats, buildStats, sw.peek());
+            auto statsEvent = new StatisticsEvent(cliCacheStats, buildStats, sw.peek());
             eventPublisher.publish(statsEvent);
         }
         

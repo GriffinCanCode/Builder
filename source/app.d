@@ -9,6 +9,7 @@ import config.parser;
 import analysis.analyzer;
 import utils.logger;
 import errors;
+import cli;
 
 void main(string[] args)
 {
@@ -18,11 +19,13 @@ void main(string[] args)
     string target = "";
     bool verbose = false;
     bool showGraph = false;
+    string mode = "auto"; // CLI render mode
     
     auto helpInfo = getopt(
         args,
         "verbose|v", "Enable verbose output", &verbose,
-        "graph|g", "Show dependency graph", &showGraph
+        "graph|g", "Show dependency graph", &showGraph,
+        "mode|m", "CLI mode: auto, interactive, plain, verbose, quiet", &mode
     );
     
     if (helpInfo.helpWanted || args.length < 2)
@@ -42,7 +45,7 @@ void main(string[] args)
         switch (command)
         {
             case "build":
-                buildCommand(target, showGraph);
+                buildCommand(target, showGraph, mode);
                 break;
             case "clean":
                 cleanCommand();
@@ -78,14 +81,15 @@ void printHelp()
     writeln("  init              Initialize a new BUILD file\n");
     writeln("Options:");
     writeln("  -v, --verbose     Enable verbose output");
-    writeln("  -g, --graph       Show dependency graph during build\n");
+    writeln("  -g, --graph       Show dependency graph during build");
+    writeln("  -m, --mode MODE   CLI mode: auto, interactive, plain, verbose, quiet\n");
     writeln("Examples:");
     writeln("  builder build                    # Build all targets");
     writeln("  builder build //path/to:target   # Build specific target");
     writeln("  builder graph //path/to:target   # Show dependencies");
 }
 
-void buildCommand(string target, bool showGraph)
+void buildCommand(string target, bool showGraph, string modeStr)
 {
     Logger.info("Starting build...");
     
@@ -113,12 +117,43 @@ void buildCommand(string target, bool showGraph)
         graph.print();
     }
     
-    // Execute build
-    auto executor = new BuildExecutor(graph, config);
+    // Determine render mode
+    RenderMode renderMode = parseRenderMode(modeStr);
+    
+    // Create event publisher and renderer
+    auto publisher = new SimpleEventPublisher();
+    auto renderer = RendererFactory.createWithPublisher(publisher, renderMode);
+    
+    // Execute build with event publishing
+    auto executor = new BuildExecutor(graph, config, 0, publisher);
     executor.execute();
     executor.shutdown();
     
+    // Flush any remaining output
+    renderer.flush();
+    
     Logger.success("Build completed successfully!");
+}
+
+RenderMode parseRenderMode(string mode)
+{
+    import std.string : toLower;
+    switch (mode.toLower)
+    {
+        case "auto":
+            return RenderMode.Auto;
+        case "interactive":
+            return RenderMode.Interactive;
+        case "plain":
+            return RenderMode.Plain;
+        case "verbose":
+            return RenderMode.Verbose;
+        case "quiet":
+            return RenderMode.Quiet;
+        default:
+            Logger.warning("Unknown render mode: " ~ mode ~ ", using auto");
+            return RenderMode.Auto;
+    }
 }
 
 void cleanCommand()
