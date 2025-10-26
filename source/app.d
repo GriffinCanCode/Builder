@@ -98,7 +98,7 @@ void buildCommand(string target, bool showGraph, string modeStr)
     if (configResult.isErr)
     {
         Logger.error("Failed to parse workspace configuration");
-        import errors.format : format;
+        import errors.formatting.format : format;
         Logger.error(format(configResult.unwrapErr()));
         import core.stdc.stdlib : exit;
         exit(1);
@@ -180,7 +180,7 @@ void graphCommand(string target)
     if (configResult.isErr)
     {
         Logger.error("Failed to parse workspace configuration");
-        import errors.format : format;
+        import errors.formatting.format : format;
         Logger.error(format(configResult.unwrapErr()));
         import core.stdc.stdlib : exit;
         exit(1);

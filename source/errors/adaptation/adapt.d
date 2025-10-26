@@ -5,7 +5,7 @@ import std.exception;
 import errors.handling.result;
 import errors.types.types;
 import errors.handling.codes;
-import config.schema : LanguageBuildResult;
+import config.schema.schema : LanguageBuildResult;
 
 /// Adapters for integrating new error system with legacy code
 

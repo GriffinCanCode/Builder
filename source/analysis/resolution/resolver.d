@@ -78,6 +78,24 @@ class DependencyResolver
             case TargetLanguage.Java:
                 target = resolveJavaImport(importName);
                 break;
+            case TargetLanguage.Kotlin:
+            case TargetLanguage.Scala:
+                target = resolveJavaImport(importName);  // Use Java resolution for JVM languages
+                break;
+            case TargetLanguage.CSharp:
+            case TargetLanguage.Swift:
+                target = "";  // TODO: Implement .NET language resolution
+                break;
+            case TargetLanguage.Zig:
+            case TargetLanguage.Nim:
+                target = resolveCppImport(importName);  // Use C++ resolution for compiled languages
+                break;
+            case TargetLanguage.Ruby:
+            case TargetLanguage.PHP:
+            case TargetLanguage.Elixir:
+            case TargetLanguage.Lua:
+                target = "";  // TODO: Implement scripting language resolution
+                break;
             case TargetLanguage.Generic:
                 target = "";
                 break;

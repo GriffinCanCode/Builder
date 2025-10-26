@@ -6,6 +6,7 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
+import std.conv;
 import languages.base.base;
 import config.schema.schema;
 import analysis.targets.types;

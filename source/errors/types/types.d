@@ -4,7 +4,7 @@ import std.conv;
 import std.algorithm;
 import std.array;
 import errors.handling.codes;
-import errors.types.context;
+import errors.context;
 
 /// Base error interface - all errors implement this
 interface BuildError

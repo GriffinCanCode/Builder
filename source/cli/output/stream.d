@@ -2,7 +2,7 @@ module cli.output.stream;
 
 import cli.control.terminal;
 import cli.display.format;
-import cli.events : Severity;
+import cli.events.events : Severity;
 import std.stdio : stdout, stderr;
 import core.sync.mutex : Mutex;
 import std.algorithm : filter;

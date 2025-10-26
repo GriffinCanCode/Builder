@@ -51,7 +51,7 @@ class ConfigParser
             );
             
             // Log each error with full context
-            import errors.format : format;
+            import errors.formatting.format : format;
             foreach (error; aggregated.errors)
             {
                 Logger.error(format(error));
@@ -82,7 +82,7 @@ class ConfigParser
             {
                 auto error = wsResult.unwrapErr();
                 Logger.error("Failed to parse WORKSPACE file");
-                import errors.format : format;
+                import errors.formatting.format : format;
                 Logger.error(format(error));
                 
                 // For fail-fast policy, return immediately
