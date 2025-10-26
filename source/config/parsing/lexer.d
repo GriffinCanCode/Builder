@@ -26,6 +26,7 @@ enum TokenType
     Env,
     Output,
     Includes,
+    Config,
     
     // Types
     Executable,
@@ -94,6 +95,7 @@ struct Lexer
             "env": "Env",
             "output": "Output",
             "includes": "Includes",
+            "config": "Config",
             // Type keywords
             "executable": "Executable",
             "library": "Library",

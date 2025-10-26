@@ -1,0 +1,15 @@
+{
+  "name": "math-utils",
+  "version": "1.0.0",
+  "description": "Math utilities library built with Builder",
+  "main": "dist/math-utils.cjs.js",
+  "module": "dist/math-utils.esm.js",
+  "browser": "dist/math-utils.umd.js",
+  "files": [
+    "dist"
+  ],
+  "keywords": ["math", "utilities"],
+  "author": "Builder Example",
+  "license": "MIT"
+}
+

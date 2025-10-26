@@ -277,6 +277,31 @@ class ConfigParser
                 target.outputPath = targetJson["output"].str;
             }
             
+            // Parse language-specific configuration
+            // Support both "config" (general) and language-specific keys (jsConfig, pyConfig, etc.)
+            if ("config" in targetJson)
+            {
+                import std.json : toJSON;
+                string configKey = target.language.to!string.toLower;
+                target.langConfig[configKey] = targetJson["config"].toJSON();
+            }
+            // Backward compatibility: support language-specific config names
+            if ("jsConfig" in targetJson)
+            {
+                import std.json : toJSON;
+                target.langConfig["javascript"] = targetJson["jsConfig"].toJSON();
+            }
+            if ("pyConfig" in targetJson)
+            {
+                import std.json : toJSON;
+                target.langConfig["python"] = targetJson["pyConfig"].toJSON();
+            }
+            if ("goConfig" in targetJson)
+            {
+                import std.json : toJSON;
+                target.langConfig["go"] = targetJson["goConfig"].toJSON();
+            }
+            
             targets ~= target;
         }
         

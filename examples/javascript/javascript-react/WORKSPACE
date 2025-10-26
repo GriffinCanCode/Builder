@@ -1,0 +1,7 @@
+workspace("react-app") {
+    cacheDir: ".builder-cache";
+    outputDir: "dist";
+    parallel: true;
+    incremental: true;
+}
+

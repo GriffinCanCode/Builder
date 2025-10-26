@@ -1,0 +1,11 @@
+workspace("js-node") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    incremental: true;
+    
+    env: {
+        "NODE_ENV": "development"
+    };
+}
+

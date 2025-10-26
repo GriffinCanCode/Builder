@@ -91,38 +91,108 @@ String Operations:
 
 ---
 
-### 3. JavaScript/Node.js (`examples/javascript/`)
+### 3. JavaScript/TypeScript (`examples/javascript/`)
 
-JavaScript project demonstrating Node.js support.
+Comprehensive JavaScript and TypeScript examples with multiple bundling strategies.
 
-**Structure:**
-- `utils.js` - Utility functions
-- `app.js` - Main application
-- `BUILD.json` - Build configuration
+**Examples:**
 
-**Run:**
+#### A. Node.js Script (`javascript-node/`)
+Simple Node.js script with no bundling.
+
 ```bash
-cd examples/javascript
+cd examples/javascript/javascript-node
 ../../bin/builder build
 node app.js
 ```
 
-**Output:**
+**Features:**
+- Direct Node.js execution
+- CommonJS modules
+- Validation only (no bundling)
+- Fastest build times
+
+#### B. Browser Bundle (`javascript-browser/`)
+Browser application with ES6 modules and esbuild bundling.
+
+```bash
+cd examples/javascript/javascript-browser
+../../bin/builder build
+# Open index.html in browser
 ```
-=== Builder JavaScript Example ===
 
-Date Operations:
-  Today: 2025-10-26
+**Features:**
+- ES6 module syntax
+- esbuild bundling for browser
+- IIFE format
+- Minification and source maps
 
-Array Operations:
-  Numbers: [ 1, 2, 3, 4, 5 ]
-  Sum: 15
+#### C. Library Distribution (`javascript-library/`)
+Multi-format library builds (ESM, CommonJS, UMD).
 
-Fibonacci Sequence:
-  fib(0) = 0
-  fib(1) = 1
-  ...
-  fib(9) = 34
+```bash
+cd examples/javascript/javascript-library
+../../bin/builder build //.:lib-esm //.:lib-cjs //.:lib-umd
+```
+
+**Features:**
+- Multiple output formats
+- Rollup for tree-shaking
+- npm-compatible package structure
+- Separate targets per format
+
+#### D. React Application (`javascript-react/`)
+React app with JSX transformation and bundling.
+
+```bash
+cd examples/javascript/javascript-react
+npm install
+../../bin/builder build
+# Open public/index.html in browser
+```
+
+**Features:**
+- React 18 with hooks
+- JSX transformation
+- Component architecture
+- esbuild for fast bundling
+
+#### E. TypeScript Application (`examples/typescript-app/`)
+TypeScript with type checking and compilation.
+
+```bash
+cd examples/typescript-app
+../../bin/builder build
+node dist/app.js
+```
+
+**Features:**
+- Full TypeScript support
+- Type checking
+- esbuild compilation
+- Modern TypeScript features
+
+**Configuration:**
+
+All JavaScript examples use the new `config` field:
+
+```d
+target("app") {
+    type: executable;
+    language: javascript;
+    sources: ["src/**/*.js"];
+    
+    config: {
+        "mode": "bundle",           // node, bundle, or library
+        "bundler": "esbuild",       // esbuild, webpack, rollup, auto, none
+        "entry": "src/app.js",
+        "platform": "browser",      // browser, node, or neutral
+        "format": "iife",           // esm, cjs, iife, umd
+        "minify": true,
+        "sourcemap": true,
+        "target": "es2020"
+    };
+}
 ```
 
 ---

@@ -51,6 +51,10 @@ struct Target
     string outputPath;
     string[] includes;
     
+    /// Language-specific configuration stored as JSON
+    /// This allows each language handler to define its own config schema
+    string[string] langConfig;
+    
     /// Get fully qualified target name
     string fullName() const
     {

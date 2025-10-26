@@ -1,0 +1,11 @@
+workspace("ts-app") {
+    cacheDir: ".builder-cache";
+    outputDir: "dist";
+    parallel: true;
+    incremental: true;
+    
+    env: {
+        "NODE_ENV": "development"
+    };
+}
+

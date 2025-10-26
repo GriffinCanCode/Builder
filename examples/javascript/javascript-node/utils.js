@@ -1,5 +1,5 @@
 /**
- * Utility functions for JavaScript example
+ * Utility functions for Node.js example
  */
 
 function formatDate(date) {

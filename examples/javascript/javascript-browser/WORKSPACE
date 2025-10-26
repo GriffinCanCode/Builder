@@ -1,0 +1,7 @@
+workspace("js-browser") {
+    cacheDir: ".builder-cache";
+    outputDir: "dist";
+    parallel: true;
+    incremental: true;
+}
+

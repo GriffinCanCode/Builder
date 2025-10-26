@@ -131,7 +131,7 @@ interface LanguageHandler {
 
 **Supported Languages (20+):**
 - **Python**: AST validation, executable wrappers
-- **JavaScript/TypeScript**: TSC compilation, syntax checking
+- **JavaScript/TypeScript**: Advanced bundling system with esbuild, webpack, and rollup support
 - **Go**: `go build` integration
 - **Rust**: `rustc` and `cargo` integration
 - **D**: `ldc2` and `dub` integration
@@ -148,8 +148,34 @@ interface LanguageHandler {
 - **Nim**: `nim c` with optimization flags
 - **Lua**: Syntax validation, bytecode compilation
 
+**JavaScript/TypeScript Bundler System:**
+
+The JavaScript handler features a sophisticated bundler abstraction layer:
+
+**Architecture:**
+- **Base Interface** (`bundlers/base.d`): `Bundler` interface with factory pattern
+- **esbuild Adapter** (`bundlers/esbuild.d`): Default, fastest option (10-100x faster than webpack)
+- **Webpack Adapter** (`bundlers/webpack.d`): For complex projects with advanced features
+- **Rollup Adapter** (`bundlers/rollup.d`): Optimized for library builds with tree-shaking
+- **Configuration** (`bundlers/config.d`): Strongly typed configuration with enums
+
+**Build Modes:**
+- **Node**: Direct execution, validation only
+- **Bundle**: Full bundling with dependencies for browser/Node
+- **Library**: Multiple output formats (ESM, CommonJS, UMD)
+
+**Features:**
+- Auto-detection of bundler availability
+- Fallback to next best bundler if preferred unavailable
+- JSX/TSX transformation support
+- Source maps and minification
+- Platform targeting (browser/node/neutral)
+- Multiple output formats (ESM, CommonJS, IIFE, UMD)
+- External dependency exclusion
+- TypeScript compilation via esbuild
+
 **Extension:**
-Add new languages by implementing `LanguageHandler` interface. Each handler is ~150-200 lines following consistent patterns.
+Add new languages by implementing `LanguageHandler` interface. Each handler is ~150-200 lines following consistent patterns. Language-specific configuration is supported via the `config` field in BUILD files.
 
 ### 6. Configuration System (`config/`)
 

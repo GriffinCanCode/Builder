@@ -154,6 +154,10 @@ struct DSLParser
                 fieldName = "includes";
                 advance();
                 break;
+            case TokenType.Config:
+                fieldName = "config";
+                advance();
+                break;
             case TokenType.Identifier:
                 fieldName = advance().value;
                 break;
@@ -502,6 +506,31 @@ struct SemanticAnalyzer
             catch (Exception e)
             {
                 return error!(Target)(decl, "Field 'includes' must be an array of strings");
+            }
+        }
+        
+        // Parse language-specific configuration
+        if (decl.hasField("config"))
+        {
+            auto configField = decl.getField("config");
+            try
+            {
+                import std.json : parseJSON, toJSON;
+                // Convert map to JSON string for storage
+                auto configMap = configField.value.asMap();
+                JSONValue jsonConfig = parseJSON("{}");
+                foreach (key, value; configMap)
+                {
+                    jsonConfig[key] = value;
+                }
+                // Store config keyed by language name for flexibility
+                string configKey = target.language == TargetLanguage.Generic ? 
+                                   "config" : target.language.to!string.toLower;
+                target.langConfig[configKey] = jsonConfig.toJSON();
+            }
+            catch (Exception e)
+            {
+                return error!(Target)(decl, "Field 'config' must be a map");
             }
         }
         

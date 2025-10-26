@@ -118,6 +118,25 @@ includes: [
 ];
 ```
 
+**`config`** - Language-specific configuration
+```d
+config: {
+    "mode": "bundle",
+    "bundler": "esbuild"
+};
+config: {
+    "minify": true,
+    "sourcemap": true,
+    "target": "es2020"
+};
+```
+
+This field allows passing language-specific configuration as a map. Each language handler interprets this differently:
+- **JavaScript/TypeScript**: Bundler configuration (mode, bundler, platform, format, etc.)
+- **Python**: Virtual environment, package manager settings
+- **Go**: Build tags, GOOS, GOARCH
+- **Rust**: Cargo features, target triple
+
 ## Data Types
 
 ### Strings
@@ -264,6 +283,41 @@ target("tests") {
     };
 }
 ```
+
+### JavaScript/TypeScript with Bundling
+
+```d
+target("bundle") {
+    type: executable;
+    language: javascript;
+    sources: ["src/**/*.js"];
+    output: "bundle.js";
+    
+    config: {
+        "mode": "bundle",
+        "bundler": "esbuild",
+        "entry": "src/app.js",
+        "platform": "browser",
+        "format": "iife",
+        "minify": true,
+        "sourcemap": true,
+        "target": "es2020"
+    };
+}
+```
+
+**JavaScript Configuration Options:**
+- `mode`: "node", "bundle", or "library"
+- `bundler`: "esbuild", "webpack", "rollup", "auto", or "none"
+- `entry`: Entry point file for bundling
+- `platform`: "browser", "node", or "neutral"
+- `format`: "esm", "cjs", "iife", or "umd"
+- `minify`: Enable minification (boolean)
+- `sourcemap`: Generate source maps (boolean)
+- `target`: Target ES version (e.g., "es2018", "es2020")
+- `jsx`: Enable JSX transformation (boolean)
+- `jsxFactory`: JSX factory function (default: "React.createElement")
+- `external`: Array of packages to exclude from bundle
 
 ## Architecture
 
