@@ -1,6 +1,6 @@
 # TypeScript Language Support
 
-Comprehensive TypeScript build support with type-first architecture, separate from JavaScript.
+Comprehensive TypeScript build support with type-first architecture, separate from JavaScript, for Builderspace.
 
 ## Architecture
 

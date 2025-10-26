@@ -8,7 +8,7 @@ import { createUserService } from './service';
 import { formatResult, formatUser, formatError } from './utils';
 
 async function main(): Promise<void> {
-    console.log('=== Builder TypeScript Example ===');
+    console.log('=== Builderspace TypeScript Example ===');
     console.log('Real-world application with advanced patterns\n');
 
     const userService = createUserService();

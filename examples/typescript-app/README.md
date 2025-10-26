@@ -1,6 +1,6 @@
 # TypeScript Application Example
 
-This example demonstrates the comprehensive TypeScript support in Builder with multiple build configurations.
+This example demonstrates the comprehensive TypeScript support in Builderspace with multiple build configurations.
 
 ## Project Structure
 
@@ -21,7 +21,7 @@ typescript-app/
 ### Development Build (`dev`)
 Fast compilation with SWC for rapid iteration:
 ```bash
-builder build //typescript-app:dev
+builderspace build //typescript-app:dev
 ```
 - **Compiler**: SWC (20x faster than tsc)
 - **Features**: Source maps, strict mode
@@ -30,7 +30,7 @@ builder build //typescript-app:dev
 ### Production Build (`prod`)
 Bundled and minified with esbuild:
 ```bash
-builder build //typescript-app:prod
+builderspace build //typescript-app:prod
 ```
 - **Compiler**: esbuild (bundled)
 - **Features**: Minification, tree-shaking, external dependencies
@@ -39,7 +39,7 @@ builder build //typescript-app:prod
 ### Library Build (`lib`)
 Complete library with declaration files:
 ```bash
-builder build //typescript-app:lib
+builderspace build //typescript-app:lib
 ```
 - **Compiler**: tsc (official TypeScript)
 - **Features**: .d.ts files, declaration maps
@@ -48,7 +48,7 @@ builder build //typescript-app:lib
 ### Type Check (`check`)
 Validation without compilation:
 ```bash
-builder build //typescript-app:check
+builderspace build //typescript-app:check
 ```
 - **Mode**: Type check only
 - **Features**: Strict type checking, all lint options
@@ -161,10 +161,10 @@ target("package-a") {
 
 ```bash
 # Build all targets
-builder build //typescript-app:*
+builderspace build //typescript-app:*
 
 # Build specific target
-builder build //typescript-app:dev
+builderspace build //typescript-app:dev
 
 # Run the application
 node bin/app-dev.js

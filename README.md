@@ -4,55 +4,60 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 
 ## Features
 
-- **Modern DSL**: Clean, readable D-based DSL for Builderfile with comprehensive error messages
-- **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers at compile-time with zero runtime overhead
-- **Strongly Typed Domain**: Type-safe Import, Dependency, and Analysis types eliminate runtime errors
-- **Extensive Multi-language Support**: 20+ languages including Python, JavaScript/TypeScript, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, PHP, Scala, Elixir, Nim, Lua, and D with pluggable architecture
-- **Incremental Builds**: Smart caching with SHA-256 content hashing
-- **Parallel Execution**: Wave-based parallel builds respecting dependency order
-- **Monorepo Optimized**: O(1) import resolution with indexed lookups for large-scale repos
+- **Modern DSL**: Clean, readable Builderfile syntax with comprehensive error messages and IDE integration
+- **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers with zero runtime overhead
+- **Type-Safe Error Handling**: Result monad with rich error context, recovery strategies, and formatted diagnostics
+- **Event-Driven CLI**: Multiple render modes (interactive, plain, verbose, quiet) with lock-free progress tracking
+- **Extensive Multi-language Support**: 20+ languages including Python, JavaScript/TypeScript, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, PHP, Scala, Elixir, Nim, Lua, and D
+- **Incremental Builds**: Smart caching with SHA-256 content hashing and configurable eviction policies
+- **Parallel Execution**: Wave-based parallel builds with thread pool management
+- **Monorepo Optimized**: Efficient workspace scanning and dependency resolution for large-scale repos
 
 ## Architecture
 
 ```
 source/
 ├── app.d                    # CLI entry point
-├── core/                    # Core build system
-│   ├── graph.d             # Build graph representation
-│   ├── cache.d             # Caching system
-│   └── executor.d          # Build execution engine
-├── analysis/                # Dependency analysis
-│   ├── analyzer.d          # Main analyzer with metaprogramming
-│   ├── scanner.d           # File scanning and change detection
-│   └── resolver.d          # Dependency resolution
-├── languages/               # Language-specific handlers (20+ languages)
-│   ├── base.d              # Base language interface
-│   ├── python.d            # Python support
-│   ├── javascript.d        # JavaScript/TypeScript support
-│   ├── go.d                # Go support
-│   ├── rust.d              # Rust + D support
-│   ├── cpp.d               # C/C++ support
-│   ├── java.d              # Java support
-│   ├── kotlin.d            # Kotlin support
-│   ├── csharp.d            # C# support
-│   ├── zig.d               # Zig support
-│   ├── swift.d             # Swift support
-│   ├── ruby.d              # Ruby support
-│   ├── php.d               # PHP support
-│   ├── scala.d             # Scala support
-│   ├── elixir.d            # Elixir support
-│   ├── nim.d               # Nim support
-│   └── lua.d               # Lua support
-├── config/                  # Configuration management
-│   ├── lexer.d             # DSL tokenization
-│   ├── ast.d               # AST node types
-│   ├── dsl.d               # DSL parser and semantic analysis
-│   ├── parser.d            # Config file parser
-│   └── schema.d            # Build configuration schema
-└── utils/                   # Utilities
-    ├── hash.d              # Fast hashing for cache keys
-    ├── parallel.d          # Parallel execution utilities
-    └── logger.d            # Logging system
+├── core/                    # Build execution engine
+│   ├── graph/              # Dependency graph and topological sorting
+│   ├── execution/          # Task execution and parallelization
+│   └── caching/            # Build cache with storage and eviction
+├── analysis/                # Dependency analysis and resolution
+│   ├── inference/          # Build target analysis
+│   ├── scanning/           # File and dependency scanning
+│   ├── resolution/         # Dependency resolution logic
+│   ├── targets/            # Target types and specifications
+│   └── metadata/           # Metadata generation
+├── config/                  # Configuration and workspace management
+│   ├── parsing/            # Lexer and parser for Builderfile
+│   ├── interpretation/     # DSL semantic analysis
+│   ├── workspace/          # AST and workspace handling
+│   └── schema/             # Configuration schema
+├── languages/               # Multi-language support (20+ languages)
+│   ├── base/               # Base language interface
+│   ├── scripting/          # Python, JS, TS, Go, Ruby, PHP, Lua, Elixir
+│   ├── compiled/           # Rust, C++, D, Nim, Zig
+│   ├── jvm/                # Java, Kotlin, Scala
+│   └── dotnet/             # C#, Swift
+├── cli/                     # Event-driven CLI rendering
+│   ├── events/             # Strongly-typed build events
+│   ├── control/            # Terminal control and capabilities
+│   ├── output/             # Progress tracking and stream management
+│   └── display/            # Message formatting and rendering
+├── errors/                  # Type-safe error handling
+│   ├── handling/           # Result monad, error codes, recovery
+│   ├── types/              # Error type definitions
+│   ├── context/            # Error context chains
+│   ├── formatting/         # Rich error formatting
+│   └── adaptation/         # Error adaptation utilities
+├── utils/                   # Common utilities
+│   ├── files/              # Glob, hashing, chunking, metadata
+│   ├── concurrency/        # Parallel processing and thread pools
+│   ├── logging/            # Logging infrastructure
+│   ├── benchmarking/       # Performance benchmarking
+│   └── python/             # Python validation and wrappers
+└── tools/                   # Developer tooling
+    └── vscode/             # VS Code extension integration
 ```
 
 ## Installation
@@ -77,11 +82,20 @@ builder build
 # Build specific target
 builder build //path/to:target
 
+# Build with specific CLI mode
+builder build --mode interactive
+
 # Clean build cache
 builder clean
 
 # Show dependency graph
 builder graph
+
+# Initialize new Builderfile
+builder init
+
+# Install VS Code extension
+builder install-extension
 ```
 
 ## Configuration
@@ -102,6 +116,30 @@ target("my-binary") {
     deps: [":my-library"];
 }
 ```
+
+## IDE Integration
+
+### VS Code Extension
+
+Builder includes a VS Code extension for enhanced editing experience:
+
+**Features:**
+- Syntax highlighting for `Builderfile` and `Builderspace`
+- Auto-closing brackets and quotes
+- Comment toggling (Cmd+/)
+- Code folding and bracket matching
+- Custom file icons
+
+**Installation:**
+```bash
+# Using Builder CLI (recommended)
+builder install-extension
+
+# Or manually
+code --install-extension tools/vscode/builder-lang-1.0.0.vsix
+```
+
+After installation, reload VS Code: `Cmd+Shift+P` → "Developer: Reload Window"
 
 ## Testing
 
@@ -151,8 +189,10 @@ dub test
 ## Documentation
 
 - [Architecture Guide](docs/ARCHITECTURE.md) - System design and internals
+- [CLI Guide](docs/CLI.md) - CLI modes and rendering system
 - [DSL Specification](docs/DSL.md) - Builderfile DSL syntax and semantics
 - [Testing Guide](docs/TESTING.md) - How to write and run tests
+- [Performance Guide](docs/PERFORMANCE.md) - Optimization and benchmarking
 - [Examples](docs/EXAMPLES.md) - Usage examples
 
 ## Why D?
