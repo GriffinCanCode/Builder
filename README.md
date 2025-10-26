@@ -7,7 +7,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 - **Modern DSL**: Clean, readable D-based DSL for BUILD files with comprehensive error messages
 - **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers at compile-time with zero runtime overhead
 - **Strongly Typed Domain**: Type-safe Import, Dependency, and Analysis types eliminate runtime errors
-- **Multi-language Support**: Python, JavaScript, TypeScript, Go, Rust, C/C++, D, Java with pluggable architecture
+- **Extensive Multi-language Support**: 20+ languages including Python, JavaScript/TypeScript, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, PHP, Scala, Elixir, Nim, Lua, and D with pluggable architecture
 - **Incremental Builds**: Smart caching with SHA-256 content hashing
 - **Parallel Execution**: Wave-based parallel builds respecting dependency order
 - **Monorepo Optimized**: O(1) import resolution with indexed lookups for large-scale repos
@@ -25,12 +25,24 @@ source/
 │   ├── analyzer.d          # Main analyzer with metaprogramming
 │   ├── scanner.d           # File scanning and change detection
 │   └── resolver.d          # Dependency resolution
-├── languages/               # Language-specific handlers
+├── languages/               # Language-specific handlers (20+ languages)
 │   ├── base.d              # Base language interface
 │   ├── python.d            # Python support
 │   ├── javascript.d        # JavaScript/TypeScript support
 │   ├── go.d                # Go support
-│   └── rust.d              # Rust support
+│   ├── rust.d              # Rust + D support
+│   ├── cpp.d               # C/C++ support
+│   ├── java.d              # Java support
+│   ├── kotlin.d            # Kotlin support
+│   ├── csharp.d            # C# support
+│   ├── zig.d               # Zig support
+│   ├── swift.d             # Swift support
+│   ├── ruby.d              # Ruby support
+│   ├── php.d               # PHP support
+│   ├── scala.d             # Scala support
+│   ├── elixir.d            # Elixir support
+│   ├── nim.d               # Nim support
+│   └── lua.d               # Lua support
 ├── config/                  # Configuration management
 │   ├── lexer.d             # DSL tokenization
 │   ├── ast.d               # AST node types

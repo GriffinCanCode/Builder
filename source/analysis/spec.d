@@ -215,6 +215,110 @@ shared static this()
         &detectRelativeImport
     );
     
+    // Kotlin
+    specs[TargetLanguage.Kotlin] = LanguageSpec(
+        TargetLanguage.Kotlin,
+        "Kotlin",
+        [
+            ImportPattern("import", `^\s*import\s+([\w.]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // C#
+    specs[TargetLanguage.CSharp] = LanguageSpec(
+        TargetLanguage.CSharp,
+        "C#",
+        [
+            ImportPattern("using", `^\s*using\s+([\w.]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Zig
+    specs[TargetLanguage.Zig] = LanguageSpec(
+        TargetLanguage.Zig,
+        "Zig",
+        [
+            ImportPattern("import", `^\s*const\s+\w+\s*=\s*@import\("([^"]+)"\)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Swift
+    specs[TargetLanguage.Swift] = LanguageSpec(
+        TargetLanguage.Swift,
+        "Swift",
+        [
+            ImportPattern("import", `^\s*import\s+([\w.]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Ruby
+    specs[TargetLanguage.Ruby] = LanguageSpec(
+        TargetLanguage.Ruby,
+        "Ruby",
+        [
+            ImportPattern("require", `^\s*require\s+['"]([^'"]+)['"]`),
+            ImportPattern("require_relative", `^\s*require_relative\s+['"]([^'"]+)['"]`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // PHP
+    specs[TargetLanguage.PHP] = LanguageSpec(
+        TargetLanguage.PHP,
+        "PHP",
+        [
+            ImportPattern("require", `^\s*(?:require|include)(?:_once)?\s*['"]([^'"]+)['"]`),
+            ImportPattern("use", `^\s*use\s+([\w\\]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Scala
+    specs[TargetLanguage.Scala] = LanguageSpec(
+        TargetLanguage.Scala,
+        "Scala",
+        [
+            ImportPattern("import", `^\s*import\s+([\w.]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Elixir
+    specs[TargetLanguage.Elixir] = LanguageSpec(
+        TargetLanguage.Elixir,
+        "Elixir",
+        [
+            ImportPattern("import", `^\s*import\s+([\w.]+)`),
+            ImportPattern("alias", `^\s*alias\s+([\w.]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Nim
+    specs[TargetLanguage.Nim] = LanguageSpec(
+        TargetLanguage.Nim,
+        "Nim",
+        [
+            ImportPattern("import", `^\s*import\s+([\w/]+)`),
+            ImportPattern("from", `^\s*from\s+([\w/]+)\s+import`)
+        ],
+        &detectRelativeImport
+    );
+    
+    // Lua
+    specs[TargetLanguage.Lua] = LanguageSpec(
+        TargetLanguage.Lua,
+        "Lua",
+        [
+            ImportPattern("require", `^\s*(?:local\s+\w+\s*=\s*)?require\s*\(?['"]([^'"]+)['"]\)?`)
+        ],
+        &detectRelativeImport
+    );
+    
     // Generic (no-op)
     specs[TargetLanguage.Generic] = LanguageSpec(
         TargetLanguage.Generic,

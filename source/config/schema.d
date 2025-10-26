@@ -25,6 +25,16 @@ enum TargetLanguage
     Cpp,
     C,
     Java,
+    Kotlin,
+    CSharp,
+    Zig,
+    Swift,
+    Ruby,
+    PHP,
+    Scala,
+    Elixir,
+    Nim,
+    Lua,
     Generic
 }
 

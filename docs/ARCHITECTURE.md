@@ -81,14 +81,31 @@ Orchestrates the actual build process.
 - `resolver.d`: O(1) import-to-target resolution with indexed lookups
 
 **Language Support:**
-All languages configured via data-driven `LanguageSpec` system:
+All languages configured via data-driven `LanguageSpec` system (20+ languages):
+- **Systems**: D, C/C++, Rust, Zig, Nim
+- **JVM**: Java, Kotlin, Scala
+- **.NET**: C#
+- **Apple**: Swift
+- **Dynamic**: Python, JavaScript/TypeScript, Ruby, PHP, Lua
+- **Functional**: Elixir, Scala
+- **Compiled**: Go, Rust, D, C/C++, Zig, Nim, Swift
+
+Import patterns:
 - D: `import` statements
 - Python: `import` and `from` statements with kind detection
 - JavaScript/TypeScript: ES6 `import` and CommonJS `require`
 - Go: `import` declarations with URL detection
 - Rust: `use` statements with crate resolution
 - C/C++: `#include` directives
-- Java: `import` statements
+- Java/Kotlin/Scala: `import` statements
+- C#: `using` statements
+- Zig: `@import()` declarations
+- Swift: `import` statements
+- Ruby: `require` and `require_relative`
+- PHP: `require`, `include`, and `use`
+- Elixir: `import` and `alias`
+- Nim: `import` and `from...import`
+- Lua: `require` expressions
 
 **Metaprogramming Features:**
 - **Compile-time code generation**: `generateAnalyzerDispatch()` generates optimized analyzers
@@ -112,15 +129,27 @@ interface LanguageHandler {
 }
 ```
 
-**Supported Languages:**
-- Python: Syntax validation, executable wrappers
-- JavaScript/TypeScript: TSC compilation
-- Go: `go build` integration
-- Rust: `rustc` and `cargo` integration
-- D: `ldc2` and `dub` integration
+**Supported Languages (20+):**
+- **Python**: AST validation, executable wrappers
+- **JavaScript/TypeScript**: TSC compilation, syntax checking
+- **Go**: `go build` integration
+- **Rust**: `rustc` and `cargo` integration
+- **D**: `ldc2` and `dub` integration
+- **C/C++**: `clang`/`gcc` compilation with includes
+- **Java**: `javac` + JAR packaging
+- **Kotlin**: `kotlinc` JVM compilation
+- **C#**: `dotnet` and `csc` .NET compilation
+- **Zig**: `zig build-exe` and `zig build-lib`
+- **Swift**: `swiftc` compilation
+- **Ruby**: Syntax validation, executable wrappers
+- **PHP**: Syntax validation with `php -l`
+- **Scala**: `scalac` + JAR packaging
+- **Elixir**: `mix` and `elixirc` BEAM compilation
+- **Nim**: `nim c` with optimization flags
+- **Lua**: Syntax validation, bytecode compilation
 
 **Extension:**
-Add new languages by implementing `LanguageHandler` interface.
+Add new languages by implementing `LanguageHandler` interface. Each handler is ~150-200 lines following consistent patterns.
 
 ### 6. Configuration System (`config/`)
 

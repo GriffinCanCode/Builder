@@ -17,6 +17,18 @@ import languages.python;
 import languages.javascript;
 import languages.go;
 import languages.rust : RustHandler, DHandler;
+import languages.cpp : CppHandler, CHandler;
+import languages.java;
+import languages.kotlin;
+import languages.csharp;
+import languages.zig;
+import languages.swift;
+import languages.ruby;
+import languages.php;
+import languages.scala;
+import languages.elixir;
+import languages.nim;
+import languages.lua;
 import utils.logger;
 import utils.pool;
 import errors;
@@ -53,15 +65,38 @@ class BuildExecutor
         // Register language handlers
         handlers[TargetLanguage.Python] = new PythonHandler();
         handlers[TargetLanguage.JavaScript] = new JavaScriptHandler();
+        handlers[TargetLanguage.TypeScript] = new JavaScriptHandler();
         handlers[TargetLanguage.Go] = new GoHandler();
         handlers[TargetLanguage.Rust] = new RustHandler();
         handlers[TargetLanguage.D] = new DHandler();
+        handlers[TargetLanguage.Cpp] = new CppHandler();
+        handlers[TargetLanguage.C] = new CHandler();
+        handlers[TargetLanguage.Java] = new JavaHandler();
+        handlers[TargetLanguage.Kotlin] = new KotlinHandler();
+        handlers[TargetLanguage.CSharp] = new CSharpHandler();
+        handlers[TargetLanguage.Zig] = new ZigHandler();
+        handlers[TargetLanguage.Swift] = new SwiftHandler();
+        handlers[TargetLanguage.Ruby] = new RubyHandler();
+        handlers[TargetLanguage.PHP] = new PHPHandler();
+        handlers[TargetLanguage.Scala] = new ScalaHandler();
+        handlers[TargetLanguage.Elixir] = new ElixirHandler();
+        handlers[TargetLanguage.Nim] = new NimHandler();
+        handlers[TargetLanguage.Lua] = new LuaHandler();
     }
     
     ~this()
     {
+        shutdown();
+    }
+    
+    /// Explicitly shutdown the executor and thread pool
+    void shutdown()
+    {
         if (pool !is null)
+        {
             pool.shutdown();
+            pool = null;
+        }
     }
     
     /// Execute the build with event-driven scheduling
