@@ -10,14 +10,14 @@ module languages;
 ///   typescript/  - TypeScript support with type checking (modular)
 ///   go/          - Go language support (modular)
 ///   rust/        - Rust language support (modular)
-///   java.d       - Java language support
+///   java/        - Java language support (modular - Maven, Gradle, builders, formatters, analysis)
 ///   cpp.d        - C++ language support
 ///   csharp.d     - C# language support
 ///   ruby.d       - Ruby language support
 ///   php/         - PHP language support (modular)
 ///   r/           - R language support (modular - scripts, packages, Shiny, RMarkdown)
-///   swift.d      - Swift language support
-///   kotlin.d     - Kotlin language support
+///   swift/       - Swift language support (modular - SPM, Xcode, cross-compilation)
+///   kotlin/      - Kotlin language support (modular - Gradle, Maven, multiplatform, Android, KSP, detekt)
 ///   scala.d      - Scala language support
 ///   elixir/      - Elixir language support (modular - scripts, Mix, Phoenix, Umbrella, Escript, Nerves)
 ///   lua/         - Lua language support (modular - runtimes, LuaRocks, LuaJIT, formatters, linters, testers)
@@ -44,7 +44,7 @@ public import languages.dotnet.csharp;
 public import languages.scripting.ruby;
 public import languages.scripting.php;
 public import languages.scripting.r;
-public import languages.dotnet.swift;
+public import languages.compiled.swift;
 public import languages.jvm.kotlin;
 public import languages.jvm.scala;
 public import languages.scripting.elixir;
