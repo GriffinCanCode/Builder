@@ -3,7 +3,6 @@ module core.caching.cache;
 import std.stdio;
 import std.file;
 import std.path;
-import std.digest.sha;
 import std.conv;
 import std.algorithm;
 import std.array;

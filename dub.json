@@ -10,6 +10,8 @@
     "sourcePaths": ["source"],
     "importPaths": ["source"],
     "dependencies": {},
+    "sourceFiles": ["source/utils/crypto/c/blake3.c"],
+    "dflags": ["-L-lstdc++"],
     "configurations": [
         {
             "name": "executable",

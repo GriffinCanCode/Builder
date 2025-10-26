@@ -1,6 +1,6 @@
 module utils.files.hash;
 
-import std.digest.sha;
+import utils.crypto.blake3;
 import std.file;
 import std.stdio;
 import std.algorithm;
@@ -10,6 +10,7 @@ import std.mmfile;
 import std.bitmanip;
 
 /// Fast hashing utilities with intelligent size-tiered strategy
+/// Uses BLAKE3 for 3-5x speedup over SHA-256
 struct FastHash
 {
     // Size thresholds for different hashing strategies
@@ -51,14 +52,14 @@ struct FastHash
     private static string hashFileDirect(string path)
     {
         auto data = cast(ubyte[])std.file.read(path);
-        return toHexString(sha256Of(data)).idup;
+        return Blake3.hashHex(data);
     }
     
     /// Chunked hash for small files (original approach)
     private static string hashFileChunked(string path)
     {
         auto file = File(path, "rb");
-        SHA256 hash;
+        auto hash = Blake3(0);
         
         ubyte[4096] buffer;
         
@@ -68,13 +69,13 @@ struct FastHash
             hash.put(chunk);
         }
         
-        return toHexString(hash.finish()).idup;
+        return hash.finishHex();
     }
     
     /// Sampled hash for medium files (head + tail + middle samples)
     private static string hashFileSampled(string path, size_t fileSize)
     {
-        SHA256 hash;
+        auto hash = Blake3(0);
         
         // Include file size in hash to prevent collisions
         hash.put(nativeToLittleEndian(fileSize)[]);
@@ -115,13 +116,13 @@ struct FastHash
             }
         }
         
-        return toHexString(hash.finish()).idup;
+        return hash.finishHex();
     }
     
     /// Aggressive sampling for large files using memory mapping
     private static string hashFileLargeSampled(string path, size_t fileSize)
     {
-        SHA256 hash;
+        auto hash = Blake3(0);
         
         // Include file size
         hash.put(nativeToLittleEndian(fileSize)[]);
@@ -165,22 +166,22 @@ struct FastHash
             return hashFileSampled(path, fileSize);
         }
         
-        return toHexString(hash.finish()).idup;
+        return hash.finishHex();
     }
     
     /// Hash a string
     static string hashString(string content)
     {
-        return toHexString(sha256Of(content)).idup;
+        return Blake3.hashHex(content);
     }
     
     /// Hash multiple strings together
     static string hashStrings(string[] strings)
     {
-        SHA256 hash;
+        auto hash = Blake3(0);
         foreach (s; strings)
             hash.put(cast(ubyte[])s);
-        return toHexString(hash.finish()).idup;
+        return hash.finishHex();
     }
     
     /// Hash multiple files together
@@ -188,7 +189,7 @@ struct FastHash
     {
         import std.file : exists;
         
-        SHA256 hash;
+        auto hash = Blake3(0);
         foreach (path; filePaths)
         {
             if (exists(path))
@@ -202,7 +203,7 @@ struct FastHash
                 hash.put(cast(ubyte[])path);
             }
         }
-        return toHexString(hash.finish()).idup;
+        return hash.finishHex();
     }
     
     /// Hash file metadata (size + mtime) for quick checks
@@ -214,7 +215,7 @@ struct FastHash
         
         auto info = DirEntry(path);
         auto data = path ~ info.size.to!string ~ info.timeLastModified.toISOExtString();
-        return hashString(data);
+        return Blake3.hashHex(data);
     }
     
     /// Two-tier hash: check metadata first, only hash content if changed
