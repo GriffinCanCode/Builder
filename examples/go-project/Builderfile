@@ -1,12 +1,87 @@
-// Go project Builderfile with DSL syntax
+// Go Project - Demonstrating Builder's modular Go support
 
 target("go-app") {
     type: executable;
     language: go;
     sources: ["main.go", "greeter.go"];
-    flags: ["-ldflags", "-s -w"];
-    env: {
-        "CGO_ENABLED": "0"
+    
+    go: {
+        mode: "executable",
+        trimpath: true,
+        ldflags: ["-s", "-w"],
+        modMode: "on",
+        runFmt: true,
+        runVet: true
     };
 }
 
+target("go-app-optimized") {
+    type: executable;
+    language: go;
+    sources: ["main.go", "greeter.go"];
+    output: "go-app-opt";
+    
+    go: {
+        mode: "executable",
+        trimpath: true,
+        ldflags: [
+            "-s",
+            "-w",
+            "-X", "main.version=1.0.0"
+        ],
+        modMode: "on",
+        runFmt: true,
+        runVet: true,
+        runLint: true,
+        linter: "golangci-lint"
+    };
+}
+
+// Cross-compilation example
+target("go-app-linux-amd64") {
+    type: executable;
+    language: go;
+    sources: ["main.go", "greeter.go"];
+    output: "go-app-linux-amd64";
+    
+    go: {
+        mode: "executable",
+        cross: {
+            goos: "linux",
+            goarch: "amd64"
+        },
+        trimpath: true,
+        ldflags: ["-s", "-w"],
+        modMode: "on"
+    };
+}
+
+// Library target
+target("greeter-lib") {
+    type: library;
+    language: go;
+    sources: ["greeter.go"];
+    
+    go: {
+        mode: "library",
+        modMode: "on",
+        runFmt: true,
+        runVet: true
+    };
+}
+
+// Test target
+target("go-test") {
+    type: test;
+    language: go;
+    sources: ["greeter_test.go"];
+    deps: [":greeter-lib"];
+    
+    go: {
+        test: {
+            verbose: true,
+            coverage: true,
+            coverProfile: "coverage.out"
+        }
+    };
+}

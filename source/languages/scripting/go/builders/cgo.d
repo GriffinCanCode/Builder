@@ -1,5 +1,7 @@
 module languages.scripting.go.builders.cgo;
 
+import std.array;
+import std.range;
 import languages.scripting.go.builders.standard;
 import languages.scripting.go.builders.base;
 import languages.scripting.go.config;

@@ -106,7 +106,7 @@ class GoHandler : BaseLanguageHandler
         result.outputHash = buildResult.outputHash;
         
         // Report tool warnings
-        if (buildResult.hasToolWarnings())
+        if (!buildResult.toolWarnings.empty)
         {
             Logger.info("Build completed with warnings from tools:");
             foreach (warning; buildResult.toolWarnings)

@@ -1,5 +1,6 @@
 // Go project workspace configuration
-workspace("go-app") {
+
+workspace("go-project") {
     cacheDir: ".builder-cache";
     outputDir: "bin";
     parallel: true;
@@ -8,8 +9,6 @@ workspace("go-app") {
     verbose: false;
     
     env: {
-        "GO111MODULE": "on",
-        "GOPATH": "/usr/local/go"
+        "GO111MODULE": "on"
     };
 }
-

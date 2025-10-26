@@ -36,8 +36,8 @@ struct BuildConstraints
     /// Custom tags
     string[] tags;
     
-    /// CGO enabled/disabled
-    bool? cgoEnabled;
+    /// CGO enabled/disabled (empty string means unset)
+    string cgoEnabled;
     
     /// Build constraint expression (Go 1.17+ format)
     string expression;
@@ -380,7 +380,7 @@ struct GoConfig
             if ("tags" in c)
                 config.constraints.tags = c["tags"].array.map!(e => e.str).array;
             if ("cgoEnabled" in c)
-                config.constraints.cgoEnabled = c["cgoEnabled"].type == JSONType.true_;
+                config.constraints.cgoEnabled = c["cgoEnabled"].type == JSONType.true_ ? "1" : "0";
             if ("expression" in c)
                 config.constraints.expression = c["expression"].str;
         }
@@ -502,4 +502,3 @@ struct GoBuildResult
     string[] toolWarnings;
     bool hadToolErrors;
 }
-

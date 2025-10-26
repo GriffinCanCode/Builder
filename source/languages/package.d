@@ -8,7 +8,7 @@ module languages;
 ///   python.d     - Python language support
 ///   javascript.d - JavaScript/Node.js support
 ///   typescript.d - TypeScript support with type checking
-///   go.d         - Go language support
+///   go/          - Go language support (modular)
 ///   rust.d       - Rust language support
 ///   java.d       - Java language support
 ///   cpp.d        - C++ language support
@@ -36,6 +36,7 @@ public import languages.scripting.javascript;
 public import languages.scripting.typescript;
 public import languages.scripting.go;
 public import languages.compiled.rust;
+public import languages.compiled.d;
 public import languages.jvm.java;
 public import languages.compiled.cpp;
 public import languages.dotnet.csharp;
