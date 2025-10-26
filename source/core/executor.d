@@ -6,6 +6,9 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.datetime.stopwatch;
+import core.sync.mutex;
+import core.sync.condition;
+import core.atomic;
 import core.graph;
 import core.cache;
 import config.schema;
@@ -15,7 +18,7 @@ import languages.javascript;
 import languages.go;
 import languages.rust;
 import utils.logger;
-import utils.parallel;
+import utils.pool;
 
 /// Executes builds based on the dependency graph
 class BuildExecutor
@@ -24,14 +27,23 @@ class BuildExecutor
     private WorkspaceConfig config;
     private BuildCache cache;
     private LanguageHandler[TargetLanguage] handlers;
-    private size_t maxParallelism;
+    private ThreadPool pool;
+    private Mutex stateMutex;
+    private Condition tasksReady;
+    private shared size_t activeTasks;
+    private shared size_t failedTasks;
+    private size_t workerCount;
     
     this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0)
     {
         this.graph = graph;
         this.config = config;
         this.cache = new BuildCache();
-        this.maxParallelism = maxParallelism == 0 ? totalCPUs : maxParallelism;
+        this.stateMutex = new Mutex();
+        this.tasksReady = new Condition(stateMutex);
+        
+        this.workerCount = maxParallelism == 0 ? totalCPUs : maxParallelism;
+        this.pool = new ThreadPool(workerCount);
         
         // Register language handlers
         handlers[TargetLanguage.Python] = new PythonHandler();
@@ -41,7 +53,13 @@ class BuildExecutor
         handlers[TargetLanguage.D] = new DHandler();
     }
     
-    /// Execute the build
+    ~this()
+    {
+        if (pool !is null)
+            pool.shutdown();
+    }
+    
+    /// Execute the build with event-driven scheduling
     void execute()
     {
         auto sw = StopWatch(AutoStart.yes);
@@ -51,46 +69,71 @@ class BuildExecutor
         
         size_t built = 0;
         size_t cached = 0;
-        size_t failed = 0;
         
-        // Build in waves (by depth) for maximum parallelism
-        auto stats = graph.getStats();
-        Logger.info("Max parallelism: " ~ min(maxParallelism, stats.parallelism).to!string ~ " jobs");
-        
-        while (true)
+        synchronized (stateMutex)
         {
-            auto ready = graph.getReadyNodes();
-            if (ready.empty)
-                break;
+            atomicStore(activeTasks, cast(size_t)0);
+            atomicStore(failedTasks, cast(size_t)0);
+        }
+        
+        auto stats = graph.getStats();
+        Logger.info("Max parallelism: " ~ workerCount.to!string ~ " jobs");
+        
+        // Event-driven execution: submit ready nodes immediately
+        while (atomicLoad(failedTasks) == 0)
+        {
+            BuildNode[] ready;
             
-            // Build ready nodes in parallel
-            auto results = ParallelExecutor.execute(ready, &buildNode, maxParallelism);
-            
-            foreach (i, result; results)
+            synchronized (stateMutex)
             {
-                auto node = ready[i];
+                ready = graph.getReadyNodes();
                 
-                if (result.success)
+                if (ready.empty && atomicLoad(activeTasks) == 0)
+                    break; // All done
+                
+                if (ready.empty)
                 {
-                    node.status = result.cached ? BuildStatus.Cached : BuildStatus.Success;
-                    if (result.cached)
-                        cached++;
-                    else
-                        built++;
+                    // Wait for tasks to complete and free up dependencies
+                    tasksReady.wait();
+                    continue;
                 }
-                else
-                {
-                    node.status = BuildStatus.Failed;
-                    failed++;
-                    Logger.error("Failed to build " ~ node.id ~ ": " ~ result.error);
-                }
+                
+                atomicOp!"+="(activeTasks, ready.length);
             }
             
-            if (failed > 0)
-                break;
+            // Execute ready nodes in parallel using persistent pool
+            auto results = pool.map(ready, &buildNode);
+            
+            synchronized (stateMutex)
+            {
+                foreach (i, result; results)
+                {
+                    auto node = ready[i];
+                    
+                    if (result.success)
+                    {
+                        node.status = result.cached ? BuildStatus.Cached : BuildStatus.Success;
+                        if (result.cached)
+                            cached++;
+                        else
+                            built++;
+                    }
+                    else
+                    {
+                        node.status = BuildStatus.Failed;
+                        atomicOp!"+="(failedTasks, 1);
+                        Logger.error("Failed to build " ~ node.id ~ ": " ~ result.error);
+                    }
+                }
+                
+                atomicOp!"-="(activeTasks, ready.length);
+                tasksReady.notifyAll();
+            }
         }
         
         sw.stop();
+        
+        auto failed = atomicLoad(failedTasks);
         
         // Print summary
         writeln();
