@@ -29,12 +29,6 @@
         "source/utils/simd/c/blake3_sse2.c",
         "source/utils/simd/c/blake3_sse41.c"
     ],
-    "sourceFiles-arm": [
-        "source/utils/simd/c/blake3_neon.c"
-    ],
-    "sourceFiles-aarch64": [
-        "source/utils/simd/c/blake3_neon.c"
-    ],
     "dflags": ["-L-lstdc++"],
     "lflags": ["-lm"],
     "configurations": [

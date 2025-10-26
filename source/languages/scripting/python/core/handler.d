@@ -23,7 +23,7 @@ import utils.python.pywrap;
 /// Python build handler - comprehensive and modular
 class PythonHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

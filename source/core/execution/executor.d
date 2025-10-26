@@ -52,7 +52,7 @@ final class BuildExecutor
     private immutable size_t workerCount;
     private EventPublisher eventPublisher;
     
-    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null) @safe
+    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null) @trusted
     {
         this.graph = graph;
         this.config = config;
@@ -261,15 +261,18 @@ final class BuildExecutor
     }
     
     /// Format size in human-readable format
-    private string formatSize(size_t bytes)
+    private static string formatSize(in size_t bytes) pure @safe
     {
+        import std.format : format;
+        
         if (bytes < 1024)
-            return bytes.to!string ~ " B";
-        if (bytes < 1024 * 1024)
-            return (bytes / 1024).to!string ~ " KB";
-        if (bytes < 1024 * 1024 * 1024)
-            return (bytes / (1024 * 1024)).to!string ~ " MB";
-        return (bytes / (1024 * 1024 * 1024)).to!string ~ " GB";
+            return format("%d B", bytes);
+        else if (bytes < 1024 * 1024)
+            return format("%d KB", bytes / 1024);
+        else if (bytes < 1024 * 1024 * 1024)
+            return format("%d MB", bytes / (1024 * 1024));
+        else
+            return format("%d GB", bytes / (1024 * 1024 * 1024));
     }
     
     /// Build a single node
@@ -379,11 +382,12 @@ final class BuildExecutor
     }
 }
 
+/// Result of building a single target
 struct BuildResult
 {
     string targetId;
-    bool success;
-    bool cached;
+    bool success = false;
+    bool cached = false;
     string error;
 }
 

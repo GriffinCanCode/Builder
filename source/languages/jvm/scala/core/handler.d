@@ -25,7 +25,7 @@ import utils.logging.logger;
 /// Scala build handler - modular and comprehensive
 class ScalaHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -229,7 +229,7 @@ class ScalaHandler : BaseLanguageHandler
         return result;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Scala);
         if (spec is null)

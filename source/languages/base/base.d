@@ -12,22 +12,22 @@ interface LanguageHandler
     Result!(string, BuildError) build(Target target, WorkspaceConfig config);
     
     /// Check if target needs rebuild
-    bool needsRebuild(Target target, WorkspaceConfig config);
+    bool needsRebuild(in Target target, in WorkspaceConfig config);
     
     /// Clean build artifacts
-    void clean(Target target, WorkspaceConfig config);
+    void clean(in Target target, in WorkspaceConfig config);
     
     /// Get output files for a target
-    string[] getOutputs(Target target, WorkspaceConfig config);
+    string[] getOutputs(in Target target, in WorkspaceConfig config);
     
     /// Analyze imports in source files (optional for advanced dependency analysis)
-    Import[] analyzeImports(string[] sources);
+    Import[] analyzeImports(in string[] sources);
 }
 
 /// Base implementation with common functionality
 abstract class BaseLanguageHandler : LanguageHandler
 {
-    Result!(string, BuildError) build(Target target, WorkspaceConfig config)
+    Result!(string, BuildError) build(Target target, WorkspaceConfig config) @trusted
     {
         try
         {
@@ -66,7 +66,7 @@ abstract class BaseLanguageHandler : LanguageHandler
         }
     }
     
-    bool needsRebuild(Target target, WorkspaceConfig config)
+    bool needsRebuild(in Target target, in WorkspaceConfig config) @trusted
     {
         import std.file : exists;
         
@@ -82,7 +82,7 @@ abstract class BaseLanguageHandler : LanguageHandler
         return false;
     }
     
-    void clean(Target target, WorkspaceConfig config)
+    void clean(in Target target, in WorkspaceConfig config) @trusted
     {
         import std.file : remove, exists;
         
@@ -95,7 +95,7 @@ abstract class BaseLanguageHandler : LanguageHandler
         }
     }
     
-    Import[] analyzeImports(string[] sources)
+    Import[] analyzeImports(string[] sources) @trusted
     {
         // Default implementation: delegate to language spec
         // Subclasses can override for custom analysis

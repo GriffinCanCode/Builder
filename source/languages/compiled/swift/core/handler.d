@@ -23,7 +23,7 @@ import utils.logging.logger;
 /// Advanced Swift build handler with SPM, Xcode, and cross-compilation support
 class SwiftHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -183,7 +183,7 @@ class SwiftHandler : BaseLanguageHandler
         return outputs;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Swift);
         if (spec is null)

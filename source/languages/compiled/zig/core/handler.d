@@ -23,7 +23,7 @@ import utils.logging.logger;
 /// Advanced Zig build handler with build.zig and cross-compilation support
 class ZigHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -114,7 +114,7 @@ class ZigHandler : BaseLanguageHandler
         return outputs;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Zig);
         if (spec is null)

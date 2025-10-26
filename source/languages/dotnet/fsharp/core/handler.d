@@ -19,7 +19,7 @@ import utils.logging.logger;
 /// F# build handler - main orchestrator
 class FSharpHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -112,7 +112,7 @@ class FSharpHandler : BaseLanguageHandler
         return outputs;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.FSharp);
         if (spec is null)

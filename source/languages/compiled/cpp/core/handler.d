@@ -23,7 +23,7 @@ import utils.logging.logger;
 /// C++ build handler with comprehensive feature support
 class CppHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -149,7 +149,7 @@ class CppHandler : BaseLanguageHandler
         return outputs;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Cpp);
         if (spec is null)
@@ -477,13 +477,13 @@ class CppHandler : BaseLanguageHandler
 /// C handler (reuses CppHandler with C-specific settings)
 class CHandler : CppHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         Logger.debug_("Building C target: " ~ target.name);
         return super.buildImpl(target, config);
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.C);
         if (spec is null)

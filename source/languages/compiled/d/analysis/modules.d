@@ -90,9 +90,9 @@ class ModuleAnalyzer
     }
     
     /// Build dependency graph from modules
-    static string[string[]] buildDependencyGraph(ModuleInfo[] modules)
+    static string[][string] buildDependencyGraph(ModuleInfo[] modules)
     {
-        string[string[]] graph;
+        string[][string] graph;
         
         foreach (mod; modules)
         {

@@ -22,7 +22,7 @@ import utils.logging.logger;
 /// Comprehensive Nim build handler with multi-backend support
 class NimHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -119,7 +119,7 @@ class NimHandler : BaseLanguageHandler
         return outputs;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Nim);
         if (spec is null)

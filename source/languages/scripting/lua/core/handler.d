@@ -24,7 +24,7 @@ import utils.logging.logger;
 /// Lua language build handler - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

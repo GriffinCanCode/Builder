@@ -20,7 +20,7 @@ import utils.logging.logger;
 /// JavaScript/TypeScript build handler with bundler support
 class JavaScriptHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

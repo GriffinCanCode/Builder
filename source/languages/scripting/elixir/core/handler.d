@@ -22,7 +22,7 @@ import utils.logging.logger;
 /// Elixir build handler - comprehensive and modular
 class ElixirHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

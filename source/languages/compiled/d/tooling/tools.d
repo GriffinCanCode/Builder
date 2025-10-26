@@ -46,16 +46,14 @@ final class DFormatter
     /// Format D source files
     static auto format(scope const(string)[] sources, string configFile = "", bool checkOnly = false)
     {
-        import std.range : chain, only;
+        import std.array : array;
         
-        auto cmd = chain(
-            only("dfmt"),
-            only(checkOnly ? "--check" : "--inplace"),
-            !configFile.empty && exists(configFile) ? only("--config=" ~ configFile) : null,
-            sources
-        );
+        string[] cmd = ["dfmt", checkOnly ? "--check" : "--inplace"];
+        if (!configFile.empty && exists(configFile))
+            cmd ~= "--config=" ~ configFile;
+        cmd ~= sources;
         
-        return execute(cmd.array);
+        return execute(cmd);
     }
     
     /// Format a single file
@@ -126,16 +124,14 @@ final class DScanner
         string reportFormat = "stylish"
     )
     {
-        import std.range : chain, only;
+        string[] cmd = ["dscanner", "--styleCheck"];
+        if (!configFile.empty && exists(configFile))
+            cmd ~= "--config=" ~ configFile;
+        if (!reportFormat.empty)
+            cmd ~= "--reportFormat=" ~ reportFormat;
+        cmd ~= sources;
         
-        auto cmd = chain(
-            only("dscanner", "--styleCheck"),
-            !configFile.empty && exists(configFile) ? only("--config=" ~ configFile) : null,
-            !reportFormat.empty ? only("--reportFormat=" ~ reportFormat) : null,
-            sources
-        );
-        
-        return execute(cmd.array);
+        return execute(cmd);
     }
     
     /// Syntax check
@@ -236,14 +232,15 @@ final class DubTest
             projectDir = getcwd();
         }
         
-        auto cmd = chain(
-            only("dub", "test"),
-            !compiler.empty ? only("--compiler=" ~ compiler) : null,
-            verbose ? only("--verbose") : null,
-            !filter.empty ? only("--" ~ filter) : null
-        );
+        string[] cmd = ["dub", "test"];
+        if (!compiler.empty)
+            cmd ~= "--compiler=" ~ compiler;
+        if (verbose)
+            cmd ~= "--verbose";
+        if (!filter.empty)
+            cmd ~= "--" ~ filter;
         
-        return execute(cmd.array, null, std.process.Config.none, size_t.max, projectDir);
+        return execute(cmd, null, std.process.Config.none, size_t.max, projectDir);
     }
     
     /// Run DUB tests with coverage
@@ -260,13 +257,13 @@ final class DubTest
             projectDir = getcwd();
         }
         
-        auto cmd = chain(
-            only("dub", "test", "--build=unittest-cov"),
-            !compiler.empty ? only("--compiler=" ~ compiler) : null,
-            verbose ? only("--verbose") : null
-        );
+        string[] cmd = ["dub", "test", "--build=unittest-cov"];
+        if (!compiler.empty)
+            cmd ~= "--compiler=" ~ compiler;
+        if (verbose)
+            cmd ~= "--verbose";
         
-        return execute(cmd.array, null, std.process.Config.none, size_t.max, projectDir);
+        return execute(cmd, null, std.process.Config.none, size_t.max, projectDir);
     }
 }
 

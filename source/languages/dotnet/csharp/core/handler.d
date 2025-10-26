@@ -25,7 +25,7 @@ import utils.logging.logger;
 /// C# build handler - comprehensive and modular
 class CSharpHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -347,7 +347,7 @@ class CSharpHandler : BaseLanguageHandler
         return result;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.CSharp);
         if (spec is null)

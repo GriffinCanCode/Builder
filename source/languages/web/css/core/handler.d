@@ -18,7 +18,7 @@ import utils.logging.logger;
 /// CSS/SCSS/PostCSS build handler
 class CSSHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

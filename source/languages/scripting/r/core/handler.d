@@ -26,7 +26,7 @@ import utils.logging.logger;
 /// R language handler - comprehensive and modular
 class RHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

@@ -25,7 +25,7 @@ struct SIMDParallel
         
         auto workerCount = maxParallelism == 0 ? totalCPUs : maxParallelism;
         auto pool = new ThreadPool(workerCount);
-        scope(exit) pool.finish();
+        scope(exit) pool.shutdown();
         
         return pool.map(items, func);
     }

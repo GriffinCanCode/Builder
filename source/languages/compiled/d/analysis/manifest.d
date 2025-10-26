@@ -140,18 +140,18 @@ class DubManifest
             // Source paths
             if ("sourcePaths" in json && json["sourcePaths"].type == JSONType.array)
             {
-                foreach (path; json["sourcePaths"].array)
+                foreach (p; json["sourcePaths"].array)
                 {
-                    manifest.sourcePaths ~= path.str;
+                    manifest.sourcePaths ~= p.str;
                 }
             }
             
             // Import paths
             if ("importPaths" in json && json["importPaths"].type == JSONType.array)
             {
-                foreach (path; json["importPaths"].array)
+                foreach (p; json["importPaths"].array)
                 {
-                    manifest.importPaths ~= path.str;
+                    manifest.importPaths ~= p.str;
                 }
             }
             

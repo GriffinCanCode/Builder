@@ -3,6 +3,7 @@ module languages.compiled.d.builders.base;
 import languages.compiled.d.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import std.range : empty;
 
 /// Base interface for D builders
 interface DBuilder

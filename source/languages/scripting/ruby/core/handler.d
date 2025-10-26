@@ -24,7 +24,7 @@ import utils.logging.logger;
 /// Ruby build handler - comprehensive and modular
 class RubyHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

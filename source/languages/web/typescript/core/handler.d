@@ -22,7 +22,7 @@ import utils.logging.logger;
 /// TypeScript build handler - separate from JavaScript with type-first approach
 class TypeScriptHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         

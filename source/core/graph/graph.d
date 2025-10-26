@@ -61,19 +61,19 @@ final class BuildGraph
     {
         if (target.name !in nodes)
         {
-            scope node = new BuildNode(target.name, target);
+            auto node = new BuildNode(target.name, target);
             nodes[target.name] = node;
         }
     }
     
     /// Add dependency between two targets
-    void addDependency(string from, string to) @safe
+    void addDependency(in string from, in string to) @safe
     {
         if (from !in nodes || to !in nodes)
             throw new Exception("Target not found in graph: " ~ (from !in nodes ? from : to));
         
-        scope fromNode = nodes[from];
-        scope toNode = nodes[to];
+        auto fromNode = nodes[from];
+        auto toNode = nodes[to];
         
         // Check for cycles before adding
         if (wouldCreateCycle(fromNode, toNode))
@@ -84,11 +84,11 @@ final class BuildGraph
     }
     
     /// Check if adding an edge would create a cycle
-    private bool wouldCreateCycle(scope BuildNode from, scope BuildNode to) @safe
+    private bool wouldCreateCycle(BuildNode from, BuildNode to) @trusted
     {
         bool[BuildNode] visited;
         
-        bool dfs(scope BuildNode node)
+        bool dfs(BuildNode node)
         {
             if (node == from)
                 return true;
@@ -110,13 +110,13 @@ final class BuildGraph
     }
     
     /// Get nodes in topological order (leaves first)
-    BuildNode[] topologicalSort()
+    BuildNode[] topologicalSort() const
     {
         BuildNode[] sorted;
-        bool[BuildNode] visited;
-        bool[BuildNode] visiting;
+        bool[const(BuildNode)] visited;
+        bool[const(BuildNode)] visiting;
         
-        void visit(BuildNode node)
+        void visit(const(BuildNode) node)
         {
             if (node in visited)
                 return;
@@ -131,7 +131,7 @@ final class BuildGraph
             
             visiting.remove(node);
             visited[node] = true;
-            sorted ~= node;
+            sorted ~= cast(BuildNode)node; // Safe cast for returning mutable reference
         }
         
         foreach (node; nodes.values)
@@ -157,7 +157,7 @@ final class BuildGraph
     }
     
     /// Print the graph for visualization
-    void print()
+    void print() const
     {
         writeln("\nBuild Graph:");
         writeln("============");
@@ -199,7 +199,7 @@ final class BuildGraph
         size_t parallelism; // Max nodes that can be built in parallel
     }
     
-    GraphStats getStats()
+    GraphStats getStats() const
     {
         GraphStats stats;
         stats.totalNodes = nodes.length;

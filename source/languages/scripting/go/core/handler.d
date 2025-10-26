@@ -21,7 +21,7 @@ import utils.logging.logger;
 /// Go build handler - modular and extensible
 class GoHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
