@@ -204,12 +204,18 @@ class DependencyAnalyzer
     /// Check if target matches filter pattern
     private bool matchesFilter(string name, string pattern) const pure
     {
-        import std.string : indexOf;
+        import std.string : indexOf, startsWith, endsWith;
         
         if (pattern.empty)
             return true;
         
-        // Simple pattern matching
+        // Handle :target pattern (matches any //path:target)
+        if (pattern.startsWith(":"))
+        {
+            return name.endsWith(pattern);
+        }
+        
+        // Simple pattern matching with wildcards
         if (pattern.endsWith("..."))
         {
             auto prefix = pattern[0 .. $ - 3];

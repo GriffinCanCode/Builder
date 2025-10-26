@@ -8,6 +8,6 @@ target("d-hello") {
         "-O2",
         "-release"
     ];
-    output: "bin/d-hello";
+    output: "d-hello";
 }
 
