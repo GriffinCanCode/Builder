@@ -34,7 +34,7 @@ class DependencyAnalyzer
     }
     
     /// Analyze dependencies and build graph
-    BuildGraph analyze(string targetFilter = "")
+    BuildGraph analyze(in string targetFilter = "") @trusted
     {
         Logger.info("Analyzing dependencies...");
         auto sw = StopWatch(AutoStart.yes);

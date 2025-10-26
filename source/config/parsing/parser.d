@@ -25,8 +25,8 @@ class ConfigParser
     /// while still loading valid Builderfile files. This maximizes information
     /// available to the caller.
     static Result!(WorkspaceConfig, BuildError) parseWorkspace(
-        string root,
-        AggregationPolicy policy = AggregationPolicy.CollectAll)
+        in string root,
+        in AggregationPolicy policy = AggregationPolicy.CollectAll) @trusted
     {
         WorkspaceConfig config;
         config.root = absolutePath(root);

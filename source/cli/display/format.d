@@ -25,78 +25,78 @@ struct Formatter
     }
     
     /// Format build started message
-    string formatBuildStarted(size_t totalTargets, size_t maxParallelism)
+    string formatBuildStarted(in size_t totalTargets, in size_t maxParallelism) const @safe
     {
-        auto msg = format("Building %d targets (parallelism: %d)...", 
+        immutable msg = format("Building %d targets (parallelism: %d)...", 
                          totalTargets, maxParallelism);
         return styled(msg, Color.Cyan, Style.Bold);
     }
     
     /// Format build completed message
-    string formatBuildCompleted(size_t built, size_t cached, Duration duration)
+    string formatBuildCompleted(in size_t built, in size_t cached, in Duration duration) const @safe
     {
-        auto msg = format("%s Build completed in %s", 
+        immutable msg = format("%s Build completed in %s", 
                          symbols.checkmark, formatDuration(duration));
-        auto stats = format("  Built: %d, Cached: %d", built, cached);
+        immutable stats = format("  Built: %d, Cached: %d", built, cached);
         return styled(msg, Color.Green, Style.Bold) ~ "\n" ~ 
                styled(stats, Color.Green);
     }
     
     /// Format build failed message
-    string formatBuildFailed(size_t failed, Duration duration)
+    string formatBuildFailed(in size_t failed, in Duration duration) const @safe
     {
-        auto msg = format("%s Build failed with %d errors in %s",
+        immutable msg = format("%s Build failed with %d errors in %s",
                          symbols.cross, failed, formatDuration(duration));
         return styled(msg, Color.Red, Style.Bold);
     }
     
     /// Format target started message
-    string formatTargetStarted(string targetId, size_t index, size_t total)
+    string formatTargetStarted(in string targetId, in size_t index, in size_t total) const @safe
     {
-        auto msg = format("[%d/%d] %s Building %s", 
+        immutable msg = format("[%d/%d] %s Building %s", 
                          index, total, symbols.building, targetId);
         return styled(msg, Color.Cyan);
     }
     
     /// Format target completed message
-    string formatTargetCompleted(string targetId, Duration duration)
+    string formatTargetCompleted(in string targetId, in Duration duration) const @safe
     {
-        auto msg = format("%s %s", symbols.checkmark, targetId);
-        auto time = format("(%s)", formatDuration(duration));
+        immutable msg = format("%s %s", symbols.checkmark, targetId);
+        immutable time = format("(%s)", formatDuration(duration));
         return styled(msg, Color.Green) ~ " " ~ styled(time, Color.BrightBlack);
     }
     
     /// Format target cached message
-    string formatTargetCached(string targetId)
+    string formatTargetCached(in string targetId) const @safe
     {
-        auto msg = format("%s %s", symbols.cached, targetId);
+        immutable msg = format("%s %s", symbols.cached, targetId);
         return styled(msg, Color.Yellow) ~ " " ~ 
                styled("(cached)", Color.BrightBlack);
     }
     
     /// Format target failed message
-    string formatTargetFailed(string targetId, string error)
+    string formatTargetFailed(in string targetId, in string error) const @safe
     {
-        auto msg = format("%s %s", symbols.cross, targetId);
-        auto errorMsg = format("  Error: %s", error);
+        immutable msg = format("%s %s", symbols.cross, targetId);
+        immutable errorMsg = format("  Error: %s", error);
         return styled(msg, Color.Red, Style.Bold) ~ "\n" ~ 
                styled(errorMsg, Color.Red);
     }
     
     /// Format info message
-    string formatInfo(string message)
+    string formatInfo(in string message) const @safe
     {
         return styled("[INFO] ", Color.Cyan) ~ message;
     }
     
     /// Format warning message
-    string formatWarning(string message)
+    string formatWarning(in string message) const @safe
     {
         return styled("[WARN] ", Color.Yellow, Style.Bold) ~ message;
     }
     
     /// Format error message
-    string formatError(string message)
+    string formatError(in string message) const @safe
     {
         return styled("[ERROR] ", Color.Red, Style.Bold) ~ message;
     }
@@ -191,7 +191,7 @@ struct Formatter
     }
     
     /// Apply styling to text
-    private string styled(string text, Color color, Style style = Style.None)
+    private string styled(in string text, in Color color, in Style style = Style.None) const @safe
     {
         if (!useColors)
             return text;
@@ -212,27 +212,27 @@ struct Formatter
 }
 
 /// Duration formatting utilities
-string formatDuration(Duration d) pure
+string formatDuration(in Duration d) pure @trusted
 {
-    auto msecs = d.total!"msecs";
+    immutable msecs = d.total!"msecs";
     
     if (msecs < 1000)
         return format("%dms", msecs);
     
-    auto secs = d.total!"seconds";
+    immutable secs = d.total!"seconds";
     if (secs < 60)
         return format("%.1fs", msecs / 1000.0);
     
-    auto mins = secs / 60;
-    secs = secs % 60;
+    immutable mins = secs / 60;
+    immutable secsRem = secs % 60;
     
     if (mins < 60)
-        return format("%dm%ds", mins, secs);
+        return format("%dm%ds", mins, secsRem);
     
-    auto hours = mins / 60;
-    mins = mins % 60;
+    immutable hours = mins / 60;
+    immutable minsRem = mins % 60;
     
-    return format("%dh%dm", hours, mins);
+    return format("%dh%dm", hours, minsRem);
 }
 
 /// Size formatting utilities

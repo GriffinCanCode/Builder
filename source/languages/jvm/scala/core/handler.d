@@ -66,7 +66,7 @@ class ScalaHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         string[] outputs;
         

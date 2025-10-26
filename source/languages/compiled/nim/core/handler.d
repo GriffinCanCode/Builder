@@ -93,7 +93,7 @@ class NimHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         NimConfig nimConfig = parseNimConfig(target);
         

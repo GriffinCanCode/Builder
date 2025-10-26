@@ -44,34 +44,34 @@ enum Severity
 
 final class BuildStartedEvent : BuildEvent
 {
-    private EventType _type = EventType.BuildStarted;
-    private Duration _timestamp;
+    private immutable EventType _type = EventType.BuildStarted;
+    private immutable Duration _timestamp;
     
-    size_t totalTargets;
-    size_t maxParallelism;
+    immutable size_t totalTargets;
+    immutable size_t maxParallelism;
     
-    this(size_t totalTargets, size_t maxParallelism, Duration timestamp)
+    this(in size_t totalTargets, in size_t maxParallelism, in Duration timestamp) pure @safe
     {
         this.totalTargets = totalTargets;
         this.maxParallelism = maxParallelism;
         this._timestamp = timestamp;
     }
     
-    @property EventType type() const pure nothrow { return _type; }
-    @property Duration timestamp() const pure nothrow { return _timestamp; }
+    @property EventType type() const pure nothrow @safe @nogc { return _type; }
+    @property Duration timestamp() const pure nothrow @safe @nogc { return _timestamp; }
 }
 
 final class BuildCompletedEvent : BuildEvent
 {
-    private EventType _type = EventType.BuildCompleted;
-    private Duration _timestamp;
+    private immutable EventType _type = EventType.BuildCompleted;
+    private immutable Duration _timestamp;
     
-    size_t built;
-    size_t cached;
-    size_t failed;
-    Duration duration;
+    immutable size_t built;
+    immutable size_t cached;
+    immutable size_t failed;
+    immutable Duration duration;
     
-    this(size_t built, size_t cached, size_t failed, Duration duration, Duration timestamp)
+    this(in size_t built, in size_t cached, in size_t failed, in Duration duration, in Duration timestamp) pure @safe
     {
         this.built = built;
         this.cached = cached;
@@ -80,20 +80,20 @@ final class BuildCompletedEvent : BuildEvent
         this._timestamp = timestamp;
     }
     
-    @property EventType type() const pure nothrow { return _type; }
-    @property Duration timestamp() const pure nothrow { return _timestamp; }
+    @property EventType type() const pure nothrow @safe @nogc { return _type; }
+    @property Duration timestamp() const pure nothrow @safe @nogc { return _timestamp; }
 }
 
 final class BuildFailedEvent : BuildEvent
 {
-    private EventType _type = EventType.BuildFailed;
-    private Duration _timestamp;
+    private immutable EventType _type = EventType.BuildFailed;
+    private immutable Duration _timestamp;
     
-    string reason;
-    size_t failedCount;
-    Duration duration;
+    immutable string reason;
+    immutable size_t failedCount;
+    immutable Duration duration;
     
-    this(string reason, size_t failedCount, Duration duration, Duration timestamp)
+    this(in string reason, in size_t failedCount, in Duration duration, in Duration timestamp) pure @safe
     {
         this.reason = reason;
         this.failedCount = failedCount;

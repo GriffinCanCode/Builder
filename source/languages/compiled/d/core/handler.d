@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.string;
+import std.conv : to;
 import languages.base.base;
 import languages.compiled.d.core.config;
 import languages.compiled.d.analysis.manifest;
@@ -86,7 +87,7 @@ class DHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         DConfig dConfig = parseDConfig(target);
         

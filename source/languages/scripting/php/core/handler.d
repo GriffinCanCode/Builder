@@ -59,7 +59,7 @@ class PHPHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         string[] outputs;
         
@@ -739,7 +739,7 @@ class PHPHandler : BaseLanguageHandler
         return result;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.PHP);
         if (spec is null)

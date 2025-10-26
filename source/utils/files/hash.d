@@ -27,12 +27,12 @@ struct FastHash
     private enum size_t SAMPLE_SIZE = 16_384;      // 16 KB per sample
     
     /// Hash a file with intelligent size-tiered strategy
-    static string hashFile(string path)
+    static string hashFile(in string path) @trusted
     {
         if (!exists(path))
             return "";
         
-        auto size = getSize(path);
+        immutable size = getSize(path);
         
         // Tier 1: Tiny files - direct read
         if (size <= TINY_THRESHOLD)
@@ -51,14 +51,14 @@ struct FastHash
     }
     
     /// Direct hash for tiny files
-    private static string hashFileDirect(string path)
+    private static string hashFileDirect(in string path) @trusted
     {
-        auto data = cast(ubyte[])std.file.read(path);
+        immutable data = cast(ubyte[])std.file.read(path);
         return Blake3.hashHex(data);
     }
     
     /// Chunked hash for small files (original approach)
-    private static string hashFileChunked(string path)
+    private static string hashFileChunked(in string path) @trusted
     {
         auto file = File(path, "rb");
         auto hash = Blake3(0);
@@ -75,7 +75,7 @@ struct FastHash
     }
     
     /// Sampled hash for medium files (head + tail + middle samples)
-    private static string hashFileSampled(string path, size_t fileSize)
+    private static string hashFileSampled(in string path, in size_t fileSize) @trusted
     {
         auto hash = Blake3(0);
         
@@ -122,7 +122,7 @@ struct FastHash
     }
     
     /// Aggressive sampling for large files using memory mapping with SIMD
-    private static string hashFileLargeSampled(string path, size_t fileSize)
+    private static string hashFileLargeSampled(in string path, in size_t fileSize) @trusted
     {
         auto hash = Blake3(0);  // SIMD-accelerated
         

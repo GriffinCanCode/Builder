@@ -63,7 +63,7 @@ class JavaScriptHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         JSConfig jsConfig = parseJSConfig(target);
         
@@ -344,7 +344,7 @@ class JavaScriptHandler : BaseLanguageHandler
     }
     
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.JavaScript);
         if (spec is null)

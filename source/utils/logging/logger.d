@@ -9,41 +9,41 @@ class Logger
 {
     private static bool verbose = false;
     
-    static void initialize()
+    static void initialize() @safe
     {
         // Setup logging
     }
     
-    static void setVerbose(bool v)
+    static void setVerbose(in bool v) @safe nothrow @nogc
     {
         verbose = v;
     }
     
-    static void info(string msg)
+    static void info(in string msg) @trusted
     {
         writeln("\x1b[36m[INFO]\x1b[0m ", msg);
         stdout.flush();
     }
     
-    static void success(string msg)
+    static void success(in string msg) @trusted
     {
         writeln("\x1b[32m[SUCCESS]\x1b[0m ", msg);
         stdout.flush();
     }
     
-    static void warning(string msg)
+    static void warning(in string msg) @trusted
     {
         writeln("\x1b[33m[WARNING]\x1b[0m ", msg);
         stdout.flush();
     }
     
-    static void error(string msg)
+    static void error(in string msg) @trusted
     {
         stderr.writeln("\x1b[31m[ERROR]\x1b[0m ", msg);
         stderr.flush();
     }
     
-    static void debug_(string msg)
+    static void debug_(in string msg) @trusted
     {
         if (verbose)
         {

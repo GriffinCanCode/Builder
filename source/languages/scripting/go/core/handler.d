@@ -53,7 +53,7 @@ class GoHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         string[] outputs;
         
@@ -359,7 +359,7 @@ class GoHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Go);
         if (spec is null)

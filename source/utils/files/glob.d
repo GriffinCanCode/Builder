@@ -22,14 +22,14 @@ struct GlobResult
 class GlobMatcher
 {
     /// Match files against glob patterns
-    static string[] match(string[] patterns, string baseDir)
+    static string[] match(in string[] patterns, in string baseDir) @safe
     {
         auto result = matchWithExclusions(patterns, baseDir);
         return result.matches;
     }
     
     /// Match with separate tracking of exclusions
-    static GlobResult matchWithExclusions(string[] patterns, string baseDir)
+    static GlobResult matchWithExclusions(in string[] patterns, in string baseDir) @trusted
     {
         GlobResult result;
         bool[string] matchSet;  // Use AA for deduplication
@@ -66,9 +66,9 @@ class GlobMatcher
     }
     
     /// Match a single glob pattern
-    private static string[] matchSingle(string pattern, string baseDir)
+    private static string[] matchSingle(in string pattern, in string baseDir) @trusted
     {
-        string fullPattern = buildPath(baseDir, pattern);
+        immutable fullPattern = buildPath(baseDir, pattern);
         
         // Direct file reference (no wildcards)
         if (!pattern.canFind("*") && !pattern.canFind("?") && !pattern.canFind("["))
@@ -301,13 +301,13 @@ class GlobMatcher
 }
 
 /// Convenience function for matching globs
-string[] glob(string[] patterns, string baseDir = ".")
+string[] glob(in string[] patterns, in string baseDir = ".") @safe
 {
     return GlobMatcher.match(patterns, baseDir);
 }
 
 /// Convenience function for single pattern
-string[] glob(string pattern, string baseDir = ".")
+string[] glob(in string pattern, in string baseDir = ".") @safe
 {
     return GlobMatcher.match([pattern], baseDir);
 }

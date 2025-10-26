@@ -118,7 +118,7 @@ class RHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         RConfig rConfig = parseRConfig(target);
         enhanceConfigFromProject(rConfig, target, config);
@@ -559,7 +559,7 @@ class RHandler : BaseLanguageHandler
     }
     
     /// Analyze imports in R files
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.R);
         if (spec is null)

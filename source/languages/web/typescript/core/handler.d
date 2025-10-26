@@ -57,7 +57,7 @@ class TypeScriptHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         TSConfig tsConfig = parseTSConfig(target);
         
@@ -359,7 +359,7 @@ class TypeScriptHandler : BaseLanguageHandler
         return "";
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.TypeScript);
         if (spec is null)

@@ -67,7 +67,7 @@ class LuaHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         LuaConfig luaConfig = parseLuaConfig(target);
         string[] outputs;
@@ -607,7 +607,7 @@ class LuaHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Lua);
         if (spec is null)

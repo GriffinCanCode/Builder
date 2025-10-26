@@ -58,7 +58,7 @@ class ElixirHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         string[] outputs;
         
@@ -690,7 +690,7 @@ class ElixirHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.Elixir);
         if (spec is null)

@@ -19,15 +19,15 @@ struct Blake3
     }
     
     /// Initialize with a key (for keyed hashing/MAC)
-    static Blake3 keyed(const ubyte[BLAKE3_KEY_LEN] key)
+    static Blake3 keyed(in ubyte[BLAKE3_KEY_LEN] key) @trusted
     {
         Blake3 b;
-        blake3_hasher_init_keyed(&b.hasher, key);
+        blake3_hasher_init_keyed(&b.hasher, key.ptr);
         return b;
     }
     
     /// Initialize for key derivation
-    static Blake3 deriveKey(string context)
+    static Blake3 deriveKey(in string context) @trusted
     {
         Blake3 b;
         blake3_hasher_init_derive_key(&b.hasher, context.toStringz());
@@ -35,20 +35,20 @@ struct Blake3
     }
     
     /// Update hasher with data
-    void put(const ubyte[] data)
+    void put(in ubyte[] data) @trusted
     {
         if (data.length > 0)
             blake3_hasher_update(&hasher, data.ptr, data.length);
     }
     
     /// Update hasher with string
-    void put(string data)
+    void put(in string data) @trusted
     {
         put(cast(ubyte[])data);
     }
     
     /// Finalize and get hash (default 32 bytes)
-    ubyte[] finish(size_t length = BLAKE3_OUT_LEN)
+    ubyte[] finish(in size_t length = BLAKE3_OUT_LEN) @trusted
     {
         auto output = new ubyte[length];
         blake3_hasher_finalize(&hasher, output.ptr, length);
@@ -56,20 +56,20 @@ struct Blake3
     }
     
     /// Finalize and get hash as hex string
-    string finishHex(size_t length = BLAKE3_OUT_LEN)
+    string finishHex(in size_t length = BLAKE3_OUT_LEN) @trusted
     {
         auto hash = finish(length);
         return toHexString(hash);
     }
     
     /// Reset hasher to initial state
-    void reset()
+    void reset() @trusted
     {
         blake3_hasher_reset(&hasher);
     }
     
     /// One-shot hash of data
-    static ubyte[] hash(const ubyte[] data, size_t length = BLAKE3_OUT_LEN)
+    static ubyte[] hash(in ubyte[] data, in size_t length = BLAKE3_OUT_LEN) @trusted
     {
         auto b = Blake3(0);
         b.put(data);
@@ -77,7 +77,7 @@ struct Blake3
     }
     
     /// One-shot hash of string
-    static ubyte[] hash(string data, size_t length = BLAKE3_OUT_LEN)
+    static ubyte[] hash(in string data, in size_t length = BLAKE3_OUT_LEN) @trusted
     {
         return hash(cast(ubyte[])data, length);
     }
