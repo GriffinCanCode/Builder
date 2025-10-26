@@ -1,5 +1,6 @@
 module languages.compiled.rust.builders.base;
 
+import std.range;
 import languages.compiled.rust.config;
 import config.schema.schema;
 
@@ -131,7 +132,7 @@ class NullRustBuilder : RustBuilder
     string getVersion()
     {
         import languages.compiled.rust.toolchain;
-        return RustCompiler.getVersion();
+        return Rustc.getVersion();
     }
     
     bool supportsFeature(string feature)

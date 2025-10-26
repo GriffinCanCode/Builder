@@ -43,7 +43,7 @@ class CargoBuilder : RustBuilder
         
         // Parse manifest for metadata
         auto manifest = CargoParser.parse(manifestPath);
-        Logger.debug_("Package: " ~ manifest.package.name ~ " v" ~ manifest.package.version_);
+        Logger.debug_("Package: " ~ manifest.package_.name ~ " v" ~ manifest.package_.version_);
         
         // Build command based on mode
         final switch (config.mode)
@@ -113,8 +113,8 @@ class CargoBuilder : RustBuilder
             cmd ~= ["--features", config.features.join(",")];
         
         // Add package selection
-        if (!config.package.empty)
-            cmd ~= ["--package", config.package];
+        if (!config.package_.empty)
+            cmd ~= ["--package", config.package_];
         else if (config.workspace)
             cmd ~= ["--workspace"];
         
@@ -404,8 +404,8 @@ class CargoBuilder : RustBuilder
         if (!config.features.empty)
             cmd ~= ["--features", config.features.join(",")];
         
-        if (!config.package.empty)
-            cmd ~= ["--package", config.package];
+        if (!config.package_.empty)
+            cmd ~= ["--package", config.package_];
         else if (config.workspace)
             cmd ~= ["--workspace"];
         

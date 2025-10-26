@@ -52,7 +52,7 @@ source/languages/compiled/rust/
 
 ## Configuration
 
-### Basic Usage
+### Basic Usage (Builderfile)
 
 ```d
 target("my-rust-app") {
@@ -62,7 +62,7 @@ target("my-rust-app") {
 }
 ```
 
-### With Cargo
+### With Cargo (Builderfile)
 
 ```d
 target("rust-project") {

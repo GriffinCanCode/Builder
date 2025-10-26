@@ -176,7 +176,7 @@ struct RustConfig
     bool noDefaultFeatures = false;
     
     /// Package to build (in workspace)
-    string package;
+    string package_;
     
     /// Build all packages in workspace
     bool workspace = false;
@@ -399,7 +399,7 @@ struct RustConfig
             config.customProfile = json[key].str;
         }
         if ("target" in json) config.target = json["target"].str;
-        if ("package" in json) config.package = json["package"].str;
+        if ("package" in json) config.package_ = json["package"].str;
         if ("manifest" in json) config.manifest = json["manifest"].str;
         if ("color" in json) config.color = json["color"].str;
         if ("bin" in json) config.bin = json["bin"].str;

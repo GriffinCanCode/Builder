@@ -59,7 +59,7 @@ class RustcBuilder : RustBuilder
     
     bool isAvailable()
     {
-        return RustCompiler.isAvailable();
+        return Rustc.isAvailable();
     }
     
     string name() const
@@ -69,7 +69,7 @@ class RustcBuilder : RustBuilder
     
     string getVersion()
     {
-        return RustCompiler.getVersion();
+        return Rustc.getVersion();
     }
     
     bool supportsFeature(string feature)

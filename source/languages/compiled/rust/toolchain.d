@@ -290,7 +290,7 @@ class Rustup
 }
 
 /// Rust compiler interface
-class RustCompiler
+class Rustc
 {
     /// Check if rustc is available
     static bool isAvailable()

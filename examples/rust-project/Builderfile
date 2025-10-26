@@ -1,10 +1,65 @@
-// Rust project Builderfile
+// Enhanced Rust project Builderfile demonstrating advanced configuration
 
 target("rust-app") {
     type: executable;
     language: rust;
     sources: ["main.rs"];
-    flags: ["--edition=2021"];
+    langConfig: {
+        "rust": "{
+            \"mode\": \"compile\",
+            \"compiler\": \"auto\",
+            \"profile\": \"release\",
+            \"edition\": \"2021\",
+            \"optLevel\": \"3\",
+            \"lto\": \"thin\",
+            \"codegen\": 1,
+            \"clippy\": false,
+            \"fmt\": false
+        }"
+    };
     output: "rust-app";
+}
+
+target("rust-app-debug") {
+    type: executable;
+    language: rust;
+    sources: ["main.rs"];
+    langConfig: {
+        "rust": "{
+            \"mode\": \"compile\",
+            \"profile\": \"dev\",
+            \"edition\": \"2021\",
+            \"incremental\": true,
+            \"debugInfo\": true,
+            \"optLevel\": \"0\"
+        }"
+    };
+    output: "rust-app-debug";
+}
+
+target("rust-check") {
+    type: custom;
+    language: rust;
+    sources: ["main.rs"];
+    langConfig: {
+        "rust": "{
+            \"mode\": \"check\",
+            \"edition\": \"2021\"
+        }"
+    };
+}
+
+target("rust-clippy") {
+    type: custom;
+    language: rust;
+    sources: ["main.rs"];
+    langConfig: {
+        "rust": "{
+            \"mode\": \"check\",
+            \"clippy\": true,
+            \"clippyFlags\": [\"-D\", \"warnings\"],
+            \"edition\": \"2021\"
+        }"
+    };
 }
 

@@ -5,6 +5,7 @@ import std.path;
 import std.string;
 import std.algorithm;
 import std.array;
+import std.range;
 import std.json;
 import std.conv;
 import utils.logging.logger;
@@ -46,7 +47,7 @@ struct CargoProfile
 {
     string name;
     int optLevel;
-    bool debug;
+    bool debug_;
     bool debugAssertions;
     bool overflowChecks;
     string lto;
@@ -89,7 +90,7 @@ struct CargoLib
 /// Parsed Cargo.toml manifest
 struct CargoManifest
 {
-    CargoPackage package;
+    CargoPackage package_;
     CargoLib lib;
     CargoBin[] bins;
     CargoDependency[string] dependencies;
@@ -138,7 +139,7 @@ class CargoParser
             auto content = readText(manifestPath);
             manifest = parseTOML(content);
             
-            Logger.debug_("Parsed Cargo.toml: " ~ manifest.package.name);
+            Logger.debug_("Parsed Cargo.toml: " ~ manifest.package_.name);
         }
         catch (Exception e)
         {
@@ -265,12 +266,12 @@ class CargoParser
             }
             
             // Key-value pairs
-            auto parts = line.split("=", 2);
-            if (parts.length != 2)
+            auto equalPos = line.indexOf("=");
+            if (equalPos == -1)
                 continue;
             
-            string key = parts[0].strip;
-            string value = parts[1].strip;
+            string key = line[0 .. equalPos].strip;
+            string value = line[equalPos + 1 .. $].strip;
             
             // Remove quotes
             if (value.startsWith("\"") && value.endsWith("\""))
@@ -281,7 +282,7 @@ class CargoParser
             // Parse based on section
             if (currentSection == "package")
             {
-                parsePackageField(manifest.package, key, value);
+                parsePackageField(manifest.package_, key, value);
             }
             else if (currentSection == "lib")
             {
@@ -327,19 +328,19 @@ class CargoParser
         return manifest;
     }
     
-    private static void parsePackageField(ref CargoPackage package, string key, string value)
+    private static void parsePackageField(ref CargoPackage package_, string key, string value)
     {
         switch (key)
         {
-            case "name": package.name = value; break;
-            case "version": package.version_ = value; break;
-            case "edition": package.edition = value; break;
-            case "description": package.description = value; break;
-            case "license": package.license = value; break;
-            case "readme": package.readme = value; break;
-            case "homepage": package.homepage = value; break;
-            case "repository": package.repository = value; break;
-            case "documentation": package.documentation = value; break;
+            case "name": package_.name = value; break;
+            case "version": package_.version_ = value; break;
+            case "edition": package_.edition = value; break;
+            case "description": package_.description = value; break;
+            case "license": package_.license = value; break;
+            case "readme": package_.readme = value; break;
+            case "homepage": package_.homepage = value; break;
+            case "repository": package_.repository = value; break;
+            case "documentation": package_.documentation = value; break;
             default: break;
         }
     }
