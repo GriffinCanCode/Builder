@@ -10,7 +10,7 @@ import config.workspace.ast;
 import config.schema.schema;
 import errors;
 
-/// Recursive descent parser for BUILD DSL
+/// Recursive descent parser for Builderfile DSL
 /// Uses parser combinator patterns for elegant composition
 struct DSLParser
 {
@@ -24,7 +24,7 @@ struct DSLParser
         this.filePath = filePath;
     }
     
-    /// Parse BUILD file into AST
+    /// Parse Builderfile file into AST
     Result!(BuildFile, BuildError) parse()
     {
         BuildFile file;
@@ -42,7 +42,7 @@ struct DSLParser
         if (file.targets.empty)
         {
             auto error = new ParseError(filePath, 
-                "BUILD file must contain at least one target",
+                "Builderfile must contain at least one target",
                 ErrorCode.InvalidBuildFile);
             return Err!(BuildFile, BuildError)(error);
         }
@@ -622,7 +622,7 @@ struct SemanticAnalyzer
     }
 }
 
-/// High-level API for parsing DSL BUILD files
+/// High-level API for parsing DSL Builderfile files
 Result!(Target[], BuildError) parseDSL(string source, string filePath, string workspaceRoot)
 {
     // Lex
@@ -658,7 +658,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(dsl, "BUILD", "/tmp");
+    auto result = parseDSL(dsl, "Builderfile", "/tmp");
     assert(result.isOk);
     
     auto targets = result.unwrap();

@@ -53,7 +53,7 @@ struct WorkspaceFile
     string filePath;
 }
 
-/// Parser for WORKSPACE files
+/// Parser for Builderspace files
 struct WorkspaceParser
 {
     private Token[] tokens;
@@ -66,7 +66,7 @@ struct WorkspaceParser
         this.filePath = filePath;
     }
     
-    /// Parse WORKSPACE file into AST
+    /// Parse Builderspace file into AST
     Result!(WorkspaceFile, BuildError) parse()
     {
         WorkspaceFile file;
@@ -91,7 +91,7 @@ struct WorkspaceParser
         // Expect: workspace keyword (identifier "workspace")
         if (!check(TokenType.Identifier) || peek().value != "workspace")
         {
-            return error!(WorkspaceDecl)("Expected 'workspace' keyword at start of WORKSPACE file");
+            return error!(WorkspaceDecl)("Expected 'workspace' keyword at start of Builderspace file");
         }
         advance();
         
@@ -520,7 +520,7 @@ struct WorkspaceAnalyzer
     }
 }
 
-/// High-level API for parsing WORKSPACE files
+/// High-level API for parsing Builderspace files
 Result!BuildError parseWorkspaceDSL(string source, string filePath, ref WorkspaceConfig config)
 {
     // Lex

@@ -170,7 +170,7 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.OutputMissing: return "Expected output not found";
         case ErrorCode.ParseFailed: return "Failed to parse configuration";
         case ErrorCode.InvalidJson: return "Invalid JSON syntax";
-        case ErrorCode.InvalidBuildFile: return "Invalid BUILD file";
+        case ErrorCode.InvalidBuildFile: return "Invalid Builderfile";
         case ErrorCode.MissingField: return "Required field missing";
         case ErrorCode.InvalidFieldValue: return "Invalid field value";
         case ErrorCode.InvalidGlob: return "Invalid glob pattern";

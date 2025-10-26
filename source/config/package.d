@@ -5,7 +5,7 @@ module config;
 /// 
 /// Architecture:
 ///   lexer.d     - Lexical analysis for DSL
-///   parser.d    - BUILD file parsing
+///   parser.d    - Builderfile parsing
 ///   ast.d       - Abstract syntax tree
 ///   dsl.d       - DSL interpretation
 ///   schema.d    - Configuration schema definitions
@@ -15,7 +15,7 @@ module config;
 ///   import config;
 ///   
 ///   auto workspace = new Workspace("path/to/project");
-///   auto buildConfig = parseConfig("BUILD.json");
+///   auto buildConfig = parseConfig("Builderfile");
 ///   auto targets = buildConfig.getTargets();
 
 public import config.parsing.lexer;

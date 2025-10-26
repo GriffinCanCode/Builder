@@ -6,7 +6,7 @@ import std.array;
 import std.typecons : Rebindable, rebindable;
 import config.schema.schema;
 
-/// Abstract syntax tree node types for BUILD DSL
+/// Abstract syntax tree node types for Builderfile DSL
 /// 
 /// Memory Safety: All heap allocations are GC-managed. Pointers in unions
 /// are used only to break recursive struct dependencies and are always

@@ -4,8 +4,8 @@ The config package handles build configuration parsing, workspace management, an
 
 ## Modules
 
-- **lexer.d** - Lexical analysis for the BUILD DSL
-- **parser.d** - Parsing BUILD and BUILD.json files
+- **lexer.d** - Lexical analysis for the Builderfile DSL
+- **parser.d** - Parsing Builderfile files
 - **ast.d** - Abstract syntax tree representations
 - **dsl.d** - DSL interpretation and evaluation
 - **schema.d** - Configuration schema definitions
@@ -17,13 +17,13 @@ The config package handles build configuration parsing, workspace management, an
 import config;
 
 auto workspace = new Workspace("path/to/project");
-auto buildConfig = parseConfig("BUILD.json");
+auto buildConfig = parseConfig("Builderfile");
 auto targets = buildConfig.getTargets();
 ```
 
 ## Key Features
 
-- Support for both BUILD and BUILD.json formats
+- Builderfile DSL format
 - Type-safe configuration schema
 - Workspace-level configuration management
 - DSL with variable expansion and functions

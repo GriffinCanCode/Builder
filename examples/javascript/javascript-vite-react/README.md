@@ -21,8 +21,8 @@ javascript-vite-react/
 │   └── App.css        # Component styles
 ├── index.html         # HTML template
 ├── package.json       # Dependencies and scripts
-├── BUILD              # Build configuration
-├── WORKSPACE          # Workspace settings
+├── Builderfile        # Build configuration
+├── Builderspace       # Workspace settings
 └── README.md          # This file
 ```
 
@@ -62,7 +62,7 @@ Before building, install dependencies:
 npm install
 ```
 
-Or let Builder install them automatically by setting `installDeps: true` in the BUILD file.
+Or let Builder install them automatically by setting `installDeps: true` in the Builderfile.
 
 ## Why Vite?
 
@@ -155,7 +155,7 @@ export default defineConfig({
 });
 ```
 
-Then reference it in your BUILD file:
+Then reference it in your Builderfile:
 ```javascript
 config: {
     "bundler": "vite",

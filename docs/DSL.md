@@ -1,10 +1,10 @@
-# BUILD DSL Specification
+# Builderfile DSL Specification
 
-The Builder system supports two configuration formats: JSON (legacy) and a modern D-based DSL. This document describes the DSL syntax and semantics.
+The Builder system uses a modern D-based DSL for Builderfile configuration. This document describes the DSL syntax and semantics.
 
 ## Overview
 
-The BUILD DSL is designed to be:
+The Builderfile DSL is designed to be:
 - **Readable**: Clean, intuitive syntax for defining build targets
 - **Type-safe**: Compile-time validation with sophisticated error messages
 - **Extensible**: Easy to add new fields and target types
@@ -23,7 +23,7 @@ target("name") {
 
 ### Target Declaration
 
-Every BUILD file contains one or more target declarations:
+Every Builderfile contains one or more target declarations:
 
 ```d
 target("my-app") {
@@ -485,26 +485,26 @@ Source files:
 
 Total: ~1,200 lines of sophisticated, production-ready code.
 
-## WORKSPACE Files
+## Builderspace Files
 
 ### Overview
 
-WORKSPACE files provide workspace-level configuration that applies to all targets in the build. They configure build options, global environment variables, and other workspace-wide settings.
+Builderspace files provide workspace-level configuration that applies to all targets in the build. They configure build options, global environment variables, and other workspace-wide settings.
 
 ### Location
 
-WORKSPACE files should be placed at the root of your workspace:
+Builderspace files should be placed at the root of your workspace:
 ```
 /path/to/workspace/
-  WORKSPACE          # Workspace configuration
-  BUILD              # Build targets
+  Builderspace       # Workspace configuration
+  Builderfile        # Build targets
   src/
-    BUILD
+    Builderfile
 ```
 
 ### Syntax
 
-WORKSPACE files use the Builder DSL format
+Builderspace files use the Builder DSL format
 
 ```d
 workspace("name") {
@@ -523,8 +523,6 @@ workspace("name") {
     };
 }
 ```
-
-**Note**: Unlike BUILD files which support both DSL and JSON for backward compatibility, WORKSPACE files only support the DSL format. This keeps the implementation clean and encourages modern, readable configuration.
 
 ### Fields
 
@@ -684,16 +682,16 @@ workspace("multi-lang") {
 }
 ```
 
-### Interaction with BUILD Files
+### Interaction with Builderfile Files
 
-- WORKSPACE configuration applies globally to all targets
-- BUILD files can override environment variables per-target
+- Builderspace configuration applies globally to all targets
+- Builderfile files can override environment variables per-target
 - Target-specific settings take precedence over workspace settings
 - Global environment is merged with target-specific environment
 
 Example:
 ```d
-// WORKSPACE
+// Builderspace
 workspace("my-app") {
     env: {
         "DEBUG": "0",
@@ -701,7 +699,7 @@ workspace("my-app") {
     };
 }
 
-// BUILD
+// Builderfile
 target("app") {
     type: executable;
     sources: ["main.py"];
@@ -714,7 +712,7 @@ target("app") {
 
 ### Implementation Details
 
-- **Parser**: Reuses BUILD DSL lexer and parser infrastructure
+- **Parser**: Reuses Builderfile DSL lexer and parser infrastructure
 - **Module**: `config.workspace` - ~400 lines of code
 - **Error Handling**: Full Result monad integration with detailed errors
 - **Validation**: Type-safe parsing with semantic analysis
@@ -723,7 +721,7 @@ target("app") {
 ### Architecture
 
 ```
-WORKSPACE file
+Builderspace file
     ↓
 Lexer (config.lexer)
     ↓
@@ -742,6 +740,6 @@ WorkspaceConfig (config.schema)
 2. **Auto-detect CPU count**: Use `maxJobs: 0` for portability
 3. **Minimal environment**: Only set truly global variables
 4. **Use comments**: Document non-obvious configuration choices
-5. **Version control**: Commit WORKSPACE files to repository
+5. **Version control**: Commit Builderspace files to repository
 6. **Keep it simple**: Only configure what differs from defaults
 

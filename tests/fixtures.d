@@ -102,7 +102,7 @@ class MockWorkspace : Fixture
         return workspacePath;
     }
     
-    /// Create a mock target with BUILD file
+    /// Create a mock target with Builderfile
     void createTarget(string name, TargetType type, string[] sources, string[] deps = [])
     {
         import std.json;
@@ -111,14 +111,14 @@ class MockWorkspace : Fixture
         if (!exists(targetPath))
             mkdirRecurse(targetPath);
         
-        // Create BUILD.json
+        // Create Builderfile
         JSONValue config;
         config["name"] = name;
         config["type"] = type.to!string;
         config["sources"] = JSONValue(sources);
         config["deps"] = JSONValue(deps);
         
-        auto buildFile = buildPath(targetPath, "BUILD.json");
+        auto buildFile = buildPath(targetPath, "Builderfile");
         std.file.write(buildFile, config.toPrettyString());
         
         // Create source files

@@ -23,7 +23,7 @@ module errors;
 ///   }
 ///   
 ///   // Chaining operations
-///   auto result = parse("BUILD.json")
+///   auto result = parse("Builderfile")
 ///       .map(content => parseJson(content))
 ///       .andThen(json => validate(json));
 ///   

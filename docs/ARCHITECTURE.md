@@ -131,7 +131,8 @@ interface LanguageHandler {
 
 **Supported Languages (20+):**
 - **Python**: AST validation, executable wrappers
-- **JavaScript/TypeScript**: Advanced bundling system with esbuild, webpack, and rollup support
+- **JavaScript**: Advanced bundling system with esbuild, webpack, and rollup support
+- **TypeScript**: Dedicated type-first handler with tsc, swc, and esbuild compilers
 - **Go**: `go build` integration
 - **Rust**: `rustc` and `cargo` integration
 - **D**: `ldc2` and `dub` integration
@@ -148,11 +149,28 @@ interface LanguageHandler {
 - **Nim**: `nim c` with optimization flags
 - **Lua**: Syntax validation, bytecode compilation
 
-**JavaScript/TypeScript Bundler System:**
+**JavaScript Bundler System:**
 
 The JavaScript handler features a sophisticated bundler abstraction layer:
 
+**TypeScript Compiler System:**
+
+The TypeScript handler provides a type-first architecture with multiple compiler options:
+
 **Architecture:**
+- **Type Checker** (`typescript/checker.d`): Standalone type validation with tsc
+- **TSC Compiler** (`typescript/bundlers/tsc.d`): Official TypeScript compiler, best for libraries
+- **SWC Compiler** (`typescript/bundlers/swc.d`): Rust-based, 20x faster, best for development
+- **ESBuild Compiler** (`typescript/bundlers/esbuild.d`): Go-based bundler, best for production
+
+**Key Features:**
+- Separate type checking from compilation for parallel builds
+- Automatic .d.ts generation for libraries
+- Full tsconfig.json support
+- Intelligent compiler selection (swc > esbuild > tsc)
+- Build modes: Check, Compile, Bundle, Library
+
+**JavaScript Architecture:**
 - **Base Interface** (`bundlers/base.d`): `Bundler` interface with factory pattern
 - **esbuild Adapter** (`bundlers/esbuild.d`): Default, fastest option (10-100x faster than webpack)
 - **Webpack Adapter** (`bundlers/webpack.d`): For complex projects with advanced features
@@ -175,7 +193,7 @@ The JavaScript handler features a sophisticated bundler abstraction layer:
 - TypeScript compilation via esbuild
 
 **Extension:**
-Add new languages by implementing `LanguageHandler` interface. Each handler is ~150-200 lines following consistent patterns. Language-specific configuration is supported via the `config` field in BUILD files.
+Add new languages by implementing `LanguageHandler` interface. Each handler is ~150-200 lines following consistent patterns. Language-specific configuration is supported via the `config` field in Builderfile.
 
 ### 6. Configuration System (`config/`)
 

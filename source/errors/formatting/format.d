@@ -276,7 +276,7 @@ string[] suggestFixes(const BuildError error)
             break;
             
         case ErrorCode.HandlerNotFound:
-            suggestions ~= "Ensure the language is specified correctly in BUILD file";
+            suggestions ~= "Ensure the language is specified correctly in Builderfile";
             suggestions ~= "Check that the language handler is installed";
             break;
             
@@ -286,7 +286,7 @@ string[] suggestFixes(const BuildError error)
             break;
             
         case ErrorCode.FileNotFound:
-            suggestions ~= "Verify the file path in the BUILD file";
+            suggestions ~= "Verify the file path in the Builderfile";
             suggestions ~= "Check for typos in glob patterns";
             break;
             

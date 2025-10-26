@@ -22,7 +22,7 @@ Open `index.html` in a web browser.
 
 ## Configuration
 
-The BUILD file specifies:
+The Builderfile specifies:
 - `mode: "bundle"` - Bundle all modules
 - `bundler: "esbuild"` - Use esbuild (fastest)
 - `platform: "browser"` - Target browser environment

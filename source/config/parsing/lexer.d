@@ -114,8 +114,8 @@ struct Lexer
     Result!(Token[], BuildError) tokenize()
     {
         Token[] tokens;
-        // Reserve capacity based on empirical analysis of BUILD files:
-        // - Average token length in BUILD DSL: ~6 chars (keywords, operators, short identifiers)
+        // Reserve capacity based on empirical analysis of Builderfile files:
+        // - Average token length in Builderfile DSL: ~6 chars (keywords, operators, short identifiers)
         // - This accounts for: whitespace (skipped), comments (skipped), multi-char operators
         // - Conservative estimate to minimize reallocations while avoiding over-allocation
         // Note: Dynamic array will grow efficiently if estimate is too low
@@ -393,7 +393,7 @@ struct Lexer
     /// 
     /// Strategy: Adaptive estimation based on source characteristics
     /// - Short files (<500 chars): Use conservative 1 token per 8 chars (account for overhead)
-    /// - Medium files: Use 1 token per 6 chars (typical BUILD file density)
+    /// - Medium files: Use 1 token per 6 chars (typical Builderfile density)
     /// - Long files: Use slightly lower ratio as they tend to have longer strings/comments
     /// 
     /// This avoids both under-allocation (causing reallocations) and 
@@ -406,7 +406,7 @@ struct Lexer
         if (sourceLength < 500)
             return sourceLength / 8 + 8; // Conservative + base capacity
         else if (sourceLength < 5000)
-            return sourceLength / 6; // Typical BUILD file
+            return sourceLength / 6; // Typical Builderfile
         else
             return sourceLength / 7; // Longer files tend to be denser with strings
     }

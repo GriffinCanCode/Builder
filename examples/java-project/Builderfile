@@ -1,0 +1,9 @@
+// Java project Builderfile
+
+target("java-app") {
+    type: executable;
+    language: java;
+    sources: ["Main.java"];
+    output: "java-app";
+}
+

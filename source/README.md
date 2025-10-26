@@ -18,7 +18,7 @@ Event-driven terminal rendering system
 
 ### ⚙️ [config/](config/)
 Build configuration and workspace management
-- BUILD file parsing (DSL and JSON)
+- Builderfile parsing (DSL and JSON)
 - Configuration schema and validation
 - Workspace management
 
@@ -79,7 +79,7 @@ This structure allows for clean imports and modular architecture while maintaini
 
 ## Building
 
-The source is built using the Builder system itself. See the root `BUILD` and `BUILD.json` files for build configuration.
+The source is built using the Builder system itself. See the root `Builderfile` for build configuration.
 
 ## Testing
 

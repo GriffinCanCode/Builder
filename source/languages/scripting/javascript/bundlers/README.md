@@ -305,7 +305,7 @@ Potential improvements:
 1. **Dev Server Integration**: Expose Vite's dev server through Builder CLI
 2. **Watch Mode**: Implement file watching with auto-rebuild
 3. **Incremental Builds**: Cache bundler state between builds
-4. **Plugin System**: Allow custom bundler plugins via BUILD config
+4. **Plugin System**: Allow custom bundler plugins via Builderfile config
 5. **Parallel Bundling**: Bundle multiple targets in parallel
 6. **Smart Caching**: Hash-based caching of bundle outputs
 7. **Bundle Analysis**: Generate bundle size reports

@@ -39,7 +39,7 @@ For development with live reload, you could use:
 
 ## Configuration
 
-The BUILD file specifies:
+The Builderfile specifies:
 - `jsx: true` - Enable JSX transformation
 - `jsxFactory: "React.createElement"` - React JSX factory
 - `bundler: "esbuild"` - Fast bundling with JSX support

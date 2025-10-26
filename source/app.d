@@ -78,7 +78,7 @@ void printHelp()
     writeln("  build [target]    Build all targets or specific target");
     writeln("  clean             Clean build cache");
     writeln("  graph [target]    Show dependency graph");
-    writeln("  init              Initialize a new BUILD file\n");
+    writeln("  init              Initialize a new Builderfile\n");
     writeln("Options:");
     writeln("  -v, --verbose     Enable verbose output");
     writeln("  -g, --graph       Show dependency graph during build");
@@ -195,17 +195,17 @@ void graphCommand(string target)
 
 void initCommand()
 {
-    Logger.info("Initializing BUILD file...");
+    Logger.info("Initializing Builderfile...");
     
     import std.file : write, exists;
     
-    if (exists("BUILD"))
+    if (exists("Builderfile"))
     {
-        Logger.error("BUILD file already exists");
+        Logger.error("Builderfile already exists");
         return;
     }
     
-    string template_content = `// BUILD configuration file
+    string template_content = `// Builderfile configuration file
 // Define your build targets here
 
 import builder.config;
@@ -225,7 +225,7 @@ target("my-app",
 );
 `;
     
-    write("BUILD", template_content);
-    Logger.success("Created BUILD file");
+    write("Builderfile", template_content);
+    Logger.success("Created Builderfile");
 }
 

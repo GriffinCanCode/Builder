@@ -22,7 +22,7 @@ Basic Python project with library and executable.
 **Structure:**
 - `utils.py` - Utility library
 - `main.py` - Main application
-- `BUILD.json` - Build configuration
+- `Builderfile` - Build configuration
 
 **Run:**
 ```bash
@@ -47,7 +47,7 @@ Complex Python project with multiple dependencies.
 - `lib/math_utils.py` - Math operations library
 - `lib/string_utils.py` - String operations library
 - `calculator.py` - Main application using both libraries
-- `BUILD.json` - Build configuration with dependencies
+- `Builderfile` - Build configuration with dependencies
 
 **Dependencies:**
 ```
@@ -331,7 +331,7 @@ Native Go application demonstrating fast compilation.
 **Structure:**
 - `greeter.go` - Greeter library
 - `main.go` - Main application
-- `BUILD.json` - Build configuration
+- `Builderfile` - Build configuration
 - `go.mod` - Go module file
 
 **Run:**
@@ -362,7 +362,7 @@ Native D application showcasing D's features.
 
 **Structure:**
 - `hello.d` - D application with language features
-- `BUILD.json` - Build configuration
+- `Builderfile` - Build configuration
 
 **Run:**
 ```bash
@@ -398,7 +398,7 @@ Multi-language project demonstrating cross-language support.
 - `core.py` - Python data processing library
 - `processor.py` - Python data processor (uses core)
 - `ui.js` - JavaScript UI components
-- `BUILD.json` - Mixed-language build config
+- `Builderfile` - Mixed-language build config
 
 **Dependencies:**
 ```
@@ -530,52 +530,6 @@ builder clean
 
 ---
 
-## BUILD.json Format
-
-### Basic Target
-
-```json
-{
-    "name": "my-lib",
-    "type": "library",
-    "language": "python",
-    "sources": ["src/*.py"]
-}
-```
-
-### Target with Dependencies
-
-```json
-{
-    "name": "my-app",
-    "type": "executable",
-    "language": "python",
-    "sources": ["main.py"],
-    "deps": [":my-lib"],
-    "output": "custom-name"
-}
-```
-
-### Multi-Target File
-
-```json
-[
-    {
-        "name": "lib",
-        "type": "library",
-        "sources": ["lib.py"]
-    },
-    {
-        "name": "app",
-        "type": "executable",
-        "sources": ["app.py"],
-        "deps": [":lib"]
-    }
-]
-```
-
----
-
 ## Performance Comparison
 
 ### Small Project (3 targets)
@@ -628,7 +582,7 @@ builder clean
 
 Want to add an example? Create a new directory under `examples/` with:
 - Source files
-- `BUILD.json` configuration
+- `Builderfile` configuration
 - README explaining the example
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.

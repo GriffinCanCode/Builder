@@ -1,0 +1,9 @@
+// PHP project Builderfile
+
+target("php-app") {
+    type: executable;
+    language: php;
+    sources: ["main.php"];
+    output: "php-app";
+}
+

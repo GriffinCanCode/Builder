@@ -1,0 +1,10 @@
+// Nim project Builderfile
+
+target("nim-app") {
+    type: executable;
+    language: nim;
+    sources: ["main.nim"];
+    flags: ["-d:release"];
+    output: "nim-app";
+}
+

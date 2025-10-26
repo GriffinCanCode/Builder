@@ -15,6 +15,7 @@ import config.schema.schema;
 import languages.base.base;
 import languages.scripting.python;
 import languages.scripting.javascript;
+import languages.scripting.typescript;
 import languages.scripting.go;
 import languages.compiled.rust : RustHandler, DHandler;
 import languages.compiled.cpp : CppHandler, CHandler;
@@ -68,7 +69,7 @@ class BuildExecutor
         // Register language handlers
         handlers[TargetLanguage.Python] = new PythonHandler();
         handlers[TargetLanguage.JavaScript] = new JavaScriptHandler();
-        handlers[TargetLanguage.TypeScript] = new JavaScriptHandler();
+        handlers[TargetLanguage.TypeScript] = new TypeScriptHandler();
         handlers[TargetLanguage.Go] = new GoHandler();
         handlers[TargetLanguage.Rust] = new RustHandler();
         handlers[TargetLanguage.D] = new DHandler();

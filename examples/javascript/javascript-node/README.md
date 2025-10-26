@@ -23,7 +23,7 @@ node bin/app
 
 ## Configuration
 
-The BUILD file specifies:
+The Builderfile specifies:
 - `mode: "node"` - Node.js script mode
 - `bundler: "none"` - Skip bundling, just validate
 

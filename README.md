@@ -4,7 +4,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 
 ## Features
 
-- **Modern DSL**: Clean, readable D-based DSL for BUILD files with comprehensive error messages
+- **Modern DSL**: Clean, readable D-based DSL for Builderfile with comprehensive error messages
 - **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers at compile-time with zero runtime overhead
 - **Strongly Typed Domain**: Type-safe Import, Dependency, and Analysis types eliminate runtime errors
 - **Extensive Multi-language Support**: 20+ languages including Python, JavaScript/TypeScript, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, PHP, Scala, Elixir, Nim, Lua, and D with pluggable architecture
@@ -86,10 +86,10 @@ builder graph
 
 ## Configuration
 
-Create a `BUILD` file in your project directories using the modern DSL syntax:
+Create a `Builderfile` in your project directories using the DSL syntax:
 
 ```d
-// BUILD file - Clean DSL syntax
+// Builderfile - Clean DSL syntax
 target("my-library") {
     type: library;
     sources: ["src/**/*.py"];
@@ -102,8 +102,6 @@ target("my-binary") {
     deps: [":my-library"];
 }
 ```
-
-The system also supports legacy JSON format (`BUILD.json`) with automatic detection.
 
 ## Testing
 
@@ -153,7 +151,7 @@ dub test
 ## Documentation
 
 - [Architecture Guide](docs/ARCHITECTURE.md) - System design and internals
-- [DSL Specification](docs/DSL.md) - BUILD file DSL syntax and semantics
+- [DSL Specification](docs/DSL.md) - Builderfile DSL syntax and semantics
 - [Testing Guide](docs/TESTING.md) - How to write and run tests
 - [Examples](docs/EXAMPLES.md) - Usage examples
 

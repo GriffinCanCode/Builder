@@ -1,0 +1,10 @@
+// C++ project Builderfile
+
+target("cpp-app") {
+    type: executable;
+    language: cpp;
+    sources: ["main.cpp"];
+    flags: ["-std=c++17", "-O2"];
+    output: "cpp-app";
+}
+

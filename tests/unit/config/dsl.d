@@ -96,7 +96,7 @@ unittest
     auto lexResult = lex(source);
     Assert.isTrue(lexResult.isOk);
     
-    auto parser = DSLParser(lexResult.unwrap(), "BUILD");
+    auto parser = DSLParser(lexResult.unwrap(), "Builderfile");
     auto parseResult = parser.parse();
     Assert.isTrue(parseResult.isOk);
     
@@ -132,7 +132,7 @@ unittest
     auto lexResult = lex(source);
     Assert.isTrue(lexResult.isOk);
     
-    auto parser = DSLParser(lexResult.unwrap(), "BUILD");
+    auto parser = DSLParser(lexResult.unwrap(), "Builderfile");
     auto parseResult = parser.parse();
     Assert.isTrue(parseResult.isOk);
     
@@ -159,7 +159,7 @@ unittest
     auto lexResult = lex(source);
     Assert.isTrue(lexResult.isOk);
     
-    auto parser = DSLParser(lexResult.unwrap(), "BUILD");
+    auto parser = DSLParser(lexResult.unwrap(), "Builderfile");
     auto parseResult = parser.parse();
     Assert.isTrue(parseResult.isOk);
     
@@ -187,7 +187,7 @@ unittest
     auto lexResult = lex(source);
     Assert.isTrue(lexResult.isOk);
     
-    auto parser = DSLParser(lexResult.unwrap(), "BUILD");
+    auto parser = DSLParser(lexResult.unwrap(), "Builderfile");
     auto parseResult = parser.parse();
     Assert.isTrue(parseResult.isOk);
     
@@ -214,7 +214,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(source, "BUILD", "/tmp");
+    auto result = parseDSL(source, "Builderfile", "/tmp");
     Assert.isTrue(result.isOk);
     
     auto targets = result.unwrap();
@@ -244,7 +244,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(source, "BUILD", "/tmp");
+    auto result = parseDSL(source, "Builderfile", "/tmp");
     Assert.isTrue(result.isOk);
     
     auto targets = result.unwrap();
@@ -264,7 +264,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(source, "BUILD", "/tmp");
+    auto result = parseDSL(source, "Builderfile", "/tmp");
     Assert.isTrue(result.isErr);
     // Should fail because 'sources' is required
     
@@ -291,7 +291,7 @@ unittest
     auto lexResult = lex(source);
     Assert.isTrue(lexResult.isOk);
     
-    auto parser = DSLParser(lexResult.unwrap(), "BUILD");
+    auto parser = DSLParser(lexResult.unwrap(), "Builderfile");
     auto parseResult = parser.parse();
     Assert.isTrue(parseResult.isOk);
     
@@ -326,7 +326,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(source, "BUILD", "/tmp");
+    auto result = parseDSL(source, "Builderfile", "/tmp");
     Assert.isTrue(result.isErr);
     // Should fail because missing semicolon after 'executable'
     
@@ -359,7 +359,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(source, "BUILD", "/tmp");
+    auto result = parseDSL(source, "Builderfile", "/tmp");
     Assert.isTrue(result.isOk);
     
     auto targets = result.unwrap();
@@ -391,7 +391,7 @@ unittest
             }
         `;
         
-        auto result = parseDSL(source, "BUILD", "/tmp");
+        auto result = parseDSL(source, "Builderfile", "/tmp");
         Assert.isTrue(result.isOk, "Failed to parse language: " ~ lang);
     }
     
@@ -429,7 +429,7 @@ unittest
         }
     `;
     
-    auto result = parseDSL(source, "BUILD", "/tmp");
+    auto result = parseDSL(source, "Builderfile", "/tmp");
     Assert.isTrue(result.isOk);
     
     auto targets = result.unwrap();
@@ -457,7 +457,7 @@ unittest
     `;
     
     auto lexResult = lex(source);
-    auto parser = DSLParser(lexResult.unwrap(), "BUILD");
+    auto parser = DSLParser(lexResult.unwrap(), "Builderfile");
     auto parseResult = parser.parse();
     auto ast = parseResult.unwrap();
     

@@ -13,11 +13,11 @@ import errors;
 
 unittest
 {
-    writeln("\x1b[36m[TEST]\x1b[0m config.parser - Parse valid BUILD.json");
+    writeln("\x1b[36m[TEST]\x1b[0m config.parser - Parse valid Builderfile");
     
     auto tempDir = scoped(new TempDir("config-test"));
     
-    // Create a valid BUILD.json file
+    // Create a valid Builderfile
     JSONValue config;
     config["name"] = "test-app";
     config["type"] = "executable";
@@ -25,7 +25,7 @@ unittest
     config["sources"] = ["main.py", "utils.py"];
     config["deps"] = ["//lib:helper"];
     
-    tempDir.createFile("BUILD.json", config.toPrettyString());
+    tempDir.createFile("Builderfile", config.toPrettyString());
     tempDir.createFile("main.py", "# Main file");
     tempDir.createFile("utils.py", "# Utils file");
     
@@ -43,7 +43,7 @@ unittest
     Assert.equal(target.sources.length, 2);
     Assert.equal(target.deps.length, 1);
     
-    writeln("\x1b[32m  ✓ BUILD.json parsing works correctly\x1b[0m");
+    writeln("\x1b[32m  ✓ Builderfile parsing works correctly\x1b[0m");
 }
 
 unittest
@@ -52,7 +52,7 @@ unittest
     
     auto tempDir = scoped(new TempDir("config-test"));
     
-    // Create BUILD.json with array of targets
+    // Create Builderfile with array of targets
     JSONValue targets;
     targets = JSONValue([
         JSONValue([
@@ -67,7 +67,7 @@ unittest
         ])
     ]);
     
-    tempDir.createFile("BUILD.json", targets.toPrettyString());
+    tempDir.createFile("Builderfile", targets.toPrettyString());
     tempDir.createFile("lib.py", "# Library");
     tempDir.createFile("app.py", "# Application");
     
@@ -88,13 +88,13 @@ unittest
     
     auto tempDir = scoped(new TempDir("parser-test"));
     
-    // Create BUILD.json without explicit language
+    // Create Builderfile without explicit language
     JSONValue config;
     config["name"] = "inferred";
     config["type"] = "executable";
     config["sources"] = ["main.py"];
     
-    tempDir.createFile("BUILD.json", config.toPrettyString());
+    tempDir.createFile("Builderfile", config.toPrettyString());
     tempDir.createFile("main.py", "# Python file");
     
     auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
@@ -121,13 +121,13 @@ unittest
     tempDir.createFile("src/b.py", "# B");
     tempDir.createFile("src/c.py", "# C");
     
-    // Create BUILD.json with glob pattern
+    // Create Builderfile with glob pattern
     JSONValue config;
     config["name"] = "globbed";
     config["type"] = "library";
     config["sources"] = ["src/*.py"];
     
-    tempDir.createFile("BUILD.json", config.toPrettyString());
+    tempDir.createFile("Builderfile", config.toPrettyString());
     
     auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
     Assert.isTrue(wsResult.isOk);
@@ -149,7 +149,7 @@ unittest
     auto tempDir = scoped(new TempDir("parser-test"));
     
     // Create invalid JSON
-    tempDir.createFile("BUILD.json", "{ invalid json }");
+    tempDir.createFile("Builderfile", "{ invalid json }");
     
     // Parser should handle gracefully with CollectAll policy
     // When ALL files fail, it returns an error (complete failure)

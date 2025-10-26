@@ -7,6 +7,7 @@ module languages;
 ///   base.d       - Base language interface
 ///   python.d     - Python language support
 ///   javascript.d - JavaScript/Node.js support
+///   typescript.d - TypeScript support with type checking
 ///   go.d         - Go language support
 ///   rust.d       - Rust language support
 ///   java.d       - Java language support
@@ -32,6 +33,7 @@ module languages;
 public import languages.base.base;
 public import languages.scripting.python;
 public import languages.scripting.javascript;
+public import languages.scripting.typescript;
 public import languages.scripting.go;
 public import languages.compiled.rust;
 public import languages.jvm.java;

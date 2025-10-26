@@ -20,8 +20,8 @@ javascript-vite-vue/
 │   └── App.vue        # Main Vue component (SFC)
 ├── index.html         # HTML template
 ├── package.json       # Dependencies and scripts
-├── BUILD              # Build configuration
-├── WORKSPACE          # Workspace settings
+├── Builderfile        # Build configuration
+├── Builderspace       # Workspace settings
 └── README.md          # This file
 ```
 

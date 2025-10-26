@@ -1,0 +1,74 @@
+// TypeScript application with multiple build configurations
+
+// Development build: Fast compilation with SWC
+target("dev") {
+    type: executable;
+    language: typescript;
+    sources: ["src/**/*.ts"];
+    output: "app-dev.js";
+    
+    config: {
+        "mode": "compile",
+        "compiler": "swc",
+        "target": "es2020",
+        "module": "esm",
+        "sourceMap": "true",
+        "strict": "true"
+    };
+}
+
+// Production build: Bundled and minified with esbuild
+target("prod") {
+    type: executable;
+    language: typescript;
+    sources: ["src/**/*.ts"];
+    output: "app.js";
+    
+    config: {
+        "mode": "bundle",
+        "compiler": "esbuild",
+        "entry": "src/app.ts",
+        "platform": "node",
+        "format": "cjs",
+        "minify": "true",
+        "sourceMap": "true",
+        "target": "es2020"
+    };
+}
+
+// Library build: With declaration files
+target("lib") {
+    type: library;
+    language: typescript;
+    sources: ["src/**/*.ts"];
+    output: "lib.js";
+    
+    config: {
+        "mode": "library",
+        "compiler": "tsc",
+        "target": "es2020",
+        "module": "esm",
+        "declaration": "true",
+        "declarationMap": "true",
+        "sourceMap": "true",
+        "strict": "true",
+        "skipLibCheck": "true",
+        "esModuleInterop": "true"
+    };
+}
+
+// Type check only: Validate without compilation
+target("check") {
+    type: custom;
+    language: typescript;
+    sources: ["src/**/*.ts"];
+    
+    config: {
+        "mode": "check",
+        "strict": "true",
+        "noUnusedLocals": "true",
+        "noUnusedParameters": "true",
+        "noImplicitReturns": "true",
+        "noFallthroughCasesInSwitch": "true"
+    };
+}

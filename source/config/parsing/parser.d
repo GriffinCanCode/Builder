@@ -15,14 +15,14 @@ import utils.logging.logger;
 import utils.files.glob;
 import errors;
 
-/// Parse BUILD files and workspace configuration
+/// Parse Builderfile files and workspace configuration
 class ConfigParser
 {
     /// Parse entire workspace starting from root
     /// Returns Result with WorkspaceConfig and accumulated errors
     /// 
     /// By default, uses CollectAll policy to gather all parsing errors
-    /// while still loading valid BUILD files. This maximizes information
+    /// while still loading valid Builderfile files. This maximizes information
     /// available to the caller.
     static Result!(WorkspaceConfig, BuildError) parseWorkspace(
         string root,
@@ -31,11 +31,11 @@ class ConfigParser
         WorkspaceConfig config;
         config.root = absolutePath(root);
         
-        // Find all BUILD files
+        // Find all Builderfile files
         auto buildFiles = findBuildFiles(root);
-        Logger.debug_("Found " ~ buildFiles.length.to!string ~ " BUILD files");
+        Logger.debug_("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
         
-        // Parse each BUILD file with error aggregation
+        // Parse each Builderfile with error aggregation
         auto aggregated = aggregateFlatMap(
             buildFiles,
             (string buildFile) => parseBuildFile(buildFile, root),
@@ -47,7 +47,7 @@ class ConfigParser
         {
             Logger.warning(
                 "Failed to parse " ~ aggregated.errors.length.to!string ~
-                " BUILD file(s)"
+                " Builderfile file(s)"
             );
             
             // Log each error with full context
@@ -63,7 +63,7 @@ class ConfigParser
             config.targets = aggregated.successes;
             Logger.debug_(
                 "Successfully parsed " ~ aggregated.successes.length.to!string ~
-                " target(s) from " ~ buildFiles.length.to!string ~ " BUILD file(s)"
+                " target(s) from " ~ buildFiles.length.to!string ~ " Builderfile file(s)"
             );
         }
         
@@ -74,14 +74,14 @@ class ConfigParser
         }
         
         // Load workspace config if exists
-        string workspaceFile = buildPath(root, "WORKSPACE");
+        string workspaceFile = buildPath(root, "Builderspace");
         if (exists(workspaceFile))
         {
             auto wsResult = parseWorkspaceFile(workspaceFile, config);
             if (wsResult.isErr)
             {
                 auto error = wsResult.unwrapErr();
-                Logger.error("Failed to parse WORKSPACE file");
+                Logger.error("Failed to parse Builderspace file");
                 import errors.formatting.format : format;
                 Logger.error(format(error));
                 
@@ -91,7 +91,7 @@ class ConfigParser
                     return Err!(WorkspaceConfig, BuildError)(error);
                 }
                 
-                // For other policies, this is a fatal error since WORKSPACE
+                // For other policies, this is a fatal error since Builderspace
                 // config affects all targets
                 if (policy == AggregationPolicy.StopAtFatal && !error.recoverable())
                 {
@@ -101,7 +101,7 @@ class ConfigParser
         }
         
         // Return success if we have at least one target or no errors
-        // This allows partial success: some BUILD files failed but others succeeded
+        // This allows partial success: some Builderfile files failed but others succeeded
         if (aggregated.hasSuccesses || !aggregated.hasErrors)
         {
             return Ok!(WorkspaceConfig, BuildError)(config);
@@ -111,7 +111,7 @@ class ConfigParser
         return Err!(WorkspaceConfig, BuildError)(aggregated.errors[0]);
     }
     
-    /// Find all BUILD files in directory tree
+    /// Find all Builderfile files in directory tree
     private static string[] findBuildFiles(string root)
     {
         string[] buildFiles;
@@ -121,58 +121,42 @@ class ConfigParser
         
         foreach (entry; dirEntries(root, SpanMode.depth))
         {
-            if (entry.isFile && (entry.name.baseName == "BUILD" || entry.name.baseName == "BUILD.json"))
+            if (entry.isFile && entry.name.baseName == "Builderfile")
                 buildFiles ~= entry.name;
         }
         
         return buildFiles;
     }
     
-    /// Parse a single BUILD file - returns Result type for type-safe error handling
+    /// Parse a single Builderfile file - returns Result type for type-safe error handling
     private static Result!(Target[], BuildError) parseBuildFile(string path, string root)
     {
         try
         {
             Target[] targets;
             
-            // For now, support JSON-based BUILD files
-            if (path.endsWith(".json"))
+            // Use D-based DSL parser
+            auto content = readText(path);
+            auto dslResult = parseDSL(content, path, root);
+            if (dslResult.isOk)
             {
-                targets = parseJsonBuildFile(path, root);
+                targets = dslResult.unwrap();
+                
+                // Resolve glob patterns in sources
+                string dir = dirName(path);
+                foreach (ref target; targets)
+                {
+                    target.sources = expandGlobs(target.sources, dir);
+                    
+                    // Generate full target name
+                    string relativeDir = relativePath(dir, root);
+                    target.name = "//" ~ relativeDir ~ ":" ~ target.name;
+                }
             }
             else
             {
-                // Try JSON first, then fall back to DSL parser
-                auto content = readText(path);
-                if (content.strip.startsWith("{") || content.strip.startsWith("["))
-                {
-                    targets = parseJsonBuildFile(path, root);
-                }
-                else
-                {
-                    // Use D-based DSL parser
-                    auto dslResult = parseDSL(content, path, root);
-                    if (dslResult.isOk)
-                    {
-                        targets = dslResult.unwrap();
-                        
-                        // Resolve glob patterns in sources
-                        string dir = dirName(path);
-                        foreach (ref target; targets)
-                        {
-                            target.sources = expandGlobs(target.sources, dir);
-                            
-                            // Generate full target name
-                            string relativeDir = relativePath(dir, root);
-                            target.name = "//" ~ relativeDir ~ ":" ~ target.name;
-                        }
-                    }
-                    else
-                    {
-                        // Return the error from DSL parser
-                        return Err!(Target[], BuildError)(dslResult.unwrapErr());
-                    }
-                }
+                // Return the error from DSL parser
+                return Err!(Target[], BuildError)(dslResult.unwrapErr());
             }
             
             return Ok!(Target[], BuildError)(targets);
@@ -187,128 +171,20 @@ class ConfigParser
         catch (FileException e)
         {
             auto error = new IOError(path, e.msg, ErrorCode.FileReadFailed);
-            error.addContext(ErrorContext("reading BUILD file"));
+            error.addContext(ErrorContext("reading Builderfile file"));
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
         catch (Exception e)
         {
             auto error = new ParseError(path, e.msg, ErrorCode.ParseFailed);
-            error.addContext(ErrorContext("parsing BUILD file", baseName(path)));
+            error.addContext(ErrorContext("parsing Builderfile file", baseName(path)));
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
     }
     
-    /// Parse JSON-based BUILD file
-    private static Target[] parseJsonBuildFile(string path, string root)
-    {
-        Target[] targets;
-        
-        auto content = readText(path);
-        auto json = parseJSON(content);
-        
-        // Support both single target and array of targets
-        JSONValue[] targetJsons;
-        if (json.type == JSONType.array)
-            targetJsons = json.array;
-        else
-            targetJsons = [json];
-        
-        string dir = dirName(path);
-        string relativeDir = relativePath(dir, root);
-        
-        foreach (targetJson; targetJsons)
-        {
-            Target target;
-            
-            target.name = "//" ~ relativeDir ~ ":" ~ targetJson["name"].str;
-            
-            // Parse type
-            string typeStr = targetJson["type"].str;
-            switch (typeStr.toLower)
-            {
-                case "executable": target.type = TargetType.Executable; break;
-                case "library": target.type = TargetType.Library; break;
-                case "test": target.type = TargetType.Test; break;
-                default: target.type = TargetType.Custom; break;
-            }
-            
-            // Parse language
-            if ("language" in targetJson)
-            {
-                string langStr = targetJson["language"].str;
-                target.language = parseLanguage(langStr);
-            }
-            else
-            {
-                // Infer from sources
-                target.language = inferLanguage(targetJson["sources"].array.map!(s => s.str).array);
-            }
-            
-            // Parse sources (support globs)
-            target.sources = expandGlobs(
-                targetJson["sources"].array.map!(s => s.str).array,
-                dir
-            );
-            
-            // Parse dependencies
-            if ("deps" in targetJson)
-            {
-                target.deps = targetJson["deps"].array.map!(d => d.str).array;
-            }
-            
-            // Parse environment
-            if ("env" in targetJson)
-            {
-                foreach (key, value; targetJson["env"].object)
-                    target.env[key] = value.str;
-            }
-            
-            // Parse flags
-            if ("flags" in targetJson)
-            {
-                target.flags = targetJson["flags"].array.map!(f => f.str).array;
-            }
-            
-            // Parse output path
-            if ("output" in targetJson)
-            {
-                target.outputPath = targetJson["output"].str;
-            }
-            
-            // Parse language-specific configuration
-            // Support both "config" (general) and language-specific keys (jsConfig, pyConfig, etc.)
-            if ("config" in targetJson)
-            {
-                import std.json : toJSON;
-                string configKey = target.language.to!string.toLower;
-                target.langConfig[configKey] = targetJson["config"].toJSON();
-            }
-            // Backward compatibility: support language-specific config names
-            if ("jsConfig" in targetJson)
-            {
-                import std.json : toJSON;
-                target.langConfig["javascript"] = targetJson["jsConfig"].toJSON();
-            }
-            if ("pyConfig" in targetJson)
-            {
-                import std.json : toJSON;
-                target.langConfig["python"] = targetJson["pyConfig"].toJSON();
-            }
-            if ("goConfig" in targetJson)
-            {
-                import std.json : toJSON;
-                target.langConfig["go"] = targetJson["goConfig"].toJSON();
-            }
-            
-            targets ~= target;
-        }
-        
-        return targets;
-    }
-    
-    /// Parse workspace-level configuration (DSL format only)
+    /// Parse workspace-level configuration
     /// Returns Result to allow proper error propagation
     private static Result!BuildError parseWorkspaceFile(string path, ref WorkspaceConfig config)
     {
@@ -322,19 +198,19 @@ class ConfigParser
                 return result;
             }
             
-            Logger.debug_("Parsed WORKSPACE configuration successfully");
+            Logger.debug_("Parsed Builderspace configuration successfully");
             return Result!BuildError.ok();
         }
         catch (FileException e)
         {
             auto error = new IOError(path, e.msg, ErrorCode.FileReadFailed);
-            error.addContext(ErrorContext("reading WORKSPACE file"));
+            error.addContext(ErrorContext("reading Builderspace file"));
             return Result!BuildError.err(error);
         }
         catch (Exception e)
         {
             auto error = new ParseError(path, e.msg, ErrorCode.ParseFailed);
-            error.addContext(ErrorContext("parsing WORKSPACE file"));
+            error.addContext(ErrorContext("parsing Builderspace file"));
             return Result!BuildError.err(error);
         }
     }
