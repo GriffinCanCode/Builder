@@ -30,10 +30,10 @@ final class DependencyAnalyzer
     // Compile regex patterns once
     private static immutable depsPattern = ctRegex!(r"defp?\s+deps\s+do\s*\[(.*?)\]", "s");
     private static immutable depPattern = ctRegex!(r"\{:(\w+),\s*([^}]+)\}", "g");
-    private static immutable versionPattern = ctRegex!(r#""([^"]+)"#);
-    private static immutable gitPattern = ctRegex!(r#"git:\s*"([^"]+)"#);
-    private static immutable refPattern = ctRegex!(r#"(?:ref|tag|branch):\s*"([^"]+)"#);
-    private static immutable pathPattern = ctRegex!(r#"path:\s*"([^"]+)"#);
+    private static immutable versionPattern = ctRegex!(`"([^"]+)"`);
+    private static immutable gitPattern = ctRegex!(`git:\s*"([^"]+)"`);
+    private static immutable refPattern = ctRegex!(`(?:ref|tag|branch):\s*"([^"]+)"`);
+    private static immutable pathPattern = ctRegex!(`path:\s*"([^"]+)"`);
     private static immutable onlyPattern = ctRegex!(r"only:\s*:(\w+)");
     private static immutable envPattern = ctRegex!(r"only:\s*\[(.*?)\]");
     

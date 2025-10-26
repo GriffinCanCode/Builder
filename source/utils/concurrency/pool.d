@@ -11,7 +11,7 @@ import std.conv : to;
 import std.parallelism : totalCPUs;
 
 /// Persistent thread pool for reusable parallel execution
-class ThreadPool
+final class ThreadPool
 {
     private Worker[] workers;
     private Job[] jobs;
@@ -22,7 +22,7 @@ class ThreadPool
     private shared size_t pendingJobs;
     private shared size_t nextJobIndex;
     
-    this(size_t workerCount = 0)
+    this(size_t workerCount = 0) @trusted
     {
         if (workerCount == 0)
             workerCount = totalCPUs;
@@ -34,6 +34,7 @@ class ThreadPool
         jobComplete = new Condition(jobMutex);
         atomicStore(running, true);
         
+        workers.reserve(workerCount);
         workers.length = workerCount;
         foreach (i; 0 .. workerCount)
         {
@@ -43,7 +44,7 @@ class ThreadPool
     }
     
     /// Execute function on items in parallel
-    R[] map(T, R)(T[] items, R delegate(T) func)
+    R[] map(T, R)(scope T[] items, scope R delegate(T) func) @trusted
     {
         if (items.empty)
             return [];
@@ -56,6 +57,7 @@ class ThreadPool
         
         synchronized (jobMutex)
         {
+            jobs.reserve(items.length);
             jobs.length = items.length;
             atomicStore(pendingJobs, items.length);
             atomicStore(nextJobIndex, cast(size_t)0);
@@ -81,7 +83,7 @@ class ThreadPool
     }
     
     /// Helper to create work delegate with proper value capture
-    private void delegate() makeWork(T, R)(size_t index, T item, ref R[] results, R delegate(T) func)
+    private void delegate() makeWork(T, R)(size_t index, T item, ref R[] results, scope R delegate(T) func) @trusted
     {
         return () {
             results[index] = func(item);
@@ -89,7 +91,7 @@ class ThreadPool
     }
     
     /// Shutdown pool and wait for workers
-    void shutdown()
+    void shutdown() @trusted
     {
         atomicStore(running, false);
         
@@ -98,19 +100,19 @@ class ThreadPool
             jobAvailable.notifyAll();
         }
         
-        foreach (worker; workers)
+        foreach (ref worker; workers)
             worker.join();
     }
     
     package:
     
-    Job* nextJob()
+    Job* nextJob() @trusted
     {
         synchronized (jobMutex)
         {
             while (atomicLoad(running))
             {
-                auto idx = atomicLoad(nextJobIndex);
+                immutable idx = atomicLoad(nextJobIndex);
                 
                 if (idx >= jobs.length)
                 {
@@ -131,51 +133,51 @@ class ThreadPool
         }
     }
     
-    void completeJob()
+    void completeJob() @trusted
     {
         synchronized (jobMutex)
         {
-            auto remaining = atomicOp!"-="(pendingJobs, 1);
+            immutable remaining = atomicOp!"-="(pendingJobs, 1);
             
             if (remaining == 0)
                 jobComplete.notify();
         }
     }
     
-    bool isRunning()
+    bool isRunning() const nothrow @trusted @nogc
     {
         return atomicLoad(running);
     }
 }
 
-private class Worker
+private final class Worker
 {
-    private size_t id;
+    private immutable size_t id;
     private ThreadPool pool;
     private Thread thread;
     
-    this(size_t id, ThreadPool pool)
+    this(size_t id, ThreadPool pool) @safe
     {
         this.id = id;
         this.pool = pool;
         this.thread = new Thread(&run);
     }
     
-    void start()
+    void start() @trusted
     {
         thread.start();
     }
     
-    void join()
+    void join() @trusted
     {
         thread.join();
     }
     
-    private void run()
+    private void run() @trusted
     {
         while (pool.isRunning())
         {
-            auto job = pool.nextJob();
+            scope job = pool.nextJob();
             
             if (job is null)
                 break;

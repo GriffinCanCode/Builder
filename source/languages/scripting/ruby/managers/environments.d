@@ -34,10 +34,10 @@ interface VersionManager
 }
 
 /// Version manager factory
-class VersionManagerFactory
+final class VersionManagerFactory
 {
     /// Create version manager based on configuration
-    static VersionManager create(RubyVersionManager type, string projectRoot = ".")
+    static VersionManager create(RubyVersionManager type, string projectRoot = ".") @safe
     {
         final switch (type)
         {
@@ -58,16 +58,16 @@ class VersionManagerFactory
     }
     
     /// Detect best available version manager
-    static VersionManager detectBest(string projectRoot)
+    static VersionManager detectBest(string projectRoot) @safe
     {
         // Priority order: rbenv > chruby > rvm > asdf > system
         
         // Check for .ruby-version file and corresponding manager
-        auto versionFile = buildPath(projectRoot, ".ruby-version");
+        immutable versionFile = buildPath(projectRoot, ".ruby-version");
         if (exists(versionFile))
         {
             // Try rbenv first (most common with .ruby-version)
-            auto rbenv = new RbenvManager(projectRoot);
+            scope rbenv = new RbenvManager(projectRoot);
             if (rbenv.isAvailable())
             {
                 Logger.debug_("Detected rbenv from .ruby-version");
@@ -75,7 +75,7 @@ class VersionManagerFactory
             }
             
             // Try chruby
-            auto chruby = new ChrubyManager(projectRoot);
+            scope chruby = new ChrubyManager(projectRoot);
             if (chruby.isAvailable())
             {
                 Logger.debug_("Detected chruby from .ruby-version");
@@ -84,10 +84,11 @@ class VersionManagerFactory
         }
         
         // Check for .rvmrc or .ruby-gemset (RVM)
-        if (exists(buildPath(projectRoot, ".rvmrc")) || 
-            exists(buildPath(projectRoot, ".ruby-gemset")))
+        immutable rvmrc = buildPath(projectRoot, ".rvmrc");
+        immutable gemset = buildPath(projectRoot, ".ruby-gemset");
+        if (exists(rvmrc) || exists(gemset))
         {
-            auto rvm = new RVMManager(projectRoot);
+            scope rvm = new RVMManager(projectRoot);
             if (rvm.isAvailable())
             {
                 Logger.debug_("Detected RVM from .rvmrc");
@@ -96,9 +97,10 @@ class VersionManagerFactory
         }
         
         // Check for .tool-versions (asdf)
-        if (exists(buildPath(projectRoot, ".tool-versions")))
+        immutable toolVersions = buildPath(projectRoot, ".tool-versions");
+        if (exists(toolVersions))
         {
-            auto asdf = new ASDFManager(projectRoot);
+            scope asdf = new ASDFManager(projectRoot);
             if (asdf.isAvailable())
             {
                 Logger.debug_("Detected asdf from .tool-versions");
@@ -107,21 +109,29 @@ class VersionManagerFactory
         }
         
         // Try detecting by availability
-        auto rbenv = new RbenvManager(projectRoot);
-        if (rbenv.isAvailable())
-            return rbenv;
+        {
+            scope rbenv = new RbenvManager(projectRoot);
+            if (rbenv.isAvailable())
+                return rbenv;
+        }
         
-        auto chruby = new ChrubyManager(projectRoot);
-        if (chruby.isAvailable())
-            return chruby;
+        {
+            scope chruby = new ChrubyManager(projectRoot);
+            if (chruby.isAvailable())
+                return chruby;
+        }
         
-        auto rvm = new RVMManager(projectRoot);
-        if (rvm.isAvailable())
-            return rvm;
+        {
+            scope rvm = new RVMManager(projectRoot);
+            if (rvm.isAvailable())
+                return rvm;
+        }
         
-        auto asdf = new ASDFManager(projectRoot);
-        if (asdf.isAvailable())
-            return asdf;
+        {
+            scope asdf = new ASDFManager(projectRoot);
+            if (asdf.isAvailable())
+                return asdf;
+        }
         
         // Fallback to system Ruby
         Logger.debug_("No Ruby version manager detected, using system Ruby");
@@ -130,36 +140,36 @@ class VersionManagerFactory
 }
 
 /// rbenv version manager (lightweight, shim-based)
-class RbenvManager : VersionManager
+final class RbenvManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".")
+    this(string projectRoot = ".") @safe pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
     
-    override string getRubyPath(string version_ = "")
+    override string getRubyPath(string version_ = "") const
     {
         if (!version_.empty)
         {
             // Get path for specific version
-            auto res = execute(["rbenv", "prefix", version_]);
+            const res = execute(["rbenv", "prefix", version_]);
             if (res.status == 0)
                 return buildPath(res.output.strip, "bin", "ruby");
         }
         
         // Get current version's path
-        auto res = execute(["rbenv", "which", "ruby"], null, Config.none, size_t.max, projectRoot);
+        const res = execute(["rbenv", "which", "ruby"], null, Config.none, size_t.max, projectRoot);
         if (res.status == 0)
             return res.output.strip;
         
         return "ruby";
     }
     
-    override bool isVersionInstalled(string version_)
+    override bool isVersionInstalled(string version_) const
     {
-        auto res = execute(["rbenv", "versions", "--bare"]);
+        const res = execute(["rbenv", "versions", "--bare"]);
         if (res.status != 0)
             return false;
         
@@ -206,8 +216,15 @@ class RbenvManager : VersionManager
     
     override bool isAvailable()
     {
-        auto res = execute(["rbenv", "--version"]);
-        return res.status == 0;
+        try
+        {
+            auto res = execute(["rbenv", "--version"]);
+            return res.status == 0;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
     }
     
     override string name() const
@@ -230,9 +247,9 @@ class RbenvManager : VersionManager
     }
     
     /// List available Ruby versions
-    string[] listVersions()
+    string[] listVersions() const
     {
-        auto res = execute(["rbenv", "versions", "--bare"]);
+        const res = execute(["rbenv", "versions", "--bare"]);
         if (res.status != 0)
             return [];
         
@@ -241,11 +258,11 @@ class RbenvManager : VersionManager
 }
 
 /// RVM version manager (full-featured, function-based)
-class RVMManager : VersionManager
+final class RVMManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".")
+    this(string projectRoot = ".") @safe pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -310,9 +327,16 @@ class RVMManager : VersionManager
     
     override bool isAvailable()
     {
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm --version";
-        auto res = executeShell(cmd);
-        return res.status == 0;
+        try
+        {
+            auto cmd = "source ~/.rvm/scripts/rvm && rvm --version";
+            auto res = executeShell(cmd);
+            return res.status == 0;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
     }
     
     override string name() const
@@ -346,11 +370,11 @@ class RVMManager : VersionManager
 }
 
 /// chruby version manager (minimal, elegant)
-class ChrubyManager : VersionManager
+final class ChrubyManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".")
+    this(string projectRoot = ".") @safe pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -441,11 +465,11 @@ class ChrubyManager : VersionManager
 }
 
 /// asdf version manager (multi-language)
-class ASDFManager : VersionManager
+final class ASDFManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".")
+    this(string projectRoot = ".") @safe pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -513,8 +537,15 @@ class ASDFManager : VersionManager
     
     override bool isAvailable()
     {
-        auto res = execute(["asdf", "--version"]);
-        return res.status == 0;
+        try
+        {
+            auto res = execute(["asdf", "--version"]);
+            return res.status == 0;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
     }
     
     override string name() const
@@ -538,17 +569,17 @@ class ASDFManager : VersionManager
 }
 
 /// System Ruby (no version manager)
-class SystemRubyManager : VersionManager
+final class SystemRubyManager : VersionManager
 {
-    override string getRubyPath(string version_ = "")
+    override string getRubyPath(string version_ = "") const pure nothrow @nogc
     {
         return "ruby";
     }
     
-    override bool isVersionInstalled(string version_)
+    override bool isVersionInstalled(string version_) const
     {
         // Check if system Ruby matches requested version
-        auto res = execute(["ruby", "--version"]);
+        const res = execute(["ruby", "--version"]);
         if (res.status == 0)
         {
             return res.output.canFind(version_);
@@ -578,8 +609,15 @@ class SystemRubyManager : VersionManager
     
     override bool isAvailable()
     {
-        auto res = execute(["ruby", "--version"]);
-        return res.status == 0;
+        try
+        {
+            auto res = execute(["ruby", "--version"]);
+            return res.status == 0;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
     }
     
     override string name() const
@@ -589,17 +627,17 @@ class SystemRubyManager : VersionManager
 }
 
 /// Ruby version utilities
-class RubyVersionUtil
+final class RubyVersionUtil
 {
     /// Parse .ruby-version file
-    static string parseVersionFile(string filePath)
+    static string parseVersionFile(string filePath) @safe
     {
         if (!exists(filePath))
             return "";
         
         try
         {
-            auto content = readText(filePath).strip;
+            string content = readText(filePath).strip;
             
             // Handle different formats:
             // "3.3.0"
@@ -609,7 +647,7 @@ class RubyVersionUtil
             if (content.startsWith("ruby-"))
                 content = content[5..$];
             
-            auto atPos = content.indexOf("@");
+            immutable atPos = content.indexOf("@");
             if (atPos > 0)
                 content = content[0..atPos];
             
@@ -623,7 +661,7 @@ class RubyVersionUtil
     }
     
     /// Write .ruby-version file
-    static bool writeVersionFile(string filePath, string version_)
+    static bool writeVersionFile(string filePath, string version_) @safe
     {
         try
         {
@@ -638,12 +676,12 @@ class RubyVersionUtil
     }
     
     /// Compare versions
-    static int compareVersions(string v1, string v2)
+    static int compareVersions(string v1, string v2) @safe
     {
-        auto parts1 = v1.split(".").map!(to!int).array;
-        auto parts2 = v2.split(".").map!(to!int).array;
+        immutable parts1 = v1.split(".").map!(to!int).array;
+        immutable parts2 = v2.split(".").map!(to!int).array;
         
-        auto len = min(parts1.length, parts2.length);
+        immutable len = min(parts1.length, parts2.length);
         
         foreach (i; 0..len)
         {
@@ -662,53 +700,53 @@ class RubyVersionUtil
     }
     
     /// Check if version satisfies requirement
-    static bool satisfiesRequirement(string version_, string requirement)
+    static bool satisfiesRequirement(string version_, string requirement) @safe
     {
         // Simple version matching
         // Supports: "3.3", "3.3.0", ">= 3.0", "~> 3.3"
         
-        requirement = requirement.strip;
+        immutable req = requirement.strip;
         
-        if (requirement.startsWith("~>"))
+        if (req.startsWith("~>"))
         {
             // Pessimistic version constraint
-            auto reqVer = requirement[2..$].strip;
+            immutable reqVer = req[2..$].strip;
             return version_.startsWith(reqVer);
         }
-        else if (requirement.startsWith(">="))
+        else if (req.startsWith(">="))
         {
-            auto reqVer = requirement[2..$].strip;
+            immutable reqVer = req[2..$].strip;
             return compareVersions(version_, reqVer) >= 0;
         }
-        else if (requirement.startsWith("<="))
+        else if (req.startsWith("<="))
         {
-            auto reqVer = requirement[2..$].strip;
+            immutable reqVer = req[2..$].strip;
             return compareVersions(version_, reqVer) <= 0;
         }
-        else if (requirement.startsWith(">"))
+        else if (req.startsWith(">"))
         {
-            auto reqVer = requirement[1..$].strip;
+            immutable reqVer = req[1..$].strip;
             return compareVersions(version_, reqVer) > 0;
         }
-        else if (requirement.startsWith("<"))
+        else if (req.startsWith("<"))
         {
-            auto reqVer = requirement[1..$].strip;
+            immutable reqVer = req[1..$].strip;
             return compareVersions(version_, reqVer) < 0;
         }
         else
         {
             // Exact match or prefix match
-            return version_.startsWith(requirement);
+            return version_.startsWith(req);
         }
     }
     
     /// Get Ruby version from executable
-    static string getRubyVersion(string rubyCmd = "ruby")
+    static string getRubyVersion(string rubyCmd = "ruby") @safe
     {
-        auto res = execute([rubyCmd, "--version"]);
+        const res = execute([rubyCmd, "--version"]);
         if (res.status == 0)
         {
-            auto parts = res.output.split;
+            immutable parts = res.output.split;
             if (parts.length >= 2)
                 return parts[1];
         }
@@ -716,10 +754,17 @@ class RubyVersionUtil
     }
     
     /// Check if Ruby command is available
-    static bool isRubyAvailable(string rubyCmd = "ruby")
+    static bool isRubyAvailable(string rubyCmd = "ruby") nothrow
     {
-        auto res = execute([rubyCmd, "--version"]);
-        return res.status == 0;
+        try
+        {
+            const res = execute([rubyCmd, "--version"]);
+            return res.status == 0;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
     }
 }
 

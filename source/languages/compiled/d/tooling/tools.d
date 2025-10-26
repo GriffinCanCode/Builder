@@ -10,14 +10,14 @@ import std.array;
 import utils.logging.logger;
 
 /// D formatter (dfmt) integration
-class DFormatter
+final class DFormatter
 {
     /// Check if dfmt is available
-    static bool isAvailable()
+    static bool isAvailable() nothrow
     {
         try
         {
-            auto res = execute(["dfmt", "--version"]);
+            const res = execute(["dfmt", "--version"]);
             return res.status == 0;
         }
         catch (Exception e)
@@ -27,11 +27,11 @@ class DFormatter
     }
     
     /// Get dfmt version
-    static string getVersion()
+    static string getVersion() nothrow
     {
         try
         {
-            auto res = execute(["dfmt", "--version"]);
+            const res = execute(["dfmt", "--version"]);
             if (res.status == 0)
             {
                 return res.output.strip();
@@ -44,30 +44,18 @@ class DFormatter
     }
     
     /// Format D source files
-    static auto format(string[] sources, string configFile = "", bool checkOnly = false)
+    static auto format(scope const(string)[] sources, string configFile = "", bool checkOnly = false)
     {
-        string[] cmd = ["dfmt"];
+        import std.range : chain, only;
         
-        // Check only mode
-        if (checkOnly)
-        {
-            cmd ~= "--check";
-        }
-        else
-        {
-            cmd ~= "--inplace";
-        }
+        auto cmd = chain(
+            only("dfmt"),
+            only(checkOnly ? "--check" : "--inplace"),
+            !configFile.empty && exists(configFile) ? only("--config=" ~ configFile) : null,
+            sources
+        );
         
-        // Config file
-        if (!configFile.empty && exists(configFile))
-        {
-            cmd ~= "--config=" ~ configFile;
-        }
-        
-        // Add source files
-        cmd ~= sources;
-        
-        return execute(cmd);
+        return execute(cmd.array);
     }
     
     /// Format a single file
@@ -79,21 +67,16 @@ class DFormatter
     /// Format directory recursively
     static auto formatDirectory(string dir, string configFile = "", bool checkOnly = false)
     {
-        string[] sources;
+        import std.range : array;
         
-        // Collect all .d files
-        foreach (entry; dirEntries(dir, "*.d", SpanMode.breadth))
-        {
-            if (isFile(entry))
-            {
-                sources ~= entry.name;
-            }
-        }
+        auto sources = dirEntries(dir, "*.d", SpanMode.breadth)
+            .filter!(entry => isFile(entry))
+            .map!(entry => entry.name)
+            .array;
         
         if (sources.empty)
         {
-            auto result = execute(["echo", "No .d files found in directory"]);
-            return result;
+            return execute(["echo", "No .d files found in directory"]);
         }
         
         return format(sources, configFile, checkOnly);
@@ -101,14 +84,14 @@ class DFormatter
 }
 
 /// D static analyzer (dscanner) integration
-class DScanner
+final class DScanner
 {
     /// Check if dscanner is available
-    static bool isAvailable()
+    static bool isAvailable() nothrow
     {
         try
         {
-            auto res = execute(["dscanner", "--version"]);
+            const res = execute(["dscanner", "--version"]);
             return res.status == 0;
         }
         catch (Exception e)
@@ -118,11 +101,11 @@ class DScanner
     }
     
     /// Get dscanner version
-    static string getVersion()
+    static string getVersion() nothrow
     {
         try
         {
-            auto res = execute(["dscanner", "--version"]);
+            const res = execute(["dscanner", "--version"]);
             if (res.status == 0)
             {
                 return res.output.strip();
@@ -136,51 +119,40 @@ class DScanner
     
     /// Run linter on source files
     static auto lint(
-        string[] sources,
+        scope const(string)[] sources,
         string configFile = "",
         bool styleCheck = true,
         bool syntaxCheck = true,
         string reportFormat = "stylish"
     )
     {
-        string[] cmd = ["dscanner"];
+        import std.range : chain, only;
         
-        // Lint mode
-        cmd ~= "--styleCheck";
+        auto cmd = chain(
+            only("dscanner", "--styleCheck"),
+            !configFile.empty && exists(configFile) ? only("--config=" ~ configFile) : null,
+            !reportFormat.empty ? only("--reportFormat=" ~ reportFormat) : null,
+            sources
+        );
         
-        // Config file
-        if (!configFile.empty && exists(configFile))
-        {
-            cmd ~= "--config=" ~ configFile;
-        }
-        
-        // Report format
-        if (!reportFormat.empty)
-        {
-            cmd ~= "--reportFormat=" ~ reportFormat;
-        }
-        
-        // Add source files
-        cmd ~= sources;
-        
-        return execute(cmd);
+        return execute(cmd.array);
     }
     
     /// Syntax check
-    static auto syntaxCheck(string[] sources)
+    static auto syntaxCheck(scope const(string)[] sources)
     {
-        string[] cmd = ["dscanner", "--syntaxCheck"];
-        cmd ~= sources;
-        return execute(cmd);
+        import std.range : chain, only;
+        auto cmd = chain(only("dscanner", "--syntaxCheck"), sources);
+        return execute(cmd.array);
     }
     
     /// Generate ctags
-    static auto generateCtags(string[] sources, string outputFile = "tags")
+    static auto generateCtags(scope const(string)[] sources, string outputFile = "tags")
     {
-        string[] cmd = ["dscanner", "--ctags"];
-        cmd ~= sources;
+        import std.range : chain, only;
+        auto cmd = chain(only("dscanner", "--ctags"), sources);
         
-        auto res = execute(cmd);
+        const res = execute(cmd.array);
         
         if (res.status == 0 && !outputFile.empty)
         {
@@ -198,12 +170,12 @@ class DScanner
     }
     
     /// Generate etags
-    static auto generateEtags(string[] sources, string outputFile = "TAGS")
+    static auto generateEtags(scope const(string)[] sources, string outputFile = "TAGS")
     {
-        string[] cmd = ["dscanner", "--etags"];
-        cmd ~= sources;
+        import std.range : chain, only;
+        auto cmd = chain(only("dscanner", "--etags"), sources);
         
-        auto res = execute(cmd);
+        const res = execute(cmd.array);
         
         if (res.status == 0 && !outputFile.empty)
         {
@@ -221,32 +193,32 @@ class DScanner
     }
     
     /// Find symbol definition
-    static auto findSymbol(string[] sources, string symbolName)
+    static auto findSymbol(scope const(string)[] sources, string symbolName)
     {
-        string[] cmd = ["dscanner", "--symbol", symbolName];
-        cmd ~= sources;
-        return execute(cmd);
+        import std.range : chain, only;
+        auto cmd = chain(only("dscanner", "--symbol", symbolName), sources);
+        return execute(cmd.array);
     }
     
     /// List all imports in files
-    static auto listImports(string[] sources)
+    static auto listImports(scope const(string)[] sources)
     {
-        string[] cmd = ["dscanner", "--imports"];
-        cmd ~= sources;
-        return execute(cmd);
+        import std.range : chain, only;
+        auto cmd = chain(only("dscanner", "--imports"), sources);
+        return execute(cmd.array);
     }
     
     /// Detect code duplicates
-    static auto detectDuplicates(string[] sources)
+    static auto detectDuplicates(scope const(string)[] sources)
     {
-        string[] cmd = ["dscanner", "--sloc"];
-        cmd ~= sources;
-        return execute(cmd);
+        import std.range : chain, only;
+        auto cmd = chain(only("dscanner", "--sloc"), sources);
+        return execute(cmd.array);
     }
 }
 
 /// DUB test runner
-class DubTest
+final class DubTest
 {
     /// Run DUB tests
     static auto runTests(
@@ -256,7 +228,7 @@ class DubTest
         string filter = ""
     )
     {
-        string[] cmd = ["dub", "test"];
+        import std.range : chain, only;
         
         // Set working directory
         if (projectDir.empty)
@@ -264,25 +236,14 @@ class DubTest
             projectDir = getcwd();
         }
         
-        // Compiler selection
-        if (!compiler.empty)
-        {
-            cmd ~= "--compiler=" ~ compiler;
-        }
+        auto cmd = chain(
+            only("dub", "test"),
+            !compiler.empty ? only("--compiler=" ~ compiler) : null,
+            verbose ? only("--verbose") : null,
+            !filter.empty ? only("--" ~ filter) : null
+        );
         
-        // Verbose
-        if (verbose)
-        {
-            cmd ~= "--verbose";
-        }
-        
-        // Filter
-        if (!filter.empty)
-        {
-            cmd ~= "--" ~ filter;
-        }
-        
-        return execute(cmd, null, std.process.Config.none, size_t.max, projectDir);
+        return execute(cmd.array, null, std.process.Config.none, size_t.max, projectDir);
     }
     
     /// Run DUB tests with coverage
@@ -292,82 +253,68 @@ class DubTest
         bool verbose = false
     )
     {
-        string[] cmd = ["dub", "test", "--build=unittest-cov"];
+        import std.range : chain, only;
         
         if (projectDir.empty)
         {
             projectDir = getcwd();
         }
         
-        if (!compiler.empty)
-        {
-            cmd ~= "--compiler=" ~ compiler;
-        }
+        auto cmd = chain(
+            only("dub", "test", "--build=unittest-cov"),
+            !compiler.empty ? only("--compiler=" ~ compiler) : null,
+            verbose ? only("--verbose") : null
+        );
         
-        if (verbose)
-        {
-            cmd ~= "--verbose";
-        }
-        
-        return execute(cmd, null, std.process.Config.none, size_t.max, projectDir);
+        return execute(cmd.array, null, std.process.Config.none, size_t.max, projectDir);
     }
 }
 
 /// D documentation generator
-class DDoc
+final class DDoc
 {
     /// Generate documentation using DMD/LDC
     static auto generateDocs(
-        string[] sources,
+        scope const(string)[] sources,
         string outputDir = "docs",
         string compiler = "dmd",
-        string[] importPaths = []
+        scope const(string)[] importPaths = []
     )
     {
+        import std.range : chain, only;
+        
         // Create output directory
         if (!exists(outputDir))
         {
             mkdirRecurse(outputDir);
         }
         
-        string[] cmd = [compiler];
-        cmd ~= "-D";
-        cmd ~= "-Dd" ~ outputDir;
+        auto cmd = chain(
+            only(compiler, "-D", "-Dd" ~ outputDir),
+            importPaths.map!(p => "-I" ~ p),
+            sources
+        );
         
-        // Import paths
-        foreach (importPath; importPaths)
-        {
-            cmd ~= "-I" ~ importPath;
-        }
-        
-        // Source files
-        cmd ~= sources;
-        
-        return execute(cmd);
+        return execute(cmd.array);
     }
     
     /// Generate JSON description
     static auto generateJSON(
-        string[] sources,
+        scope const(string)[] sources,
         string outputFile = "output.json",
         string compiler = "dmd",
-        string[] importPaths = []
+        scope const(string)[] importPaths = []
     )
     {
-        string[] cmd = [compiler];
-        cmd ~= "-X";
-        cmd ~= "-Xf" ~ outputFile;
+        import std.range : chain, only;
         
-        // Import paths
-        foreach (importPath; importPaths)
-        {
-            cmd ~= "-I" ~ importPath;
-        }
+        auto cmd = chain(
+            only(compiler, "-X", "-Xf" ~ outputFile),
+            importPaths.map!(p => "-I" ~ p),
+            sources
+        );
         
-        // Source files
-        cmd ~= sources;
-        
-        return execute(cmd);
+        return execute(cmd.array);
     }
 }
 
