@@ -23,9 +23,9 @@ struct LanguageSpec
         
         foreach (line; content.lineSplitter)
         {
-            foreach (pattern; patterns)
+            foreach (patternItem; patterns)
             {
-                auto matches = matchAll(line, pattern.regex);
+                auto matches = matchAll(line, patternItem.pattern);
                 
                 foreach (match; matches)
                 {
@@ -65,12 +65,12 @@ struct LanguageSpec
 struct ImportPattern
 {
     string description;
-    Regex!char regex;
+    Regex!char pattern;
     
-    this(string desc, string pattern, string flags = "m")
+    this(string desc, string regexPattern, string flags = "m")
     {
         description = desc;
-        regex = regex(pattern, flags);
+        this.pattern = std.regex.regex(regexPattern, flags);
     }
 }
 

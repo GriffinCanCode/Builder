@@ -140,7 +140,10 @@ Flexible configuration with JSON and DSL support.
 ```
 
 **Features:**
-- Glob pattern expansion for sources
+- Advanced glob pattern expansion with full `**` recursive support
+- Negation patterns (`!pattern`) for exclusions
+- Single (`*`) and multi-level (`**`) wildcards
+- Character wildcards (`?`) and classes (`[abc]`)
 - Relative and absolute dependency references
 - Language inference from file extensions
 - Workspace-level configuration
@@ -283,11 +286,12 @@ Unlike Bazel's rule-based approach, Builder uses a pure dependency graph:
 - [x] Two-tier hashing strategy
 - [x] LRU eviction with size limits
 - [x] Lazy write optimization
+- [x] Full recursive glob support (`**/*.ext`)
+- [x] Glob negation patterns (`!exclude/**`)
 - [x] Strongly typed domain objects
 - [x] Compile-time code generation
 - [ ] Tree-sitter parsers for AST-based import analysis (eliminate regex fragility)
 - [ ] Dependency query language (`builder query "deps(//src:app)"`)
-- [ ] Remote caching (S3, GCS)
 - [ ] Watch mode for continuous builds
 - [ ] Circular dependency detection with refactoring suggestions
 

@@ -10,6 +10,7 @@ import std.conv;
 import std.json;
 import config.schema;
 import utils.logger;
+import utils.glob;
 
 /// Parse BUILD files and workspace configuration
 class ConfigParser
@@ -226,48 +227,7 @@ class ConfigParser
     /// Expand glob patterns to actual files
     private static string[] expandGlobs(string[] patterns, string baseDir)
     {
-        import std.regex;
-        
-        string[] files;
-        
-        foreach (pattern; patterns)
-        {
-            string fullPattern = buildPath(baseDir, pattern);
-            
-            // Simple glob support
-            if (pattern.canFind("*"))
-            {
-                // Convert glob to regex
-                string dir = dirName(fullPattern);
-                string filePattern = baseName(fullPattern);
-                
-                if (!exists(dir) || !isDir(dir))
-                    continue;
-                
-                import std.array : replace;
-                
-                auto regex_pattern = filePattern
-                    .replace(".", `\.`)
-                    .replace("*", ".*")
-                    .replace("?", ".");
-                
-                auto re = regex("^" ~ regex_pattern ~ "$");
-                
-                foreach (entry; dirEntries(dir, SpanMode.shallow))
-                {
-                    if (entry.isFile && matchFirst(entry.name.baseName, re))
-                        files ~= entry.name;
-                }
-            }
-            else
-            {
-                // Direct file reference
-                if (exists(fullPattern))
-                    files ~= fullPattern;
-            }
-        }
-        
-        return files;
+        return glob(patterns, baseDir);
     }
 }
 
