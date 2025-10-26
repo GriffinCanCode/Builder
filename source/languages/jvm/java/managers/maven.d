@@ -385,9 +385,9 @@ private string[] parseModules(string modulesXml)
     auto modulePattern = regex(`<module>(.*?)</module>`, "sg");
     foreach (match; matchAll(modulesXml, modulePattern))
     {
-        string module = match[1].strip;
-        if (!module.empty)
-            modules ~= module;
+        string moduleName = match[1].strip;
+        if (!moduleName.empty)
+            modules ~= moduleName;
     }
     
     return modules;
