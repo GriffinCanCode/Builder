@@ -1,0 +1,5 @@
+workspace {
+    name: "vite-vue-app";
+    output_dir: "dist";
+}
+

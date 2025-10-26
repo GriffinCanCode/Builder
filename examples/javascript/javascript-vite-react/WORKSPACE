@@ -1,0 +1,5 @@
+workspace {
+    name: "vite-react-app";
+    output_dir: "dist";
+}
+

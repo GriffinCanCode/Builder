@@ -10,6 +10,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.conv;
+import std.string;
 import utils.files.hash;
 import utils.logging.logger;
 

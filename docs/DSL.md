@@ -308,7 +308,13 @@ target("bundle") {
 
 **JavaScript Configuration Options:**
 - `mode`: "node", "bundle", or "library"
-- `bundler`: "esbuild", "webpack", "rollup", "auto", or "none"
+- `bundler`: "esbuild", "webpack", "rollup", "vite", "auto", or "none"
+  - `esbuild`: Fast general-purpose bundler (default)
+  - `webpack`: Complex projects with advanced features
+  - `rollup`: Library optimization with tree-shaking
+  - `vite`: Modern frameworks (React, Vue, Svelte) with HMR
+  - `auto`: Auto-detect best available bundler
+  - `none`: No bundling (Node.js scripts)
 - `entry`: Entry point file for bundling
 - `platform`: "browser", "node", or "neutral"
 - `format`: "esm", "cjs", "iife", or "umd"
@@ -318,6 +324,7 @@ target("bundle") {
 - `jsx`: Enable JSX transformation (boolean)
 - `jsxFactory`: JSX factory function (default: "React.createElement")
 - `external`: Array of packages to exclude from bundle
+- `configFile`: Path to custom bundler config (optional)
 
 ## Architecture
 

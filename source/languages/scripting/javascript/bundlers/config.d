@@ -24,6 +24,8 @@ enum BundlerType
     Webpack,
     /// Rollup (library optimization)
     Rollup,
+    /// Vite (modern dev server with HMR)
+    Vite,
     /// None - skip bundling
     None
 }
@@ -126,6 +128,7 @@ struct JSConfig
                 case "esbuild": config.bundler = BundlerType.ESBuild; break;
                 case "webpack": config.bundler = BundlerType.Webpack; break;
                 case "rollup": config.bundler = BundlerType.Rollup; break;
+                case "vite": config.bundler = BundlerType.Vite; break;
                 case "none": config.bundler = BundlerType.None; break;
                 default: config.bundler = BundlerType.Auto; break;
             }

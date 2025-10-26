@@ -1,4 +1,4 @@
-module languages.scripting.javascript;
+module languages.scripting.javascript.handler;
 
 import std.stdio;
 import std.process;

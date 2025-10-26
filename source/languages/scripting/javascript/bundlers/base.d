@@ -33,6 +33,7 @@ class BundlerFactory
         import languages.scripting.javascript.bundlers.esbuild;
         import languages.scripting.javascript.bundlers.webpack;
         import languages.scripting.javascript.bundlers.rollup;
+        import languages.scripting.javascript.bundlers.vite;
         
         final switch (type)
         {
@@ -44,6 +45,8 @@ class BundlerFactory
                 return new WebpackBundler();
             case BundlerType.Rollup:
                 return new RollupBundler();
+            case BundlerType.Vite:
+                return new ViteBundler();
             case BundlerType.None:
                 return new NullBundler();
         }
@@ -55,12 +58,31 @@ class BundlerFactory
         import languages.scripting.javascript.bundlers.esbuild;
         import languages.scripting.javascript.bundlers.webpack;
         import languages.scripting.javascript.bundlers.rollup;
+        import languages.scripting.javascript.bundlers.vite;
         
-        // Priority: esbuild > webpack > rollup
+        // For library mode with modern frameworks, prefer Vite
+        if (config.mode == JSBuildMode.Library)
+        {
+            auto vite = new ViteBundler();
+            if (vite.isAvailable())
+                return vite;
+            
+            // Fallback to Rollup for libraries
+            auto rollup = new RollupBundler();
+            if (rollup.isAvailable())
+                return rollup;
+        }
+        
+        // Priority: esbuild > vite > webpack > rollup
         // esbuild is fastest and handles most cases
         auto esbuild = new ESBuildBundler();
         if (esbuild.isAvailable())
             return esbuild;
+        
+        // Vite for modern tooling and dev experience
+        auto vite = new ViteBundler();
+        if (vite.isAvailable())
+            return vite;
         
         // Webpack for complex projects
         auto webpack = new WebpackBundler();

@@ -4,6 +4,7 @@ import std.conv;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.json;
 import config.parsing.lexer;
 import config.workspace.ast;
 import config.schema.schema;

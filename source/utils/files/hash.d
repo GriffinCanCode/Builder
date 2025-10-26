@@ -183,6 +183,28 @@ struct FastHash
         return toHexString(hash.finish()).idup;
     }
     
+    /// Hash multiple files together
+    static string hashFiles(string[] filePaths)
+    {
+        import std.file : exists;
+        
+        SHA256 hash;
+        foreach (path; filePaths)
+        {
+            if (exists(path))
+            {
+                string fileHash = hashFile(path);
+                hash.put(cast(ubyte[])fileHash);
+            }
+            else
+            {
+                // For non-existent files, just hash the path
+                hash.put(cast(ubyte[])path);
+            }
+        }
+        return toHexString(hash.finish()).idup;
+    }
+    
     /// Hash file metadata (size + mtime) for quick checks
     /// 1000x faster than content hash for unchanged files
     static string hashMetadata(string path)

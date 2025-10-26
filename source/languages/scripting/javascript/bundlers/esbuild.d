@@ -9,6 +9,7 @@ import std.file;
 import std.algorithm;
 import std.array;
 import std.conv;
+import std.string;
 import utils.files.hash;
 import utils.logging.logger;
 

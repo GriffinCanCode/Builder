@@ -157,7 +157,79 @@ npm install
 - Component architecture
 - esbuild for fast bundling
 
-#### E. TypeScript Application (`examples/typescript-app/`)
+#### E. Vite + React Application (`javascript-vite-react/`)
+Modern React app with Vite bundler for lightning-fast HMR and optimized builds.
+
+```bash
+cd examples/javascript/javascript-vite-react
+npm install
+../../bin/builder build :app    # Production build
+../../bin/builder build :lib    # Library build
+```
+
+**Features:**
+- ⚡️ Lightning-fast Vite bundler
+- 🔥 Hot Module Replacement (HMR)
+- ⚛️ React 18 with modern patterns
+- 📦 Optimized production builds
+- 📚 Library mode support
+- 🎯 Framework auto-detection
+
+**Configuration:**
+```d
+target("app") {
+    type: executable;
+    language: javascript;
+    sources: ["src/**/*.jsx"];
+    config: {
+        "mode": "bundle",
+        "bundler": "vite",
+        "entry": "src/main.jsx",
+        "platform": "browser",
+        "format": "esm",
+        "minify": true,
+        "sourcemap": true,
+        "target": "es2020",
+        "jsx": true
+    };
+}
+```
+
+#### F. Vite + Vue Application (`javascript-vite-vue/`)
+Vue 3 Single File Component (SFC) application with Vite.
+
+```bash
+cd examples/javascript/javascript-vite-vue
+npm install
+../../bin/builder build :app    # Production build
+../../bin/builder build :lib    # Library build
+```
+
+**Features:**
+- 🖖 Vue 3 with Composition API
+- ⚡️ Vite's instant dev server
+- 📦 Single File Components (SFC)
+- 🎨 Scoped CSS styling
+- 🔥 State-preserving HMR
+- 📚 Component library builds
+
+**Configuration:**
+```d
+target("app") {
+    type: executable;
+    language: javascript;
+    sources: ["src/**/*.vue", "src/**/*.js"];
+    config: {
+        "mode": "bundle",
+        "bundler": "vite",
+        "entry": "src/main.js",
+        "platform": "browser",
+        "format": "esm"
+    };
+}
+```
+
+#### G. TypeScript Application (`examples/typescript-app/`)
 TypeScript with type checking and compilation.
 
 ```bash
@@ -184,7 +256,7 @@ target("app") {
     
     config: {
         "mode": "bundle",           // node, bundle, or library
-        "bundler": "esbuild",       // esbuild, webpack, rollup, auto, none
+        "bundler": "esbuild",       // esbuild, webpack, rollup, vite, auto, none
         "entry": "src/app.js",
         "platform": "browser",      // browser, node, or neutral
         "format": "iife",           // esm, cjs, iife, umd
@@ -194,6 +266,61 @@ target("app") {
     };
 }
 ```
+
+**JavaScript Bundler Comparison:**
+
+The Builder system supports multiple JavaScript bundlers, each optimized for different use cases:
+
+| Bundler | Best For | Speed | Features | When to Use |
+|---------|----------|-------|----------|-------------|
+| **esbuild** | General purpose | ⚡️⚡️⚡️ Fastest | Fast builds, TypeScript, JSX | Default choice for most projects |
+| **Vite** | Modern frameworks | ⚡️⚡️ Very Fast | HMR, framework plugins, dev server | React, Vue, Svelte apps |
+| **Webpack** | Complex projects | 🐌 Slower | Full ecosystem, advanced config | Large apps with complex needs |
+| **Rollup** | Libraries | ⚡️⚡️ Fast | Tree-shaking, multiple formats | npm package distribution |
+| **None** | Simple scripts | ⚡️⚡️⚡️ Instant | Validation only | Node.js scripts, no bundling |
+
+**Bundler Selection Guide:**
+
+- **Use `esbuild`** (default) for:
+  - Fast build times
+  - Simple to moderate projects
+  - TypeScript/JSX without framework
+  - When you don't need framework-specific features
+
+- **Use `vite`** for:
+  - React, Vue, or Svelte applications
+  - Projects needing fast HMR during development
+  - Library development with multiple formats
+  - Modern ESM-first projects
+  - When you want the best developer experience
+
+- **Use `webpack`** for:
+  - Complex enterprise applications
+  - Projects with custom loaders/plugins
+  - When you need maximum configurability
+  - Legacy projects already using Webpack
+
+- **Use `rollup`** for:
+  - Publishing npm packages
+  - Libraries needing tree-shaking
+  - Multiple output formats (ESM, CJS, UMD)
+  - When bundle size is critical
+
+- **Use `auto`** to:
+  - Let Builder choose based on your project
+  - Automatically detect the best bundler
+  - Fallback if preferred bundler unavailable
+
+- **Use `none`** for:
+  - Simple Node.js scripts
+  - When no bundling is needed
+  - Direct execution scenarios
+
+**Auto-Detection Priority:**
+
+When `bundler: "auto"` is specified:
+- For **library mode**: Vite → Rollup → esbuild → Webpack
+- For **bundle mode**: esbuild → Vite → Webpack → Rollup
 
 ---
 
