@@ -1,7 +1,7 @@
 module languages.scripting.javascript.bundlers.webpack;
 
 import languages.scripting.javascript.bundlers.base;
-import languages.scripting.javascript.bundlers.config;
+import languages.scripting.javascript.core.config;
 import config.schema.schema;
 import std.process;
 import std.path;

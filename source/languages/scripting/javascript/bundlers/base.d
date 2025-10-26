@@ -1,6 +1,6 @@
 module languages.scripting.javascript.bundlers.base;
 
-import languages.scripting.javascript.bundlers.config;
+import languages.scripting.javascript.core.config;
 import config.schema.schema;
 
 /// Base interface for JavaScript bundlers

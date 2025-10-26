@@ -15,12 +15,13 @@ This directory contains JavaScript/TypeScript bundler implementations for the Bu
 ### Files
 
 - **`base.d`**: Core `Bundler` interface and `BundlerFactory`
-- **`config.d`**: Configuration types and enums
 - **`esbuild.d`**: esbuild bundler implementation
 - **`webpack.d`**: Webpack bundler implementation
 - **`rollup.d`**: Rollup bundler implementation
 - **`vite.d`**: Vite bundler implementation
 - **`package.d`**: Public module exports
+
+Note: Configuration types (`JSConfig`, enums) are in `../core/config.d`
 
 ## Bundler Interface
 
@@ -239,7 +240,7 @@ To add support for a new bundler (e.g., Parcel, Turbopack):
 module languages.scripting.javascript.bundlers.newbundler;
 
 import languages.scripting.javascript.bundlers.base;
-import languages.scripting.javascript.bundlers.config;
+import languages.scripting.javascript.core.config;
 
 class NewBundler : Bundler
 {
@@ -250,7 +251,7 @@ class NewBundler : Bundler
 }
 ```
 
-2. **Add to enum** (`config.d`):
+2. **Add to enum** (`../core/config.d`):
 ```d
 enum BundlerType
 {
@@ -265,7 +266,7 @@ case BundlerType.NewBundler:
     return new NewBundler();
 ```
 
-4. **Update parsing** (`config.d`):
+4. **Update parsing** (`../core/config.d`):
 ```d
 case "newbundler": config.bundler = BundlerType.NewBundler; break;
 ```
