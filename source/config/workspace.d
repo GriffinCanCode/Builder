@@ -261,7 +261,7 @@ struct WorkspaceParser
         
         advance(); // {
         
-        string[string] pairs;
+        ExpressionValue[string] pairs;
         
         while (!check(TokenType.RightBrace) && !isAtEnd())
         {
@@ -279,15 +279,12 @@ struct WorkspaceParser
                 return error!(ExpressionValue)("Expected ':' after map key");
             }
             
-            // Parse value (must be string for now)
-            if (!check(TokenType.String))
-            {
-                return error!(ExpressionValue)("Expected string value in map");
-            }
+            // Parse value (can be any expression type)
+            auto valueResult = parseExpression();
+            if (valueResult.isErr)
+                return Err!(ExpressionValue, BuildError)(valueResult.unwrapErr());
             
-            string value = advance().value;
-            
-            pairs[key] = value;
+            pairs[key] = valueResult.unwrap();
             
             if (!check(TokenType.RightBrace))
             {
@@ -477,13 +474,13 @@ struct WorkspaceAnalyzer
             }
         }
         
-        return Ok!BuildError();
+        return Result!BuildError.ok();
     }
     
     private Result!BuildError error(string message)
     {
         auto err = new ParseError(workspacePath, message, ErrorCode.InvalidBuildFile);
-        return Err!BuildError(err);
+        return Result!BuildError.err(err);
     }
 }
 
@@ -493,7 +490,7 @@ Result!BuildError parseWorkspaceDSL(string source, string filePath, ref Workspac
     // Lex
     auto lexResult = lex(source, filePath);
     if (lexResult.isErr)
-        return Err!BuildError(lexResult.unwrapErr());
+        return Result!BuildError.err(lexResult.unwrapErr());
     
     auto tokens = lexResult.unwrap();
     
@@ -501,7 +498,7 @@ Result!BuildError parseWorkspaceDSL(string source, string filePath, ref Workspac
     auto parser = WorkspaceParser(tokens, filePath);
     auto parseResult = parser.parse();
     if (parseResult.isErr)
-        return Err!BuildError(parseResult.unwrapErr());
+        return Result!BuildError.err(parseResult.unwrapErr());
     
     auto ast = parseResult.unwrap();
     
