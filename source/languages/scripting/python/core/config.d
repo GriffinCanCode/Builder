@@ -1,4 +1,4 @@
-module languages.scripting.python.config;
+module languages.scripting.python.core.config;
 
 import std.json;
 import std.string;

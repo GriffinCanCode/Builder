@@ -1,24 +1,101 @@
-module languages.scripting.python.checker;
+module languages.scripting.python.tooling.checkers;
 
 import std.process;
 import std.file;
-import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
 import languages.scripting.python.config;
-import languages.scripting.python.tools;
+import languages.scripting.python.tooling.results;
+import languages.scripting.python.tooling.detection;
 import utils.logging.logger;
 
-/// Type check result
-struct TypeCheckResult
+/// Type checking utilities
+class PyCheckers
 {
-    bool success;
-    string[] errors;
-    string[] warnings;
-    string[] notes;
-    bool hasErrors;
-    bool hasWarnings;
+    /// Type check Python code with mypy
+    static ToolResult typeCheckMypy(string[] sources, string pythonCmd = "python3", string[] extraArgs = [])
+    {
+        ToolResult result;
+        
+        if (!ToolDetection.isMypyAvailable(pythonCmd))
+        {
+            result.warnings ~= "mypy not available (install: pip install mypy)";
+            result.success = true;
+            return result;
+        }
+        
+        string[] cmd = [pythonCmd, "-m", "mypy"] ~ extraArgs ~ sources;
+        
+        Logger.debug_("Running mypy: " ~ cmd.join(" "));
+        
+        auto res = execute(cmd);
+        result.output = res.output;
+        
+        if (res.status != 0)
+        {
+            foreach (line; res.output.lineSplitter)
+            {
+                auto trimmed = line.strip;
+                if (!trimmed.empty)
+                {
+                    if (trimmed.canFind("error:"))
+                        result.errors ~= trimmed;
+                    else if (trimmed.canFind("warning:") || trimmed.canFind("note:"))
+                        result.warnings ~= trimmed;
+                }
+            }
+            result.success = result.errors.empty; // Fail only on errors, not warnings
+        }
+        else
+        {
+            result.success = true;
+        }
+        
+        return result;
+    }
+    
+    /// Type check Python code with pyright
+    static ToolResult typeCheckPyright(string[] sources, string[] extraArgs = [])
+    {
+        ToolResult result;
+        
+        if (!ToolDetection.isPyrightAvailable())
+        {
+            result.warnings ~= "pyright not available (install: npm install -g pyright)";
+            result.success = true;
+            return result;
+        }
+        
+        string[] cmd = ["pyright"] ~ extraArgs ~ sources;
+        
+        Logger.debug_("Running pyright: " ~ cmd.join(" "));
+        
+        auto res = execute(cmd);
+        result.output = res.output;
+        
+        if (res.status != 0)
+        {
+            foreach (line; res.output.lineSplitter)
+            {
+                auto trimmed = line.strip;
+                if (!trimmed.empty)
+                {
+                    if (trimmed.canFind("error") && !trimmed.canFind("0 errors"))
+                        result.errors ~= trimmed;
+                    else if (trimmed.canFind("warning"))
+                        result.warnings ~= trimmed;
+                }
+            }
+            result.success = result.errors.empty;
+        }
+        else
+        {
+            result.success = true;
+        }
+        
+        return result;
+    }
 }
 
 /// Type checker factory and utilities
@@ -58,19 +135,19 @@ class TypeChecker
     {
         // Priority: pyright (fastest) > mypy (most complete) > pytype > pyre
         
-        if (PyTools.isPyrightAvailable())
+        if (ToolDetection.isPyrightAvailable())
         {
             Logger.debug_("Using pyright for type checking");
             return checkPyright(sources, config);
         }
         
-        if (PyTools.isMypyAvailable(pythonCmd))
+        if (ToolDetection.isMypyAvailable(pythonCmd))
         {
             Logger.debug_("Using mypy for type checking");
             return checkMypy(sources, config, pythonCmd);
         }
         
-        if (PyTools.isPytypeAvailable(pythonCmd))
+        if (ToolDetection.isPytypeAvailable(pythonCmd))
         {
             Logger.debug_("Using pytype for type checking");
             return checkPytype(sources, config, pythonCmd);

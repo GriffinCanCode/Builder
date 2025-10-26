@@ -1,4 +1,4 @@
-module languages.scripting.python.dependencies;
+module languages.scripting.python.analysis.dependencies;
 
 import std.file;
 import std.path;

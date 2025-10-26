@@ -1,4 +1,4 @@
-module languages.scripting.python.handler;
+module languages.scripting.python.core.handler;
 
 import std.stdio;
 import std.process;
@@ -8,13 +8,10 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import languages.base.base;
-import languages.scripting.python.config;
-import languages.scripting.python.tools;
-import languages.scripting.python.environments;
-import languages.scripting.python.packages;
-import languages.scripting.python.checker;
-import languages.scripting.python.formatter;
-import languages.scripting.python.dependencies;
+import languages.scripting.python.core.config;
+import languages.scripting.python.managers;
+import languages.scripting.python.tooling;
+import languages.scripting.python.analysis;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;

@@ -1,20 +1,105 @@
-module languages.scripting.python.formatter;
+module languages.scripting.python.tooling.formatters;
 
 import std.process;
 import std.algorithm;
 import std.array;
 import std.string;
 import languages.scripting.python.config;
-import languages.scripting.python.tools;
+import languages.scripting.python.tooling.results;
+import languages.scripting.python.tooling.detection;
 import utils.logging.logger;
 
-/// Format result
-struct FormatResult
+/// Code formatter utilities
+class PyFormatters
 {
-    bool success;
-    string[] formattedFiles;
-    string[] issues;
-    bool hadChanges;
+    /// Format Python code with ruff
+    static ToolResult formatRuff(string[] sources, bool check = false)
+    {
+        ToolResult result;
+        result.success = true;
+        
+        if (!ToolDetection.isRuffAvailable())
+        {
+            result.warnings ~= "ruff not available (install: pip install ruff)";
+            return result;
+        }
+        
+        string[] cmd = ["ruff", "format"];
+        if (check)
+            cmd ~= "--check";
+        cmd ~= sources;
+        
+        Logger.debug_("Running ruff format: " ~ cmd.join(" "));
+        
+        auto res = execute(cmd);
+        result.output = res.output;
+        
+        if (res.status != 0)
+        {
+            if (check)
+            {
+                // Check mode - files need formatting
+                foreach (line; res.output.lineSplitter)
+                {
+                    auto trimmed = line.strip;
+                    if (!trimmed.empty)
+                        result.warnings ~= trimmed;
+                }
+                result.success = true; // Don't fail on format checks
+            }
+            else
+            {
+                result.success = false;
+                result.errors ~= "ruff format failed: " ~ res.output;
+            }
+        }
+        
+        return result;
+    }
+    
+    /// Format Python code with black
+    static ToolResult formatBlack(string[] sources, string pythonCmd = "python3", bool check = false)
+    {
+        ToolResult result;
+        result.success = true;
+        
+        if (!ToolDetection.isBlackAvailable(pythonCmd))
+        {
+            result.warnings ~= "black not available (install: pip install black)";
+            return result;
+        }
+        
+        string[] cmd = [pythonCmd, "-m", "black"];
+        if (check)
+            cmd ~= "--check";
+        cmd ~= sources;
+        
+        Logger.debug_("Running black: " ~ cmd.join(" "));
+        
+        auto res = execute(cmd);
+        result.output = res.output;
+        
+        if (res.status != 0)
+        {
+            if (check)
+            {
+                foreach (line; res.output.lineSplitter)
+                {
+                    auto trimmed = line.strip;
+                    if (!trimmed.empty && trimmed.canFind("would be reformatted"))
+                        result.warnings ~= trimmed;
+                }
+                result.success = true;
+            }
+            else
+            {
+                result.success = false;
+                result.errors ~= "black failed: " ~ res.output;
+            }
+        }
+        
+        return result;
+    }
 }
 
 /// Code formatter factory and utilities
@@ -56,13 +141,13 @@ class Formatter
     {
         // Priority: ruff (fastest) > black (most popular) > others
         
-        if (PyTools.isRuffAvailable())
+        if (ToolDetection.isRuffAvailable())
         {
             Logger.debug_("Using ruff for formatting");
             return formatRuff(sources, check);
         }
         
-        if (PyTools.isBlackAvailable(pythonCmd))
+        if (ToolDetection.isBlackAvailable(pythonCmd))
         {
             Logger.debug_("Using black for formatting");
             return formatBlack(sources, pythonCmd, check);
@@ -81,14 +166,14 @@ class Formatter
     {
         FormatResult result;
         
-        if (!PyTools.isRuffAvailable())
+        if (!ToolDetection.isRuffAvailable())
         {
             result.success = true;
             result.issues ~= "ruff not available";
             return result;
         }
         
-        auto toolResult = PyTools.formatRuff(sources, check);
+        auto toolResult = PyFormatters.formatRuff(sources, check);
         
         result.success = toolResult.success;
         result.issues = toolResult.warnings ~ toolResult.errors;
@@ -112,14 +197,14 @@ class Formatter
     {
         FormatResult result;
         
-        if (!PyTools.isBlackAvailable(pythonCmd))
+        if (!ToolDetection.isBlackAvailable(pythonCmd))
         {
             result.success = true;
             result.issues ~= "black not available";
             return result;
         }
         
-        auto toolResult = PyTools.formatBlack(sources, pythonCmd, check);
+        auto toolResult = PyFormatters.formatBlack(sources, pythonCmd, check);
         
         result.success = toolResult.success;
         result.issues = toolResult.warnings ~ toolResult.errors;
@@ -212,127 +297,6 @@ class Formatter
         {
             result.formattedFiles = sources;
         }
-        
-        return result;
-    }
-}
-
-/// Linter factory and utilities
-class Linter
-{
-    /// Lint code with configured linter
-    static ToolResult lint(string[] sources, PyLinter linter, string pythonCmd = "python3")
-    {
-        if (linter == PyLinter.None)
-        {
-            ToolResult result;
-            result.success = true;
-            return result;
-        }
-        
-        final switch (linter)
-        {
-            case PyLinter.Auto:
-                return lintAuto(sources, pythonCmd);
-            case PyLinter.Ruff:
-                return PyTools.lintRuff(sources);
-            case PyLinter.Pylint:
-                return PyTools.lintPylint(sources, pythonCmd);
-            case PyLinter.Flake8:
-                return PyTools.lintFlake8(sources, pythonCmd);
-            case PyLinter.Bandit:
-                return lintBandit(sources, pythonCmd);
-            case PyLinter.Pyflakes:
-                return lintPyflakes(sources, pythonCmd);
-            case PyLinter.None:
-                ToolResult result;
-                result.success = true;
-                return result;
-        }
-    }
-    
-    /// Auto-detect and use best available linter
-    private static ToolResult lintAuto(string[] sources, string pythonCmd)
-    {
-        // Priority: ruff (fastest, most comprehensive) > pylint > flake8
-        
-        if (PyTools.isRuffAvailable())
-        {
-            Logger.debug_("Using ruff for linting");
-            return PyTools.lintRuff(sources);
-        }
-        
-        if (PyTools.isPylintAvailable(pythonCmd))
-        {
-            Logger.debug_("Using pylint for linting");
-            return PyTools.lintPylint(sources, pythonCmd);
-        }
-        
-        if (PyTools.isFlake8Available(pythonCmd))
-        {
-            Logger.debug_("Using flake8 for linting");
-            return PyTools.lintFlake8(sources, pythonCmd);
-        }
-        
-        // No linter available
-        ToolResult result;
-        result.success = true;
-        Logger.info("No linter available (install ruff, pylint, or flake8)");
-        
-        return result;
-    }
-    
-    /// Lint with bandit (security-focused)
-    private static ToolResult lintBandit(string[] sources, string pythonCmd)
-    {
-        ToolResult result;
-        
-        string[] cmd = [pythonCmd, "-m", "bandit", "-r"] ~ sources;
-        
-        Logger.info("Running bandit security checks");
-        
-        auto res = execute(cmd);
-        result.output = res.output;
-        
-        // Bandit returns non-zero if issues found
-        if (res.status != 0)
-        {
-            foreach (line; res.output.lineSplitter)
-            {
-                auto trimmed = line.strip;
-                if (!trimmed.empty && (trimmed.canFind("Issue:") || trimmed.canFind("Severity:")))
-                    result.warnings ~= trimmed;
-            }
-        }
-        
-        result.success = true; // Don't fail build on security warnings
-        
-        return result;
-    }
-    
-    /// Lint with pyflakes
-    private static ToolResult lintPyflakes(string[] sources, string pythonCmd)
-    {
-        ToolResult result;
-        
-        string[] cmd = [pythonCmd, "-m", "pyflakes"] ~ sources;
-        
-        Logger.info("Running pyflakes");
-        
-        auto res = execute(cmd);
-        result.output = res.output;
-        
-        if (res.status != 0)
-        {
-            foreach (line; res.output.lineSplitter)
-            {
-                auto trimmed = line.strip;
-                if (!trimmed.empty)
-                    result.warnings ~= trimmed;
-            }
-        }
-        
-        result.success = true;
         
         return result;
     }

@@ -1,4 +1,4 @@
-module languages.scripting.python.environments;
+module languages.scripting.python.managers.environments;
 
 import std.process;
 import std.file;
@@ -6,8 +6,9 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import languages.scripting.python.config;
-import languages.scripting.python.tools;
+import languages.scripting.python.core.config;
+import languages.scripting.python.tooling.detection : ToolDetection;
+alias PyTools = ToolDetection;
 import utils.logging.logger;
 
 /// Virtual environment manager - handles venv creation, activation, and management
