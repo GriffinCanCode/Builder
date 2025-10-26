@@ -14,8 +14,8 @@ module languages;
 ///   cpp.d        - C++ language support
 ///   csharp.d     - C# language support
 ///   ruby.d       - Ruby language support
-///   php.d        - PHP language support
-///   r.d          - R language support (scripts, packages, Shiny, RMarkdown)
+///   php/         - PHP language support (modular)
+///   r/           - R language support (modular - scripts, packages, Shiny, RMarkdown)
 ///   swift.d      - Swift language support
 ///   kotlin.d     - Kotlin language support
 ///   scala.d      - Scala language support
@@ -41,7 +41,7 @@ public import languages.compiled.d;
 public import languages.jvm.java;
 public import languages.compiled.cpp;
 public import languages.dotnet.csharp;
-public import languages.scripting.ruby;
+public import languages.scripting.ruby; // Modular (core, managers, tooling, analysis)
 public import languages.scripting.php;
 public import languages.scripting.r;
 public import languages.dotnet.swift;
