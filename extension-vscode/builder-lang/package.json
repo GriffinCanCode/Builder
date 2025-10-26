@@ -1,0 +1,51 @@
+{
+  "name": "builder-lang",
+  "displayName": "Builder Language Support",
+  "description": "Syntax highlighting and language support for Builder configuration files",
+  "version": "1.0.0",
+  "publisher": "builder",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "builder",
+        "aliases": [
+          "Builder",
+          "builder"
+        ],
+        "filenames": [
+          "Builderfile",
+          "Builderspace"
+        ],
+        "extensions": [
+          ".builder"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/file-icon.svg",
+          "dark": "./icons/file-icon.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "builder",
+        "scopeName": "source.builder",
+        "path": "./syntaxes/builder.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "builder-icons",
+        "label": "Builder Icons",
+        "path": "./fileicons/builder-icon-theme.json"
+      }
+    ]
+  }
+}
+

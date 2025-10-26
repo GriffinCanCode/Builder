@@ -1,0 +1,16 @@
+{
+  "iconDefinitions": {
+    "builderfile": {
+      "iconPath": "../icons/file-icon.svg"
+    },
+    "builderspace": {
+      "iconPath": "../icons/file-icon.svg"
+    }
+  },
+  "fileNames": {
+    "Builderfile": "builderfile",
+    "Builderspace": "builderspace"
+  },
+  "file": "file"
+}
+
