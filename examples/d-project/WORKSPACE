@@ -1,0 +1,14 @@
+// D project workspace configuration
+workspace("d-hello") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 0;
+    incremental: true;
+    verbose: false;
+    
+    env: {
+        "DC": "ldc2"
+    };
+}
+

@@ -1,0 +1,16 @@
+// Mixed language workspace configuration
+workspace("mixed-lang-project") {
+    cacheDir: ".cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 0;  // 0 means auto-detect CPU count
+    verbose: false;
+    incremental: true;
+    
+    env: {
+        "PYTHONPATH": "/usr/lib/python3.10",
+        "NODE_PATH": "/usr/local/lib/node_modules",
+        "PATH": "/usr/local/bin:/usr/bin:/bin"
+    };
+}
+

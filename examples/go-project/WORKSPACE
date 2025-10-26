@@ -1,0 +1,15 @@
+// Go project workspace configuration
+workspace("go-app") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 0;
+    incremental: true;
+    verbose: false;
+    
+    env: {
+        "GO111MODULE": "on",
+        "GOPATH": "/usr/local/go"
+    };
+}
+

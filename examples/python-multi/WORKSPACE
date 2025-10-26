@@ -1,0 +1,15 @@
+// Python multi-module workspace
+workspace("python-calculator") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    incremental: true;
+    verbose: false;
+    
+    env: {
+        "PYTHONPATH": "/usr/lib/python3.10:/usr/local/lib/python3.10",
+        "PYTHONDONTWRITEBYTECODE": "1"
+    };
+}
+

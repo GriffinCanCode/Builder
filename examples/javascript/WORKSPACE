@@ -1,0 +1,15 @@
+// JavaScript project workspace configuration
+workspace("js-app") {
+    cacheDir: ".builder-cache";
+    outputDir: "dist";
+    parallel: true;
+    maxJobs: 0;
+    incremental: true;
+    verbose: false;
+    
+    env: {
+        "NODE_ENV": "development",
+        "NODE_PATH": "/usr/local/lib/node_modules"
+    };
+}
+

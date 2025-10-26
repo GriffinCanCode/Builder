@@ -10,6 +10,7 @@ import std.conv;
 import std.json;
 import config.schema;
 import config.dsl;
+import config.workspace;
 import utils.logger;
 import utils.glob;
 import errors;
@@ -224,10 +225,34 @@ class ConfigParser
         return targets;
     }
     
-    /// Parse workspace-level configuration
+    /// Parse workspace-level configuration (DSL format only)
     private static void parseWorkspaceFile(string path, ref WorkspaceConfig config)
     {
-        // TODO: Implement workspace config parsing
+        try
+        {
+            auto content = readText(path);
+            auto result = parseWorkspaceDSL(content, path, config);
+            
+            if (result.isErr)
+            {
+                auto error = result.unwrapErr();
+                Logger.error("Failed to parse WORKSPACE file: " ~ error.message);
+                import errors.format : format;
+                Logger.error(format(error));
+            }
+            else
+            {
+                Logger.debug_("Parsed WORKSPACE configuration successfully");
+            }
+        }
+        catch (FileException e)
+        {
+            Logger.warning("Could not read WORKSPACE file: " ~ e.msg);
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Error parsing WORKSPACE file: " ~ e.msg);
+        }
     }
     
     /// Parse language from string

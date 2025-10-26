@@ -424,3 +424,263 @@ Source files:
 
 Total: ~1,200 lines of sophisticated, production-ready code.
 
+## WORKSPACE Files
+
+### Overview
+
+WORKSPACE files provide workspace-level configuration that applies to all targets in the build. They configure build options, global environment variables, and other workspace-wide settings.
+
+### Location
+
+WORKSPACE files should be placed at the root of your workspace:
+```
+/path/to/workspace/
+  WORKSPACE          # Workspace configuration
+  BUILD              # Build targets
+  src/
+    BUILD
+```
+
+### Syntax
+
+WORKSPACE files use the Builder DSL format
+
+```d
+workspace("name") {
+    // Build options
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    verbose: false;
+    incremental: true;
+    
+    // Global environment variables
+    env: {
+        "PYTHONPATH": "/usr/lib/python3.10",
+        "NODE_PATH": "/usr/local/lib/node_modules"
+    };
+}
+```
+
+**Note**: Unlike BUILD files which support both DSL and JSON for backward compatibility, WORKSPACE files only support the DSL format. This keeps the implementation clean and encourages modern, readable configuration.
+
+### Fields
+
+#### cacheDir (string)
+Directory for build cache storage.
+
+**Default**: `.builder-cache`
+
+```d
+cacheDir: ".cache";
+cacheDir: "build/cache";
+```
+
+#### outputDir (string)
+Default output directory for build artifacts.
+
+**Default**: `bin`
+
+```d
+outputDir: "bin";
+outputDir: "dist";
+outputDir: "build/output";
+```
+
+#### parallel (boolean)
+Enable parallel build execution.
+
+**Default**: `true`
+
+```d
+parallel: true;   // Enable parallel builds
+parallel: false;  // Sequential builds only
+```
+
+#### maxJobs (number)
+Maximum number of parallel build jobs.
+
+**Default**: `0` (auto-detect CPU count)
+
+```d
+maxJobs: 0;   // Auto-detect
+maxJobs: 4;   // Fixed to 4 jobs
+maxJobs: 8;   // Fixed to 8 jobs
+```
+
+#### verbose (boolean)
+Enable verbose build output.
+
+**Default**: `false`
+
+```d
+verbose: true;   // Detailed output
+verbose: false;  // Normal output
+```
+
+#### incremental (boolean)
+Enable incremental builds with caching.
+
+**Default**: `true`
+
+```d
+incremental: true;   // Use cache
+incremental: false;  // Always rebuild
+```
+
+#### env (map)
+Global environment variables applied to all builds.
+
+**Default**: `{}`
+
+```d
+env: {
+    "PYTHONPATH": "/usr/lib/python3.10",
+    "NODE_PATH": "/usr/local/lib/node_modules",
+    "PATH": "/usr/local/bin:/usr/bin"
+};
+```
+
+### Examples
+
+#### Minimal Configuration
+
+```d
+workspace("my-project") {
+    outputDir: "dist";
+}
+```
+
+#### Development Configuration
+
+```d
+workspace("dev-workspace") {
+    cacheDir: ".cache";
+    outputDir: "build";
+    parallel: true;
+    maxJobs: 0;  // Auto-detect
+    verbose: true;
+    incremental: true;
+    
+    env: {
+        "DEBUG": "1",
+        "LOG_LEVEL": "debug"
+    };
+}
+```
+
+#### Production Configuration
+
+```d
+workspace("production") {
+    cacheDir: ".builder-cache";
+    outputDir: "dist";
+    parallel: true;
+    maxJobs: 16;
+    verbose: false;
+    incremental: true;
+    
+    env: {
+        "NODE_ENV": "production",
+        "PYTHONOPTIMIZE": "2"
+    };
+}
+```
+
+#### Python Project
+
+```d
+workspace("python-project") {
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 8;
+    
+    env: {
+        "PYTHONPATH": "/usr/lib/python3.10:/usr/local/lib/python3.10",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONHASHSEED": "0"
+    };
+}
+```
+
+#### Multi-Language Project
+
+```d
+workspace("multi-lang") {
+    cacheDir: ".cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 0;
+    incremental: true;
+    
+    env: {
+        "PYTHONPATH": "/usr/lib/python3.10",
+        "NODE_PATH": "/usr/local/lib/node_modules",
+        "GOPATH": "/home/user/go",
+        "CARGO_HOME": "/home/user/.cargo"
+    };
+}
+```
+
+### Interaction with BUILD Files
+
+- WORKSPACE configuration applies globally to all targets
+- BUILD files can override environment variables per-target
+- Target-specific settings take precedence over workspace settings
+- Global environment is merged with target-specific environment
+
+Example:
+```d
+// WORKSPACE
+workspace("my-app") {
+    env: {
+        "DEBUG": "0",
+        "PATH": "/usr/bin"
+    };
+}
+
+// BUILD
+target("app") {
+    type: executable;
+    sources: ["main.py"];
+    env: {
+        "DEBUG": "1"  // Overrides workspace setting
+    };
+}
+// Result: app gets DEBUG=1, PATH=/usr/bin
+```
+
+### Implementation Details
+
+- **Parser**: Reuses BUILD DSL lexer and parser infrastructure
+- **Module**: `config.workspace` - ~400 lines of code
+- **Error Handling**: Full Result monad integration with detailed errors
+- **Validation**: Type-safe parsing with semantic analysis
+- **Format**: DSL only (no JSON support needed for new feature)
+
+### Architecture
+
+```
+WORKSPACE file
+    ↓
+Lexer (config.lexer)
+    ↓
+Parser (config.workspace.WorkspaceParser)
+    ↓
+AST (config.workspace.WorkspaceFile)
+    ↓
+Semantic Analysis (config.workspace.WorkspaceAnalyzer)
+    ↓
+WorkspaceConfig (config.schema)
+```
+
+### Best Practices
+
+1. **Enable incremental builds**: Significantly faster for large projects
+2. **Auto-detect CPU count**: Use `maxJobs: 0` for portability
+3. **Minimal environment**: Only set truly global variables
+4. **Use comments**: Document non-obvious configuration choices
+5. **Version control**: Commit WORKSPACE files to repository
+6. **Keep it simple**: Only configure what differs from defaults
+
