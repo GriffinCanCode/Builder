@@ -143,7 +143,7 @@ class MixProjectBuilder : ElixirBuilder
         // Match Elixir compiler warnings
         // Format: warning: message
         //         lib/file.ex:line
-        auto warningRegex = regex(r"warning:.*?(?=\n\n|\n[^[:space:]]|$)", "s");
+        auto warningRegex = regex(`warning:.*?(?=\n\n|\n[^[:space:]]|$)", "s`);
         
         foreach (match; output.matchAll(warningRegex))
         {

@@ -152,7 +152,7 @@ class PHPCSFormatter : Formatter
         auto res = execute([cmd, "--version"]);
         if (res.status == 0)
         {
-            auto match = matchFirst(res.output, regex(r"(\d+\.\d+\.\d+)"));
+            auto match = matchFirst(res.output, regex(`(\d+\.\d+\.\d+)`));
             if (match)
                 return match[1];
             return res.output.strip;
@@ -227,7 +227,7 @@ class PHPCSFormatter : Formatter
             }
             
             // Count files checked
-            auto checkedMatch = matchFirst(trimmed, regex(r"(\d+) files? checked"));
+            auto checkedMatch = matchFirst(trimmed, regex(`(\d+) files? checked`));
             if (checkedMatch)
             {
                 result.filesChecked = checkedMatch[1].to!int;

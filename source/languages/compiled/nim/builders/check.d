@@ -160,14 +160,14 @@ class CheckBuilder : NimBuilder
         import std.regex;
         
         // Parse warnings
-        auto warningRegex = regex(r"Warning:.*$", "m");
+        auto warningRegex = regex(`Warning:.*$", "m`);
         foreach (match; matchAll(output, warningRegex))
         {
             result.warnings ~= match.hit;
         }
         
         // Parse hints
-        auto hintRegex = regex(r"Hint:.*$", "m");
+        auto hintRegex = regex(`Hint:.*$", "m`);
         foreach (match; matchAll(output, hintRegex))
         {
             result.hints ~= match.hit;

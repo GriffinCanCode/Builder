@@ -62,7 +62,7 @@ class PHPTools
         if (res.status == 0)
         {
             // Extract version from output (e.g., "PHP 8.3.0 (cli)")
-            auto versionMatch = matchFirst(res.output, regex(r"PHP (\d+\.\d+\.\d+)"));
+            auto versionMatch = matchFirst(res.output, regex(`PHP (\d+\.\d+\.\d+)`));
             if (versionMatch)
                 return versionMatch[1];
             return res.output.lineSplitter.front.strip;
@@ -78,7 +78,7 @@ class PHPTools
         
         // Get version
         auto versionOutput = getPHPVersion(phpCmd);
-        auto versionMatch = matchFirst(versionOutput, regex(r"(\d+)\.(\d+)\.(\d+)"));
+        auto versionMatch = matchFirst(versionOutput, regex(`(\d+)\.(\d+)\.(\d+)`));
         if (versionMatch)
         {
             info.version_ = versionMatch[0];
@@ -523,7 +523,7 @@ class PHPTools
             return -1; // Unlimited
         
         // Parse value like "128M", "1G", etc.
-        auto match = matchFirst(limit, regex(r"(\d+)([KMG]?)"));
+        auto match = matchFirst(limit, regex(`(\d+)([KMG]?)`));
         if (match)
         {
             long value = match[1].to!long;

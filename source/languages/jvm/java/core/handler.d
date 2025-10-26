@@ -138,7 +138,7 @@ class JavaHandler : BaseLanguageHandler
         }
         
         // Auto-format if configured
-        if (javaConfig.formatter.autoFormat && javaConfig.formatter.formatter != languages.jvm.java.core.config.JavaFormatter.None)
+        if (javaConfig.formatter.autoFormat && javaConfig.formatter.formatter != languages.jvm.java.core.config.JavaFormatterType.None)
         {
             Logger.info("Auto-formatting code");
             auto formatter = JavaFormatterFactory.create(javaConfig.formatter.formatter, config.root);

@@ -130,7 +130,7 @@ class PsalmAnalyzer : Analyzer
         if (res.status == 0)
         {
             // Extract version like "Psalm 5.x.x"
-            auto match = matchFirst(res.output, regex(r"(\d+\.\d+\.\d+)"));
+            auto match = matchFirst(res.output, regex(`(\d+\.\d+\.\d+)`));
             if (match)
                 return match[1];
             return res.output.strip;
@@ -181,13 +181,13 @@ class PsalmAnalyzer : Analyzer
             }
             
             // Parse summary line
-            auto errorMatch = matchFirst(trimmed, regex(r"(\d+) error"));
+            auto errorMatch = matchFirst(trimmed, regex(`(\d+) error`));
             if (errorMatch)
             {
                 result.errorCount = errorMatch[1].to!int;
             }
             
-            auto warningMatch = matchFirst(trimmed, regex(r"(\d+) other"));
+            auto warningMatch = matchFirst(trimmed, regex(`(\d+) other`));
             if (warningMatch)
             {
                 result.warningCount = warningMatch[1].to!int;

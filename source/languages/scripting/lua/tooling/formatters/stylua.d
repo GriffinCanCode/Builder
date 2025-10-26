@@ -124,7 +124,7 @@ class StyLuaFormatter : Formatter
             if (res.status == 0)
             {
                 auto output = res.output.strip;
-                auto match = matchFirst(output, regex(r"(\d+\.\d+\.\d+)"));
+                auto match = matchFirst(output, regex(`(\d+\.\d+\.\d+)`));
                 if (!match.empty)
                 {
                     return match[1];

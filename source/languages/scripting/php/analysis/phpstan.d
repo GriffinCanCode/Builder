@@ -148,7 +148,7 @@ class PHPStanAnalyzer : Analyzer
         if (res.status == 0)
         {
             // Extract version like "PHPStan - PHP Static Analysis Tool 1.10.0"
-            auto match = matchFirst(res.output, regex(r"(\d+\.\d+\.\d+)"));
+            auto match = matchFirst(res.output, regex(`(\d+\.\d+\.\d+)`));
             if (match)
                 return match[1];
             return res.output.strip;
@@ -188,7 +188,7 @@ class PHPStanAnalyzer : Analyzer
                 continue;
             
             // Count errors reported in summary
-            auto errorMatch = matchFirst(trimmed, regex(r"Found (\d+) error"));
+            auto errorMatch = matchFirst(trimmed, regex(`Found (\d+) error`));
             if (errorMatch)
             {
                 result.errorCount = errorMatch[1].to!int;

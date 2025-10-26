@@ -94,7 +94,7 @@ class Formatter
         import std.string : strip;
         
         // Match file paths in format output
-        auto fileRegex = regex(r"^\*\*\s+(.+\.exs?)$", "m");
+        auto fileRegex = regex(`^\*\*\s+(.+\.exs?)$", "m`);
         
         foreach (match; output.matchAll(fileRegex))
         {

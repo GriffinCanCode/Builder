@@ -143,7 +143,7 @@ class DialyzerChecker
         {
             // Parse dialyxir format
             // Format: lib/file.ex:line: warning: message
-            auto warningRegex = regex(r"^([^:]+:\d+:)\s*(warning|error):\s*(.+)$", "m");
+            auto warningRegex = regex(`^([^:]+:\d+:)\s*(warning|error):\s*(.+)$", "m`);
             
             foreach (match; output.matchAll(warningRegex))
             {

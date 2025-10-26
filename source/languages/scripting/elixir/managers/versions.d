@@ -132,7 +132,7 @@ class KiexVersionManager : VersionManagerInterface
             {
                 if (line.canFind("*"))
                 {
-                    auto match = line.matchFirst(regex(r"(\d+\.\d+\.\d+)"));
+                    auto match = line.matchFirst(regex(`(\d+\.\d+\.\d+)`));
                     if (!match.empty)
                         return match[1];
                 }

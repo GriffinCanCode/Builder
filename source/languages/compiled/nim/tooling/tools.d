@@ -272,7 +272,7 @@ class NimTools
             }
             
             // Parse warnings
-            auto warningRegex = regex(r"Warning:.*$", "m");
+            auto warningRegex = regex(`Warning:.*$", "m`);
             foreach (match; matchAll(res.output, warningRegex))
             {
                 result.warnings ~= match.hit;
@@ -321,14 +321,14 @@ class NimTools
     {
         // Parse version from output like:
         // "Nim Compiler Version 2.0.0 [Linux: amd64]"
-        auto versionRegex = regex(r"Nim Compiler Version (\d+\.\d+\.\d+)");
+        auto versionRegex = regex(`Nim Compiler Version (\d+\.\d+\.\d+)`);
         auto match = matchFirst(output, versionRegex);
         
         if (!match.empty)
             return match[1];
         
         // Fallback: try to find any version pattern
-        auto simpleVersion = regex(r"(\d+\.\d+\.\d+)");
+        auto simpleVersion = regex(`(\d+\.\d+\.\d+)`);
         match = matchFirst(output, simpleVersion);
         
         if (!match.empty)
@@ -341,14 +341,14 @@ class NimTools
     {
         // Parse version from output like:
         // "nimble v0.14.2 compiled at ..."
-        auto versionRegex = regex(r"nimble v?(\d+\.\d+\.\d+)");
+        auto versionRegex = regex(`nimble v?(\d+\.\d+\.\d+)`);
         auto match = matchFirst(output, versionRegex);
         
         if (!match.empty)
             return match[1];
         
         // Fallback
-        auto simpleVersion = regex(r"(\d+\.\d+\.\d+)");
+        auto simpleVersion = regex(`(\d+\.\d+\.\d+)`);
         match = matchFirst(output, simpleVersion);
         
         if (!match.empty)

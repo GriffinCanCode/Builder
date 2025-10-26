@@ -137,7 +137,7 @@ LuaVersionInfo detectLuaVersion(string interpreter = "lua")
             {
                 info.isLuaJIT = true;
                 // LuaJIT version format: LuaJIT 2.1.0-beta3 -- Copyright ...
-                auto match = matchFirst(output, regex(r"LuaJIT\s+(\d+)\.(\d+)\.(\d+)"));
+                auto match = matchFirst(output, regex(`LuaJIT\s+(\d+)\.(\d+)\.(\d+)`));
                 if (!match.empty)
                 {
                     info.major = match[1].to!int;
@@ -149,7 +149,7 @@ LuaVersionInfo detectLuaVersion(string interpreter = "lua")
             else
             {
                 // Standard Lua version format: Lua 5.4.4 Copyright ...
-                auto match = matchFirst(output, regex(r"Lua\s+(\d+)\.(\d+)\.(\d+)"));
+                auto match = matchFirst(output, regex(`Lua\s+(\d+)\.(\d+)\.(\d+)`));
                 if (!match.empty)
                 {
                     info.major = match[1].to!int;
@@ -160,7 +160,7 @@ LuaVersionInfo detectLuaVersion(string interpreter = "lua")
                 else
                 {
                     // Try simpler pattern
-                    auto match2 = matchFirst(output, regex(r"Lua\s+(\d+)\.(\d+)"));
+                    auto match2 = matchFirst(output, regex(`Lua\s+(\d+)\.(\d+)`));
                     if (!match2.empty)
                     {
                         info.major = match2[1].to!int;
@@ -213,7 +213,7 @@ string getLuaRocksVersion()
         if (res.status == 0)
         {
             auto output = res.output.strip;
-            auto match = matchFirst(output, regex(r"(\d+\.\d+\.\d+)"));
+            auto match = matchFirst(output, regex(`(\d+\.\d+\.\d+)`));
             if (!match.empty)
             {
                 return match[1];

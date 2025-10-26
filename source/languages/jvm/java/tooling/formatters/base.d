@@ -27,22 +27,22 @@ interface JavaFormatter
 /// Factory for creating formatters
 class JavaFormatterFactory
 {
-    static JavaFormatter create(languages.jvm.java.core.config.JavaFormatter type, string workingDir = ".")
+    static JavaFormatter create(languages.jvm.java.core.config.JavaFormatterType type, string workingDir = ".")
     {
         import languages.jvm.java.tooling.formatters.google;
         import languages.jvm.java.tooling.formatters.eclipse;
         
         final switch (type)
         {
-            case languages.jvm.java.core.config.JavaFormatter.Auto:
+            case languages.jvm.java.core.config.JavaFormatterType.Auto:
                 return createAuto(workingDir);
-            case languages.jvm.java.core.config.JavaFormatter.GoogleJavaFormat:
+            case languages.jvm.java.core.config.JavaFormatterType.GoogleJavaFormat:
                 return new GoogleJavaFormatter();
-            case languages.jvm.java.core.config.JavaFormatter.Eclipse:
+            case languages.jvm.java.core.config.JavaFormatterType.Eclipse:
                 return new EclipseFormatter();
-            case languages.jvm.java.core.config.JavaFormatter.IntelliJ:
-            case languages.jvm.java.core.config.JavaFormatter.Prettier:
-            case languages.jvm.java.core.config.JavaFormatter.None:
+            case languages.jvm.java.core.config.JavaFormatterType.IntelliJ:
+            case languages.jvm.java.core.config.JavaFormatterType.Prettier:
+            case languages.jvm.java.core.config.JavaFormatterType.None:
                 return new NullFormatter();
         }
     }

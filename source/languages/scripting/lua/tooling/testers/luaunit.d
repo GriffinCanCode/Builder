@@ -102,18 +102,18 @@ class LuaUnitTester : Tester
         // Parse LuaUnit output
         // Example: "Ran 15 tests in 0.001 seconds, 15 successes, 0 failures"
         
-        auto ranMatch = matchFirst(output, regex(r"Ran\s+(\d+)\s+test"));
+        auto ranMatch = matchFirst(output, regex(`Ran\s+(\d+)\s+test`));
         if (!ranMatch.empty)
         {
             auto totalTests = ranMatch[1].to!int;
             
-            auto successMatch = matchFirst(output, regex(r"(\d+)\s+success"));
+            auto successMatch = matchFirst(output, regex(`(\d+)\s+success`));
             if (!successMatch.empty)
             {
                 result.testsPassed = successMatch[1].to!int;
             }
             
-            auto failureMatch = matchFirst(output, regex(r"(\d+)\s+failure"));
+            auto failureMatch = matchFirst(output, regex(`(\d+)\s+failure`));
             if (!failureMatch.empty)
             {
                 result.testsFailed = failureMatch[1].to!int;

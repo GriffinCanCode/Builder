@@ -38,13 +38,13 @@ class MixProjectParser
             auto content = readText(mixExsPath);
             
             // Extract project function
-            auto projectMatch = content.matchFirst(regex(r"def\s+project\s+do\s*\[(.*?)\]", "s"));
+            auto projectMatch = content.matchFirst(regex(`def\s+project\s+do\s*\[(.*?)\]", "s`));
             if (!projectMatch.empty)
             {
                 string projectDef = projectMatch[1];
                 
                 // Extract app name
-                auto appMatch = projectDef.matchFirst(regex(r"app:\s*:(\w+)"));
+                auto appMatch = projectDef.matchFirst(regex(`app:\s*:(\w+)`));
                 if (!appMatch.empty)
                     info.app = appMatch[1];
                 
@@ -60,11 +60,11 @@ class MixProjectParser
             }
             
             // Extract dependencies
-            auto depsMatch = content.matchFirst(regex(r"defp?\s+deps\s+do\s*\[(.*?)\]", "s"));
+            auto depsMatch = content.matchFirst(regex(`defp?\s+deps\s+do\s*\[(.*?)\]", "s`));
             if (!depsMatch.empty)
             {
                 string depsDef = depsMatch[1];
-                auto depMatches = depsDef.matchAll(regex(r"\{:(\w+)"));
+                auto depMatches = depsDef.matchAll(regex(`\{:(\w+)`));
                 foreach (match; depMatches)
                 {
                     info.deps ~= match[1];

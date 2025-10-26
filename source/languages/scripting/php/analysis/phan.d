@@ -131,7 +131,7 @@ class PhanAnalyzer : Analyzer
         auto res = execute(["phan", "--version"]);
         if (res.status == 0)
         {
-            auto match = matchFirst(res.output, regex(r"(\d+\.\d+\.\d+)"));
+            auto match = matchFirst(res.output, regex(`(\d+\.\d+\.\d+)`));
             if (match)
                 return match[1];
             return res.output.strip;

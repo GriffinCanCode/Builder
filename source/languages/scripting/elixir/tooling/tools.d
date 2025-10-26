@@ -28,7 +28,7 @@ class ElixirTools
         {
             // Parse version from output
             // Format: Elixir X.Y.Z (compiled with Erlang/OTP XX)
-            auto match = res.output.matchFirst(regex(r"Elixir\s+(\d+\.\d+\.\d+)"));
+            auto match = res.output.matchFirst(regex(`Elixir\s+(\d+\.\d+\.\d+)`));
             if (!match.empty)
                 return match[1];
         }
@@ -49,7 +49,7 @@ class ElixirTools
         if (res.status == 0)
         {
             // Parse version from output
-            auto match = res.output.matchFirst(regex(r"Mix\s+(\d+\.\d+\.\d+)"));
+            auto match = res.output.matchFirst(regex(`Mix\s+(\d+\.\d+\.\d+)`));
             if (!match.empty)
                 return match[1];
         }

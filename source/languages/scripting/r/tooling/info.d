@@ -102,7 +102,7 @@ string getRVersion(string rCmd = "R")
     if (res.status == 0 && !res.output.empty)
     {
         // Extract version from output: "R version 4.3.1 (2023-06-16)"
-        auto versionMatch = matchFirst(res.output, regex(r"R version (\d+\.\d+\.\d+)"));
+        auto versionMatch = matchFirst(res.output, regex(`R version (\d+\.\d+\.\d+)`));
         if (versionMatch)
             return versionMatch[1];
     }
@@ -116,12 +116,12 @@ string getRscriptVersion(string rscriptCmd = "Rscript")
     if (res.status == 0 && !res.output.empty)
     {
         // Extract version from stderr output
-        auto versionMatch = matchFirst(res.output, regex(r"R scripting front-end version (\d+\.\d+\.\d+)"));
+        auto versionMatch = matchFirst(res.output, regex(`R scripting front-end version (\d+\.\d+\.\d+)`));
         if (versionMatch)
             return versionMatch[1];
         
         // Try alternative format
-        versionMatch = matchFirst(res.output, regex(r"(\d+\.\d+\.\d+)"));
+        versionMatch = matchFirst(res.output, regex(`(\d+\.\d+\.\d+)`));
         if (versionMatch)
             return versionMatch[1];
     }

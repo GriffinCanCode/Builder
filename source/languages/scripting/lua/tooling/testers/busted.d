@@ -171,7 +171,7 @@ class BustedTester : Tester
             if (res.status == 0)
             {
                 auto output = res.output.strip;
-                auto match = matchFirst(output, regex(r"(\d+\.\d+\.\d+)"));
+                auto match = matchFirst(output, regex(`(\d+\.\d+\.\d+)`));
                 if (!match.empty)
                 {
                     return match[1];
@@ -188,26 +188,26 @@ class BustedTester : Tester
         // Parse Busted output for test results
         // Example: "123 successes / 5 failures / 0 errors / 2 pending : 0.123456 seconds"
         
-        auto successMatch = matchFirst(output, regex(r"(\d+)\s+success"));
+        auto successMatch = matchFirst(output, regex(`(\d+)\s+success`));
         if (!successMatch.empty)
         {
             result.testsPassed = successMatch[1].to!int;
         }
         
-        auto failureMatch = matchFirst(output, regex(r"(\d+)\s+failure"));
+        auto failureMatch = matchFirst(output, regex(`(\d+)\s+failure`));
         if (!failureMatch.empty)
         {
             result.testsFailed = failureMatch[1].to!int;
         }
         
-        auto pendingMatch = matchFirst(output, regex(r"(\d+)\s+pending"));
+        auto pendingMatch = matchFirst(output, regex(`(\d+)\s+pending`));
         if (!pendingMatch.empty)
         {
             result.testsSkipped = pendingMatch[1].to!int;
         }
         
         // Parse coverage if present
-        auto coverageMatch = matchFirst(output, regex(r"(\d+\.\d+)%\s+coverage"));
+        auto coverageMatch = matchFirst(output, regex(`(\d+\.\d+)%\s+coverage`));
         if (!coverageMatch.empty)
         {
             result.coveragePercent = coverageMatch[1].to!float;
@@ -216,7 +216,7 @@ class BustedTester : Tester
         // Extract error messages
         if (result.testsFailed > 0)
         {
-            auto errorMatches = matchAll(output, regex(r"Failure\s*→\s*(.+)"));
+            auto errorMatches = matchAll(output, regex(`Failure\s*→\s*(.+)`));
             string[] errors;
             foreach (match; errorMatches)
             {

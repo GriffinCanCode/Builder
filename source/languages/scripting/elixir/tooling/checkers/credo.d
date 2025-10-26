@@ -126,7 +126,7 @@ class CredoChecker
         // [D] → Design
         // [F] → Readability
         
-        auto issueRegex = regex(r"^\s*\[([RWCDF])\]\s*→\s*(.+)$", "m");
+        auto issueRegex = regex(`^\s*\[([RWCDF])\]\s*→\s*(.+)$", "m`);
         
         foreach (match; output.matchAll(issueRegex))
         {
@@ -143,7 +143,7 @@ class CredoChecker
         }
         
         // Also look for summary line
-        auto summaryRegex = regex(r"(\d+)\s+(?:issues?|problems?)", "i");
+        auto summaryRegex = regex(`(\d+)\s+(?:issues?|problems?)", "i`);
         auto summaryMatch = output.matchFirst(summaryRegex);
         if (!summaryMatch.empty)
         {
@@ -162,7 +162,7 @@ class CredoChecker
         import std.regex;
         
         // Look for check module names
-        auto checkRegex = regex(r"Credo\.Check\.[\w.]+", "g");
+        auto checkRegex = regex(`Credo\.Check\.[\w.]+", "g`);
         
         foreach (match; output.matchAll(checkRegex))
         {

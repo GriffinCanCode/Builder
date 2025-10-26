@@ -71,7 +71,7 @@ PHPInfo getPHPInfo(string phpCmd = "php")
     
     // Get version
     auto versionOutput = getPHPVersion(phpCmd);
-    auto versionMatch = matchFirst(versionOutput, regex(r"(\d+)\.(\d+)\.(\d+)"));
+    auto versionMatch = matchFirst(versionOutput, regex(`(\d+)\.(\d+)\.(\d+)`));
     if (versionMatch)
     {
         info.version_ = versionMatch[0];
@@ -129,7 +129,7 @@ string getPHPVersion(string phpCmd = "php")
     if (res.status == 0)
     {
         // Extract version from output (e.g., "PHP 8.3.0 (cli)")
-        auto versionMatch = matchFirst(res.output, regex(r"PHP (\d+\.\d+\.\d+)"));
+        auto versionMatch = matchFirst(res.output, regex(`PHP (\d+\.\d+\.\d+)`));
         if (versionMatch)
             return versionMatch[1];
         return res.output.lineSplitter.front.strip;
