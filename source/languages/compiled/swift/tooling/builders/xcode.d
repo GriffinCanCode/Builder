@@ -63,7 +63,7 @@ version(OSX)
             // Build action
             cmd ~= ["build"];
             
-            Logger.debug_("Running: " ~ cmd.join(" `);
+            Logger.debug_("Running: " ~ cmd.join(" "));
             
             auto res = execute(cmd, config.env);
             

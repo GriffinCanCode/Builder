@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import utils.logging.logger;
+import languages.compiled.swift.core.config : SwiftPlatform;
 
 /// SwiftLint runner
 class SwiftLintRunner
@@ -59,7 +60,7 @@ class SwiftLintRunner
         cmd ~= ["--path"];
         cmd ~= paths;
         
-        Logger.debug_("Running: " ~ cmd.join(" `);
+        Logger.debug_("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -85,7 +86,7 @@ class SwiftLintRunner
         cmd ~= ["--path"];
         cmd ~= paths;
         
-        Logger.debug_("Running: " ~ cmd.join(" `);
+        Logger.debug_("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -106,7 +107,7 @@ class SwiftLintRunner
         cmd ~= ["--path"];
         cmd ~= paths;
         
-        Logger.debug_("Running: " ~ cmd.join(" `);
+        Logger.debug_("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -120,7 +121,7 @@ class DocCRunner
     {
         // DocC is integrated into Swift 5.5+
         auto res = execute(["swift", "package", "plugin", "--list"]);
-        if (res.status == 0 && res.output.canFind("generate-documentation`)
+        if (res.status == 0 && res.output.canFind("generate-documentation"))
             return true;
         
         // Check for standalone docc
@@ -155,7 +156,7 @@ class DocCRunner
         if (!hostingBasePath.empty)
             cmd ~= ["--hosting-base-path", hostingBasePath];
         
-        Logger.debug_("Running: " ~ cmd.join(" `);
+        Logger.debug_("Running: " ~ cmd.join(" "));
         
         return execute(cmd, null, Config.none, size_t.max, packagePath);
     }
@@ -165,7 +166,7 @@ class DocCRunner
     {
         string[] cmd = ["swift", "package", "preview-documentation"];
         
-        Logger.debug_("Running: " ~ cmd.join(" `);
+        Logger.debug_("Running: " ~ cmd.join(" "));
         
         return execute(cmd, null, Config.none, size_t.max, packagePath);
     }
@@ -214,7 +215,7 @@ class XCFrameworkBuilder
             // Output
             cmd ~= ["-output", outputPath];
             
-            Logger.debug_("Running: " ~ cmd.join(" `);
+            Logger.debug_("Running: " ~ cmd.join(" "));
             
             return execute(cmd);
         }

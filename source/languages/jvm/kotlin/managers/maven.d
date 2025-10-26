@@ -8,7 +8,6 @@ import std.array;
 import std.process;
 import std.regex;
 import std.conv;
-import std.xml;
 import utils.logging.logger;
 
 /// Maven Kotlin project metadata

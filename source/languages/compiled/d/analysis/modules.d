@@ -106,7 +106,7 @@ class ModuleAnalyzer
     private static string parseModuleDeclaration(string content)
     {
         // Match: module package.name;
-        auto moduleRegex = regex(r"^\s*module\s+([\w.]+)\s*;", "m");
+        auto moduleRegex = regex(`^\s*module\s+([\w.]+)\s*;", "m`);
         auto match = matchFirst(content, moduleRegex);
         
         if (!match.empty && match.length >= 2)
@@ -151,7 +151,7 @@ class ModuleAnalyzer
         content = removeComments(content);
         
         // Match: import module.name;
-        auto importRegex = regex(r"^\s*import\s+([\w.]+(?:\s*,\s*[\w.]+)*)\s*;", "m");
+        auto importRegex = regex(`^\s*import\s+([\w.]+(?:\s*,\s*[\w.]+)*)\s*;", "m`);
         
         foreach (match; matchAll(content, importRegex))
         {
@@ -172,7 +172,7 @@ class ModuleAnalyzer
         }
         
         // Match: public import module.name;
-        auto publicImportRegex = regex(r"^\s*public\s+import\s+([\w.]+(?:\s*,\s*[\w.]+)*)\s*;", "m");
+        auto publicImportRegex = regex(`^\s*public\s+import\s+([\w.]+(?:\s*,\s*[\w.]+)*)\s*;", "m`);
         
         foreach (match; matchAll(content, publicImportRegex))
         {
@@ -192,7 +192,7 @@ class ModuleAnalyzer
         }
         
         // Match: static import module.name;
-        auto staticImportRegex = regex(r"^\s*static\s+import\s+([\w.]+(?:\s*,\s*[\w.]+)*)\s*;", "m");
+        auto staticImportRegex = regex(`^\s*static\s+import\s+([\w.]+(?:\s*,\s*[\w.]+)*)\s*;", "m`);
         
         foreach (match; matchAll(content, staticImportRegex))
         {
@@ -212,7 +212,7 @@ class ModuleAnalyzer
         }
         
         // Match: import module.name : symbols;
-        auto selectiveImportRegex = regex(r"^\s*import\s+([\w.]+)\s*:\s*[^;]+;", "m");
+        auto selectiveImportRegex = regex(`^\s*import\s+([\w.]+)\s*:\s*[^;]+;", "m`);
         
         foreach (match; matchAll(content, selectiveImportRegex))
         {
@@ -233,13 +233,13 @@ class ModuleAnalyzer
         string result = content;
         
         // Remove block comments /* ... */
-        result = replaceAll(result, regex(r"/\*.*?\*/", "s"), "");
+        result = replaceAll(result, regex(`/\*.*?\*/`, "s"), "");
         
         // Remove nested block comments /+ ... +/
         result = removeNestedComments(result);
         
         // Remove line comments //
-        result = replaceAll(result, regex(r"//.*?$", "m"), "");
+        result = replaceAll(result, regex(`//.*?$`, "m"), "");
         
         return result;
     }

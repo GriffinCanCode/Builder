@@ -471,7 +471,7 @@ class PSR4Validator
         import std.regex;
         
         // Match: namespace Foo\Bar\Baz;
-        auto namespaceRegex = regex(r"namespace\s+([\w\\]+)\s*;", "m");
+        auto namespaceRegex = regex(`namespace\s+([\w\\]+)\s*;", "m`);
         auto match = matchFirst(content, namespaceRegex);
         
         if (match.empty)
@@ -486,7 +486,7 @@ class PSR4Validator
         import std.regex;
         
         // Match: class/interface/trait/enum Name
-        auto classRegex = regex(r"(?:class|interface|trait|enum)\s+(\w+)", "m");
+        auto classRegex = regex(`(?:class|interface|trait|enum)\s+(\w+)", "m`);
         auto match = matchFirst(content, classRegex);
         
         if (match.empty)

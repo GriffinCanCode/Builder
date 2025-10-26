@@ -212,7 +212,7 @@ class SwiftcBuilder : SwiftBuilder
         cmd ~= sources;
         
         // Run compiler
-        Logger.debug_("Running: " ~ cmd.join(" `);
+        Logger.debug_("Running: " ~ cmd.join(" "));
         
         auto res = execute(cmd, config.env);
         
@@ -347,9 +347,9 @@ class SwiftcBuilder : SwiftBuilder
     
     private void parseWarnings(string output, ref SwiftBuildResult result)
     {
-        foreach (line; output.split("\n`)
+        foreach (line; output.split("\n"))
         {
-            if (line.canFind("warning:`)
+            if (line.canFind("warning:"))
             {
                 result.warnings ~= line.strip;
             }

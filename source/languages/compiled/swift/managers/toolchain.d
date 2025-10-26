@@ -61,7 +61,7 @@ class SwiftToolchainManager
             if (!lines.empty)
             {
                 // Parse version from "Swift version X.Y.Z"
-                auto match = lines[0].matchFirst(regex(`Swift version ([\d.]+)`);
+                auto match = lines[0].matchFirst(regex(`Swift version ([\d.]+)`));
                 if (!match.empty)
                     return match[1];
                 return lines[0].strip;
@@ -165,10 +165,10 @@ class SwiftToolchainManager
         if (res.status != 0)
             return "";
         
-        foreach (line; res.output.split("\n`)
+        foreach (line; res.output.split("\n"))
         {
             // Look for "Target: " or "LLVM: "
-            auto match = line.matchFirst(regex(`LLVM\s+version\s+([\d.]+)`);
+            auto match = line.matchFirst(regex(`LLVM\s+version\s+([\d.]+)`));
             if (!match.empty)
                 return match[1];
         }
@@ -237,7 +237,7 @@ class SwiftToolchainManager
                 auto lines = res.output.split("\n");
                 if (!lines.empty)
                 {
-                    auto match = lines[0].matchFirst(regex(`Swift version ([\d.]+)`);
+                    auto match = lines[0].matchFirst(regex(`Swift version ([\d.]+)`));
                     if (!match.empty)
                         return match[1];
                     return lines[0].strip;
@@ -259,7 +259,7 @@ class SwiftToolchainManager
             {
                 foreach (entry; dirEntries(toolchainsDir, SpanMode.shallow))
                 {
-                    if (entry.isDir && entry.name.endsWith(".xctoolchain`)
+                    if (entry.isDir && entry.name.endsWith(".xctoolchain"))
                     {
                         Toolchain tc;
                         tc.name = baseName(entry.name, ".xctoolchain");
@@ -267,7 +267,7 @@ class SwiftToolchainManager
                         tc.isXcode = true;
                         
                         // Check if it's a snapshot
-                        if (tc.name.toLower.canFind("snapshot`)
+                        if (tc.name.toLower.canFind("snapshot"))
                             tc.isSnapshot = true;
                         
                         // Try to get version
@@ -280,7 +280,7 @@ class SwiftToolchainManager
                                 auto lines = res.output.split("\n");
                                 if (!lines.empty)
                                 {
-                                    auto match = lines[0].matchFirst(regex(`Swift version ([\d.]+)`);
+                                    auto match = lines[0].matchFirst(regex(`Swift version ([\d.]+)`));
                                     if (!match.empty)
                                         tc.version_ = match[1];
                                 }
@@ -361,29 +361,29 @@ class SDKManager
             if (res.status != 0)
                 return sdks;
             
-            foreach (line; res.output.split("\n`)
+            foreach (line; res.output.split("\n"))
             {
                 // Parse SDK line: "iOS 17.0 -sdk iphoneos17.0"
-                auto match = line.matchFirst(regex(`(\w+\s+[\d.]+)\s+-sdk\s+(\w+)`);
+                auto match = line.matchFirst(regex(`(\w+\s+[\d.]+)\s+-sdk\s+(\w+)`));
                 if (!match.empty)
                 {
                     SDK sdk;
                     sdk.name = match[2];
                     
                     // Extract platform
-                    if (sdk.name.startsWith("macosx`)
+                    if (sdk.name.startsWith("macosx"))
                         sdk.platform = "macOS";
-                    else if (sdk.name.startsWith("iphoneos`)
+                    else if (sdk.name.startsWith("iphoneos"))
                         sdk.platform = "iOS";
-                    else if (sdk.name.startsWith("iphonesimulator`)
+                    else if (sdk.name.startsWith("iphonesimulator"))
                         sdk.platform = "iOS Simulator";
-                    else if (sdk.name.startsWith("appletvos`)
+                    else if (sdk.name.startsWith("appletvos"))
                         sdk.platform = "tvOS";
-                    else if (sdk.name.startsWith("appletvsimulator`)
+                    else if (sdk.name.startsWith("appletvsimulator"))
                         sdk.platform = "tvOS Simulator";
-                    else if (sdk.name.startsWith("watchos`)
+                    else if (sdk.name.startsWith("watchos"))
                         sdk.platform = "watchOS";
-                    else if (sdk.name.startsWith("watchsimulator`)
+                    else if (sdk.name.startsWith("watchsimulator"))
                         sdk.platform = "watchOS Simulator";
                     
                     // Get path
@@ -421,7 +421,7 @@ class XcodeManager
                 if (!lines.empty)
                 {
                     // Parse "Xcode X.Y.Z"
-                    auto match = lines[0].matchFirst(regex(`Xcode ([\d.]+)`);
+                    auto match = lines[0].matchFirst(regex(`Xcode ([\d.]+)`));
                     if (!match.empty)
                         return match[1];
                     return lines[0].strip;
@@ -449,7 +449,7 @@ class XcodeManager
                 if (lines.length >= 2)
                 {
                     // Parse "Build version XXXXX"
-                    auto match = lines[1].matchFirst(regex(`Build version (\w+)`);
+                    auto match = lines[1].matchFirst(regex(`Build version (\w+)`));
                     if (!match.empty)
                         return match[1];
                 }

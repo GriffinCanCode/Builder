@@ -437,13 +437,13 @@ class SwiftHandler : BaseLanguageHandler
             result.hadLintIssues = true;
             
             // Parse SwiftLint output
-            foreach (line; res.output.split("\n`)
+            foreach (line; res.output.split("\n"))
             {
-                if (line.canFind("warning:`)
+                if (line.canFind("warning:"))
                 {
                     result.lintIssues ~= line;
                 }
-                else if (line.canFind("error:`)
+                else if (line.canFind("error:"))
                 {
                     result.hadLintErrors = true;
                     result.lintIssues ~= line;

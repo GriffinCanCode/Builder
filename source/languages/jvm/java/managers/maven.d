@@ -1,6 +1,5 @@
 module languages.jvm.java.managers.maven;
 
-import std.xml;
 import std.file;
 import std.path;
 import std.string;

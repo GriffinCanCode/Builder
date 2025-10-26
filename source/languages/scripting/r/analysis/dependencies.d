@@ -49,7 +49,7 @@ private RPackageDep[] parseDependencySection(string content, string sectionName,
         string depStr = match[1].strip();
         
         // Remove line breaks and extra spaces
-        depStr = depStr.replaceAll(regex(r"\s+"), " ");
+        depStr = depStr.replaceAll(regex(`\s+`), " ");
         
         // Split by comma
         auto depParts = depStr.split(",");
@@ -74,7 +74,7 @@ private RPackageDep parseDependencySpec(string spec, RRepository defaultRepo)
     dep.repository = defaultRepo;
     
     // Match "package (>= 1.0.0)" or just "package"
-    auto versionRegex = regex(r"^([^\s(]+)\s*(?:\(([^)]+)\))?");
+    auto versionRegex = regex(`^([^\s(]+)\s*(?:\(([^)]+)\))?`);
     auto match = matchFirst(spec, versionRegex);
     
     if (!match.empty)
@@ -193,9 +193,9 @@ RPackageDep[] parsePackratLock(string lockPath)
         // Package: another
         // ...
         
-        auto packageRegex = regex(r"Package:\s*(\S+)", "m");
-        auto sourceRegex = regex(r"Source:\s*(\S+)", "m");
-        auto versionRegex = regex(r"Version:\s*(\S+)", "m");
+        auto packageRegex = regex(`Package:\s*(\S+)`, "m");
+        auto sourceRegex = regex(`Source:\s*(\S+)`, "m");
+        auto versionRegex = regex(`Version:\s*(\S+)`, "m");
         
         // Split by double newline to get package blocks
         auto blocks = content.split("\n\n");
@@ -446,7 +446,7 @@ string getPackageName(string descPath)
         string content = readText(descPath);
         
         // Look for "Package: name"
-        auto nameRegex = regex(r"Package:\s*(\S+)", "m");
+        auto nameRegex = regex(`Package:\s*(\S+)`, "m");
         auto match = matchFirst(content, nameRegex);
         
         if (!match.empty)
@@ -507,7 +507,7 @@ PackageMetadata getPackageMetadata(string descPath)
         auto descMatch = matchFirst(content, regex(`Description:\s*([^\n]*(?:\n\s+[^\n]+)*)`, "m"));
         if (!descMatch.empty)
         {
-            metadata.description = descMatch[1].replaceAll(regex(r"\s+"), " ").strip();
+            metadata.description = descMatch[1].replaceAll(regex(`\s+`), " ").strip();
         }
         
         // Parse license

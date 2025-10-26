@@ -358,9 +358,9 @@ class SPMBuilder : SwiftBuilder
     
     private void parseWarnings(string output, ref SwiftBuildResult result)
     {
-        foreach (line; output.split("\n`)
+        foreach (line; output.split("\n"))
         {
-            if (line.canFind("warning:`)
+            if (line.canFind("warning:"))
             {
                 result.warnings ~= line.strip;
             }
@@ -372,14 +372,14 @@ class SPMBuilder : SwiftBuilder
         result.testsRan = true;
         
         // Parse test output for pass/fail counts
-        foreach (line; output.split("\n`)
+        foreach (line; output.split("\n"))
         {
             // Look for test summary lines
-            if (line.canFind("Test Suite") && line.canFind("passed`)
+            if (line.canFind("Test Suite") && line.canFind("passed"))
             {
                 // Parse counts
                 import std.regex;
-                auto match = line.matchFirst(regex(`(\d+) tests?.*?(\d+) failures?`);
+                auto match = line.matchFirst(regex(`(\d+) tests?.*?(\d+) failures?`));
                 if (!match.empty)
                 {
                     result.testsPassed = match[1].to!int - match[2].to!int;

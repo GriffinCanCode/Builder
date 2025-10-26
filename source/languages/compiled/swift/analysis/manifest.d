@@ -61,21 +61,21 @@ class PackageManifestParser
             result.manifest.manifestPath = manifestPath;
             
             // Extract tools version
-            auto toolsMatch = content.matchFirst(regex(`//\s*swift-tools-version:\s*([\d.]+)`);
+            auto toolsMatch = content.matchFirst(regex(`//\s*swift-tools-version:\s*([\d.]+)`));
             if (!toolsMatch.empty)
                 result.manifest.toolsVersion = toolsMatch[1];
             
             // Extract package name
-            auto nameMatch = content.matchFirst(regex(`name:\s*"([^"]+)"`);
+            auto nameMatch = content.matchFirst(regex(`name:\s*"([^"]+)"`));
             if (!nameMatch.empty)
                 result.manifest.name = nameMatch[1];
             
             // Extract platforms
-            auto platformsMatch = content.matchFirst(regex(`platforms:\s*\[(.*?)\]`, "s);
+            auto platformsMatch = content.matchFirst(regex(`platforms:\s*\[(.*?)\]`, "s"));
             if (!platformsMatch.empty)
             {
                 string platformsStr = platformsMatch[1];
-                auto platformMatches = platformsStr.matchAll(regex(`\.(\w+)\(`);
+                auto platformMatches = platformsStr.matchAll(regex(`\.(\w+)\(`));
                 foreach (match; platformMatches)
                 {
                     result.manifest.platforms ~= match[1];
@@ -83,11 +83,11 @@ class PackageManifestParser
             }
             
             // Extract products
-            auto productsMatch = content.matchFirst(regex(`products:\s*\[(.*?)\]`, "s);
+            auto productsMatch = content.matchFirst(regex(`products:\s*\[(.*?)\]`, "s"));
             if (!productsMatch.empty)
             {
                 string productsStr = productsMatch[1];
-                auto productMatches = productsStr.matchAll(regex(`\.(?:executable|library)\(name:\s*"([^"]+)"`);
+                auto productMatches = productsStr.matchAll(regex(`\.(?:executable|library)\(name:\s*"([^"]+)"`));
                 foreach (match; productMatches)
                 {
                     result.manifest.products ~= match[1];
@@ -95,13 +95,13 @@ class PackageManifestParser
             }
             
             // Extract dependencies
-            auto depsMatch = content.matchFirst(regex(`dependencies:\s*\[(.*?)\]`, "s);
+            auto depsMatch = content.matchFirst(regex(`dependencies:\s*\[(.*?)\]`, "s"));
             if (!depsMatch.empty)
             {
                 string depsStr = depsMatch[1];
                 
                 // Parse .package directives
-                auto urlMatches = depsStr.matchAll(regex(`\.package\(url:\s*"([^"]+)"`);
+                auto urlMatches = depsStr.matchAll(regex(`\.package\(url:\s*"([^"]+)"`));
                 foreach (match; urlMatches)
                 {
                     Dependency dep;
@@ -112,7 +112,7 @@ class PackageManifestParser
                     if (!urlParts.empty)
                     {
                         dep.name = urlParts[$ - 1];
-                        if (dep.name.endsWith(".git`)
+                        if (dep.name.endsWith(".git"))
                             dep.name = dep.name[0 .. $ - 4];
                     }
                     
@@ -121,11 +121,11 @@ class PackageManifestParser
             }
             
             // Extract targets
-            auto targetsMatch = content.matchFirst(regex(`targets:\s*\[(.*?)\]`, "s);
+            auto targetsMatch = content.matchFirst(regex(`targets:\s*\[(.*?)\]`, "s"));
             if (!targetsMatch.empty)
             {
                 string targetsStr = targetsMatch[1];
-                auto targetMatches = targetsStr.matchAll(regex(`\.(?:target|executableTarget|testTarget)\(name:\s*"([^"]+)"`);
+                auto targetMatches = targetsStr.matchAll(regex(`\.(?:target|executableTarget|testTarget)\(name:\s*"([^"]+)"`));
                 foreach (match; targetMatches)
                 {
                     result.manifest.targets ~= match[1];
@@ -133,11 +133,11 @@ class PackageManifestParser
             }
             
             // Extract Swift language versions
-            auto langVersionMatch = content.matchFirst(regex(`swiftLanguageVersions:\s*\[(.*?)\]`);
+            auto langVersionMatch = content.matchFirst(regex(`swiftLanguageVersions:\s*\[(.*?)\]`));
             if (!langVersionMatch.empty)
             {
                 string versionsStr = langVersionMatch[1];
-                auto versionMatches = versionsStr.matchAll(regex(`\.v([\d_]+)`);
+                auto versionMatches = versionsStr.matchAll(regex(`\.v([\d_]+)`));
                 foreach (match; versionMatches)
                 {
                     result.manifest.swiftLanguageVersions ~= match[1].replace("_", ".");
@@ -145,12 +145,12 @@ class PackageManifestParser
             }
             
             // Extract C language standard
-            auto cStdMatch = content.matchFirst(regex(`cLanguageStandard:\s*\.(\w+)`);
+            auto cStdMatch = content.matchFirst(regex(`cLanguageStandard:\s*\.(\w+)`));
             if (!cStdMatch.empty)
                 result.manifest.cLanguageStandard = cStdMatch[1];
             
             // Extract C++ language standard
-            auto cxxStdMatch = content.matchFirst(regex(`cxxLanguageStandard:\s*\.(\w+)`);
+            auto cxxStdMatch = content.matchFirst(regex(`cxxLanguageStandard:\s*\.(\w+)`));
             if (!cxxStdMatch.empty)
                 result.manifest.cxxLanguageStandard = cxxStdMatch[1];
             

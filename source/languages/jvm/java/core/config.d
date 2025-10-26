@@ -83,7 +83,7 @@ enum JavaAnalyzer
 }
 
 /// Code formatter selection
-enum JavaFormatter
+enum JavaFormatterType
 {
     /// Auto-detect best available
     Auto,
@@ -411,7 +411,7 @@ struct FormatterConfig
     bool enabled = false;
     
     /// Formatter to use
-    JavaFormatter formatter = JavaFormatter.Auto;
+    JavaFormatterType formatter = JavaFormatterType.Auto;
     
     /// Auto-format before build
     bool autoFormat = false;
@@ -819,17 +819,17 @@ private JavaAnalyzer toJavaAnalyzer(string s)
     }
 }
 
-private JavaFormatter toJavaFormatter(string s)
+private JavaFormatterType toJavaFormatter(string s)
 {
     switch (s.toLower)
     {
-        case "auto": return JavaFormatter.Auto;
-        case "google": case "google-java-format": return JavaFormatter.GoogleJavaFormat;
-        case "eclipse": return JavaFormatter.Eclipse;
-        case "intellij": return JavaFormatter.IntelliJ;
-        case "prettier": return JavaFormatter.Prettier;
-        case "none": return JavaFormatter.None;
-        default: return JavaFormatter.Auto;
+        case "auto": return JavaFormatterType.Auto;
+        case "google": case "google-java-format": return JavaFormatterType.GoogleJavaFormat;
+        case "eclipse": return JavaFormatterType.Eclipse;
+        case "intellij": return JavaFormatterType.IntelliJ;
+        case "prettier": return JavaFormatterType.Prettier;
+        case "none": return JavaFormatterType.None;
+        default: return JavaFormatterType.Auto;
     }
 }
 
