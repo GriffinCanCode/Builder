@@ -1,0 +1,48 @@
+// C# example project Builderfile
+
+target("csharp-app") {
+    type: executable;
+    language: csharp;
+    sources: ["Program.cs"];
+    outputPath: "bin/csharp-app";
+    
+    config: {
+        "csharp": "{
+            \"framework\": \"net8.0\",
+            \"configuration\": \"Release\",
+            \"languageVersion\": \"12\",
+            \"optimize\": true,
+            \"analysis\": {
+                \"nullable\": true,
+                \"warningLevel\": 4
+            }
+        }"
+    };
+}
+
+target("csharp-app-aot") {
+    type: executable;
+    language: csharp;
+    sources: ["Program.cs"];
+    outputPath: "bin/csharp-app-aot";
+    
+    config: {
+        "csharp": "{
+            \"mode\": \"nativeaot\",
+            \"framework\": \"net8.0\",
+            \"runtime\": \"linux-x64\",
+            \"configuration\": \"Release\",
+            \"aot\": {
+                \"enabled\": true,
+                \"optimizeForSize\": true,
+                \"invariantGlobalization\": true
+            }
+        }"
+    };
+}
+
+target("clean") {
+    type: custom;
+    command: "rm -rf bin/ obj/";
+}
+

@@ -12,7 +12,7 @@ module languages;
 ///   rust/        - Rust language support (modular)
 ///   java/        - Java language support (modular - Maven, Gradle, builders, formatters, analysis)
 ///   cpp.d        - C++ language support
-///   csharp.d     - C# language support
+///   csharp/      - C# language support (modular - dotnet, MSBuild, Native AOT, formatters, analyzers)
 ///   ruby.d       - Ruby language support
 ///   php/         - PHP language support (modular)
 ///   r/           - R language support (modular - scripts, packages, Shiny, RMarkdown)
@@ -40,7 +40,7 @@ public import languages.compiled.rust;
 public import languages.compiled.d;
 public import languages.jvm.java;
 public import languages.compiled.cpp;
-public import languages.dotnet.csharp;
+public import languages.dotnet.csharp;  // Now modular!
 public import languages.scripting.ruby;
 public import languages.scripting.php;
 public import languages.scripting.r;
