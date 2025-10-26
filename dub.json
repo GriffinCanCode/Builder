@@ -10,8 +10,32 @@
     "sourcePaths": ["source"],
     "importPaths": ["source"],
     "dependencies": {},
-    "sourceFiles": ["source/utils/crypto/c/blake3.c"],
+    "sourceFiles": [
+        "source/utils/crypto/c/blake3.c",
+        "source/utils/simd/c/cpu_detect.c",
+        "source/utils/simd/c/blake3_dispatch.c",
+        "source/utils/simd/c/simd_ops.c"
+    ],
+    "sourceFiles-x86_64": [
+        "source/utils/simd/c/blake3_avx2.c",
+        "source/utils/simd/c/blake3_avx512.c",
+        "source/utils/simd/c/blake3_sse2.c",
+        "source/utils/simd/c/blake3_sse41.c"
+    ],
+    "sourceFiles-x86": [
+        "source/utils/simd/c/blake3_avx2.c",
+        "source/utils/simd/c/blake3_avx512.c",
+        "source/utils/simd/c/blake3_sse2.c",
+        "source/utils/simd/c/blake3_sse41.c"
+    ],
+    "sourceFiles-arm": [
+        "source/utils/simd/c/blake3_neon.c"
+    ],
+    "sourceFiles-aarch64": [
+        "source/utils/simd/c/blake3_neon.c"
+    ],
     "dflags": ["-L-lstdc++"],
+    "lflags": ["-lm"],
     "configurations": [
         {
             "name": "executable",

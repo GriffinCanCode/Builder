@@ -1,6 +1,5 @@
 module utils.files.chunking;
 
-import std.digest.sha;
 import std.file;
 import std.stdio;
 import std.algorithm;
@@ -8,6 +7,8 @@ import std.range;
 import std.conv;
 import std.array : appender;
 import std.bitmanip : nativeToBigEndian, bigEndianToNative;
+import utils.crypto.blake3;
+import utils.simd.ops;
 
 /// Content-defined chunking for incremental hashing
 /// Uses Rabin fingerprinting to identify chunk boundaries
@@ -31,7 +32,7 @@ struct ContentChunker
     {
         size_t offset;      // Byte offset in file
         size_t length;      // Chunk length
-        string hash;        // SHA-256 hash of chunk content
+        string hash;        // BLAKE3 hash of chunk content (SIMD-accelerated)
     }
     
     /// Result of chunking operation
@@ -60,7 +61,11 @@ struct ContentChunker
         ulong fingerprint = 0;
         size_t chunkStart = 0;
         
-        SHA256 combinedHasher;  // Hash all chunk hashes
+        auto combinedHasher = Blake3(0);  // SIMD-accelerated BLAKE3
+        
+        // Use SIMD rolling hash for window
+        ubyte[WINDOW_SIZE] window;
+        size_t windowPos = 0;
         
         while (!file.eof())
         {
@@ -70,8 +75,17 @@ struct ContentChunker
             
             foreach (i, b; bytesRead)
             {
-                // Update rolling hash (Rabin fingerprint)
+                // Update window for SIMD rolling hash
+                window[windowPos] = b;
+                windowPos = (windowPos + 1) % WINDOW_SIZE;
+                
+                // Use SIMD-accelerated rolling hash when window is full
+                if (offset + i >= WINDOW_SIZE) {
+                    fingerprint = SIMDOps.rollingHash(window, WINDOW_SIZE);
+                } else {
+                    // Fallback for initial bytes
                 fingerprint = ((fingerprint << 1) | (fingerprint >> 63)) ^ b;
+                }
                 
                 size_t currentPos = offset + i;
                 size_t chunkLen = currentPos - chunkStart + 1;
@@ -121,16 +135,16 @@ struct ContentChunker
             combinedHasher.put(cast(ubyte[])chunk.hash);
         }
         
-        result.combinedHash = toHexString(combinedHasher.finish()).idup;
+        result.combinedHash = combinedHasher.finishHex();
         return result;
     }
     
-    /// Hash a specific chunk of a file
+    /// Hash a specific chunk of a file using SIMD-accelerated BLAKE3
     private static string hashChunk(ref File file, size_t offset, size_t length)
     {
         file.seek(offset);
         
-        SHA256 hasher;
+        auto hasher = Blake3(0);  // SIMD-accelerated BLAKE3
         ubyte[4096] buffer;
         size_t remaining = length;
         
@@ -142,10 +156,10 @@ struct ContentChunker
             remaining -= chunk.length;
         }
         
-        return toHexString(hasher.finish()).idup;
+        return hasher.finishHex();
     }
     
-    /// Compare two chunk results and identify changed chunks
+    /// Compare two chunk results and identify changed chunks (SIMD-accelerated)
     static size_t[] findChangedChunks(ChunkResult oldChunks, ChunkResult newChunks)
     {
         size_t[] changedIndices;

@@ -49,12 +49,12 @@ class MixProjectParser
                     info.app = appMatch[1];
                 
                 // Extract version
-                auto versionMatch = projectDef.matchFirst(regex(r#"version:\s*"([^"]+)"#));
+                auto versionMatch = projectDef.matchFirst(regex(`version:\s*"([^"]+)"`));
                 if (!versionMatch.empty)
                     info.version_ = versionMatch[1];
                 
                 // Extract Elixir version
-                auto elixirMatch = projectDef.matchFirst(regex(r#"elixir:\s*"([^"]+)"#));
+                auto elixirMatch = projectDef.matchFirst(regex(`elixir:\s*"([^"]+)"`));
                 if (!elixirMatch.empty)
                     info.elixirVersion = elixirMatch[1];
             }

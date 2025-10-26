@@ -3,10 +3,11 @@ module utils.files.metadata;
 import std.file;
 import std.datetime;
 import std.conv;
-import std.digest.sha;
 import std.algorithm;
 import std.array : appender;
 import std.bitmanip : nativeToBigEndian, bigEndianToNative;
+import utils.crypto.blake3;
+import utils.simd.ops;
 
 version(Posix)
 {
@@ -79,10 +80,10 @@ struct FileMetadata
         return meta;
     }
     
-    /// Compute hash of metadata (fast)
+    /// Compute hash of metadata (SIMD-accelerated BLAKE3)
     string computeHash() const
     {
-        SHA256 hasher;
+        auto hasher = Blake3(0);  // SIMD-accelerated
         
         hasher.put(cast(ubyte[])path);
         hasher.put(nativeToBigEndian(size)[]);
@@ -91,8 +92,7 @@ struct FileMetadata
         hasher.put(nativeToBigEndian(device)[]);
         hasher.put(cast(ubyte)isSymlink);
         
-        import std.digest : toHexString;
-        return toHexString(hasher.finish()).idup;
+        return hasher.finishHex();
     }
     
     /// Quick equality check (size only - fastest)
@@ -229,23 +229,27 @@ struct MetadataChecker
         return CheckLevel.Unknown;
     }
     
-    /// Batch check multiple files in parallel
+    /// Batch check multiple files in parallel with SIMD-aware execution
     static CheckLevel[] checkBatch(FileMetadata[] oldFiles, string[] paths)
     {
-        import std.parallelism : parallel;
+        import utils.concurrency.simd;
+        import std.range : iota, array;
         
-        CheckLevel[] results;
-        results.length = paths.length;
+        if (paths.empty)
+            return [];
         
-        foreach (i, path; parallel(paths))
-        {
-            auto newMeta = FileMetadata.from(path);
-            
-            if (i < oldFiles.length)
-                results[i] = check(oldFiles[i], newMeta);
-            else
-                results[i] = CheckLevel.Different;
-        }
+        // Use SIMD-aware parallel processing
+        auto results = SIMDParallel.mapSIMD(
+            iota(paths.length).array,
+            (i) {
+                auto newMeta = FileMetadata.from(paths[i]);
+                
+                if (i < oldFiles.length)
+                    return check(oldFiles[i], newMeta);
+                else
+                    return CheckLevel.Different;
+            }
+        );
         
         return results;
     }

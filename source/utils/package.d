@@ -20,15 +20,21 @@ module utils;
 ///   import utils;
 ///   
 ///   auto files = glob("src/**/*.d");
-///   auto hash = hashFile("source.d");  // Uses BLAKE3 automatically
+///   auto hash = hashFile("source.d");  // Uses BLAKE3 with SIMD automatically
 ///   
 ///   auto pool = new ThreadPool(4);
 ///   pool.submit({ /* work */ });
+///   
+///   // SIMD operations
+///   CPU.printInfo();              // Show CPU capabilities
+///   SIMDOps.copy(dest, src);      // Fast SIMD memcpy
+///   SIMDBench.compareAll();       // Benchmark SIMD implementations
 
 public import utils.files.glob;
 public import utils.files.hash;
 public import utils.concurrency.parallel;
 public import utils.concurrency.pool;
+public import utils.concurrency.simd;
 public import utils.files.chunking;
 public import utils.logging.logger;
 public import utils.files.metadata;
@@ -36,4 +42,5 @@ public import utils.benchmarking.bench;
 public import utils.crypto.blake3;
 public import utils.python.pycheck;
 public import utils.python.pywrap;
+public import utils.simd;
 

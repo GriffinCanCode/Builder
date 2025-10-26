@@ -533,7 +533,7 @@ struct Dependency
     string git;
     
     /// Git ref/branch/tag
-    string ref;
+    string gitRef;
     
     /// Path (if source=path)
     string path;
@@ -951,7 +951,7 @@ struct ElixirConfig
                 if (auto version_ = "version" in dep) d.version_ = version_.str;
                 if (auto source = "source" in dep) d.source = source.str;
                 if (auto git = "git" in dep) d.git = git.str;
-                if (auto ref_ = "ref" in dep) d.ref = ref_.str;
+                if (auto ref_ = "ref" in dep) d.gitRef = ref_.str;
                 if (auto path = "path" in dep) d.path = path.str;
                 if (auto optional = "optional" in dep) d.optional = optional.type == JSONType.true_;
                 if (auto onlyEnv = "onlyEnv" in dep) d.onlyEnv = onlyEnv.array.map!(e => e.str).array;

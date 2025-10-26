@@ -8,12 +8,26 @@ import core.execution.executor;
 import config.parsing.parser;
 import analysis.inference.analyzer;
 import utils.logging.logger;
+import utils.simd;
 import errors;
 import cli;
 import tools;
 
+/// Initialize SIMD acceleration system
+void initializeSIMD()
+{
+    SIMDDispatch.initialize();
+    
+    version(Verbose) {
+        Logger.debug_("SIMD initialized: " ~ CPU.simdLevelName());
+    }
+}
+
 void main(string[] args)
 {
+    // Initialize SIMD dispatch system
+    initializeSIMD();
+    
     Logger.initialize();
     
     string command = "build";
