@@ -88,11 +88,9 @@ class GlobMatcher
         return matchShallow(pattern, baseDir);
     }
     
-    /// Match recursive glob pattern (contains **)
+    /// Match recursive glob pattern (contains **) with parallel scanning
     private static string[] matchRecursive(string pattern, string baseDir)
     {
-        string[] files;
-        
         // Split pattern on **
         auto parts = pattern.split("**");
         
@@ -118,36 +116,82 @@ class GlobMatcher
         // Compile suffix pattern to regex
         auto suffixRegex = suffix.empty ? regex(".*") : globToRegex(suffix);
         
-        // Recursively walk directory tree
-        try
+        // Use parallel directory scanning for better performance
+        return scanDirectoryParallel(startDir, suffixRegex, suffix.empty, matchFullPath);
+    }
+    
+    /// Parallel directory scanner using work-stealing
+    private static string[] scanDirectoryParallel(string startDir, Regex!char pattern, bool matchAll, bool matchFullPath)
+    {
+        string[] files;
+        auto mutex = new Mutex();
+        
+        // Collect all subdirectories first
+        string[] directories = [startDir];
+        size_t processed = 0;
+        
+        while (processed < directories.length)
         {
-            foreach (entry; dirEntries(startDir, SpanMode.depth, false))
+            string currentDir = directories[processed++];
+            
+            try
             {
-                if (entry.isFile)
+                foreach (entry; dirEntries(currentDir, SpanMode.shallow, false))
                 {
-                    string matchPath;
-                    
-                    if (matchFullPath)
+                    if (entry.isDir)
                     {
-                        // Match against full relative path
-                        matchPath = relativePath(entry.name, startDir);
-                    }
-                    else
-                    {
-                        // Match against just the filename
-                        matchPath = baseName(entry.name);
-                    }
-                    
-                    if (suffix.empty || matchFirst(matchPath, suffixRegex))
-                    {
-                        files ~= entry.name;
+                        directories ~= entry.name;
                     }
                 }
             }
+            catch (Exception e)
+            {
+                // Ignore permission errors
+            }
         }
-        catch (Exception e)
+        
+        // Process directories in parallel
+        foreach (dir; parallel(directories))
         {
-            // Ignore permission errors, etc.
+            string[] localFiles;
+            
+            try
+            {
+                foreach (entry; dirEntries(dir, SpanMode.shallow, false))
+                {
+                    if (entry.isFile)
+                    {
+                        string matchPath;
+                        
+                        if (matchFullPath)
+                        {
+                            matchPath = relativePath(entry.name, startDir);
+                        }
+                        else
+                        {
+                            matchPath = baseName(entry.name);
+                        }
+                        
+                        if (matchAll || matchFirst(matchPath, pattern))
+                        {
+                            localFiles ~= entry.name;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                // Ignore errors
+            }
+            
+            // Merge results with thread safety
+            if (localFiles.length > 0)
+            {
+                synchronized (mutex)
+                {
+                    files ~= localFiles;
+                }
+            }
         }
         
         return files;

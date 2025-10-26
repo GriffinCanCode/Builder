@@ -14,6 +14,7 @@ import analysis.scanner;
 import analysis.resolver;
 import utils.logger;
 import utils.hash;
+import errors;
 
 /// Modern dependency analyzer using compile-time metaprogramming
 class DependencyAnalyzer
@@ -74,7 +75,9 @@ class DependencyAnalyzer
                     }
                     catch (Exception e)
                     {
-                        Logger.error("Dependency error: " ~ e.msg);
+                        auto error = new AnalysisError(target.name, e.msg, ErrorCode.MissingDependency);
+                        error.addContext(ErrorContext("adding dependency to graph", dep.targetName));
+                        Logger.error(format(error));
                         throw e;
                     }
                 }
@@ -120,7 +123,9 @@ class DependencyAnalyzer
             }
             catch (Exception e)
             {
-                Logger.error("Failed to analyze " ~ source ~ ": " ~ e.msg);
+                auto error = new AnalysisError(target.name, e.msg, ErrorCode.AnalysisFailed);
+                error.addContext(ErrorContext("analyzing file", source));
+                Logger.error(format(error));
                 result.files ~= FileAnalysis(
                     source, [], "", true, [e.msg]
                 );

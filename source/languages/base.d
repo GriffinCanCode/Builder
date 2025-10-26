@@ -1,13 +1,15 @@
 module languages.base;
 
+import std.conv : to;
 import config.schema;
 import analysis.types;
+import errors;
 
 /// Base interface for language-specific build handlers
 interface LanguageHandler
 {
-    /// Build a target
-    LanguageBuildResult build(Target target, WorkspaceConfig config);
+    /// Build a target - returns Result type for type-safe error handling
+    Result!(string, BuildError) build(Target target, WorkspaceConfig config);
     
     /// Check if target needs rebuild
     bool needsRebuild(Target target, WorkspaceConfig config);
@@ -25,21 +27,43 @@ interface LanguageHandler
 /// Base implementation with common functionality
 abstract class BaseLanguageHandler : LanguageHandler
 {
-    LanguageBuildResult build(Target target, WorkspaceConfig config)
+    Result!(string, BuildError) build(Target target, WorkspaceConfig config)
     {
-        LanguageBuildResult result;
-        
         try
         {
-            result = buildImpl(target, config);
+            auto result = buildImpl(target, config);
+            
+            if (result.success)
+            {
+                return Ok!(string, BuildError)(result.outputHash);
+            }
+            else
+            {
+                auto error = new BuildFailureError(
+                    target.name,
+                    result.error,
+                    ErrorCode.BuildFailed
+                );
+                error.addContext(ErrorContext(
+                    "building target",
+                    "language: " ~ target.language.to!string
+                ));
+                return Err!(string, BuildError)(error);
+            }
         }
         catch (Exception e)
         {
-            result.success = false;
-            result.error = e.msg;
+            auto error = new BuildFailureError(
+                target.name,
+                e.msg,
+                ErrorCode.BuildFailed
+            );
+            error.addContext(ErrorContext(
+                "caught exception during build",
+                e.classinfo.name
+            ));
+            return Err!(string, BuildError)(error);
         }
-        
-        return result;
     }
     
     bool needsRebuild(Target target, WorkspaceConfig config)

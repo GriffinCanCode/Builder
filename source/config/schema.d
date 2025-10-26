@@ -88,3 +88,6 @@ struct LanguageBuildResult
     string[] outputs;
 }
 
+/// Import Result type for new error handling
+import errors : Result, BuildError;
+

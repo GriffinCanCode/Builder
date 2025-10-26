@@ -11,6 +11,7 @@ import std.datetime;
 import utils.hash;
 import core.storage;
 import core.eviction;
+import errors;
 
 /// High-performance build cache with lazy writes and LRU eviction
 /// Optimizations:
@@ -235,6 +236,11 @@ class BuildCache
                 {
                     // Migration failed, start fresh
                     writeln("Warning: Could not migrate old cache format");
+                    
+                    // Log with new error system
+                    auto error = new CacheError(e.msg, ErrorCode.CacheLoadFailed);
+                    error.addContext(ErrorContext("migrating JSON cache", jsonCacheFile));
+                    error.cachePath = jsonCacheFile;
                 }
             }
             return;
@@ -250,6 +256,11 @@ class BuildCache
             // Cache corrupted, start fresh
             writeln("Warning: Cache corrupted, starting fresh: ", e.msg);
             entries.clear();
+            
+            // Log with new error system
+            auto error = new CacheError(e.msg, ErrorCode.CacheCorrupted);
+            error.addContext(ErrorContext("loading binary cache", cacheFile));
+            error.cachePath = cacheFile;
         }
     }
     

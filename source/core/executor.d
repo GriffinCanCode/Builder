@@ -19,6 +19,7 @@ import languages.go;
 import languages.rust : RustHandler, DHandler;
 import utils.logger;
 import utils.pool;
+import errors;
 
 /// Executes builds based on the dependency graph
 class BuildExecutor
@@ -204,28 +205,39 @@ class BuildExecutor
             auto handler = handlers.get(target.language, null);
             if (handler is null)
             {
-                result.error = "No handler for language: " ~ target.language.to!string;
+                auto error = new BuildFailureError(
+                    node.id,
+                    "No handler for language: " ~ target.language.to!string,
+                    ErrorCode.HandlerNotFound
+                );
+                result.error = error.message();
+                Logger.error(format(error));
                 return result;
             }
             
-            // Build the target
+            // Build the target using new Result-based API
             auto buildResult = handler.build(target, config);
             
-            if (buildResult.success)
+            if (buildResult.isOk)
             {
-                // Update cache
-                cache.update(node.id, target.sources, deps, buildResult.outputHash);
+                auto outputHash = buildResult.unwrap();
+                cache.update(node.id, target.sources, deps, outputHash);
                 Logger.success("  ✓ " ~ node.id);
                 result.success = true;
             }
             else
             {
-                result.error = buildResult.error;
+                auto error = buildResult.unwrapErr();
+                result.error = error.message();
+                Logger.error(format(error));
             }
         }
         catch (Exception e)
         {
-            result.error = e.msg;
+            auto error = new BuildFailureError(node.id, e.msg);
+            error.addContext(ErrorContext("building node", "exception caught"));
+            result.error = error.message();
+            Logger.error(format(error));
         }
         
         return result;

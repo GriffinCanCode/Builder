@@ -11,6 +11,7 @@ import std.json;
 import config.schema;
 import utils.logger;
 import utils.glob;
+import errors;
 
 /// Parse BUILD files and workspace configuration
 class ConfigParser
@@ -28,8 +29,16 @@ class ConfigParser
         // Parse each BUILD file
         foreach (buildFile; buildFiles)
         {
-            auto targets = parseBuildFile(buildFile, root);
-            config.targets ~= targets;
+            auto result = parseBuildFile(buildFile, root);
+            if (result.isOk)
+            {
+                config.targets ~= result.unwrap();
+            }
+            else
+            {
+                // Log error but continue parsing other files
+                Logger.warning("Skipping " ~ buildFile ~ " due to parse error");
+            }
         }
         
         // Load workspace config if exists
@@ -59,13 +68,13 @@ class ConfigParser
         return buildFiles;
     }
     
-    /// Parse a single BUILD file
-    private static Target[] parseBuildFile(string path, string root)
+    /// Parse a single BUILD file - returns Result type for type-safe error handling
+    private static Result!(Target[], BuildError) parseBuildFile(string path, string root)
     {
-        Target[] targets;
-        
         try
         {
+            Target[] targets;
+            
             // For now, support JSON-based BUILD files
             if (path.endsWith(".json"))
             {
@@ -85,13 +94,30 @@ class ConfigParser
                     Logger.warning("D-based BUILD files not yet supported: " ~ path);
                 }
             }
+            
+            return Ok!(Target[], BuildError)(targets);
+        }
+        catch (JSONException e)
+        {
+            auto error = new ParseError(path, e.msg, ErrorCode.InvalidJson);
+            error.addContext(ErrorContext("parsing JSON", "invalid JSON syntax"));
+            Logger.error(format(error));
+            return Err!(Target[], BuildError)(error);
+        }
+        catch (FileException e)
+        {
+            auto error = new IOError(path, e.msg, ErrorCode.FileReadFailed);
+            error.addContext(ErrorContext("reading BUILD file"));
+            Logger.error(format(error));
+            return Err!(Target[], BuildError)(error);
         }
         catch (Exception e)
         {
-            Logger.error("Failed to parse " ~ path ~ ": " ~ e.msg);
+            auto error = new ParseError(path, e.msg, ErrorCode.ParseFailed);
+            error.addContext(ErrorContext("parsing BUILD file", baseName(path)));
+            Logger.error(format(error));
+            return Err!(Target[], BuildError)(error);
         }
-        
-        return targets;
     }
     
     /// Parse JSON-based BUILD file
