@@ -5,8 +5,7 @@ module core;
 /// 
 /// Architecture:
 ///   graph.d     - Dependency graph and topological sorting
-///   executor.d  - Task execution and parallelization
-///   scheduler.d - Build scheduling and coordination
+///   executor.d  - Task execution, parallelization, and scheduling
 ///   cache.d     - Build cache management
 ///   storage.d   - Persistent storage for artifacts
 ///   eviction.d  - Cache eviction policies
@@ -25,9 +24,9 @@ module core;
 ///       cache.restore(target);
 ///   }
 
-public import core.graph;
-public import core.executor;
-public import core.cache;
-public import core.storage;
-public import core.eviction;
+public import core.graph.graph;
+public import core.execution.executor;
+public import core.caching.cache;
+public import core.caching.storage;
+public import core.caching.eviction;
 
