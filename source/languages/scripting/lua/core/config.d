@@ -490,7 +490,7 @@ struct CModuleConfig
     string compiler = "gcc";
     
     /// Build as shared library
-    bool shared = true;
+    bool isShared = true;
 }
 
 /// Lua-specific build configuration
@@ -527,7 +527,7 @@ struct LuaConfig
     FormatConfig format;
     
     /// Module configuration
-    ModuleConfig module;
+    ModuleConfig moduleConfig;
     
     /// C module configuration (for rocks with C code)
     CModuleConfig cmodule;
@@ -839,18 +839,18 @@ struct LuaConfig
         if ("module" in json)
         {
             auto m = json["module"];
-            if ("name" in m) config.module.name = m["name"].str;
-            if ("version" in m) config.module.version_ = m["version"].str;
-            if ("entryPoint" in m) config.module.entryPoint = m["entryPoint"].str;
+            if ("name" in m) config.moduleConfig.name = m["name"].str;
+            if ("version" in m) config.moduleConfig.version_ = m["version"].str;
+            if ("entryPoint" in m) config.moduleConfig.entryPoint = m["entryPoint"].str;
             
             if ("packagePath" in m)
-                config.module.packagePath = m["packagePath"].array.map!(e => e.str).array;
+                config.moduleConfig.packagePath = m["packagePath"].array.map!(e => e.str).array;
             if ("cPackagePath" in m)
-                config.module.cPackagePath = m["cPackagePath"].array.map!(e => e.str).array;
+                config.moduleConfig.cPackagePath = m["cPackagePath"].array.map!(e => e.str).array;
             if ("requires" in m)
-                config.module.requires = m["requires"].array.map!(e => e.str).array;
+                config.moduleConfig.requires = m["requires"].array.map!(e => e.str).array;
             if ("externalLibs" in m)
-                config.module.externalLibs = m["externalLibs"].array.map!(e => e.str).array;
+                config.moduleConfig.externalLibs = m["externalLibs"].array.map!(e => e.str).array;
         }
         
         // C module configuration
@@ -859,7 +859,7 @@ struct LuaConfig
             auto cm = json["cmodule"];
             if ("enabled" in cm) config.cmodule.enabled = cm["enabled"].type == JSONType.true_;
             if ("compiler" in cm) config.cmodule.compiler = cm["compiler"].str;
-            if ("shared" in cm) config.cmodule.shared = cm["shared"].type == JSONType.true_;
+            if ("shared" in cm) config.cmodule.isShared = cm["shared"].type == JSONType.true_;
             
             if ("sources" in cm)
                 config.cmodule.sources = cm["sources"].array.map!(e => e.str).array;

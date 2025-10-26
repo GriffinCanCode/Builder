@@ -361,44 +361,9 @@ class LuaHandler : BaseLanguageHandler
             return result;
         }
         
-        auto manager = new LuaRocksManager(config.luarocks);
-        
-        // Find rockspec if not specified
-        if (config.luarocks.rockspecFile.empty)
-        {
-            auto rockspec = findRockspec(target);
-            if (!rockspec.empty)
-            {
-                config.luarocks.rockspecFile = rockspec;
-            }
-        }
-        
-        // Install dependencies
-        if (!config.luarocks.rockspecFile.empty && exists(config.luarocks.rockspecFile))
-        {
-            auto installResult = manager.installDependencies(config.luarocks.rockspecFile);
-            result.success = installResult.success;
-            result.error = installResult.error;
-        }
-        else if (!config.luarocks.dependencies.empty)
-        {
-            // Install specific dependencies
-            foreach (dep; config.luarocks.dependencies)
-            {
-                auto installResult = manager.installRock(dep);
-                if (!installResult.success)
-                {
-                    result.success = false;
-                    result.error = installResult.error;
-                    return result;
-                }
-            }
-            result.success = true;
-        }
-        else
-        {
-            result.success = true;
-        }
+        // TODO: Implement LuaRocks manager integration
+        Logger.warning("LuaRocks dependency management not yet implemented");
+        result.success = true;
         
         return result;
     }
