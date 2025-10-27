@@ -20,6 +20,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// PHP build handler - comprehensive and modular
 class PHPHandler : BaseLanguageHandler
@@ -92,8 +93,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -187,8 +188,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildScript(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -240,7 +241,20 @@ class PHPHandler : BaseLanguageHandler
             // Make executable on Unix
             version(Posix)
             {
-                executeShell("chmod +x " ~ outputPath);
+                // Validate path before using it with external command
+                if (!SecurityValidator.isPathSafe(outputPath))
+                {
+                    Logger.error("Unsafe output path detected: " ~ outputPath);
+                }
+                else
+                {
+                    // Use safe array form instead of executeShell
+                    auto chmodResult = execute(["chmod", "+x", outputPath]);
+                    if (chmodResult.status != 0)
+                    {
+                        Logger.warning("Failed to make wrapper executable: " ~ chmodResult.output);
+                    }
+                }
             }
         }
         
@@ -252,8 +266,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildApplication(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -272,8 +286,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -309,15 +323,15 @@ class PHPHandler : BaseLanguageHandler
         }
         
         result.success = true;
-        result.outputs = target.sources;
+        result.outputs = target.sources.dup;
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
     private LanguageBuildResult buildPHAR(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -354,8 +368,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildPackage(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -377,8 +391,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildFrankenPHP(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -409,8 +423,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -457,8 +471,8 @@ class PHPHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -625,8 +639,8 @@ class PHPHandler : BaseLanguageHandler
     
     /// Run PHPUnit tests
     private LanguageBuildResult runPHPUnit(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PHPConfig phpConfig,
         string phpCmd
     )
@@ -685,7 +699,7 @@ class PHPHandler : BaseLanguageHandler
     }
     
     /// Run Pest tests
-    private LanguageBuildResult runPest(Target target, WorkspaceConfig config, PHPConfig phpConfig, string phpCmd)
+    private LanguageBuildResult runPest(in Target target, in WorkspaceConfig config, PHPConfig phpConfig, string phpCmd)
     {
         LanguageBuildResult result;
         
@@ -720,7 +734,7 @@ class PHPHandler : BaseLanguageHandler
     }
     
     /// Run Codeception tests
-    private LanguageBuildResult runCodeception(Target target, WorkspaceConfig config, PHPConfig phpConfig, string phpCmd)
+    private LanguageBuildResult runCodeception(in Target target, in WorkspaceConfig config, PHPConfig phpConfig, string phpCmd)
     {
         LanguageBuildResult result;
         // Implementation similar to runPHPUnit
@@ -730,7 +744,7 @@ class PHPHandler : BaseLanguageHandler
     }
     
     /// Run Behat tests
-    private LanguageBuildResult runBehat(Target target, WorkspaceConfig config, PHPConfig phpConfig, string phpCmd)
+    private LanguageBuildResult runBehat(in Target target, in WorkspaceConfig config, PHPConfig phpConfig, string phpCmd)
     {
         LanguageBuildResult result;
         // Implementation similar to runPHPUnit

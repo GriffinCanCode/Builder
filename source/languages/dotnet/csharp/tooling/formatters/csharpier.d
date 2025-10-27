@@ -10,6 +10,7 @@ import languages.dotnet.csharp.tooling.formatters.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.core.config;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// CSharpier formatter
 class CSharpierFormatter : CSharpFormatter_
@@ -43,8 +44,8 @@ class CSharpierFormatter : CSharpFormatter_
             cmd ~= ["."];
         }
         
-        // Execute format
-        auto res = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute format - use safe array form
+        auto res = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (res.status != 0)
         {

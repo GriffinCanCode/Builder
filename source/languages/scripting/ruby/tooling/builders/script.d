@@ -15,15 +15,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Script builder for Ruby scripts and simple applications
 class ScriptBuilder : Builder
 {
     override BuildResult build(
-        string[] sources,
-        RubyConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RubyConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BuildResult result;
@@ -144,10 +145,18 @@ class ScriptBuilder : Builder
         // Make executable on POSIX systems
         version(Posix)
         {
-            auto res = executeShell("chmod +x " ~ outputPath);
+            // Validate path before using it with external command
+            if (!SecurityValidator.isPathSafe(outputPath))
+            {
+                Logger.error("Unsafe output path detected: " ~ outputPath);
+                return false;
+            }
+            
+            // Use safe array form instead of executeShell
+            auto res = execute(["chmod", "+x", outputPath]);
             if (res.status != 0)
             {
-                Logger.warning("Failed to make wrapper executable");
+                Logger.warning("Failed to make wrapper executable: " ~ res.output);
             }
         }
         

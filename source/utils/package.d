@@ -16,6 +16,7 @@ module utils;
 ///   blake3.d    - BLAKE3 cryptographic hashing (3-5x faster than SHA-256)
 ///   pycheck.d   - Python validation
 ///   pywrap.d    - Python wrapper utilities
+///   validation.d - Security validation for paths and command arguments
 ///
 /// Usage:
 ///   import utils;
@@ -45,4 +46,5 @@ public import utils.crypto.blake3;
 public import utils.python.pycheck;
 public import utils.python.pywrap;
 public import utils.simd;
+public import utils.security.validation;
 

@@ -11,6 +11,7 @@ import std.conv;
 import std.uni;
 import languages.dotnet.csharp.core.config;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// MSBuild operations
 struct MSBuildOps
@@ -78,8 +79,8 @@ struct MSBuildOps
         if (config.nuget.autoRestore)
             cmd ~= ["/restore"];
         
-        // Execute build
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute build - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -109,8 +110,8 @@ struct MSBuildOps
         // Configuration
         cmd ~= ["/p:Configuration=" ~ config.configuration];
         
-        // Execute clean
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute clean - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -139,8 +140,8 @@ struct MSBuildOps
         // Configuration
         cmd ~= ["/p:Configuration=" ~ config.configuration];
         
-        // Execute rebuild
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute rebuild - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -182,8 +183,8 @@ struct MSBuildOps
         if (config.parallel)
             cmd ~= ["/Parallel"];
         
-        // Execute tests
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute tests - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {

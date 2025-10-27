@@ -10,14 +10,15 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Pharcc packager - compile PHP to standalone binary
 class PharccPackager : Packager
 {
     PackageResult createPackage(
-        string[] sources,
+        const string[] sources,
         PHARConfig config,
-        string projectRoot
+        const string projectRoot
     )
     {
         PackageResult result;
@@ -81,7 +82,20 @@ class PharccPackager : Packager
                 // Make executable on Unix
                 version(Posix)
                 {
-                    executeShell("chmod +x " ~ binaryPath);
+                    // Validate path before using it with external command
+                    if (!SecurityValidator.isPathSafe(binaryPath))
+                    {
+                        Logger.warning("Unsafe binary path detected, skipping chmod: " ~ binaryPath);
+                    }
+                    else
+                    {
+                        // Use safe array form instead of executeShell
+                        auto chmodResult = execute(["chmod", "+x", binaryPath]);
+                        if (chmodResult.status != 0)
+                        {
+                            Logger.warning("Failed to make binary executable: " ~ chmodResult.output);
+                        }
+                    }
                 }
                 
                 Logger.info("Standalone binary created: " ~ binaryPath ~ 

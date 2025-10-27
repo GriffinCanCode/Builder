@@ -12,6 +12,7 @@ import languages.dotnet.csharp.tooling.analyzers.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.core.config;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Roslyn analyzer (built-in to .NET SDK)
 class RoslynAnalyzer : CSharpAnalyzer_
@@ -59,8 +60,8 @@ class RoslynAnalyzer : CSharpAnalyzer_
         // Verbosity to capture warnings
         cmd ~= ["--verbosity", "normal"];
         
-        // Execute build
-        auto res = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute build - use safe array form
+        auto res = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         // Parse output for errors and warnings
         parseOutput(res.output, result);

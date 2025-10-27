@@ -10,6 +10,7 @@ import std.string;
 import std.conv;
 import languages.dotnet.csharp.core.config;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// dotnet CLI operations
 struct DotNetOps
@@ -70,8 +71,8 @@ struct DotNetOps
             cmd ~= ["-p:TreatWarningsAsErrors=true"];
         }
         
-        // Execute build
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute build - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -163,8 +164,8 @@ struct DotNetOps
             cmd ~= ["-p:" ~ key ~ "=" ~ value];
         }
         
-        // Execute publish
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute publish - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -214,8 +215,8 @@ struct DotNetOps
             cmd ~= ["--collect:\"XPlat Code Coverage\""];
         }
         
-        // Execute tests
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute tests - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -240,7 +241,8 @@ struct DotNetOps
             cmd ~= args;
         }
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -258,7 +260,8 @@ struct DotNetOps
         
         string[] cmd = ["dotnet", "clean"];
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -293,8 +296,8 @@ struct DotNetOps
         if (config.nuget.symbols)
             cmd ~= ["--include-symbols", "-p:SymbolPackageFormat=snupkg"];
         
-        // Execute pack
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute pack - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {

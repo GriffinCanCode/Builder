@@ -9,6 +9,7 @@ import std.array;
 import std.string;
 import languages.dotnet.csharp.core.config;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// NuGet package management operations
 struct NuGetOps
@@ -46,8 +47,8 @@ struct NuGetOps
         if (config.noCache)
             cmd ~= ["--no-cache"];
         
-        // Execute restore
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Execute restore - use safe array form
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -69,7 +70,8 @@ struct NuGetOps
         if (!packageVersion.empty)
             cmd ~= ["--version", packageVersion];
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -88,7 +90,8 @@ struct NuGetOps
         
         string[] cmd = ["dotnet", "remove", "package", packageName];
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -107,7 +110,8 @@ struct NuGetOps
         
         string[] cmd = ["dotnet", "list", "package"];
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -147,7 +151,8 @@ struct NuGetOps
             {
                 // Update to latest version
                 string[] cmd = ["dotnet", "add", "package", parts[0]];
-                executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+                // Use safe array form instead of executeShell
+                execute(cmd, null, Config.none, size_t.max, projectRoot);
             }
         }
         
@@ -162,7 +167,8 @@ struct NuGetOps
         
         string[] cmd = ["dotnet", "list", "package", "--outdated"];
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
@@ -191,7 +197,8 @@ struct NuGetOps
         
         string[] cmd = ["dotnet", "list", "package", "--vulnerable"];
         
-        auto result = executeShell(cmd.join(" "), null, Config.none, size_t.max, projectRoot);
+        // Use safe array form instead of executeShell
+        auto result = execute(cmd, null, Config.none, size_t.max, projectRoot);
         
         if (result.status != 0)
         {
