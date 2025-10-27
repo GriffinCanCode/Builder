@@ -3,7 +3,7 @@ module tests.unit.core.graph;
 import std.stdio;
 import std.algorithm;
 import std.array;
-import std.conv;
+import std.conv : to, text;
 import core.graph.graph;
 import config.schema.schema;
 import tests.harness;
