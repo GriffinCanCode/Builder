@@ -30,13 +30,13 @@ struct Blake3
     /// 
     /// Safety: This function is @trusted because:
     /// 1. Key is a fixed-size array (BLAKE3_KEY_LEN) - no buffer overflows
-    /// 2. Calls extern(C) blake3_hasher_init_keyed with validated pointer
+    /// 2. Calls extern(C) blake3_hasher_init_keyed with validated static array
     /// 3. Hasher is stack-allocated and returned by value (no dangling)
     @trusted
     static Blake3 keyed(in ubyte[BLAKE3_KEY_LEN] key)
     {
         Blake3 b;
-        blake3_hasher_init_keyed(&b.hasher, key.ptr);
+        blake3_hasher_init_keyed(&b.hasher, key);
         return b;
     }
     
@@ -142,6 +142,7 @@ struct Blake3
     }
     
     /// One-shot hash of string returning hex string
+    @trusted // Safe cast of string to ubyte[] for hashing
     static string hashHex(string data, size_t length = BLAKE3_OUT_LEN)
     {
         return hashHex(cast(ubyte[])data, length);
@@ -149,6 +150,7 @@ struct Blake3
 }
 
 /// Convert byte array to hex string (lowercase)
+@trusted // Safe cast of char[] to string (immutable)
 string toHexString(const ubyte[] bytes)
 {
     static immutable hexDigits = "0123456789abcdef";

@@ -191,7 +191,7 @@ final class BuildCache
                 
                 // Parallel hash with SIMD
                 alias HashResult = Tuple!(string, string, string);
-                auto hashes = SIMDParallel.mapSIMD!(string, HashResult)(existingSources, (string source) {
+                auto hashes = SIMDParallel.mapSIMD(existingSources, (string source) {
                     return tuple(
                         source,
                         FastHash.hashFile(source),

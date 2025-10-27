@@ -37,7 +37,7 @@ struct AtomicTempDir
             {
                 // mkdirRecurse with exists check is atomic on most platforms
                 // For true atomicity, we'd need platform-specific calls
-                if (!exists(tmp.path))
+                if (!std.file.exists(tmp.path))
                 {
                     mkdir(tmp.path); // Atomic creation
                     tmp._exists = true;
@@ -59,7 +59,7 @@ struct AtomicTempDir
     {
         AtomicTempDir tmp;
         
-        if (!exists(baseDir))
+        if (!std.file.exists(baseDir))
             mkdirRecurse(baseDir);
         
         immutable maxRetries = 10;
@@ -71,7 +71,7 @@ struct AtomicTempDir
             
             try
             {
-                if (!exists(tmp.path))
+                if (!std.file.exists(tmp.path))
                 {
                     mkdir(tmp.path);
                     tmp._exists = true;
@@ -94,7 +94,7 @@ struct AtomicTempDir
         {
             try
             {
-                if (exists(path))
+                if (std.file.exists(path))
                     rmdirRecurse(path);
             }
             catch (Exception e)
@@ -138,7 +138,7 @@ struct AtomicTempDir
     /// Manual cleanup (directory won't be cleaned up in destructor after this)
     void remove() @trusted
     {
-        if (_exists && !path.empty && exists(path))
+        if (_exists && !path.empty && std.file.exists(path))
         {
             rmdirRecurse(path);
             _exists = false;
@@ -188,7 +188,7 @@ private string generateSecureRandomSuffix() @trusted
     
     // Convert to hex string (first 16 chars for reasonable length)
     return hash[0 .. 8]
-        .map!(b => "0123456789abcdef"[b >> 4] ~ "0123456789abcdef"[b & 0x0F])
+        .map!(b => [cast(char)"0123456789abcdef"[b >> 4], cast(char)"0123456789abcdef"[b & 0x0F]])
         .join;
 }
 

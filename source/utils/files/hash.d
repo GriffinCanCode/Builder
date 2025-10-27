@@ -57,7 +57,7 @@ struct FastHash
     @trusted // File read and cast for hashing
     private static string hashFileDirect(in string path)
     {
-        immutable data = cast(ubyte[])std.file.read(path);
+        auto data = cast(ubyte[])std.file.read(path);
         return Blake3.hashHex(data);
     }
     
@@ -187,6 +187,7 @@ struct FastHash
     }
     
     /// Hash multiple strings together
+    @trusted // Safe cast for hashing
     static string hashStrings(const string[] strings)
     {
         auto hash = Blake3(0);
@@ -206,7 +207,7 @@ struct FastHash
             import utils.concurrency.simd;
             
             // Hash files in parallel
-            auto hashes = SIMDParallel.mapSIMD(filePaths, (path) {
+            auto hashes = SIMDParallel.mapSIMD(filePaths, (string path) {
                 if (exists(path))
                     return hashFile(path);
                 else

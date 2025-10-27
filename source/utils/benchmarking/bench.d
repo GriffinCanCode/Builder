@@ -127,7 +127,7 @@ struct BenchmarkResult
     }
     
     /// Format duration nicely
-    private static string formatDuration(Duration d)
+    static string formatDuration(Duration d)
     {
         auto nsecs = d.total!"nsecs";
         

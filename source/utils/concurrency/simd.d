@@ -16,12 +16,15 @@ struct SIMDParallel
     /// Parallel map with SIMD acceleration for data operations
     /// Use when func performs SIMD-friendly operations (memcpy, hash, compare)
     @trusted // Thread pool creation and parallel execution
-    static R[] mapSIMD(T, R)(T[] items, R delegate(T) func, size_t maxParallelism = 0)
+    static auto mapSIMD(T, F)(T[] items, F func, size_t maxParallelism = 0)
     {
         import std.parallelism : totalCPUs;
+        import std.traits : ReturnType;
+        
+        alias R = ReturnType!F;
         
         if (items.empty)
-            return [];
+            return (R[]).init;
         
         if (items.length == 1)
             return [func(items[0])];
@@ -52,9 +55,8 @@ struct SIMDParallel
     {
         import utils.crypto.blake3;
         
-        return mapSIMD(inputs, (input) {
-            return Blake3.hashHex(input);
-        });
+        // Cast to mutable for mapSIMD - hashing is read-only anyway
+        return mapSIMD(cast(ubyte[][])inputs, (ubyte[] input) => Blake3.hashHex(cast(const(ubyte)[])input));
     }
     
     /// Parallel XOR of multiple byte arrays
@@ -68,7 +70,7 @@ struct SIMDParallel
         
         return mapSIMD(
             iota(array1.length).array,
-            (i) {
+            (ulong i) {
                 auto len = min(array1[i].length, array2[i].length);
                 auto result = new ubyte[len];
                 SIMDOps.xor(result, array1[i][0..len], array2[i][0..len]);
@@ -93,7 +95,7 @@ struct SIMDParallel
         // Check each pair in parallel
         auto results = mapSIMD(
             iota(baseline.length).array,
-            (i) {
+            (ulong i) {
                 return SIMDOps.equals(
                     cast(void[])baseline[i],
                     cast(void[])current[i]

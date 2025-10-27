@@ -96,7 +96,7 @@ struct SIMDOps
     {
         auto result = simd_memchr(haystack.ptr, needle, haystack.length);
         if (result is null) return -1;
-        return cast(ptrdiff_t)(result - haystack.ptr);
+        return cast(ptrdiff_t)(cast(const(ubyte)*)result - haystack.ptr);
     }
     
     /// Count matching bytes using SIMD acceleration

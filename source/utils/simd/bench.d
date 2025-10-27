@@ -43,7 +43,7 @@ struct SIMDBench
             auto compress = blake3_get_compress_fn();
             
             bench.run(() {
-                compress(cv.ptr, block.ptr, 64, 0, 0, output.ptr);
+                compress(cv, block, 64, 0, 0, output);
             });
             
             auto result = bench.result();
@@ -56,7 +56,7 @@ struct SIMDBench
         {
             auto bench = Benchmark("Portable (baseline)", iterations);
             bench.run(() {
-                blake3_compress_portable(cv.ptr, block.ptr, 64, 0, 0, output.ptr);
+                blake3_compress_portable(cv, block, 64, 0, 0, output);
             });
             bench.result().print();
         }
@@ -65,7 +65,7 @@ struct SIMDBench
         if (CPU.hasFeature(CPUFeature.AVX2)) {
             auto bench = Benchmark("AVX2", iterations);
             bench.run(() {
-                blake3_compress_avx2(cv.ptr, block.ptr, 64, 0, 0, output.ptr);
+                blake3_compress_avx2(cv, block, 64, 0, 0, output);
             });
             bench.result().print();
         }
@@ -73,7 +73,7 @@ struct SIMDBench
         if (CPU.hasFeature(CPUFeature.AVX512F)) {
             auto bench = Benchmark("AVX-512", iterations);
             bench.run(() {
-                blake3_compress_avx512(cv.ptr, block.ptr, 64, 0, 0, output.ptr);
+                blake3_compress_avx512(cv, block, 64, 0, 0, output);
             });
             bench.result().print();
         }
@@ -81,7 +81,7 @@ struct SIMDBench
         if (CPU.hasFeature(CPUFeature.NEON)) {
             auto bench = Benchmark("NEON", iterations);
             bench.run(() {
-                blake3_compress_neon(cv.ptr, block.ptr, 64, 0, 0, output.ptr);
+                blake3_compress_neon(cv, block, 64, 0, 0, output);
             });
             bench.result().print();
         }

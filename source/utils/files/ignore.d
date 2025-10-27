@@ -43,7 +43,7 @@ class IgnoreRegistry
     private static immutable string[] vcsIgnores;
     
     @trusted // Initializes immutable static data
-    static this()
+    shared static this()
     {
         // Version control system directories - ALWAYS ignore
         vcsIgnores = [".git", ".svn", ".hg", ".bzr"];

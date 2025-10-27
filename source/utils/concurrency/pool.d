@@ -47,7 +47,7 @@ final class ThreadPool
         }
     }
     
-    /// Execute function on items in parallel
+    /// Execute function on items in parallel (delegate version)
     @trusted // Thread synchronization and atomic operations
     R[] map(T, R)(scope T[] items, scope R delegate(T) func)
     {
@@ -85,6 +85,15 @@ final class ThreadPool
         }
         
         return results;
+    }
+    
+    /// Execute function on items in parallel (function pointer version)
+    @trusted // Thread synchronization and atomic operations
+    R[] map(T, R)(scope T[] items, R function(T) func)
+    {
+        // Convert function to delegate and call delegate version
+        R delegate(T) dg = (T x) => func(x);
+        return map(items, dg);
     }
     
     /// Helper to create work delegate with proper value capture

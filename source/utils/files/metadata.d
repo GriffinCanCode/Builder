@@ -94,7 +94,8 @@ struct FileMetadata
         hasher.put(nativeToBigEndian(mtime.stdTime)[]);
         hasher.put(nativeToBigEndian(inode)[]);
         hasher.put(nativeToBigEndian(device)[]);
-        hasher.put(cast(ubyte)isSymlink);
+        ubyte[1] symlinkByte = [cast(ubyte)isSymlink];
+        hasher.put(symlinkByte[]);
         
         return hasher.finishHex();
     }
@@ -131,6 +132,7 @@ struct FileMetadata
     }
     
     /// Serialize metadata
+    @trusted // Safe casts for serialization
     ubyte[] serialize() const
     {
         auto buffer = appender!(ubyte[]);
@@ -239,7 +241,7 @@ struct MetadataChecker
     static CheckLevel[] checkBatch(FileMetadata[] oldFiles, string[] paths)
     {
         import utils.concurrency.simd;
-        import std.range : iota, array;
+        import std.range : iota, array, empty;
         
         if (paths.empty)
             return [];
@@ -247,7 +249,7 @@ struct MetadataChecker
         // Use SIMD-aware parallel processing
         auto results = SIMDParallel.mapSIMD(
             iota(paths.length).array,
-            (i) {
+            (ulong i) {
                 auto newMeta = FileMetadata.from(paths[i]);
                 
                 if (i < oldFiles.length)
