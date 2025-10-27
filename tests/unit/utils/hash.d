@@ -3,6 +3,7 @@ module tests.unit.utils.hash;
 import std.stdio;
 import std.file;
 import std.path;
+import std.array : replicate;
 import utils.files.hash;
 import tests.harness;
 import tests.fixtures;

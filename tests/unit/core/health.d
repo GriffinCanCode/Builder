@@ -109,8 +109,8 @@ void testHealthMonitorBasic()
     assert(latest.completedTasks == 40);
     
     // Stop monitoring
-    auto final = monitor.stop();
-    assert(final.completedTasks == 40);
+    auto finalCheckpoint = monitor.stop();
+    assert(finalCheckpoint.completedTasks == 40);
     
     writeln("  ✓ Health monitor basic operations");
 }
@@ -333,13 +333,3 @@ void testHealthReport()
     
     writeln("  ✓ Health report generation");
 }
-
-version(unittest)
-{
-    void main()
-    {
-        runHealthTests();
-        testHealthReport();
-    }
-}
-

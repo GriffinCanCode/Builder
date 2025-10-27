@@ -158,15 +158,17 @@ struct SIMDHash
 }
 
 // Extern C function for constant-time comparison
-extern(C) @system nothrow @nogc:
-/// Constant-time memory comparison (returns 0 if equal, non-zero if different)
-/// Implementation uses SIMD but processes all bytes regardless of differences
-int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
+extern(C) @system nothrow @nogc
+{
+    /// Constant-time memory comparison (returns 0 if equal, non-zero if different)
+    /// Implementation uses SIMD but processes all bytes regardless of differences
+    int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
+}
 
-@safe:
+// Unit tests (allow GC and exceptions)
+version(unittest) @system:
 
-// Unit tests
-@safe unittest
+unittest
 {
     import std.stdio;
     
@@ -181,21 +183,20 @@ int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
     assert(!SIMDHash.equals("a", "b"));
 }
 
-@trusted unittest
+unittest
 {
     import std.stdio;
-    import std.array : replicate;
     
     // Test constant-time equals
-    immutable hash1 = "deadbeef" ~ "0" ~ "0".replicate(56);  // 64 chars
-    immutable hash2 = "deadbeef" ~ "0" ~ "0".replicate(56);
-    immutable hash3 = "deadbeef" ~ "1" ~ "0".replicate(56);
+    enum hash1 = "deadbeef00000000000000000000000000000000000000000000000000000000";  // 64 chars
+    enum hash2 = "deadbeef00000000000000000000000000000000000000000000000000000000";
+    enum hash3 = "deadbeef10000000000000000000000000000000000000000000000000000000";
     
     assert(SIMDHash.constantTimeEquals(hash1, hash2));
     assert(!SIMDHash.constantTimeEquals(hash1, hash3));
 }
 
-@trusted unittest
+unittest
 {
     import std.stdio;
     
@@ -208,7 +209,7 @@ int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
     assert(SIMDHash.hasPrefix(hash1, ""));
 }
 
-@trusted unittest
+unittest
 {
     import std.stdio;
     
@@ -235,7 +236,7 @@ int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
     assert(results[3] == false);
 }
 
-@trusted unittest
+unittest
 {
     import std.stdio;
     
@@ -253,7 +254,7 @@ int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
     assert(matches[1] == 2);
 }
 
-@safe unittest
+unittest
 {
     import std.stdio;
     

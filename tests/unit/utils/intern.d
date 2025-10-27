@@ -44,7 +44,7 @@ unittest
     
     Assert.equal(stats.totalInterns, 300);
     Assert.equal(stats.uniqueStrings, 3);
-    Assert.isTrue(stats.deduplicationRate > 99.0, "Should have >99% deduplication");
+    Assert.isTrue(stats.deduplicationRate >= 99.0, "Should have >=99% deduplication");
     Assert.isTrue(stats.savedBytes > 0, "Should save memory");
     
     writeln("\x1b[32m  ✓ Deduplication statistics work correctly\x1b[0m");

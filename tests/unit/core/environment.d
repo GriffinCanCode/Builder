@@ -130,11 +130,11 @@ unittest
     
     // Check if common tools are detected (system-dependent)
     // Just verify the structure is correct
-    foreach (tool, version_; env.toolVersions.byKeyValue)
+    foreach (pair; env.toolVersions.byKeyValue)
     {
-        assert(tool.length > 0, "Tool name should not be empty");
-        assert(version_.length > 0, "Tool version should not be empty");
-        assert(version_.length <= 200, "Version string should be reasonably sized");
+        assert(pair.key.length > 0, "Tool name should not be empty");
+        assert(pair.value.length > 0, "Tool version should not be empty");
+        assert(pair.value.length <= 200, "Version string should be reasonably sized");
     }
     
     writeln("  ✓ Tool version detection structure is correct");
@@ -150,10 +150,10 @@ unittest
     assert("PATH" in env.envVars, "PATH should be captured");
     
     // Verify captured variables are not empty
-    foreach (key, value; env.envVars.byKeyValue)
+    foreach (pair; env.envVars.byKeyValue)
     {
-        assert(key.length > 0, "Env var key should not be empty");
-        assert(value.length > 0, "Env var value should not be empty");
+        assert(pair.key.length > 0, "Env var key should not be empty");
+        assert(pair.value.length > 0, "Env var value should not be empty");
     }
     
     writeln("  ✓ Environment variable capture works");
@@ -277,10 +277,10 @@ unittest
     // Test that version strings are reasonably sized (not full output)
     auto env = BuildEnvironment.snapshot();
     
-    foreach (tool, version_; env.toolVersions.byKeyValue)
+    foreach (pair; env.toolVersions.byKeyValue)
     {
-        assert(version_.length <= 200, 
-               "Version string for " ~ tool ~ " should be limited to 200 chars");
+        assert(pair.value.length <= 200, 
+               "Version string for " ~ pair.key ~ " should be limited to 200 chars");
     }
     
     writeln("  ✓ Version string length limits work");
