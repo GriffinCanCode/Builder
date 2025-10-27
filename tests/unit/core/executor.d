@@ -27,7 +27,7 @@ unittest
     
     auto graph = new BuildGraph();
     auto workspace = new WorkspaceConfig();
-    workspace.rootDir = ".";
+    workspace.root = ".";
     
     auto lib = TargetBuilder.create("lib")
         .withType(TargetType.Library)

@@ -4,7 +4,7 @@ import std.stdio;
 import std.algorithm;
 import std.conv;
 import errors.handling.result;
-import errors.types;
+import errors.types.types;
 import tests.harness;
 
 unittest
@@ -516,7 +516,7 @@ unittest
     }
     
     auto result = tryPrimary()
-        .orElse(trySecondary)
+        .orElse((string err) => trySecondary(err))
         .map((int x) => x * 2);
     
     Assert.isTrue(result.isOk);
@@ -545,24 +545,24 @@ unittest
     
     // Valid input
     auto result1 = Ok!(int, string)(50)
-        .andThen(validatePositive)
-        .andThen(validateRange);
+        .andThen((int x) => validatePositive(x))
+        .andThen((int x) => validateRange(x));
     
     Assert.isTrue(result1.isOk);
     Assert.equal(result1.unwrap(), 50);
     
     // Invalid: too large
     auto result2 = Ok!(int, string)(150)
-        .andThen(validatePositive)
-        .andThen(validateRange);
+        .andThen((int x) => validatePositive(x))
+        .andThen((int x) => validateRange(x));
     
     Assert.isTrue(result2.isErr);
     Assert.equal(result2.unwrapErr(), "Must be between 1 and 100");
     
     // Invalid: negative
     auto result3 = Ok!(int, string)(-5)
-        .andThen(validatePositive)
-        .andThen(validateRange);
+        .andThen((int x) => validatePositive(x))
+        .andThen((int x) => validateRange(x));
     
     Assert.isTrue(result3.isErr);
     Assert.equal(result3.unwrapErr(), "Must be positive");
@@ -585,8 +585,8 @@ unittest
     auto result = buildTarget();
     
     Assert.isTrue(result.isErr);
-    auto error = result.unwrapErr();
-    Assert.equal(error.targetName, "mylib");
+    auto error = cast(BuildFailureError) result.unwrapErr();
+    Assert.equal(error.targetId, "mylib");
     
     writeln("\x1b[32m  ✓ Integration with BuildError works\x1b[0m");
 }

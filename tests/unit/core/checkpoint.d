@@ -154,6 +154,7 @@ unittest
     graph.nodes["target3"].status = BuildStatus.Failed;
     
     // Create temporary directory for test
+    import std.conv : to;
     string testDir = ".test-checkpoint-" ~ Clock.currTime().toUnixTime().to!string;
     scope(exit) if (exists(testDir)) rmdirRecurse(testDir);
     
@@ -190,6 +191,7 @@ unittest
 {
     writeln("Testing checkpoint age tracking...");
     
+    import std.conv : to;
     string testDir = ".test-checkpoint-age-" ~ Clock.currTime().toUnixTime().to!string;
     scope(exit) if (exists(testDir)) rmdirRecurse(testDir);
     
@@ -217,6 +219,7 @@ unittest
 {
     writeln("Testing checkpoint clear...");
     
+    import std.conv : to;
     string testDir = ".test-checkpoint-clear-" ~ Clock.currTime().toUnixTime().to!string;
     scope(exit) if (exists(testDir)) rmdirRecurse(testDir);
     

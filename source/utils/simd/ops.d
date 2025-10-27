@@ -173,7 +173,7 @@ unittest
     
     // Test rolling hash
     ubyte[256] data;
-    foreach (i, ref b; data) b = cast(ubyte)i;
+    foreach (i, ref byte_val; data) byte_val = cast(ubyte)i;
     auto hash1 = SIMDOps.rollingHash(data);
     data[0] = 123;  // Change data
     auto hash2 = SIMDOps.rollingHash(data);

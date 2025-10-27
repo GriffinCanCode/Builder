@@ -16,13 +16,13 @@ unittest
     
     // Test sequential execution with single item
     auto singleItem = [42];
-    auto singleResult = ParallelExecutor.execute(singleItem, (x) => x * 2, 1);
+    auto singleResult = ParallelExecutor.execute(singleItem, (int x) => cast(int)(x * 2), 1);
     Assert.equal(singleResult.length, 1);
     Assert.equal(singleResult[0], 84);
     
     // Test parallel execution with multiple items
     auto data = iota(10).array;
-    auto result = ParallelExecutor.execute(data, (x) => x * 2, 4);
+    auto result = ParallelExecutor.execute(data, (int x) => cast(int)(x * 2), 4);
     
     Assert.equal(result.length, 10);
     Assert.equal(result[0], 0);
@@ -31,7 +31,7 @@ unittest
     
     // Test with empty array
     int[] empty;
-    auto emptyResult = ParallelExecutor.execute(empty, (x) => x * 2, 4);
+    auto emptyResult = ParallelExecutor.execute(empty, (int x) => cast(int)(x * 2), 4);
     Assert.equal(emptyResult.length, 0);
     
     writeln("\x1b[32m  ✓ ParallelExecutor operations\x1b[0m");
@@ -43,7 +43,7 @@ unittest
     
     // Test automatic parallelism based on CPU count
     auto data = iota(100).array;
-    auto result = ParallelExecutor.executeAuto(data, (x) => x * x);
+    auto result = ParallelExecutor.executeAuto(data, (int x) => cast(int)(x * x));
     
     Assert.equal(result.length, 100);
     Assert.equal(result[0], 0);
@@ -63,7 +63,7 @@ unittest
     
     // Test simple map operation
     auto data = [1, 2, 3, 4, 5];
-    auto result = pool.map(data, (x) => x + 10);
+    auto result = pool.map(data, (int x) => cast(int)(x + 10));
     
     Assert.equal(result.length, 5);
     Assert.equal(result[0], 11);
@@ -81,7 +81,7 @@ unittest
     scope(exit) pool.shutdown();
     
     auto data = iota(20).array;
-    auto result = pool.map(data, (x) => x * 3);
+    auto result = pool.map(data, (int x) => cast(int)(x * 3));
     
     Assert.equal(result.length, 20);
     Assert.equal(result[0], 0);
@@ -99,7 +99,7 @@ unittest
     
     // Test with single item (should execute directly)
     auto data = [42];
-    auto result = pool.map(data, (x) => x * 2);
+    auto result = pool.map(data, (int x) => cast(int)(x * 2));
     
     Assert.equal(result.length, 1);
     Assert.equal(result[0], 84);
@@ -115,7 +115,7 @@ unittest
     scope(exit) pool.shutdown();
     
     int[] empty;
-    auto result = pool.map(empty, (x) => x * 2);
+    auto result = pool.map(empty, (int x) => cast(int)(x * 2));
     
     Assert.equal(result.length, 0);
     
@@ -131,7 +131,7 @@ unittest
     
     // Test that all items are processed correctly in parallel
     auto data = iota(100).array;
-    auto result = pool.map(data, (x) => x * x);
+    auto result = pool.map(data, (int x) => cast(int)(x * x));
     
     Assert.equal(result.length, 100);
     
@@ -153,7 +153,7 @@ unittest
     
     // Test with more complex operations
     auto data = ["hello", "world", "parallel", "test"];
-    auto result = pool.map(data, (s) => s.length.to!string ~ ":" ~ s);
+    auto result = pool.map(data, (string s) => s.length.to!string ~ ":" ~ s);
     
     Assert.equal(result.length, 4);
     Assert.equal(result[0], "5:hello");
@@ -173,7 +173,7 @@ unittest
     
     // Stress test with many items
     auto data = iota(1000).array;
-    auto result = pool.map(data, (x) => (x * x) % 997);  // Some non-trivial computation
+    auto result = pool.map(data, (int x) => cast(int)((x * x) % 997));  // Some non-trivial computation
     
     Assert.equal(result.length, 1000);
     
@@ -194,15 +194,15 @@ unittest
     
     // Test that pool can be reused for multiple operations
     auto data1 = [1, 2, 3];
-    auto result1 = pool.map(data1, (x) => x * 2);
+    auto result1 = pool.map(data1, (int x) => cast(int)(x * 2));
     Assert.equal(result1, [2, 4, 6]);
     
     auto data2 = [10, 20, 30];
-    auto result2 = pool.map(data2, (x) => x + 5);
+    auto result2 = pool.map(data2, (int x) => cast(int)(x + 5));
     Assert.equal(result2, [15, 25, 35]);
     
     auto data3 = [100, 200];
-    auto result3 = pool.map(data3, (x) => x / 10);
+    auto result3 = pool.map(data3, (int x) => cast(int)(x / 10));
     Assert.equal(result3, [10, 20]);
     
     writeln("\x1b[32m  ✓ Multiple operations\x1b[0m");

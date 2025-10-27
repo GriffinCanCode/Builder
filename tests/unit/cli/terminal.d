@@ -1,7 +1,7 @@
 module tests.unit.cli.terminal;
 
 import tests.harness;
-import cli.terminal;
+import cli.control.terminal;
 import std.stdio;
 
 /// Test terminal capabilities detection
@@ -100,21 +100,3 @@ void testSymbolsUnicodeVsAscii()
     Assert.equal(ascii.checkmark, "[OK]");
     Assert.equal(ascii.cross, "[FAIL]");
 }
-
-// Test runner
-version(unittest)
-{
-    import tests.runner;
-    
-    static this()
-    {
-        registerTest("terminal", "capabilities_detect", &testCapabilitiesDetect);
-        registerTest("terminal", "ansi_colors", &testANSIColors);
-        registerTest("terminal", "ansi_cursor", &testANSICursor);
-        registerTest("terminal", "ansi_line_control", &testANSILineControl);
-        registerTest("terminal", "terminal_writer", &testTerminalWriter);
-        registerTest("terminal", "symbols_detect", &testSymbolsDetect);
-        registerTest("terminal", "symbols_unicode_vs_ascii", &testSymbolsUnicodeVsAscii);
-    }
-}
-

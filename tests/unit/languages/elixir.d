@@ -6,7 +6,7 @@ import std.file;
 import std.algorithm;
 import std.array;
 import languages.scripting.elixir;
-import config.schema;
+import config.schema.schema;
 import tests.harness;
 import tests.fixtures;
 

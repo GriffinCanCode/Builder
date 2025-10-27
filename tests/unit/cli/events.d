@@ -1,7 +1,7 @@
 module tests.unit.cli.events;
 
 import tests.harness;
-import cli.events;
+import cli.events.events;
 import std.datetime : dur;
 
 /// Test build started event
@@ -186,26 +186,3 @@ void testPublisherUnsubscribe()
     publisher.publish(event2);
     Assert.equal(eventCount, 1, "Should not receive event after unsubscribe");
 }
-
-// Test runner
-version(unittest)
-{
-    import tests.runner;
-    
-    static this()
-    {
-        registerTest("events", "build_started", &testBuildStartedEvent);
-        registerTest("events", "build_completed", &testBuildCompletedEvent);
-        registerTest("events", "build_failed", &testBuildFailedEvent);
-        registerTest("events", "target_started", &testTargetStartedEvent);
-        registerTest("events", "target_completed", &testTargetCompletedEvent);
-        registerTest("events", "target_failed", &testTargetFailedEvent);
-        registerTest("events", "target_cached", &testTargetCachedEvent);
-        registerTest("events", "message", &testMessageEvent);
-        registerTest("events", "statistics", &testStatisticsEvent);
-        registerTest("events", "target_progress", &testTargetProgressEvent);
-        registerTest("events", "simple_publisher", &testSimpleEventPublisher);
-        registerTest("events", "publisher_unsubscribe", &testPublisherUnsubscribe);
-    }
-}
-

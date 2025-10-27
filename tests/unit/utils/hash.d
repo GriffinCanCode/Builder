@@ -3,7 +3,7 @@ module tests.unit.utils.hash;
 import std.stdio;
 import std.file;
 import std.path;
-import utils.hash;
+import utils.files.hash;
 import tests.harness;
 import tests.fixtures;
 

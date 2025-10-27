@@ -5,7 +5,7 @@ import std.path;
 import std.algorithm;
 import std.range;
 import analysis.resolution.resolver;
-import config.schema;
+import config.schema.schema;
 import tests.harness;
 import tests.fixtures;
 

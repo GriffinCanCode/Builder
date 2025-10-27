@@ -289,3 +289,30 @@ interface EventSubscriber
     void onEvent(BuildEvent event);
 }
 
+/// Simple in-memory event publisher implementation
+class SimpleEventPublisher : EventPublisher
+{
+    private EventSubscriber[] subscribers;
+    
+    void publish(BuildEvent event)
+    {
+        foreach (subscriber; subscribers)
+        {
+            subscriber.onEvent(event);
+        }
+    }
+    
+    void subscribe(EventSubscriber subscriber)
+    {
+        subscribers ~= subscriber;
+    }
+    
+    void unsubscribe(EventSubscriber subscriber)
+    {
+        import std.algorithm : remove;
+        import std.array : array;
+        
+        subscribers = subscribers.remove!(s => s is subscriber).array;
+    }
+}
+

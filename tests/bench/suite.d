@@ -6,6 +6,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.format;
+import std.range;
 
 /// Benchmark result
 struct BenchResult

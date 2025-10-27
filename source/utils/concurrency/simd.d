@@ -114,7 +114,7 @@ struct SIMDParallel
 }
 
 // Unit tests
-unittest
+@trusted unittest
 {
     import std.stdio;
     import std.array;

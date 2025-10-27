@@ -5,8 +5,8 @@ import std.path;
 import std.regex;
 import std.algorithm;
 import std.array;
-import languages.python;
-import config.schema;
+import languages.scripting.python;
+import config.schema.schema;
 import tests.harness;
 import tests.fixtures;
 
@@ -66,7 +66,7 @@ def broken(
     auto invalidPath = buildPath(tempDir.getPath(), "invalid.py");
     
     // Test validation using PyValidator
-    import utils.pycheck;
+    import utils.python.pycheck;
     
     auto validResult = PyValidator.validate([validPath]);
     Assert.isTrue(validResult.success, "Valid Python should pass");

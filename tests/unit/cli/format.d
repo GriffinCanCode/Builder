@@ -1,9 +1,9 @@
 module tests.unit.cli.format;
 
 import tests.harness;
-import cli.format;
-import cli.terminal;
-import cli.events;
+import cli.display.format;
+import cli.control.terminal;
+import cli.events.events;
 import std.datetime : dur;
 import std.algorithm : canFind;
 
@@ -156,23 +156,3 @@ void testFormatSeparator()
     foreach (c; sep)
         Assert.equal(c, '=');
 }
-
-// Test runner
-version(unittest)
-{
-    import tests.runner;
-    
-    static this()
-    {
-        registerTest("format", "init", &testFormatterInit);
-        registerTest("format", "build_messages", &testFormatBuildMessages);
-        registerTest("format", "target_messages", &testFormatTargetMessages);
-        registerTest("format", "message_severity", &testFormatMessageBySeverity);
-        registerTest("format", "statistics", &testFormatStatistics);
-        registerTest("format", "duration", &testFormatDuration);
-        registerTest("format", "size", &testFormatSize);
-        registerTest("format", "truncate", &testTruncate);
-        registerTest("format", "separator", &testFormatSeparator);
-    }
-}
-

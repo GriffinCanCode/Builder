@@ -83,7 +83,7 @@ unittest
     auto filePath = buildPath(tempDir.getPath(), "mutable.py");
     
     // Get initial hash
-    import utils.hash;
+    import utils.files.hash;
     auto hash1 = FastHash.hashMetadata(filePath);
     
     // File hasn't changed

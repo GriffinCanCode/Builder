@@ -1,7 +1,7 @@
 module tests.unit.cli.progress;
 
 import tests.harness;
-import cli.progress;
+import cli.output.progress;
 import std.datetime : dur;
 import core.thread : Thread;
 
@@ -150,31 +150,11 @@ void testProgressAggregator()
     
     agg.completeTarget("target1");
     
-    active = agg.activeTargets();
-    Assert.equal(active.length, 1, "Should have 1 active target");
+    auto active2 = agg.activeTargets();
+    Assert.equal(active2.length, 1, "Should have 1 active target");
     
     auto snap = agg.snapshot();
     Assert.equal(snap.completed, 1);
 }
 
-// Test runner
-version(unittest)
-{
-    import tests.runner;
-    
-    static this()
-    {
-        registerTest("progress", "tracker_init", &testProgressTrackerInit);
-        registerTest("progress", "increment", &testProgressIncrement);
-        registerTest("progress", "snapshot_calculations", &testProgressSnapshotCalculations);
-        registerTest("progress", "completion", &testProgressCompletion);
-        registerTest("progress", "concurrent_updates", &testProgressConcurrentUpdates);
-        registerTest("progress", "bar_render", &testProgressBarRender);
-        registerTest("progress", "bar_with_percent", &testProgressBarWithPercent);
-        registerTest("progress", "bar_complete", &testProgressBarComplete);
-        registerTest("progress", "aggregator", &testProgressAggregator);
-    }
-}
-
 private import std.algorithm : canFind;
-

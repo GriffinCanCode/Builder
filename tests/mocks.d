@@ -47,7 +47,7 @@ class MockLanguageHandler : LanguageHandler
         needsRebuildValue = shouldRebuild;
     }
     
-    override Result!(string, BuildError) build(Target target, WorkspaceConfig config)
+    override Result!(string, BuildError) build(in Target target, in WorkspaceConfig config)
     {
         buildCalled = true;
         
@@ -62,22 +62,22 @@ class MockLanguageHandler : LanguageHandler
         }
     }
     
-    override bool needsRebuild(Target target, WorkspaceConfig config)
+    override bool needsRebuild(in Target target, in WorkspaceConfig config)
     {
         return needsRebuildValue;
     }
     
-    override void clean(Target target, WorkspaceConfig config)
+    override void clean(in Target target, in WorkspaceConfig config)
     {
         // Mock implementation
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         return outputPaths;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         // Mock implementation - return empty array
         return [];

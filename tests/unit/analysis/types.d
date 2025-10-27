@@ -1,7 +1,7 @@
 module tests.unit.analysis.types;
 
 import std.stdio;
-import analysis.types;
+import analysis.targets.types;
 import tests.harness;
 
 unittest
