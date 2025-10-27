@@ -14,6 +14,10 @@ import std.conv : to;
 
 class Renderer : EventSubscriber
 {
+    /// Configuration constants
+    private enum size_t TERMINAL_BUFFER_SIZE = 8_192;  // 8 KB buffer for terminal output
+    private enum size_t PROGRESS_BAR_WIDTH = 40;       // Progress bar width in characters
+    
     private Terminal terminal;
     private Formatter formatter;
     private StreamMultiplexer streams;
@@ -27,11 +31,11 @@ class Renderer : EventSubscriber
     this(RenderMode mode = RenderMode.Auto)
     {
         auto caps = Capabilities.detect();
-        this.terminal = Terminal(caps, 8192); // 8KB buffer
+        this.terminal = Terminal(caps, TERMINAL_BUFFER_SIZE);
         this.formatter = Formatter(caps);
         this.streams = new StreamMultiplexer(terminal, formatter);
         this.statusLine = new StatusLine(terminal, formatter);
-        this.progressBar = ProgressBar(40);
+        this.progressBar = ProgressBar(PROGRESS_BAR_WIDTH);
         this.buildTimer = StopWatch(AutoStart.no);
         
         // Determine mode

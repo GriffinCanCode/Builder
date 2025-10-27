@@ -47,6 +47,10 @@ enum Style : ubyte
 /// Terminal capabilities (detected at runtime)
 struct Capabilities
 {
+    /// Default terminal dimensions
+    private enum ushort DEFAULT_WIDTH = 80;   // Standard terminal width
+    private enum ushort DEFAULT_HEIGHT = 24;  // Standard terminal height
+    
     bool supportsColor;
     bool supportsUnicode;
     bool supports256Color;
@@ -159,7 +163,7 @@ struct Capabilities
             }
         }
         
-        return 80; // Standard default
+        return DEFAULT_WIDTH;
     }
     
     /// Detect terminal height using ioctl or environment variable
@@ -206,7 +210,7 @@ struct Capabilities
             }
         }
         
-        return 24; // Standard default
+        return DEFAULT_HEIGHT;
     }
 }
 
@@ -261,11 +265,14 @@ struct ANSI
 /// Terminal writer with buffering for performance
 struct Terminal
 {
+    /// Buffer configuration
+    private enum size_t DEFAULT_BUFFER_SIZE = 4_096;  // 4 KB default buffer
+    
     private Capabilities caps;
     private char[] buffer;
     private size_t bufferPos;
     
-    this(Capabilities caps, size_t bufferSize = 4096)
+    this(Capabilities caps, size_t bufferSize = DEFAULT_BUFFER_SIZE)
     {
         this.caps = caps;
         this.buffer = new char[bufferSize];

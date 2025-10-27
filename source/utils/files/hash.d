@@ -25,8 +25,22 @@ struct FastHash
     // Sampling parameters for medium/large files
     private enum size_t SAMPLE_HEAD = 262_144;    // 256 KB from start
     private enum size_t SAMPLE_TAIL = 262_144;    // 256 KB from end
-    private enum size_t SAMPLE_COUNT = 8;          // Number of middle samples
-    private enum size_t SAMPLE_SIZE = 16_384;      // 16 KB per sample
+    private enum size_t SAMPLE_COUNT = 8;         // Number of middle samples
+    private enum size_t SAMPLE_SIZE = 16_384;     // 16 KB per sample
+    
+    // Additional sampling parameters for large files
+    private enum size_t LARGE_HEAD_SIZE = 524_288;      // 512 KB from start
+    private enum size_t LARGE_TAIL_SIZE = 524_288;      // 512 KB from end
+    private enum size_t LARGE_FILE_THRESHOLD = 1_048_576;  // 1 MB threshold
+    private enum size_t VERY_LARGE_THRESHOLD = 2_097_152;  // 2 MB threshold
+    private enum size_t LARGE_SAMPLE_COUNT = 16;        // Samples for large files
+    private enum size_t LARGE_STEP_DIVISOR = 17;        // Step divisor for sample spacing
+    private enum size_t LARGE_SAMPLE_SIZE = 32_768;     // 32 KB per large sample
+    
+    // Buffer and parallelization constants
+    private enum size_t IO_BUFFER_SIZE = 4_096;         // 4 KB I/O buffer
+    private enum size_t PARALLEL_FILE_THRESHOLD = 8;    // Min files for parallel processing
+    private enum size_t SIMD_STRING_THRESHOLD = 32;     // Min length for SIMD hash comparison
     
     /// Hash a file with intelligent size-tiered strategy
     /// 
@@ -116,7 +130,7 @@ struct FastHash
         auto file = File(path, "rb");
         auto hash = Blake3(0);
         
-        ubyte[4096] buffer;
+        ubyte[IO_BUFFER_SIZE] buffer;
         
         while (!file.eof())
         {
@@ -230,28 +244,28 @@ struct FastHash
             auto data = cast(ubyte[])mmfile[];
             
             // Hash first 512KB (SIMD-accelerated internally)
-            size_t headSize = min(524_288, fileSize);
+            size_t headSize = min(LARGE_HEAD_SIZE, fileSize);
             hash.put(data[0 .. headSize]);
             
             // Hash last 512KB
-            if (fileSize > 1_048_576)
+            if (fileSize > LARGE_FILE_THRESHOLD)
             {
                 // Use SIMD copy for efficiency on large tail
-                auto tailData = data[$ - 524_288 .. $];
+                auto tailData = data[$ - LARGE_TAIL_SIZE .. $];
                 hash.put(tailData);
             }
             
             // Hash 16 samples from middle
-            if (fileSize > 2_097_152)
+            if (fileSize > VERY_LARGE_THRESHOLD)
             {
-                size_t middleStart = 524_288;
-                size_t middleEnd = fileSize - 524_288;
-                size_t step = (middleEnd - middleStart) / 17;
+                size_t middleStart = LARGE_HEAD_SIZE;
+                size_t middleEnd = fileSize - LARGE_TAIL_SIZE;
+                size_t step = (middleEnd - middleStart) / LARGE_STEP_DIVISOR;
                 
-                foreach (i; 0 .. 16)
+                foreach (i; 0 .. LARGE_SAMPLE_COUNT)
                 {
                     size_t pos = middleStart + step * (i + 1);
-                    size_t sampleEnd = min(pos + 32_768, middleEnd);
+                    size_t sampleEnd = min(pos + LARGE_SAMPLE_SIZE, middleEnd);
                     hash.put(data[pos .. sampleEnd]);
                 }
             }
@@ -320,7 +334,7 @@ struct FastHash
         import std.file : exists;
         
         // For many files, use parallel SIMD hashing
-        if (filePaths.length > 8) {
+        if (filePaths.length > PARALLEL_FILE_THRESHOLD) {
             import utils.concurrency.simd;
             
             // Hash files in parallel

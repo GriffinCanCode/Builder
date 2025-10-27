@@ -36,6 +36,9 @@ import errors;
 /// - SIMD comparisons: 2-3x faster hash validation
 final class BuildCache
 {
+    /// Configuration constants
+    private enum size_t SIMD_HASH_THRESHOLD = 32;  // Min hash string length for SIMD comparison
+    
     private string cacheDir;
     private immutable string cacheFilePath;  // Pre-computed to avoid allocation in destructor
     private CacheEntry[string] entries;
@@ -537,7 +540,7 @@ final class BuildCache
         if (a.length == 0) return true;
         
         // For hash strings (typically 64 chars), SIMD provides benefit
-        if (a.length >= 32) {
+        if (a.length >= SIMD_HASH_THRESHOLD) {
             return SIMDOps.equals(cast(void[])a, cast(void[])b);
         }
         

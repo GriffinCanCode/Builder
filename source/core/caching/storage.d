@@ -29,6 +29,13 @@ struct BinaryStorage
     private enum uint MAGIC = 0x424C4443; // "BLDC" (Builder Cache)
     private enum ubyte VERSION = 1;
     
+    /// Buffer pool configuration
+    private enum size_t MAX_BUFFER_POOL_SIZE = 4;    // Maximum buffers in pool
+    private enum size_t ESTIMATED_ENTRY_SIZE = 256;  // Estimated bytes per cache entry
+    private enum size_t HEADER_SIZE = 64;            // Size for header overhead
+    private enum size_t MIN_HEADER_SIZE = 9;         // Minimum header size (MAGIC + VERSION + COUNT)
+    private enum size_t SIMD_STRING_THRESHOLD = 64;  // Min string length for SIMD operations
+    
     /// Thread-local buffer pool to reduce allocations
     private static Appender!(ubyte[])[] bufferPool;
     private static size_t poolIndex;
@@ -46,8 +53,8 @@ struct BinaryStorage
         // Validate pool index invariant
         assert(poolIndex <= bufferPool.length, "Pool index out of bounds");
         
-        // Simple pool with max 4 buffers to avoid unbounded growth
-        if (poolIndex < bufferPool.length && poolIndex < 4)
+        // Simple pool with max buffers to avoid unbounded growth
+        if (poolIndex < bufferPool.length && poolIndex < MAX_BUFFER_POOL_SIZE)
         {
             // Double-check bounds before pointer dereference
             assert(poolIndex < bufferPool.length, "Pool index exceeds buffer pool length");
@@ -57,7 +64,7 @@ struct BinaryStorage
         }
         
         // Create new buffer if pool is empty or too small
-        if (bufferPool.length < 4)
+        if (bufferPool.length < MAX_BUFFER_POOL_SIZE)
         {
             bufferPool ~= appender!(ubyte[]);
             poolIndex = bufferPool.length;
@@ -66,8 +73,8 @@ struct BinaryStorage
         }
         
         // Fallback: reuse first buffer (shouldn't happen in single-threaded code)
-        // This is safe because we've validated the pool has at least 4 elements
-        assert(bufferPool.length >= 4, "Buffer pool size invariant violated");
+        // This is safe because we've validated the pool has at least MAX_BUFFER_POOL_SIZE elements
+        assert(bufferPool.length >= MAX_BUFFER_POOL_SIZE, "Buffer pool size invariant violated");
         bufferPool[0].clear();
         poolIndex = 1; // Reset to start of pool
         return bufferPool[0];
@@ -88,8 +95,8 @@ struct BinaryStorage
         auto buffer = acquireBuffer();
         scope(exit) releaseBuffer();
         
-        // Reserve capacity based on entry count (estimate 256 bytes per entry)
-        immutable estimatedSize = entries.length * 256 + 64;
+        // Reserve capacity based on entry count
+        immutable estimatedSize = entries.length * ESTIMATED_ENTRY_SIZE + HEADER_SIZE;
         buffer.reserve(estimatedSize);
         
         // Write header
@@ -114,7 +121,7 @@ struct BinaryStorage
     /// Preallocates associative array capacity to reduce rehashing
     static T[string] deserialize(T)(scope ubyte[] data) @trusted
     {
-        if (data.length < 9) // Header size
+        if (data.length < MIN_HEADER_SIZE)
             return null;
         
         size_t offset = 0;
@@ -161,7 +168,7 @@ struct BinaryStorage
         buffer.put(nativeToBigEndian(cast(uint)str.length)[]);
         
         // For large strings (e.g., file paths, hashes), use SIMD
-        if (str.length >= 64) {
+        if (str.length >= SIMD_STRING_THRESHOLD) {
             auto data = cast(const(ubyte)[])str;
             // Append via SIMD-friendly method
             buffer.put(data);

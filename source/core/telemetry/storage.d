@@ -16,8 +16,12 @@ import errors;
 /// Thread-safe with mutex protection
 final class TelemetryStorage
 {
+    /// Binary format constants
     private enum uint MAGIC = 0x42544C4D; // "BTLM" (Builder Telemetry)
     private enum ubyte VERSION = 1;
+    private enum size_t MIN_HEADER_SIZE = 9;           // Minimum header size (MAGIC + VERSION + COUNT)
+    private enum size_t ESTIMATED_SESSION_SIZE = 1024; // Estimated bytes per session with targets
+    private enum size_t HEADER_OVERHEAD = 64;          // Header overhead estimate
     
     private string storageDir;
     private immutable string storageFile;
@@ -255,8 +259,8 @@ final class TelemetryStorage
     {
         auto buffer = appender!(ubyte[]);
         
-        // Estimate size: ~512 bytes per session + target data
-        immutable estimatedSize = sessions.length * 1024 + 64;
+        // Estimate size: session data + target data
+        immutable estimatedSize = sessions.length * ESTIMATED_SESSION_SIZE + HEADER_OVERHEAD;
         buffer.reserve(estimatedSize);
         
         // Write header
@@ -297,7 +301,7 @@ final class TelemetryStorage
     /// - Malformed session data: caught by readSession validation
     private static BuildSession[] deserialize(ubyte[] data) @trusted
     {
-        if (data.length < 9)
+        if (data.length < MIN_HEADER_SIZE)
             throw new Exception("Invalid telemetry file: too small");
         
         size_t offset = 0;
@@ -633,9 +637,13 @@ final class TelemetryStorage
 /// Telemetry configuration
 struct TelemetryConfig
 {
-    size_t maxSessions = 1000;      // Maximum sessions to retain
-    size_t retentionDays = 90;      // Days to keep telemetry
-    bool enabled = true;             // Enable/disable telemetry
+    /// Default configuration constants
+    private enum size_t DEFAULT_MAX_SESSIONS = 1000;     // Maximum sessions to retain
+    private enum size_t DEFAULT_RETENTION_DAYS = 90;     // Days to keep telemetry data
+    
+    size_t maxSessions = DEFAULT_MAX_SESSIONS;      // Maximum sessions to retain
+    size_t retentionDays = DEFAULT_RETENTION_DAYS;  // Days to keep telemetry
+    bool enabled = true;                             // Enable/disable telemetry
     
     /// Load from environment variables
     static TelemetryConfig fromEnvironment() @safe

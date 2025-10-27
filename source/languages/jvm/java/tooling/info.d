@@ -318,7 +318,8 @@ class JavaInfo
                 if (!match.empty)
                 {
                     long bytes = match[1].to!long;
-                    return format("%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+                    enum double BYTES_PER_GB = 1024.0 * 1024.0 * 1024.0;
+                    return format("%.1f GB", bytes / BYTES_PER_GB);
                 }
             }
         }

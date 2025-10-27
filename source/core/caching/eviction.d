@@ -8,9 +8,15 @@ import std.range;
 /// LRU cache eviction policy with configurable size limits
 struct EvictionPolicy
 {
-    size_t maxSize = 1_073_741_824;   // Maximum cache size in bytes (1 GB default)
-    size_t maxEntries = 10_000;       // Maximum number of entries (10k default)
-    size_t maxAge = 30;               // Maximum age in days (30 days default)
+    // Default configuration constants
+    private enum size_t DEFAULT_MAX_SIZE = 1_073_741_824;  // 1 GB
+    private enum size_t DEFAULT_MAX_ENTRIES = 10_000;      // 10,000 entries
+    private enum size_t DEFAULT_MAX_AGE_DAYS = 30;         // 30 days
+    private enum size_t ENTRY_OVERHEAD_BYTES = 100;        // Estimated structure overhead
+    
+    size_t maxSize = DEFAULT_MAX_SIZE;         // Maximum cache size in bytes
+    size_t maxEntries = DEFAULT_MAX_ENTRIES;   // Maximum number of entries
+    size_t maxAge = DEFAULT_MAX_AGE_DAYS;      // Maximum age in days
     
     /// Determine which entries to evict
     /// Uses hybrid strategy: LRU + age-based + size-based
@@ -75,7 +81,7 @@ struct EvictionPolicy
         size_t size = 0;
         
         // Fixed overhead
-        size += 100; // Entry structure overhead
+        size += ENTRY_OVERHEAD_BYTES;
         
         // Strings
         size += entry.targetId.length;

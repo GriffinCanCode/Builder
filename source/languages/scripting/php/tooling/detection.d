@@ -49,6 +49,11 @@ struct PHPInfo
 /// PHP tooling wrapper - integrates analyzers, formatters, test frameworks
 class PHPTools
 {
+    /// Byte conversion constants
+    private enum long BYTES_PER_KB = 1024;
+    private enum long BYTES_PER_MB = 1024 * 1024;
+    private enum long BYTES_PER_GB = 1024 * 1024 * 1024;
+    
     /// Check if PHP is available
     static bool isPHPAvailable(string phpCmd = "php")
     {
@@ -532,9 +537,9 @@ class PHPTools
             
             switch (unit.toUpper)
             {
-                case "K": return value * 1024;
-                case "M": return value * 1024 * 1024;
-                case "G": return value * 1024 * 1024 * 1024;
+                case "K": return value * BYTES_PER_KB;
+                case "M": return value * BYTES_PER_MB;
+                case "G": return value * BYTES_PER_GB;
                 default: return value;
             }
         }

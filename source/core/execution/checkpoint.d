@@ -79,6 +79,11 @@ struct Checkpoint
 /// Checkpoint manager - handles persistence
 final class CheckpointManager
 {
+    /// Configuration constants
+    private enum size_t BUFFER_RESERVE_SIZE = 4_096;     // Pre-allocate 4KB for serialization
+    private enum size_t MAX_COMPLETION_STRING_LENGTH = 5; // Max chars for completion percentage
+    private enum size_t CHECKPOINT_STALE_HOURS = 24;     // Hours until checkpoint is stale
+    
     private string checkpointDir;
     private string checkpointPath;
     private bool autoSave;
@@ -157,7 +162,7 @@ final class CheckpointManager
             
             writeln("Checkpoint saved: ", checkpoint.completedTargets, "/", 
                     checkpoint.totalTargets, " targets (", 
-                    checkpoint.completion().to!string[0..min(5, checkpoint.completion().to!string.length)], "%)");
+                    checkpoint.completion().to!string[0..min(MAX_COMPLETION_STRING_LENGTH, checkpoint.completion().to!string.length)], "%)");
         }
         catch (Exception e)
         {
@@ -249,10 +254,10 @@ final class CheckpointManager
         }
     }
     
-    /// Check if checkpoint is stale (> 24 hours)
+    /// Check if checkpoint is stale
     bool isStale() const @safe
     {
-        return age() > 24.hours;
+        return age() > CHECKPOINT_STALE_HOURS.hours;
     }
     
     /// Serialize checkpoint to binary format
@@ -268,7 +273,7 @@ final class CheckpointManager
         import std.bitmanip : nativeToBigEndian;
         
         ubyte[] buffer;
-        buffer.reserve(4096); // Pre-allocate reasonable size
+        buffer.reserve(BUFFER_RESERVE_SIZE);
         
         // Magic number for validation
         buffer ~= nativeToBigEndian!uint(0x434B5054); // "CKPT"

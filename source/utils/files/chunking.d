@@ -27,7 +27,11 @@ struct ContentChunker
     private enum size_t MAX_CHUNK = 65_536;     // 64 KB maximum
     
     // Boundary detection mask (determines average chunk size)
-    private enum ulong MASK = (1UL << 14) - 1;  // 14 bits = ~16KB average
+    private enum uint MASK_BITS = 14;           // Number of bits for mask
+    private enum ulong MASK = (1UL << MASK_BITS) - 1;  // 14 bits = ~16KB average
+    
+    // Buffer size for chunk hashing
+    private enum size_t HASH_BUFFER_SIZE = 4_096;  // 4 KB buffer for hashing chunks
     
     /// Chunk metadata for incremental updates
     struct Chunk
@@ -149,7 +153,7 @@ struct ContentChunker
         file.seek(offset);
         
         auto hasher = Blake3(0);  // SIMD-accelerated BLAKE3
-        ubyte[4096] buffer;
+        ubyte[HASH_BUFFER_SIZE] buffer;
         size_t remaining = length;
         
         while (remaining > 0)
