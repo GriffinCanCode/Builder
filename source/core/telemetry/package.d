@@ -56,4 +56,6 @@ public import core.telemetry.exporter;
 public import core.telemetry.tracing;
 public import core.telemetry.flamegraph;
 public import core.telemetry.replay;
+public import core.telemetry.health;
+public import core.telemetry.environment;
 

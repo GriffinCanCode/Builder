@@ -3,6 +3,7 @@ module core.telemetry.collector;
 import std.datetime : Duration, SysTime, Clock;
 import core.sync.mutex : Mutex;
 import cli.events.events;
+import core.telemetry.environment;
 import errors;
 
 /// Thread-safe telemetry collector that subscribes to build events
@@ -137,12 +138,13 @@ final class TelemetryCollector : EventSubscriber
         }
     }
     
-    private void handleBuildStarted(BuildStartedEvent event) @safe
+    private void handleBuildStarted(BuildStartedEvent event) @trusted
     {
         currentSession = BuildSession();
         currentSession.startTime = Clock.currTime();
         currentSession.totalTargets = event.totalTargets;
         currentSession.maxParallelism = event.maxParallelism;
+        currentSession.environment = BuildEnvironment.snapshot();
         sessionActive = true;
     }
     
@@ -233,6 +235,9 @@ struct BuildSession
     
     bool succeeded;
     string failureReason;
+    
+    /// Build environment for reproducibility tracking
+    BuildEnvironment environment;
     
     TargetMetric[string] targets;
     
