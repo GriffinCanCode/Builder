@@ -198,12 +198,40 @@ final class BuildNode
         return true;
     }
     
-    /// Get topological depth for scheduling
-    size_t depth() const @safe pure nothrow
+    /// Cached depth value (size_t.max = uncomputed)
+    private size_t _cachedDepth = size_t.max;
+    
+    /// Get topological depth for scheduling (memoized)
+    /// 
+    /// Performance: O(V+E) total across all nodes due to memoization.
+    /// Without memoization, this would be O(E^depth) - exponential for deep graphs.
+    size_t depth() const @trusted nothrow
     {
+        if (_cachedDepth != size_t.max)
+            return _cachedDepth;
+        
         if (dependencies.empty)
+        {
+            (cast()this)._cachedDepth = 0;
             return 0;
-        return dependencies.map!(d => d.depth()).maxElement + 1;
+        }
+        
+        size_t maxDepth = 0;
+        foreach (dep; dependencies)
+        {
+            auto depDepth = dep.depth();
+            if (depDepth > maxDepth)
+                maxDepth = depDepth;
+        }
+        
+        (cast()this)._cachedDepth = maxDepth + 1;
+        return _cachedDepth;
+    }
+    
+    /// Invalidate cached depth (call when dependencies change)
+    private void invalidateDepthCache() @safe nothrow
+    {
+        _cachedDepth = size_t.max;
     }
 }
 
@@ -216,7 +244,33 @@ enum BuildStatus
     Cached
 }
 
+/// Cycle detection strategy for graph construction
+enum ValidationMode
+{
+    /// Check for cycles on every edge addition (O(V²) worst-case)
+    /// Provides immediate feedback but slower for large graphs
+    Immediate,
+    
+    /// Defer cycle detection until validate() is called (O(V+E) total)
+    /// Optimal for batch construction of large graphs
+    Deferred
+}
+
 /// Build graph with topological ordering and cycle detection
+/// 
+/// Performance:
+/// - Immediate validation: O(V²) for dense graphs (per-edge cycle check)
+/// - Deferred validation: O(V+E) total (single topological sort)
+/// 
+/// Usage:
+/// ```d
+/// // Fast batch construction for large graphs
+/// auto graph = new BuildGraph(ValidationMode.Deferred);
+/// foreach (target; targets) graph.addTarget(target);
+/// foreach (dep; deps) graph.addDependency(from, to).unwrap();
+/// auto result = graph.validate(); // Single O(V+E) validation
+/// if (result.isErr) handleCycle(result.unwrapErr());
+/// ```
 /// 
 /// TargetId Migration:
 /// - Use `addTargetById(TargetId, Target)` for type-safe target addition
@@ -232,26 +286,67 @@ final class BuildGraph
 {
     BuildNode[string] nodes;  // Keep string keys for backward compatibility
     BuildNode[] roots;
+    private ValidationMode _validationMode;
+    private bool _validated;
+    
+    /// Create graph with specified validation mode
+    this(ValidationMode mode = ValidationMode.Immediate) @safe pure nothrow
+    {
+        _validationMode = mode;
+        _validated = false;
+    }
+    
+    /// Validate entire graph for cycles (O(V+E))
+    /// 
+    /// Must be called when using ValidationMode.Deferred before execution.
+    /// For Immediate mode, this is optional (cycles already detected).
+    /// 
+    /// Returns: Ok on success, Err with cycle details on failure
+    Result!BuildError validate() const @trusted
+    {
+        auto sortResult = topologicalSort();
+        if (sortResult.isErr)
+            return Result!BuildError.err(sortResult.unwrapErr());
+        
+        (cast()this)._validated = true;
+        return Ok!BuildError();
+    }
+    
+    /// Check if graph has been validated
+    @property bool isValidated() const @safe pure nothrow @nogc
+    {
+        return _validated || _validationMode == ValidationMode.Immediate;
+    }
     
     /// Add a target to the graph (string version for backward compatibility)
+    /// 
+    /// Throws: Exception if target with same name already exists
     void addTarget(Target target) @safe
     {
-        if (target.name !in nodes)
+        if (target.name in nodes)
         {
-            auto node = new BuildNode(target.name, target);
-            nodes[target.name] = node;
+            throw new Exception("Duplicate target name: " ~ target.name ~ 
+                              " - target names must be unique within a build graph");
         }
+        
+        auto node = new BuildNode(target.name, target);
+        nodes[target.name] = node;
     }
     
     /// Add a target to the graph using TargetId
+    /// 
+    /// Throws: Exception if target with same ID already exists
     void addTargetById(TargetId id, Target target) @safe
     {
         auto key = id.toString();
-        if (key !in nodes)
+        if (key in nodes)
         {
-            auto node = new BuildNode(key, target);
-            nodes[key] = node;
+            throw new Exception("Duplicate target ID: " ~ key ~ 
+                              " - target IDs must be unique within a build graph");
         }
+        
+        auto node = new BuildNode(key, target);
+        nodes[key] = node;
     }
     
     /// Get node by TargetId
@@ -289,16 +384,22 @@ final class BuildGraph
         auto fromNode = nodes[from];
         auto toNode = nodes[to];
         
-        // Check for cycles before adding
+        // Check for cycles only in immediate mode
+        if (_validationMode == ValidationMode.Immediate)
+        {
         if (wouldCreateCycle(fromNode, toNode))
         {
             auto error = new GraphError("Circular dependency detected: " ~ from ~ " -> " ~ to, ErrorCode.GraphCycle);
             error.addContext(ErrorContext("adding dependency", "would create cycle"));
             return Result!BuildError.err(cast(BuildError) error);
+            }
         }
         
         fromNode.dependencies ~= toNode;
         toNode.dependents ~= fromNode;
+        
+        // Invalidate depth cache for affected nodes
+        invalidateDepthCascade(fromNode);
         
         return Ok!BuildError();
     }
@@ -326,25 +427,47 @@ final class BuildGraph
         auto fromNode = nodes[fromKey];
         auto toNode = nodes[toKey];
         
-        // Check for cycles before adding
+        // Check for cycles only in immediate mode
+        if (_validationMode == ValidationMode.Immediate)
+        {
         if (wouldCreateCycle(fromNode, toNode))
         {
             auto error = new GraphError("Circular dependency detected: " ~ fromKey ~ " -> " ~ toKey, ErrorCode.GraphCycle);
             error.addContext(ErrorContext("adding dependency", "would create cycle"));
             return Result!BuildError.err(cast(BuildError) error);
+            }
         }
         
         fromNode.dependencies ~= toNode;
         toNode.dependents ~= fromNode;
         
+        // Invalidate depth cache for affected nodes
+        invalidateDepthCascade(fromNode);
+        
         return Ok!BuildError();
     }
     
-    /// Check if adding an edge would create a cycle
+    /// Invalidate depth cache for node and all dependents (cascade upward)
+    /// 
+    /// When a node gains a new dependency, all nodes that depend on it
+    /// may need recalculation of their depth.
+    private void invalidateDepthCascade(BuildNode node) @safe nothrow
+    {
+        node.invalidateDepthCache();
+        foreach (dependent; node.dependents)
+        {
+            invalidateDepthCascade(dependent);
+        }
+    }
+    
+    /// Check if adding an edge would create a cycle (O(V+E) worst case)
     /// 
     /// Note: This function could potentially be @safe as it only performs
     /// safe operations (AA access, reference comparisons, array traversal).
     /// Marked @trusted conservatively for nested function with closure.
+    /// 
+    /// Used only in Immediate validation mode. For large graphs, prefer
+    /// Deferred mode with a single O(V+E) topological sort.
     private bool wouldCreateCycle(BuildNode from, BuildNode to) @trusted
     {
         bool[BuildNode] visited;
@@ -502,6 +625,7 @@ final class BuildGraph
         size_t totalEdges;
         size_t maxDepth;
         size_t parallelism; // Max nodes that can be built in parallel
+        size_t criticalPathLength; // Longest path through graph
     }
     
     GraphStats getStats() const
@@ -523,7 +647,73 @@ final class BuildGraph
         if (!nodesByDepth.empty)
             stats.parallelism = nodesByDepth.values.maxElement;
         
+        // Calculate critical path length
+        stats.criticalPathLength = calculateCriticalPathLength();
+        
         return stats;
+    }
+    
+    /// Calculate critical path cost for all nodes
+    /// Returns map of node ID to critical path cost (estimated build time to completion)
+    size_t[string] calculateCriticalPath(size_t delegate(BuildNode) @safe estimateCost) const @trusted
+    {
+        size_t[string] costs;
+        bool[string] visited;
+        
+        size_t visit(const BuildNode node) @trusted
+        {
+            if (node.id in visited)
+                return costs[node.id];
+            
+            visited[node.id] = true;
+            
+            // Get max cost of dependents (reverse direction - who depends on me)
+            size_t maxDependentCost = 0;
+            foreach (dependent; node.dependents)
+            {
+                immutable depCost = visit(dependent);
+                maxDependentCost = max(maxDependentCost, depCost);
+            }
+            
+            // Critical path cost = own cost + max dependent cost
+            immutable cost = estimateCost(cast(BuildNode)node) + maxDependentCost;
+            costs[node.id] = cost;
+            return cost;
+        }
+        
+        foreach (node; nodes.values)
+            visit(node);
+        
+        return costs;
+    }
+    
+    /// Calculate critical path length (longest chain)
+    private size_t calculateCriticalPathLength() const @trusted
+    {
+        if (nodes.empty)
+            return 0;
+        
+        size_t maxPath = 0;
+        bool[const(BuildNode)] visited;
+        
+        size_t dfs(const BuildNode node)
+        {
+            if (node in visited)
+                return 0;
+            
+            visited[node] = true;
+            
+            size_t maxDepPath = 0;
+            foreach (dep; node.dependencies)
+                maxDepPath = max(maxDepPath, dfs(dep));
+            
+            return 1 + maxDepPath;
+        }
+        
+        foreach (node; nodes.values)
+            maxPath = max(maxPath, dfs(node));
+        
+        return maxPath;
     }
 }
 

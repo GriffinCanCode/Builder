@@ -79,6 +79,13 @@ struct DSLParser
         
         string name = advance().value;
         
+        // Validate target name is not empty or whitespace-only
+        import std.string : strip;
+        if (name.strip().empty)
+        {
+            return error!(TargetDecl)("Target name cannot be empty or whitespace-only");
+        }
+        
         // Expect: )
         if (!match(TokenType.RightParen))
         {

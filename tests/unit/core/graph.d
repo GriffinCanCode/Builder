@@ -502,3 +502,259 @@ unittest
     writeln("\x1b[32m  ✓ Cached status correctly satisfies dependencies\x1b[0m");
 }
 
+// ==================== PERFORMANCE OPTIMIZATION TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Deferred validation mode");
+    
+    // Create graph with deferred validation
+    auto graph = new BuildGraph(ValidationMode.Deferred);
+    
+    auto a = TargetBuilder.create("a").build();
+    auto b = TargetBuilder.create("b").build();
+    auto c = TargetBuilder.create("c").build();
+    
+    graph.addTarget(a);
+    graph.addTarget(b);
+    graph.addTarget(c);
+    
+    // Add dependencies without cycle checks
+    auto r1 = graph.addDependency("a", "b");
+    auto r2 = graph.addDependency("b", "c");
+    Assert.isTrue(r1.isOk && r2.isOk);
+    
+    // Graph not validated yet
+    Assert.isFalse(graph.isValidated());
+    
+    // Adding cycle doesn't fail immediately in deferred mode
+    auto r3 = graph.addDependency("c", "a");
+    Assert.isTrue(r3.isOk); // No immediate cycle detection
+    
+    // But validation catches it
+    auto validateResult = graph.validate();
+    Assert.isTrue(validateResult.isErr);
+    
+    writeln("\x1b[32m  ✓ Deferred validation detects cycles at validation time\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Deferred validation with valid graph");
+    
+    auto graph = new BuildGraph(ValidationMode.Deferred);
+    
+    // Create: a -> b -> c (valid chain)
+    auto a = TargetBuilder.create("a").build();
+    auto b = TargetBuilder.create("b").build();
+    auto c = TargetBuilder.create("c").build();
+    
+    graph.addTarget(a);
+    graph.addTarget(b);
+    graph.addTarget(c);
+    
+    graph.addDependency("a", "b").unwrap();
+    graph.addDependency("b", "c").unwrap();
+    
+    // Validate should succeed
+    auto validateResult = graph.validate();
+    Assert.isTrue(validateResult.isOk);
+    Assert.isTrue(graph.isValidated());
+    
+    // Topological sort should work
+    auto sorted = graph.topologicalSort().unwrap();
+    Assert.equal(sorted.length, 3);
+    
+    writeln("\x1b[32m  ✓ Deferred validation succeeds for valid graph\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Immediate mode backward compatibility");
+    
+    // Default mode is Immediate for backward compatibility
+    auto graph = new BuildGraph();
+    
+    auto a = TargetBuilder.create("a").build();
+    auto b = TargetBuilder.create("b").build();
+    
+    graph.addTarget(a);
+    graph.addTarget(b);
+    
+    // Create cycle: a -> b -> a
+    auto r1 = graph.addDependency("a", "b");
+    Assert.isTrue(r1.isOk);
+    
+    // Immediate mode detects cycle right away
+    auto cycleResult = graph.addDependency("b", "a");
+    Assert.isTrue(cycleResult.isErr);
+    
+    // Graph is always considered validated in immediate mode
+    Assert.isTrue(graph.isValidated());
+    
+    writeln("\x1b[32m  ✓ Immediate mode maintains backward compatibility\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Depth memoization correctness");
+    
+    auto graph = new BuildGraph();
+    
+    // Create chain: a -> b -> c -> d -> e (depth 4)
+    auto a = TargetBuilder.create("a").build();
+    auto b = TargetBuilder.create("b").build();
+    auto c = TargetBuilder.create("c").build();
+    auto d = TargetBuilder.create("d").build();
+    auto e = TargetBuilder.create("e").build();
+    
+    graph.addTarget(a);
+    graph.addTarget(b);
+    graph.addTarget(c);
+    graph.addTarget(d);
+    graph.addTarget(e);
+    
+    graph.addDependency("a", "b").unwrap();
+    graph.addDependency("b", "c").unwrap();
+    graph.addDependency("c", "d").unwrap();
+    graph.addDependency("d", "e").unwrap();
+    
+    // First call computes depth
+    auto depth1 = graph.nodes["a"].depth();
+    Assert.equal(depth1, 4);
+    
+    // Second call uses cached value (should be instant)
+    auto depth2 = graph.nodes["a"].depth();
+    Assert.equal(depth2, 4);
+    
+    // All nodes should have correct depth
+    Assert.equal(graph.nodes["e"].depth(), 0);
+    Assert.equal(graph.nodes["d"].depth(), 1);
+    Assert.equal(graph.nodes["c"].depth(), 2);
+    Assert.equal(graph.nodes["b"].depth(), 3);
+    Assert.equal(graph.nodes["a"].depth(), 4);
+    
+    writeln("\x1b[32m  ✓ Depth memoization produces correct results\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Depth cache invalidation");
+    
+    auto graph = new BuildGraph();
+    
+    // Create: a -> b, b -> c
+    auto a = TargetBuilder.create("a").build();
+    auto b = TargetBuilder.create("b").build();
+    auto c = TargetBuilder.create("c").build();
+    
+    graph.addTarget(a);
+    graph.addTarget(b);
+    graph.addTarget(c);
+    
+    graph.addDependency("a", "b").unwrap();
+    graph.addDependency("b", "c").unwrap();
+    
+    // Cache depths
+    Assert.equal(graph.nodes["a"].depth(), 2);
+    Assert.equal(graph.nodes["b"].depth(), 1);
+    
+    // Add new dependency: a -> c (shortcut)
+    graph.addDependency("a", "c").unwrap();
+    
+    // Depth should still be correct (cached or recomputed)
+    Assert.equal(graph.nodes["a"].depth(), 2); // max(b.depth, c.depth) + 1
+    
+    writeln("\x1b[32m  ✓ Depth cache invalidation maintains correctness\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Large graph performance (deferred)");
+    
+    import std.datetime.stopwatch;
+    
+    auto graph = new BuildGraph(ValidationMode.Deferred);
+    
+    // Create a large chain: 0 -> 1 -> 2 -> ... -> 99
+    enum size = 100;
+    foreach (i; 0 .. size)
+    {
+        auto target = TargetBuilder.create("node" ~ i.to!string).build();
+        graph.addTarget(target);
+    }
+    
+    auto sw = StopWatch(AutoStart.yes);
+    
+    // Add all dependencies (O(E) with deferred validation)
+    foreach (i; 1 .. size)
+    {
+        graph.addDependency("node" ~ i.to!string, "node" ~ (i-1).to!string).unwrap();
+    }
+    
+    sw.stop();
+    auto buildTime = sw.peek().total!"msecs";
+    
+    // Validate once (O(V+E))
+    sw.reset();
+    sw.start();
+    auto validateResult = graph.validate();
+    sw.stop();
+    auto validateTime = sw.peek().total!"msecs";
+    
+    Assert.isTrue(validateResult.isOk);
+    
+    // With deferred mode, building should be very fast
+    // Validation time should also be reasonable (single pass)
+    writeln("    Build time: ", buildTime, "ms, Validation time: ", validateTime, "ms");
+    Assert.isTrue(buildTime < 100); // Should be < 100ms even on slow machines
+    
+    // Verify depth calculation is also fast with memoization
+    sw.reset();
+    sw.start();
+    auto maxDepth = graph.nodes["node99"].depth();
+    sw.stop();
+    auto depthTime = sw.peek().total!"msecs";
+    
+    Assert.equal(maxDepth, 99);
+    writeln("    Depth calculation time: ", depthTime, "ms");
+    
+    writeln("\x1b[32m  ✓ Large graph performance with deferred validation is optimal\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.graph - Diamond with memoization");
+    
+    auto graph = new BuildGraph();
+    
+    //     top
+    //    /   \
+    //   left right
+    //    \   /
+    //    bottom
+    auto top = TargetBuilder.create("top").build();
+    auto left = TargetBuilder.create("left").build();
+    auto right = TargetBuilder.create("right").build();
+    auto bottom = TargetBuilder.create("bottom").build();
+    
+    graph.addTarget(top);
+    graph.addTarget(left);
+    graph.addTarget(right);
+    graph.addTarget(bottom);
+    
+    graph.addDependency("top", "left").unwrap();
+    graph.addDependency("top", "right").unwrap();
+    graph.addDependency("left", "bottom").unwrap();
+    graph.addDependency("right", "bottom").unwrap();
+    
+    // Depth should be computed efficiently with memoization
+    // bottom is shared, so its depth should only be computed once
+    Assert.equal(graph.nodes["bottom"].depth(), 0);
+    Assert.equal(graph.nodes["left"].depth(), 1);
+    Assert.equal(graph.nodes["right"].depth(), 1);
+    Assert.equal(graph.nodes["top"].depth(), 2);
+    
+    writeln("\x1b[32m  ✓ Diamond dependencies with memoization work correctly\x1b[0m");
+}
+

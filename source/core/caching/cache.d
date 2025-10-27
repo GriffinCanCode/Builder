@@ -51,6 +51,7 @@ final class BuildCache
     private Mutex cacheMutex;  // Protects all mutable state
     private IntegrityValidator validator;  // HMAC validation for tampering detection
     private FastHashCache hashCache;  // Per-build-session hash memoization
+    private bool closed = false;  // Track if explicitly closed
     
     /// Constructor: Initialize cache with directory and configuration
     /// 
@@ -88,11 +89,48 @@ final class BuildCache
         loadCache();
     }
     
-    /// Destructor: ensure cache is written
+    /// Explicitly close cache and flush to disk
+    /// Call this before program termination to ensure data is saved
+    /// 
+    /// This method prevents silent data loss that can occur if the
+    /// destructor runs during abnormal shutdown or GC finalization.
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Synchronization ensures thread-safe access
+    /// 2. flush() is a trusted member function
+    /// 3. File I/O operations are inherently system-dependent
+    /// 
+    /// Invariants:
+    /// - After close(), the cache should not be modified
+    /// - Multiple calls to close() are safe (idempotent)
+    /// - Destructor detects closed state and skips flushing
+    void close() @trusted
+    {
+        synchronized (cacheMutex)
+        {
+            if (!closed)
+            {
+                if (dirty)
+                {
+                    flush(false); // Flush without eviction on close
+                }
+                closed = true;
+            }
+        }
+    }
+    
+    /// Destructor: ensure cache is written (best-effort fallback)
     /// Skip if called during GC to avoid InvalidMemoryOperationError
+    /// 
+    /// NOTE: This is a fallback only. Always call close() explicitly
+    /// before program termination to guarantee data integrity.
     ~this()
     {
         import core.memory : GC;
+        
+        // If already closed explicitly, nothing to do
+        if (closed)
+            return;
         
         // Don't flush during GC - it allocates memory which is forbidden
         // The cache will be saved on next run instead
@@ -100,11 +138,14 @@ final class BuildCache
         {
             try
             {
+                import utils.logging.logger;
+                Logger.debugLog("Warning: Cache destroyed without explicit close() - flushing as fallback");
                 flush(false); // Don't evict during destruction
             }
             catch (Exception e)
             {
                 // Best effort - ignore errors during destruction
+                // User should have called close() explicitly
             }
         }
     }
@@ -221,45 +262,36 @@ final class BuildCache
         
         // Hash all source files with memoization to avoid duplicate hashing
         if (sources.length > 4) {
-            // Use SIMD-aware parallel processing for multiple files
-            import utils.concurrency.simd;
-            import std.typecons : Tuple;
+            // Use work-stealing parallel execution for better load balancing
+            import utils.concurrency.parallel;
+            import std.typecons : Tuple, tuple;
             
-            // Count existing sources first to avoid allocation
-            size_t existingCount = 0;
+            // Filter existing sources
+            string[] existingSources;
+            existingSources.reserve(sources.length);
             foreach (source; sources)
                 if (exists(source))
-                    existingCount++;
+                    existingSources ~= source;
             
-            // Only allocate if we have sources to process
-            if (existingCount > 0) {
-                // Reuse workspace buffer if large enough, otherwise allocate
-                if (hashWorkspace.length < existingCount)
-                    hashWorkspace.length = existingCount;
-                
-                size_t idx = 0;
-                foreach (source; sources)
-                    if (exists(source))
-                        hashWorkspace[idx++] = source;
-                
-                // Use only the filled portion of the workspace
-                auto existingSources = hashWorkspace[0 .. existingCount];
-                
-                // Parallel hash with SIMD and memoization
+            if (existingSources.length > 0) {
+                // Parallel hash with work-stealing and memoization
                 alias HashResult = Tuple!(string, string, string);
-                auto hashes = SIMDParallel.mapSIMD(existingSources, (string source) {
-                    // Check hash cache first to avoid duplicate computation
-                    auto cached = hashCache.get(source);
-                    if (cached.found) {
-                        return tuple(source, cached.contentHash, cached.metadataHash);
+                auto hashes = ParallelExecutor.mapWorkStealing(
+                    existingSources,
+                    (string source) {
+                        // Check hash cache first to avoid duplicate computation
+                        auto cached = hashCache.get(source);
+                        if (cached.found) {
+                            return tuple(source, cached.contentHash, cached.metadataHash);
+                        }
+                        
+                        // Compute and cache for future use
+                        auto contentHash = FastHash.hashFile(source);
+                        auto metadataHash = FastHash.hashMetadata(source);
+                        hashCache.put(source, contentHash, metadataHash);
+                        return tuple(source, contentHash, metadataHash);
                     }
-                    
-                    // Compute and cache for future use
-                    auto contentHash = FastHash.hashFile(source);
-                    auto metadataHash = FastHash.hashMetadata(source);
-                    hashCache.put(source, contentHash, metadataHash);
-                    return tuple(source, contentHash, metadataHash);
-                });
+                );
                 
                 foreach (result; hashes) {
                     entry.sourceHashes[result[0]] = result[1];

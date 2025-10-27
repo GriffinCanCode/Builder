@@ -35,6 +35,8 @@ import languages.scripting.r;
 import utils.logging.logger;
 import utils.concurrency.pool;
 import utils.concurrency.lockfree;
+import utils.concurrency.scheduler;
+import utils.concurrency.priority;
 import errors;
 import cli.events.events;
 import core.execution.retry;
@@ -67,6 +69,8 @@ final class BuildExecutor
     private LanguageHandler[TargetLanguage] handlers;
     private ThreadPool pool;
     private LockFreeQueue!BuildNode readyQueue;  // Lock-free ready queue for scalability
+    private WorkStealingScheduler!BuildNode workStealingScheduler;  // Optional work-stealing scheduler
+    private size_t[string] criticalPathCosts;  // Precomputed critical path costs
     private shared size_t activeTasks;  // Atomic: number of currently executing tasks
     private shared size_t failedTasks;  // Atomic: number of failed tasks
     private immutable size_t workerCount;
@@ -75,14 +79,16 @@ final class BuildExecutor
     private CheckpointManager checkpointManager;
     private bool enableCheckpoints;
     private bool enableRetries;
+    private bool useWorkStealing;  // Enable work-stealing scheduler
     
-    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null, bool enableCheckpoints = true, bool enableRetries = true) @trusted
+    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null, bool enableCheckpoints = true, bool enableRetries = true, bool useWorkStealing = true) @trusted
     {
         this.graph = graph;
         this.config = config;
         this.eventPublisher = eventPublisher;
         this.enableCheckpoints = enableCheckpoints;
         this.enableRetries = enableRetries;
+        this.useWorkStealing = useWorkStealing;
         
         // Initialize cache with configuration from environment
         const cacheConfig = CacheConfig.fromEnvironment();
@@ -100,6 +106,16 @@ final class BuildExecutor
         
         this.workerCount = maxParallelism == 0 ? totalCPUs : maxParallelism;
         this.pool = new ThreadPool(workerCount);
+        
+        // Initialize work-stealing scheduler if enabled
+        if (useWorkStealing)
+        {
+            this.workStealingScheduler = new WorkStealingScheduler!BuildNode(
+                workerCount,
+                (BuildNode node) @trusted => buildNodeWithScheduler(node)
+            );
+            Logger.debugLog("Work-stealing scheduler enabled for critical path optimization");
+        }
         
         // Register language handlers
         handlers[TargetLanguage.Python] = new PythonHandler();
@@ -130,12 +146,76 @@ final class BuildExecutor
     }
     
     /// Explicitly shutdown the executor and thread pool
+    /// 
+    /// IMPORTANT: Always call this before program termination to ensure
+    /// cache data is properly flushed to disk and no data is lost.
     void shutdown()
     {
+        if (workStealingScheduler !is null)
+        {
+            workStealingScheduler.shutdown();
+            workStealingScheduler = null;
+        }
+        
         if (pool !is null)
         {
             pool.shutdown();
             pool = null;
+        }
+        
+        // Explicitly close cache to prevent data loss
+        // This is critical - don't rely on destructor which may fail during GC
+        if (cache !is null)
+        {
+            cache.close();
+        }
+    }
+    
+    /// Estimate build cost for a node (for critical path calculation)
+    private size_t estimateBuildCost(BuildNode node) @safe
+    {
+        // Heuristic: base cost + source file count * weight
+        enum size_t BASE_COST = 100;  // Base cost in arbitrary units
+        enum size_t PER_FILE_COST = 50;  // Cost per source file
+        enum size_t PER_DEP_COST = 10;   // Cost per dependency
+        
+        size_t cost = BASE_COST;
+        cost += node.target.sources.length * PER_FILE_COST;
+        cost += node.dependencies.length * PER_DEP_COST;
+        
+        // Language-specific multipliers
+        switch (node.target.language)
+        {
+            case TargetLanguage.Cpp:
+            case TargetLanguage.Rust:
+                cost = cast(size_t)(cost * 2.0);  // Slower to compile
+                break;
+            case TargetLanguage.TypeScript:
+            case TargetLanguage.JavaScript:
+                cost = cast(size_t)(cost * 1.5);  // Type checking overhead
+                break;
+            case TargetLanguage.Python:
+            case TargetLanguage.Ruby:
+                cost = cast(size_t)(cost * 0.5);  // Faster (interpreted)
+                break;
+            default:
+                break;
+        }
+        
+        return cost;
+    }
+    
+    /// Build a node using the work-stealing scheduler
+    private void buildNodeWithScheduler(BuildNode node) @trusted
+    {
+        try
+        {
+            buildNode(node);
+        }
+        catch (Exception e)
+        {
+            Logger.error("Build failed for " ~ node.id ~ ": " ~ e.msg);
+            atomicOp!"+="(failedTasks, 1);
         }
     }
     

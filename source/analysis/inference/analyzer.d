@@ -43,7 +43,9 @@ class DependencyAnalyzer
         Logger.info("Analyzing dependencies...");
         auto sw = StopWatch(AutoStart.yes);
         
-        auto graph = new BuildGraph();
+        // Use deferred validation for O(V+E) performance instead of O(V²)
+        // This is a massive performance improvement for large dependency graphs
+        auto graph = new BuildGraph(ValidationMode.Deferred);
         
         // Add all targets to graph
         // Uses TargetId for filtering when available
@@ -84,7 +86,7 @@ class DependencyAnalyzer
                 continue;
             }
             
-            // Add resolved dependencies to graph
+            // Add resolved dependencies to graph (no cycle check yet)
             foreach (dep; analysis.dependencies)
             {
                 if (dep.targetName in graph.nodes)
@@ -101,6 +103,15 @@ class DependencyAnalyzer
             
             Logger.debugLog("  " ~ target.name ~ ": " ~ 
                          analysis.dependencies.length.to!string ~ " dependencies");
+        }
+        
+        // Validate graph for cycles once at the end (O(V+E) total)
+        auto validateResult = graph.validate();
+        if (validateResult.isErr)
+        {
+            auto error = validateResult.unwrapErr();
+            Logger.error("Graph validation failed: " ~ format(error));
+            throw new Exception("Circular dependency detected in build graph");
         }
         
         sw.stop();
@@ -120,8 +131,9 @@ class DependencyAnalyzer
         TargetAnalysis result;
         result.targetName = target.name;
         
-        // Aggregate file analysis results
-        auto aggregated = aggregateMap(
+        // Aggregate file analysis results with work-stealing for better load balancing
+        // (different files have varying analysis complexity)
+        auto aggregated = aggregateMapWorkStealing(
             target.sources,
             (string source) {
                 // Check file exists
