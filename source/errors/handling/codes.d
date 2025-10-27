@@ -87,7 +87,12 @@ enum ErrorCode
     // Telemetry errors (10000-10999)
     TelemetryNoSession = 10000,
     TelemetryStorage,
-    TelemetryInvalid
+    TelemetryInvalid,
+    
+    // Tracing errors (11000-11999)
+    TraceInvalidFormat = 11000,
+    TraceNoActiveSpan,
+    TraceExportFailed
 }
 
 /// Get error category from error code
@@ -105,6 +110,7 @@ ErrorCategory categoryOf(ErrorCode code) pure nothrow @nogc
         case 8: return ErrorCategory.System;
         case 9: return ErrorCategory.Internal;
         case 10: return ErrorCategory.Internal;
+        case 11: return ErrorCategory.Internal;
         case 0: return ErrorCategory.Internal;
     }
 }
@@ -166,6 +172,9 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.TelemetryNoSession:
         case ErrorCode.TelemetryStorage:
         case ErrorCode.TelemetryInvalid:
+        case ErrorCode.TraceInvalidFormat:
+        case ErrorCode.TraceNoActiveSpan:
+        case ErrorCode.TraceExportFailed:
             return false;
     }
 }
@@ -223,6 +232,9 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.TelemetryNoSession: return "No active telemetry session";
         case ErrorCode.TelemetryStorage: return "Telemetry storage error";
         case ErrorCode.TelemetryInvalid: return "Invalid telemetry data";
+        case ErrorCode.TraceInvalidFormat: return "Invalid trace format";
+        case ErrorCode.TraceNoActiveSpan: return "No active span";
+        case ErrorCode.TraceExportFailed: return "Trace export failed";
     }
 }
 

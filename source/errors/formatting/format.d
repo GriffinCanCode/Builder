@@ -384,6 +384,9 @@ string[] suggestFixes(const BuildError error)
         case ErrorCode.TelemetryNoSession:
         case ErrorCode.TelemetryStorage:
         case ErrorCode.TelemetryInvalid:
+        case ErrorCode.TraceInvalidFormat:
+        case ErrorCode.TraceNoActiveSpan:
+        case ErrorCode.TraceExportFailed:
             break;
     }
     

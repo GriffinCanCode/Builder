@@ -53,4 +53,7 @@ public import core.telemetry.collector;
 public import core.telemetry.storage;
 public import core.telemetry.analysis;
 public import core.telemetry.exporter;
+public import core.telemetry.tracing;
+public import core.telemetry.flamegraph;
+public import core.telemetry.replay;
 
