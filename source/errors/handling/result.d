@@ -68,7 +68,9 @@ struct Result(T, E)
     {
         if (!_isOk)
         {
-            static if (is(typeof(_error.toString()) : string))
+            static if (is(E : string))
+                throw new Exception("Called unwrap on an error: " ~ _error);
+            else static if (is(typeof(_error.toString()) : string))
                 throw new Exception("Called unwrap on an error: " ~ _error.toString());
             else
                 throw new Exception("Called unwrap on an error");
@@ -92,7 +94,9 @@ struct Result(T, E)
     {
         if (!_isOk)
         {
-            static if (is(typeof(_error.toString()) : string))
+            static if (is(E : string))
+                throw new Exception(context ~ ": " ~ _error);
+            else static if (is(typeof(_error.toString()) : string))
                 throw new Exception(context ~ ": " ~ _error.toString());
             else
                 throw new Exception(context);
@@ -259,7 +263,9 @@ struct Result(E) if (is(E))
     {
         if (!_isOk)
         {
-            static if (is(typeof(_error.toString()) : string))
+            static if (is(E : string))
+                throw new Exception("Called unwrap on an error: " ~ _error);
+            else static if (is(typeof(_error.toString()) : string))
                 throw new Exception("Called unwrap on an error: " ~ _error.toString());
             else
                 throw new Exception("Called unwrap on an error");
@@ -278,7 +284,9 @@ struct Result(E) if (is(E))
     {
         if (!_isOk)
         {
-            static if (is(typeof(_error.toString()) : string))
+            static if (is(E : string))
+                throw new Exception(context ~ ": " ~ _error);
+            else static if (is(typeof(_error.toString()) : string))
                 throw new Exception(context ~ ": " ~ _error.toString());
             else
                 throw new Exception(context);

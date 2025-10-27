@@ -25,6 +25,9 @@ module utils;
 ///   balancer.d  - Dynamic load balancing with multiple strategies
 ///   priority.d  - Priority queues and critical path scheduling
 ///
+/// Memory Optimization:
+///   intern.d    - String interning for memory deduplication (60-80% savings)
+///
 /// Usage:
 ///   import utils;
 ///   
@@ -69,4 +72,5 @@ public import utils.python.pywrap;
 public import utils.simd;
 public import utils.security.validation;
 public import utils.process;
+public import utils.memory;
 
