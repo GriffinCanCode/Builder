@@ -75,6 +75,9 @@ void main(string[] args)
             case "infer":
                 InferCommand.execute();
                 break;
+            case "resume":
+                resumeCommand(mode);
+                break;
             case "install-extension":
                 installExtensionCommand();
                 break;
@@ -98,7 +101,8 @@ void printHelp() @safe
     writeln("  builder <command> [options] [target]\n");
     writeln("Commands:");
     writeln("  build [target]    Build all targets or specific target (zero-config supported!)");
-    writeln("  clean             Clean build cache");
+    writeln("  resume            Resume failed build from checkpoint");
+    writeln("  clean             Clean build cache (includes checkpoints)");
     writeln("  graph [target]    Show dependency graph");
     writeln("  init              Initialize a new Builderfile with auto-detection");
     writeln("  infer             Show what targets would be auto-detected (dry-run)");
@@ -218,6 +222,90 @@ void graphCommand(in string target) @trusted
     auto graph = analyzer.analyze(target);
     
     graph.print();
+}
+
+void resumeCommand(in string modeStr) @trusted
+{
+    import core.execution.checkpoint : CheckpointManager;
+    import core.execution.resume : ResumePlanner, ResumeConfig;
+    
+    Logger.info("Checking for build checkpoint...");
+    
+    auto checkpointManager = new CheckpointManager(".", true);
+    
+    if (!checkpointManager.exists())
+    {
+        Logger.error("No checkpoint found. Run 'builder build' first.");
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    
+    auto checkpointResult = checkpointManager.load();
+    if (checkpointResult.isErr)
+    {
+        Logger.error("Failed to load checkpoint: " ~ checkpointResult.unwrapErr());
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    
+    auto checkpoint = checkpointResult.unwrap();
+    Logger.info("Found checkpoint from " ~ checkpoint.timestamp.toSimpleString());
+    Logger.info("Progress: " ~ checkpoint.completedTargets.to!string ~ "/" ~ 
+               checkpoint.totalTargets.to!string ~ " targets (" ~ 
+               checkpoint.completion().to!string[0..min(5, checkpoint.completion().to!string.length)] ~ "%)");
+    
+    if (checkpoint.failedTargets > 0)
+    {
+        Logger.info("Failed targets:");
+        foreach (target; checkpoint.failedTargetIds)
+            Logger.error("  - " ~ target);
+    }
+    
+    writeln();
+    
+    // Parse configuration
+    auto configResult = ConfigParser.parseWorkspace(".");
+    if (configResult.isErr)
+    {
+        Logger.error("Failed to parse workspace configuration");
+        import errors.formatting.format : format;
+        Logger.error(format(configResult.unwrapErr()));
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    
+    auto config = configResult.unwrap();
+    
+    // Rebuild graph
+    auto analyzer = new DependencyAnalyzer(config);
+    auto graph = analyzer.analyze("");
+    
+    // Validate checkpoint
+    if (!checkpoint.isValid(graph))
+    {
+        Logger.error("Checkpoint invalid for current project state. Run 'builder clean' and rebuild.");
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    
+    Logger.info("Resuming build...");
+    
+    // Determine render mode
+    immutable renderMode = parseRenderMode(modeStr);
+    
+    // Create event publisher and renderer
+    auto publisher = new SimpleEventPublisher();
+    auto renderer = RendererFactory.createWithPublisher(publisher, renderMode);
+    
+    // Execute build with checkpoint resume
+    auto executor = new BuildExecutor(graph, config, 0, publisher);
+    executor.execute();
+    executor.shutdown();
+    
+    // Flush any remaining output
+    renderer.flush();
+    
+    Logger.success("Build resumed and completed successfully!");
 }
 
 void installExtensionCommand() @trusted

@@ -6,6 +6,8 @@ import std.string;
 import std.algorithm;
 import std.range;
 
+@safe:
+
 /// High-level D wrapper for BLAKE3 hashing
 /// Provides memory-safe, convenient API over the C bindings
 struct Blake3
@@ -13,13 +15,15 @@ struct Blake3
     private blake3_hasher hasher;
     
     /// Initialize a new hasher with default settings
+    @trusted // Calls C function with valid pointer
     this(int dummy)  // Dummy parameter to allow construction
     {
         blake3_hasher_init(&hasher);
     }
     
     /// Initialize with a key (for keyed hashing/MAC)
-    static Blake3 keyed(in ubyte[BLAKE3_KEY_LEN] key) @trusted
+    @trusted // Calls C function with valid static array pointer
+    static Blake3 keyed(in ubyte[BLAKE3_KEY_LEN] key)
     {
         Blake3 b;
         blake3_hasher_init_keyed(&b.hasher, key.ptr);
@@ -27,7 +31,8 @@ struct Blake3
     }
     
     /// Initialize for key derivation
-    static Blake3 deriveKey(in string context) @trusted
+    @trusted // Calls C function with null-terminated string
+    static Blake3 deriveKey(in string context)
     {
         Blake3 b;
         blake3_hasher_init_derive_key(&b.hasher, context.toStringz());
@@ -35,20 +40,23 @@ struct Blake3
     }
     
     /// Update hasher with data
-    void put(in ubyte[] data) @trusted
+    @trusted // Calls C function with valid slice pointer and length
+    void put(in ubyte[] data)
     {
         if (data.length > 0)
             blake3_hasher_update(&hasher, data.ptr, data.length);
     }
     
     /// Update hasher with string
-    void put(in string data) @trusted
+    @trusted // Safe cast and delegates to trusted put()
+    void put(in string data)
     {
         put(cast(ubyte[])data);
     }
     
     /// Finalize and get hash (default 32 bytes)
-    ubyte[] finish(in size_t length = BLAKE3_OUT_LEN) @trusted
+    @trusted // Calls C function with newly allocated buffer
+    ubyte[] finish(in size_t length = BLAKE3_OUT_LEN)
     {
         auto output = new ubyte[length];
         blake3_hasher_finalize(&hasher, output.ptr, length);
@@ -56,20 +64,23 @@ struct Blake3
     }
     
     /// Finalize and get hash as hex string
-    string finishHex(in size_t length = BLAKE3_OUT_LEN) @trusted
+    @trusted // Delegates to trusted finish() and safe toHexString()
+    string finishHex(in size_t length = BLAKE3_OUT_LEN)
     {
         auto hash = finish(length);
         return toHexString(hash);
     }
     
     /// Reset hasher to initial state
-    void reset() @trusted
+    @trusted // Calls C function with valid hasher pointer
+    void reset()
     {
         blake3_hasher_reset(&hasher);
     }
     
     /// One-shot hash of data
-    static ubyte[] hash(in ubyte[] data, in size_t length = BLAKE3_OUT_LEN) @trusted
+    @trusted // Delegates to trusted Blake3 methods
+    static ubyte[] hash(in ubyte[] data, in size_t length = BLAKE3_OUT_LEN)
     {
         auto b = Blake3(0);
         b.put(data);
@@ -77,7 +88,8 @@ struct Blake3
     }
     
     /// One-shot hash of string
-    static ubyte[] hash(in string data, in size_t length = BLAKE3_OUT_LEN) @trusted
+    @trusted // Safe cast and delegates to trusted hash()
+    static ubyte[] hash(in string data, in size_t length = BLAKE3_OUT_LEN)
     {
         return hash(cast(ubyte[])data, length);
     }

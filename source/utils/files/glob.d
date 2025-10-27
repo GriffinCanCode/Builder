@@ -12,6 +12,8 @@ import std.parallelism;
 import core.sync.mutex;
 import utils.files.ignore;
 
+@safe:
+
 /// Result of glob matching
 struct GlobResult
 {
@@ -23,14 +25,15 @@ struct GlobResult
 class GlobMatcher
 {
     /// Match files against glob patterns
-    static string[] match(in string[] patterns, in string baseDir) @safe
+    static string[] match(in string[] patterns, in string baseDir)
     {
         auto result = matchWithExclusions(patterns, baseDir);
         return result.matches;
     }
     
     /// Match with separate tracking of exclusions
-    static GlobResult matchWithExclusions(in string[] patterns, in string baseDir) @trusted
+    @trusted // File system operations and regex matching
+    static GlobResult matchWithExclusions(in string[] patterns, in string baseDir)
     {
         GlobResult result;
         bool[string] matchSet;  // Use AA for deduplication
@@ -67,7 +70,8 @@ class GlobMatcher
     }
     
     /// Match a single glob pattern
-    private static string[] matchSingle(in string pattern, in string baseDir) @trusted
+    @trusted // File system operations
+    private static string[] matchSingle(in string pattern, in string baseDir)
     {
         immutable fullPattern = buildPath(baseDir, pattern);
         
@@ -90,6 +94,7 @@ class GlobMatcher
     }
     
     /// Match recursive glob pattern (contains **) with parallel scanning
+    @trusted // File system operations and parallel processing
     private static string[] matchRecursive(string pattern, string baseDir)
     {
         // Split pattern on **
@@ -122,6 +127,7 @@ class GlobMatcher
     }
     
     /// Parallel directory scanner using work-stealing
+    @trusted // File system operations and parallel processing with mutex
     private static string[] scanDirectoryParallel(string startDir, Regex!char pattern, bool matchAll, bool matchFullPath)
     {
         string[] files;
@@ -203,6 +209,7 @@ class GlobMatcher
     }
     
     /// Match shallow glob pattern (no **)
+    @trusted // File system operations
     private static string[] matchShallow(string pattern, string baseDir)
     {
         string[] files;
@@ -306,13 +313,13 @@ class GlobMatcher
 }
 
 /// Convenience function for matching globs
-string[] glob(in string[] patterns, in string baseDir = ".") @safe
+string[] glob(in string[] patterns, in string baseDir = ".")
 {
     return GlobMatcher.match(patterns, baseDir);
 }
 
 /// Convenience function for single pattern
-string[] glob(in string pattern, in string baseDir = ".") @safe
+string[] glob(in string pattern, in string baseDir = ".")
 {
     return GlobMatcher.match([pattern], baseDir);
 }

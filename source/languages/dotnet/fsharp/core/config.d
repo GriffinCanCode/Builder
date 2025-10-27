@@ -696,7 +696,7 @@ struct FSharpConfig
 }
 
 /// Parse F# configuration from target
-FSharpConfig parseFSharpConfig(Target target)
+FSharpConfig parseFSharpConfig(in Target target)
 {
     FSharpConfig config;
     

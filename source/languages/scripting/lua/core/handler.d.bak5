@@ -108,7 +108,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build executable target
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, LuaConfig luaConfig)
     {
         LanguageBuildResult result;
         
@@ -166,7 +166,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build library target
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, LuaConfig luaConfig)
     {
         LanguageBuildResult result;
         
@@ -217,7 +217,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Run tests
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, LuaConfig luaConfig)
     {
         LanguageBuildResult result;
         
@@ -249,7 +249,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build custom target
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, LuaConfig luaConfig)
     {
         LanguageBuildResult result;
         result.success = true;
@@ -258,7 +258,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Parse Lua configuration from target
-    private LuaConfig parseLuaConfig(in Target target)
+    private LuaConfig parseLuaConfig(Target target)
     {
         LuaConfig config;
         

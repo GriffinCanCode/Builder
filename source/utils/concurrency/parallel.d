@@ -5,10 +5,13 @@ import std.algorithm;
 import std.array;
 import std.range;
 
+@safe:
+
 /// Parallel execution utilities
 struct ParallelExecutor
 {
     /// Execute a function on items in parallel
+    @trusted // Task pool creation and parallel execution
     static R[] execute(T, R)(T[] items, R delegate(T) func, size_t maxParallelism)
     {
         if (items.empty)

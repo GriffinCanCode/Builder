@@ -93,7 +93,7 @@ class JavaScriptHandler : BaseLanguageHandler
         return outputs;
     }
     
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
+    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, JSConfig jsConfig)
     {
         LanguageBuildResult result;
         
@@ -118,7 +118,7 @@ class JavaScriptHandler : BaseLanguageHandler
         return bundleTarget(target, config, jsConfig);
     }
     
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
+    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, JSConfig jsConfig)
     {
         // Libraries should use library mode
         if (jsConfig.mode == JSBuildMode.Node)
@@ -135,7 +135,7 @@ class JavaScriptHandler : BaseLanguageHandler
         return bundleTarget(target, config, jsConfig);
     }
     
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
+    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, JSConfig jsConfig)
     {
         LanguageBuildResult result;
         
@@ -183,7 +183,7 @@ class JavaScriptHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
+    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, JSConfig jsConfig)
     {
         LanguageBuildResult result;
         result.success = true;
@@ -192,7 +192,7 @@ class JavaScriptHandler : BaseLanguageHandler
     }
     
     /// Bundle target using configured bundler
-    private LanguageBuildResult bundleTarget(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
+    private LanguageBuildResult bundleTarget(Target target, WorkspaceConfig config, JSConfig jsConfig)
     {
         LanguageBuildResult result;
         

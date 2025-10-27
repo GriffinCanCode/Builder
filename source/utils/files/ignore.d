@@ -8,6 +8,8 @@ import std.file;
 import std.stdio;
 import config.schema.schema : TargetLanguage;
 
+@safe:
+
 /// Language-specific dependency and build directories that should be ignored during scanning
 /// to avoid performance issues and false positives
 struct IgnorePatterns
@@ -40,6 +42,7 @@ class IgnoreRegistry
     private static immutable string[] commonIgnores;
     private static immutable string[] vcsIgnores;
     
+    @trusted // Initializes immutable static data
     static this()
     {
         // Version control system directories - ALWAYS ignore
@@ -471,6 +474,7 @@ class UserIgnorePatterns
     private string[] patterns;
     private string baseDir;
     
+    @trusted // File I/O operations
     this(string baseDir)
     {
         this.baseDir = baseDir;
@@ -478,6 +482,7 @@ class UserIgnorePatterns
     }
     
     /// Load ignore patterns from .builderignore and .gitignore
+    @trusted // File I/O operations
     private void loadIgnoreFiles()
     {
         // Load .builderignore first (takes precedence)
@@ -501,6 +506,7 @@ class UserIgnorePatterns
     /// - Directory patterns (ending with /)
     /// - Glob patterns (*, ?, **)
     /// - Negation patterns (starting with !)
+    @trusted // File reading and string operations
     private void parseIgnoreFile(string filePath)
     {
         try
@@ -672,6 +678,7 @@ class CombinedIgnoreChecker
     private TargetLanguage language;
     private string baseDir;
     
+    @trusted // Creates UserIgnorePatterns which does file I/O
     this(string baseDir, TargetLanguage language = TargetLanguage.Generic)
     {
         this.baseDir = baseDir;

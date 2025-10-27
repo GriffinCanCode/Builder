@@ -140,7 +140,7 @@ class KotlinHandler : BaseLanguageHandler
         return allImports;
     }
     
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, KotlinConfig ktConfig)
+    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, KotlinConfig ktConfig)
     {
         // Delegate to appropriate builder based on mode
         import languages.jvm.kotlin.tooling.builders;
@@ -165,7 +165,7 @@ class KotlinHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, KotlinConfig ktConfig)
+    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, KotlinConfig ktConfig)
     {
         // Libraries typically don't include runtime
         ktConfig.packaging.includeRuntime = false;
@@ -173,7 +173,7 @@ class KotlinHandler : BaseLanguageHandler
         return buildExecutable(target, config, ktConfig);
     }
     
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, KotlinConfig ktConfig)
+    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, KotlinConfig ktConfig)
     {
         LanguageBuildResult result;
         
@@ -283,7 +283,7 @@ class KotlinHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, KotlinConfig ktConfig)
+    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, KotlinConfig ktConfig)
     {
         LanguageBuildResult result;
         

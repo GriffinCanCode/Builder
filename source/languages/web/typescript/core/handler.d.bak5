@@ -94,7 +94,7 @@ class TypeScriptHandler : BaseLanguageHandler
         return outputs;
     }
     
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
+    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, TSConfig tsConfig)
     {
         LanguageBuildResult result;
         
@@ -114,7 +114,7 @@ class TypeScriptHandler : BaseLanguageHandler
         return compileTarget(target, config, tsConfig);
     }
     
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
+    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, TSConfig tsConfig)
     {
         // Libraries should use library mode
         if (tsConfig.mode != TSBuildMode.Library)
@@ -138,7 +138,7 @@ class TypeScriptHandler : BaseLanguageHandler
         return compileTarget(target, config, tsConfig);
     }
     
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
+    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, TSConfig tsConfig)
     {
         LanguageBuildResult result;
         
@@ -186,7 +186,7 @@ class TypeScriptHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
+    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, TSConfig tsConfig)
     {
         LanguageBuildResult result;
         result.success = true;
@@ -195,7 +195,7 @@ class TypeScriptHandler : BaseLanguageHandler
     }
     
     /// Compile/bundle target using configured compiler
-    private LanguageBuildResult compileTarget(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
+    private LanguageBuildResult compileTarget(Target target, WorkspaceConfig config, TSConfig tsConfig)
     {
         LanguageBuildResult result;
         

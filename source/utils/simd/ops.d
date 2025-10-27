@@ -1,9 +1,11 @@
 module utils.simd.ops;
 
+@safe:
+
 /// SIMD-accelerated memory operations
 /// Automatically selects optimal implementation based on CPU
 
-extern(C):
+extern(C) @system:
 
 /// Fast memory copy (automatically selects SIMD)
 void simd_memcpy(void* dest, const void* src, size_t n);
@@ -38,6 +40,7 @@ void simd_parallel_hash(
 struct SIMDOps
 {
     /// Fast memory copy
+    @trusted // Calls extern C SIMD function
     static void copy(void[] dest, const void[] src)
     {
         import std.algorithm : min;
@@ -46,6 +49,7 @@ struct SIMDOps
     }
     
     /// Fast memory comparison
+    @trusted // Calls extern C SIMD function
     static bool equals(const void[] a, const void[] b)
     {
         if (a.length != b.length) return false;
@@ -53,12 +57,14 @@ struct SIMDOps
     }
     
     /// Fast memory set
+    @trusted // Calls extern C SIMD function
     static void fill(void[] dest, ubyte value)
     {
         simd_memset(dest.ptr, value, dest.length);
     }
     
     /// Find byte in array
+    @trusted // Calls extern C SIMD function and pointer arithmetic
     static ptrdiff_t find(const ubyte[] haystack, ubyte needle)
     {
         auto result = simd_memchr(haystack.ptr, needle, haystack.length);
@@ -67,6 +73,7 @@ struct SIMDOps
     }
     
     /// Count matching bytes
+    @trusted // Calls extern C SIMD function
     static size_t countMatches(const ubyte[] a, const ubyte[] b)
     {
         import std.algorithm : min;
@@ -75,6 +82,7 @@ struct SIMDOps
     }
     
     /// XOR two arrays
+    @trusted // Calls extern C SIMD function
     static void xor(ubyte[] dest, const ubyte[] a, const ubyte[] b)
     {
         import std.algorithm : min;
@@ -83,6 +91,7 @@ struct SIMDOps
     }
     
     /// Calculate rolling hash
+    @trusted // Calls extern C SIMD function
     static ulong rollingHash(const ubyte[] data, size_t windowSize = 64)
     {
         if (data.length == 0) return 0;

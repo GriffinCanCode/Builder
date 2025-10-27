@@ -143,7 +143,7 @@ class ScalaHandler : BaseLanguageHandler
         return buildExecutable(target, config, scalaConfig);
     }
     
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, ScalaConfig scalaConfig)
+    private LanguageBuildResult runTests(in in Target target, in in WorkspaceConfig config, ScalaConfig scalaConfig)
     {
         LanguageBuildResult result;
         

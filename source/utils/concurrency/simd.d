@@ -7,12 +7,15 @@ import std.array;
 import utils.simd.ops;
 import utils.concurrency.pool;
 
+@safe:
+
 /// SIMD-aware parallel operations
 /// Combines task parallelism with data parallelism for maximum throughput
 struct SIMDParallel
 {
     /// Parallel map with SIMD acceleration for data operations
     /// Use when func performs SIMD-friendly operations (memcpy, hash, compare)
+    @trusted // Thread pool creation and parallel execution
     static R[] mapSIMD(T, R)(T[] items, R delegate(T) func, size_t maxParallelism = 0)
     {
         import std.parallelism : totalCPUs;
@@ -32,6 +35,7 @@ struct SIMDParallel
     
     /// Parallel reduce with SIMD operations
     /// Useful for aggregating hash results, comparing arrays, etc.
+    @trusted // Parallel execution
     static R reduceSIMD(T, R)(T[] items, R delegate(R, T) reducer, R initial)
     {
         if (items.empty)
@@ -43,6 +47,7 @@ struct SIMDParallel
     
     /// Batch hash multiple byte arrays in parallel using SIMD
     /// This leverages both task parallelism and SIMD acceleration
+    @trusted // Parallel execution and hashing
     static string[] hashBatch(const(ubyte[])[] inputs)
     {
         import utils.crypto.blake3;
@@ -53,6 +58,7 @@ struct SIMDParallel
     }
     
     /// Parallel XOR of multiple byte arrays
+    @trusted // Parallel execution and SIMD operations
     static ubyte[][] xorBatch(const(ubyte[])[] array1, const(ubyte[])[] array2)
     {
         import std.algorithm : min;
@@ -73,6 +79,7 @@ struct SIMDParallel
     
     /// Parallel comparison of byte arrays
     /// Returns indices where arrays differ
+    @trusted // Parallel execution and SIMD operations
     static size_t[] findDifferences(const(ubyte[])[] baseline, const(ubyte[])[] current)
     {
         import std.algorithm : min;

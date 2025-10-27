@@ -99,7 +99,7 @@ class ScalaHandler : BaseLanguageHandler
         return outputs;
     }
     
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, ScalaConfig scalaConfig)
+    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, ScalaConfig scalaConfig)
     {
         LanguageBuildResult result;
         
@@ -137,13 +137,13 @@ class ScalaHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, ScalaConfig scalaConfig)
+    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, ScalaConfig scalaConfig)
     {
         // Libraries are built the same way as executables, just packaged differently
         return buildExecutable(target, config, scalaConfig);
     }
     
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, ScalaConfig scalaConfig)
+    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, ScalaConfig scalaConfig)
     {
         LanguageBuildResult result;
         
@@ -203,7 +203,7 @@ class ScalaHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, ScalaConfig scalaConfig)
+    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, ScalaConfig scalaConfig)
     {
         LanguageBuildResult result;
         
