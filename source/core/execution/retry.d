@@ -46,7 +46,7 @@ struct RetryPolicy
     }
     
     /// Calculate delay for given attempt with jitter
-    Duration delayFor(size_t attempt) const pure @safe
+    Duration delayFor(size_t attempt) const @safe
     {
         if (attempt == 0 || !exponential)
             return Duration.zero;
@@ -84,7 +84,7 @@ struct RetryStats
     Duration totalDelay;
     
     /// Record a retry attempt
-    void recordAttempt(ErrorCode code, Duration delay, bool success) nothrow @safe
+    void recordAttempt(ErrorCode code, Duration delay, bool success) @safe
     {
         totalRetries++;
         if (success)
@@ -129,7 +129,7 @@ struct RetryContext
     }
     
     /// Get next delay
-    Duration nextDelay() const pure @safe
+    Duration nextDelay() const @safe
     {
         return policy.delayFor(currentAttempt + 1);
     }
@@ -184,7 +184,7 @@ final class RetryOrchestrator
     }
     
     /// Get policy for error
-    RetryPolicy policyFor(BuildError error) const @safe
+    RetryPolicy policyFor(BuildError error) const @trusted
     {
         // Check custom policy
         if (auto policy = error.code() in customPolicies)
@@ -253,13 +253,13 @@ final class RetryOrchestrator
     }
     
     /// Get current statistics
-    RetryStats getStats() const pure @safe
+    RetryStats getStats() const @trusted
     {
-        return stats;
+        return cast(RetryStats)stats;
     }
     
     /// Reset statistics
-    void resetStats() pure nothrow @safe
+    void resetStats() @safe
     {
         stats = RetryStats.init;
     }

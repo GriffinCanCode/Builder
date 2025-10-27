@@ -5,6 +5,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.datetime;
+import std.range;
 import core.graph.graph;
 import core.execution.checkpoint;
 import errors;
@@ -70,7 +71,7 @@ final class ResumePlanner
     Result!(ResumePlan, string) plan(
         const ref Checkpoint checkpoint,
         BuildGraph graph
-    ) @safe
+    ) @trusted
     {
         // Validate checkpoint
         if (!checkpoint.isValid(graph))
@@ -193,7 +194,7 @@ final class ResumePlanner
         // Retry failed targets
         foreach (targetId; checkpoint.failedTargetIds)
         {
-            if (targetId in graph.nodes && targetId !in plan.targetsToRetry)
+            if (targetId in graph.nodes && !canFind(plan.targetsToRetry, targetId))
             {
                 auto node = graph.nodes[targetId];
                 node.status = BuildStatus.Pending;
@@ -208,7 +209,7 @@ final class ResumePlanner
             .filter!((id) {
                 auto status = checkpoint.nodeStates[id];
                 return (status == BuildStatus.Success || status == BuildStatus.Cached) &&
-                       id !in plan.targetsToRetry;
+                       !canFind(plan.targetsToRetry, id);
             })
             .array;
         

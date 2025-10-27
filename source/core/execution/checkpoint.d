@@ -49,7 +49,7 @@ struct Checkpoint
     }
     
     /// Merge with current graph state (preserves successful builds)
-    void mergeWith(BuildGraph graph) const
+    void mergeWith(BuildGraph graph) const @trusted
     {
         foreach (targetId, status; nodeStates)
         {
@@ -273,13 +273,22 @@ final class CheckpointManager
         
         size_t offset = 0;
         
+        // Helper to read with offset management
+        T readValue(T)(ref ubyte[] d, ref size_t off)
+        {
+            auto slice = d[off .. $];
+            auto value = read!T(slice);
+            off += T.sizeof;
+            return value;
+        }
+        
         // Validate magic number
-        immutable magic = read!uint(data, offset);
+        immutable magic = readValue!uint(data, offset);
         if (magic != 0x434B5054)
             throw new Exception("Invalid checkpoint: bad magic number");
         
         // Version
-        immutable version_ = read!ubyte(data, offset);
+        immutable version_ = readValue!ubyte(data, offset);
         if (version_ != 1)
             throw new Exception("Unsupported checkpoint version");
         
@@ -289,25 +298,25 @@ final class CheckpointManager
         checkpoint.workspaceRoot = readString(data, &offset);
         
         // Timestamp
-        immutable unixTime = read!long(data, offset);
+        immutable unixTime = readValue!long(data, offset);
         checkpoint.timestamp = SysTime.fromUnixTime(unixTime);
         
         // Counts
-        checkpoint.totalTargets = read!uint(data, offset);
-        checkpoint.completedTargets = read!uint(data, offset);
-        checkpoint.failedTargets = read!uint(data, offset);
+        checkpoint.totalTargets = readValue!uint(data, offset);
+        checkpoint.completedTargets = readValue!uint(data, offset);
+        checkpoint.failedTargets = readValue!uint(data, offset);
         
         // Node states
-        immutable stateCount = read!uint(data, offset);
+        immutable stateCount = readValue!uint(data, offset);
         foreach (i; 0 .. stateCount)
         {
             auto targetId = readString(data, &offset);
-            auto status = cast(BuildStatus)read!ubyte(data, offset);
+            auto status = cast(BuildStatus)readValue!ubyte(data, offset);
             checkpoint.nodeStates[targetId] = status;
         }
         
         // Node hashes
-        immutable hashCount = read!uint(data, offset);
+        immutable hashCount = readValue!uint(data, offset);
         foreach (i; 0 .. hashCount)
         {
             auto targetId = readString(data, &offset);
@@ -316,7 +325,7 @@ final class CheckpointManager
         }
         
         // Failed targets
-        immutable failedCount = read!uint(data, offset);
+        immutable failedCount = readValue!uint(data, offset);
         checkpoint.failedTargetIds.reserve(failedCount);
         foreach (i; 0 .. failedCount)
         {
@@ -343,7 +352,9 @@ private string readString(ubyte[] data, size_t* offset) @trusted
 {
     import std.bitmanip : read;
     
-    immutable len = read!uint(data, offset);
+    auto slice = data[*offset .. $];
+    immutable len = read!uint(slice);
+    *offset += uint.sizeof;
     
     if (*offset + len > data.length)
         throw new Exception("Invalid checkpoint: truncated string");
