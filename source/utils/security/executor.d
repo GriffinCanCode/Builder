@@ -4,11 +4,131 @@ import std.process;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.path : baseName, dirName;
 import utils.security.validation;
 import utils.logging.logger;
 import errors;
 
 @safe:
+
+/// Redact sensitive information from strings for audit logging
+/// Protects against leaking sensitive paths, tokens, and environment variables in logs
+private struct AuditRedactor
+{
+    /// Redact a command argument
+    static string redactArg(string arg) @safe
+    {
+        import std.path : expandTilde;
+        import std.regex : regex, replaceAll;
+        
+        // Redact home directory paths
+        string homeDir;
+        try
+        {
+            version(Posix)
+            {
+                import std.process : environment;
+                homeDir = environment.get("HOME", "");
+            }
+            version(Windows)
+            {
+                import std.process : environment;
+                homeDir = environment.get("USERPROFILE", "");
+            }
+        }
+        catch (Exception)
+        {
+            homeDir = "";
+        }
+        
+        if (!homeDir.empty && arg.canFind(homeDir))
+        {
+            arg = arg.replace(homeDir, "$HOME");
+        }
+        
+        // Redact anything that looks like an API key or token
+        // Pattern: KEY=<value> or TOKEN=<value> or PASS=<value>
+        if (arg.canFind("KEY=") || arg.canFind("TOKEN=") || 
+            arg.canFind("PASS=") || arg.canFind("SECRET=") ||
+            arg.canFind("API_KEY") || arg.canFind("ACCESS_TOKEN"))
+        {
+            auto eqPos = arg.indexOf('=');
+            if (eqPos >= 0)
+            {
+                return arg[0 .. eqPos + 1] ~ "***REDACTED***";
+            }
+        }
+        
+        return arg;
+    }
+    
+    /// Redact a working directory path
+    static string redactPath(string path) @safe
+    {
+        import std.process : environment;
+        
+        // Redact home directory
+        string homeDir;
+        try
+        {
+            version(Posix)
+            {
+                homeDir = environment.get("HOME", "");
+            }
+            version(Windows)
+            {
+                homeDir = environment.get("USERPROFILE", "");
+            }
+        }
+        catch (Exception)
+        {
+            homeDir = "";
+        }
+        
+        if (!homeDir.empty && path.canFind(homeDir))
+        {
+            return path.replace(homeDir, "$HOME");
+        }
+        
+        // For very long paths, show only basename and parent
+        if (path.length > 80)
+        {
+            auto base = baseName(path);
+            auto dir = baseName(dirName(path));
+            return ".../" ~ dir ~ "/" ~ base;
+        }
+        
+        return path;
+    }
+    
+    /// Redact environment variable names (hide values)
+    /// Shows variable names but masks potentially sensitive ones
+    static string redactEnvKeys(string[] keys) @safe
+    {
+        import std.algorithm : map, filter, joiner;
+        import std.conv : to;
+        
+        // Sensitive environment variable patterns
+        immutable sensitivePatterns = [
+            "KEY", "TOKEN", "PASS", "SECRET", "CREDENTIAL", 
+            "API", "AUTH", "CERT", "PRIVATE"
+        ];
+        
+        auto redacted = keys.map!((k) {
+            auto upper = k.toUpper();
+            foreach (pattern; sensitivePatterns)
+            {
+                if (upper.canFind(pattern))
+                {
+                    return k ~ "=***";
+                }
+            }
+            return k;
+        });
+        
+        return redacted.joiner(", ").to!string;
+    }
+}
 
 /// Type-safe command execution with comprehensive security validation
 /// Prevents command injection, validates paths, enforces array-form execution
@@ -166,14 +286,26 @@ struct SecureExecutor
             }
         }
         
-        // Audit log if enabled
+        // Audit log if enabled (with redaction for sensitive data)
         if (auditLog)
         {
-            Logger.debugLog("[AUDIT] Executing: " ~ cmd.join(" "));
+            import std.algorithm : map;
+            import std.array : array;
+            
+            // Redact command arguments
+            auto redactedCmd = cmd.map!(arg => AuditRedactor.redactArg(arg)).array;
+            Logger.debugLog("[AUDIT] Executing: " ~ redactedCmd.join(" "));
+            
+            // Redact working directory
             if (!workDir.empty)
-                Logger.debugLog("[AUDIT]   WorkDir: " ~ workDir);
+                Logger.debugLog("[AUDIT]   WorkDir: " ~ AuditRedactor.redactPath(workDir));
+            
+            // Redact environment variable keys/values
             if (environment.length > 0)
-                Logger.debugLog("[AUDIT]   EnvVars: " ~ environment.keys.join(", "));
+            {
+                auto envKeys = environment.keys.array;
+                Logger.debugLog("[AUDIT]   EnvVars: " ~ AuditRedactor.redactEnvKeys(envKeys));
+            }
         }
         
         // Execute with std.process.execute (safe array form)
@@ -463,5 +595,86 @@ auto execute(
     // Test path validation
     auto pathResult = exec.run(["cat", "../../../etc/passwd"]);
     assert(pathResult.isErr);
+}
+
+@safe unittest
+{
+    import std.process : environment;
+    
+    // Test AuditRedactor: Home directory redaction
+    version(Posix)
+    {
+        auto homeDir = environment.get("HOME", "");
+        if (!homeDir.empty)
+        {
+            auto pathWithHome = homeDir ~ "/projects/secret";
+            auto redacted = AuditRedactor.redactPath(pathWithHome);
+            assert(redacted.canFind("$HOME"));
+            assert(!redacted.canFind(homeDir));
+        }
+    }
+    
+    // Test API key redaction in arguments
+    auto apiKeyArg = "API_KEY=super-secret-12345";
+    auto redacted = AuditRedactor.redactArg(apiKeyArg);
+    assert(redacted == "API_KEY=***REDACTED***");
+    assert(!redacted.canFind("super-secret"));
+    
+    // Test TOKEN redaction
+    auto tokenArg = "AUTH_TOKEN=bearer-token-xyz";
+    redacted = AuditRedactor.redactArg(tokenArg);
+    assert(redacted == "AUTH_TOKEN=***REDACTED***");
+    
+    // Test PASS redaction
+    auto passArg = "DB_PASS=mypassword123";
+    redacted = AuditRedactor.redactArg(passArg);
+    assert(redacted == "DB_PASS=***REDACTED***");
+    
+    // Test SECRET redaction
+    auto secretArg = "SECRET=topsecret";
+    redacted = AuditRedactor.redactArg(secretArg);
+    assert(redacted == "SECRET=***REDACTED***");
+    
+    // Test normal argument passes through
+    auto normalArg = "build.txt";
+    redacted = AuditRedactor.redactArg(normalArg);
+    assert(redacted == "build.txt");
+    
+    // Test long path truncation
+    auto longPath = "/very/long/path/that/goes/on/and/on/and/contains/many/directories/until/it/exceeds/the/limit/file.txt";
+    redacted = AuditRedactor.redactPath(longPath);
+    assert(redacted.length < longPath.length);
+    assert(redacted.canFind("..."));
+    
+    // Test env key redaction
+    auto envKeys = ["PATH", "API_KEY", "HOME", "SECRET_TOKEN", "USER"];
+    auto redactedKeys = AuditRedactor.redactEnvKeys(envKeys);
+    assert(redactedKeys.canFind("API_KEY=***"));
+    assert(redactedKeys.canFind("SECRET_TOKEN=***"));
+    assert(redactedKeys.canFind("PATH")); // Non-sensitive, not redacted
+    assert(!redactedKeys.canFind("API_KEY,") || redactedKeys.canFind("API_KEY=***"));
+}
+
+@safe unittest
+{
+    // Test audit logging is opt-in
+    auto exec = SecureExecutor.create();
+    // Should not log by default
+    auto result = exec.run(["echo", "test"]);
+    assert(result.isOk);
+    
+    // Enable audit logging
+    auto audited = SecureExecutor.create().audit();
+    result = audited.run(["echo", "test"]);
+    assert(result.isOk);
+    
+    // Test audit with sensitive environment variables
+    auto execWithEnv = SecureExecutor.create()
+        .audit()
+        .withEnv("API_KEY", "secret123")
+        .withEnv("HOME", "/home/user");
+    // Execution with redacted logging
+    result = execWithEnv.run(["echo", "hello"]);
+    assert(result.isOk);
 }
 
