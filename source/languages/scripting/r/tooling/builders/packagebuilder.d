@@ -19,10 +19,10 @@ import utils.logging.logger;
 class RPackageBuilder : RBuilder
 {
     override BuildResult build(
-        Target target,
-        WorkspaceConfig config,
-        RConfig rConfig,
-        string rCmd
+        in Target target,
+        in WorkspaceConfig config,
+        in RConfig rConfig,
+        in string rCmd
     )
     {
         BuildResult result;
@@ -118,7 +118,7 @@ class RPackageBuilder : RBuilder
         }
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config, RConfig rConfig)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config, in RConfig rConfig)
     {
         string[] outputs;
         
@@ -142,7 +142,7 @@ class RPackageBuilder : RBuilder
         return outputs;
     }
     
-    override bool validate(Target target, RConfig rConfig)
+    override bool validate(in Target target, in RConfig rConfig)
     {
         // Package builds don't necessarily need source files specified,
         // as they build the entire package directory

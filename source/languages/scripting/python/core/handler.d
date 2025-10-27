@@ -76,8 +76,8 @@ class PythonHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PyConfig pyConfig,
         string pythonCmd
     )
@@ -186,8 +186,8 @@ class PythonHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PyConfig pyConfig,
         string pythonCmd
     )
@@ -233,15 +233,15 @@ class PythonHandler : BaseLanguageHandler
         }
         
         result.success = true;
-        result.outputs = target.sources;
+        result.outputs = target.sources.dup;
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PyConfig pyConfig,
         string pythonCmd
     )
@@ -294,8 +294,8 @@ class PythonHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         PyConfig pyConfig,
         string pythonCmd
     )
@@ -307,7 +307,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Parse Python configuration from target
-    private PyConfig parsePyConfig(Target target)
+    private PyConfig parsePyConfig(in Target target)
     {
         PyConfig config;
         
@@ -338,8 +338,8 @@ class PythonHandler : BaseLanguageHandler
     /// Enhance configuration based on project structure
     private void enhanceConfigFromProject(
         ref PyConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)
@@ -459,7 +459,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Compile Python sources to bytecode
-    private void compileToBytecode(string[] sources, string pythonCmd)
+    private void compileToBytecode(const string[] sources, string pythonCmd)
     {
         Logger.info("Compiling to bytecode");
         
@@ -476,7 +476,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Generate stub files (.pyi)
-    private void generateStubs(string[] sources, string pythonCmd)
+    private void generateStubs(const string[] sources, string pythonCmd)
     {
         Logger.info("Generating stub files");
         
@@ -491,7 +491,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Detect test runner from project
-    private PyTestRunner detectTestRunner(Target target, string pythonCmd)
+    private PyTestRunner detectTestRunner(in Target target, string pythonCmd)
     {
         // Check for pytest
         if (PyTools.isPytestAvailable(pythonCmd))
@@ -502,7 +502,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Run tests with pytest
-    private LanguageBuildResult runPytest(Target target, PyConfig config, string pythonCmd)
+    private LanguageBuildResult runPytest(in Target target, PyConfig config, string pythonCmd)
     {
         LanguageBuildResult result;
         
@@ -550,7 +550,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Run tests with unittest
-    private LanguageBuildResult runUnittest(Target target, PyConfig config, string pythonCmd)
+    private LanguageBuildResult runUnittest(in Target target, PyConfig config, string pythonCmd)
     {
         LanguageBuildResult result;
         
@@ -581,7 +581,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Run tests with nose2
-    private LanguageBuildResult runNose2(Target target, PyConfig config, string pythonCmd)
+    private LanguageBuildResult runNose2(in Target target, PyConfig config, string pythonCmd)
     {
         LanguageBuildResult result;
         
@@ -607,7 +607,7 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Run tests with tox
-    private LanguageBuildResult runTox(Target target, PyConfig config)
+    private LanguageBuildResult runTox(in Target target, PyConfig config)
     {
         LanguageBuildResult result;
         

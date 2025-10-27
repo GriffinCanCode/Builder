@@ -102,7 +102,7 @@ class PyCheckers
 class TypeChecker
 {
     /// Run type checking with configured checker
-    static TypeCheckResult check(string[] sources, TypeCheckConfig config, string pythonCmd = "python3")
+    static TypeCheckResult check(const string[] sources, TypeCheckConfig config, string pythonCmd = "python3")
     {
         if (!config.enabled)
         {

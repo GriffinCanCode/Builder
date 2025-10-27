@@ -17,9 +17,9 @@ import utils.logging.logger;
 class PhanAnalyzer : Analyzer
 {
     AnalysisResult analyze(
-        string[] sources,
+        const string[] sources,
         AnalysisConfig config,
-        string projectRoot
+        const string projectRoot
     )
     {
         AnalysisResult result;

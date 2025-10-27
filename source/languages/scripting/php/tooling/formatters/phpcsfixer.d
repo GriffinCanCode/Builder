@@ -17,9 +17,9 @@ import utils.logging.logger;
 class PHPCSFixerFormatter : Formatter
 {
     FormatResult format(
-        string[] sources,
+        const string[] sources,
         FormatterConfig config,
-        string projectRoot,
+        const string projectRoot,
         bool checkOnly = false
     )
     {

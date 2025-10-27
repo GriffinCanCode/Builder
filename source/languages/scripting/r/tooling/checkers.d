@@ -45,10 +45,10 @@ struct FormatResult
 
 /// Run linter on R files
 LintResult lintFiles(
-    string[] files,
+    const string[] files,
     RLintConfig config,
     string rCmd,
-    string workDir
+    const string workDir
 )
 {
     if (files.empty)
@@ -329,10 +329,10 @@ cat(jsonlite::toJSON(all_issues, auto_unbox = TRUE))
 
 /// Format R files
 FormatResult formatFiles(
-    string[] files,
+    const string[] files,
     RFormatConfig config,
     string rCmd,
-    string workDir
+    const string workDir
 )
 {
     if (files.empty)

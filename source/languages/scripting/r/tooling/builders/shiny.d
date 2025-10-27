@@ -19,10 +19,10 @@ import utils.logging.logger;
 class RShinyBuilder : RBuilder
 {
     override BuildResult build(
-        Target target,
-        WorkspaceConfig config,
-        RConfig rConfig,
-        string rCmd
+        in Target target,
+        in WorkspaceConfig config,
+        in RConfig rConfig,
+        in string rCmd
     )
     {
         BuildResult result;
@@ -76,7 +76,7 @@ class RShinyBuilder : RBuilder
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config, RConfig rConfig)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config, in RConfig rConfig)
     {
         string[] outputs;
         auto name = target.name.split(":")[$ - 1];
@@ -94,7 +94,7 @@ class RShinyBuilder : RBuilder
         return outputs;
     }
     
-    override bool validate(Target target, RConfig rConfig)
+    override bool validate(in Target target, in RConfig rConfig)
     {
         if (target.sources.empty)
         {

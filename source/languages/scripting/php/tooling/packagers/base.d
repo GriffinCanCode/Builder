@@ -28,9 +28,9 @@ interface Packager
 {
     /// Package PHP application
     PackageResult createPackage(
-        string[] sources,
+        const string[] sources,
         PHARConfig config,
-        string projectRoot
+        const string projectRoot
     );
     
     /// Check if packager is available on system
@@ -95,9 +95,9 @@ class PackagerFactory
 class NullPackager : Packager
 {
     PackageResult createPackage(
-        string[] sources,
+        const string[] sources,
         PHARConfig config,
-        string projectRoot
+        const string projectRoot
     )
     {
         PackageResult result;

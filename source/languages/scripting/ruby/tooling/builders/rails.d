@@ -20,10 +20,10 @@ import utils.logging.logger;
 class RailsBuilder : Builder
 {
     override BuildResult build(
-        string[] sources,
-        RubyConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RubyConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BuildResult result;

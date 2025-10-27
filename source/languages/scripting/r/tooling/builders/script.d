@@ -17,10 +17,10 @@ import utils.logging.logger;
 class RScriptBuilder : RBuilder
 {
     override BuildResult build(
-        Target target,
-        WorkspaceConfig config,
-        RConfig rConfig,
-        string rCmd
+        in Target target,
+        in WorkspaceConfig config,
+        in RConfig rConfig,
+        in string rCmd
     )
     {
         BuildResult result;
@@ -64,7 +64,7 @@ class RScriptBuilder : RBuilder
         return result;
     }
     
-    override string[] getOutputs(Target target, WorkspaceConfig config, RConfig rConfig)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config, in RConfig rConfig)
     {
         string[] outputs;
         
@@ -81,7 +81,7 @@ class RScriptBuilder : RBuilder
         return outputs;
     }
     
-    override bool validate(Target target, RConfig rConfig)
+    override bool validate(in Target target, in RConfig rConfig)
     {
         if (target.sources.empty)
         {

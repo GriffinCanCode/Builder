@@ -18,10 +18,10 @@ interface LuaBuilder
 {
     /// Build Lua sources
     BuildResult build(
-        string[] sources,
-        LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in LuaConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if this builder can be used
@@ -35,7 +35,7 @@ interface LuaBuilder
 class BuilderFactory
 {
     /// Create builder based on build mode
-    static LuaBuilder create(LuaBuildMode mode, LuaConfig config)
+    static LuaBuilder create(LuaBuildMode mode, LuaConfig config) @trusted
     {
         import languages.scripting.lua.tooling.builders.script;
         import languages.scripting.lua.tooling.builders.bytecode;

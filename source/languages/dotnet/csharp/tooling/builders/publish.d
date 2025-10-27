@@ -18,10 +18,10 @@ import utils.logging.logger;
 class PublishBuilder : CSharpBuilder
 {
     override BuildResult build(
-        string[] sources,
-        CSharpConfig config,
-        const Target target,
-        const WorkspaceConfig workspaceConfig
+        in string[] sources,
+        in CSharpConfig config,
+        in Target target,
+        in WorkspaceConfig workspaceConfig
     )
     {
         BuildResult result;

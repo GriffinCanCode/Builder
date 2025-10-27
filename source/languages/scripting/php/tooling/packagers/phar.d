@@ -15,9 +15,9 @@ import utils.logging.logger;
 class NativePharPackager : Packager
 {
     PackageResult createPackage(
-        string[] sources,
+        const string[] sources,
         PHARConfig config,
-        string projectRoot
+        const string projectRoot
     )
     {
         PackageResult result;

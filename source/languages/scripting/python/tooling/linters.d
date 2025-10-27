@@ -48,7 +48,7 @@ class PyLinters
     }
     
     /// Lint Python code with pylint
-    static ToolResult lintPylint(string[] sources, string pythonCmd = "python3")
+    static ToolResult lintPylint(const string[] sources, string pythonCmd = "python3")
     {
         ToolResult result;
         
@@ -120,7 +120,7 @@ class PyLinters
 class Linter
 {
     /// Lint code with configured linter
-    static ToolResult lint(string[] sources, PyLinter linter, string pythonCmd = "python3")
+    static ToolResult lint(const string[] sources, PyLinter linter, string pythonCmd = "python3")
     {
         if (linter == PyLinter.None)
         {

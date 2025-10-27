@@ -28,9 +28,9 @@ interface Formatter
 {
     /// Format PHP source files
     FormatResult format(
-        string[] sources,
+        const string[] sources,
         FormatterConfig config,
-        string projectRoot,
+        const string projectRoot,
         bool checkOnly = false
     );
     
@@ -120,9 +120,9 @@ class FormatterFactory
 class NullFormatter : Formatter
 {
     FormatResult format(
-        string[] sources,
+        const string[] sources,
         FormatterConfig config,
-        string projectRoot,
+        const string projectRoot,
         bool checkOnly = false
     )
     {

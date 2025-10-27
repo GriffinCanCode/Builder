@@ -167,7 +167,7 @@ class PHPTools
     }
     
     /// Validate syntax for multiple files in batch
-    static ToolResult validateSyntaxBatch(string[] files, string phpCmd = "php")
+    static ToolResult validateSyntaxBatch(const string[] files, string phpCmd = "php")
     {
         ToolResult result;
         result.success = true;

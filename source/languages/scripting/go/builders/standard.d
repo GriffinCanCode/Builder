@@ -18,11 +18,11 @@ import utils.logging.logger;
 /// Standard Go builder - uses go build command
 class StandardBuilder : GoBuilder
 {
-    GoBuildResult build(
-        string[] sources,
-        GoConfig config,
-        Target target,
-        WorkspaceConfig workspace
+    override GoBuildResult build(
+        in string[] sources,
+        in GoConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         GoBuildResult result;

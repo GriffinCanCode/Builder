@@ -136,8 +136,8 @@ class RHandler : BaseLanguageHandler
     
     /// Build executable target
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         RConfig rConfig
     )
     {
@@ -169,8 +169,8 @@ class RHandler : BaseLanguageHandler
     
     /// Build library target (R package)
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         RConfig rConfig
     )
     {
@@ -181,8 +181,8 @@ class RHandler : BaseLanguageHandler
     
     /// Run tests
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         RConfig rConfig
     )
     {
@@ -224,8 +224,8 @@ class RHandler : BaseLanguageHandler
     
     /// Build custom target
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         RConfig rConfig
     )
     {
@@ -236,7 +236,7 @@ class RHandler : BaseLanguageHandler
     }
     
     /// Parse R configuration from target
-    private RConfig parseRConfig(Target target)
+    private RConfig parseRConfig(in Target target)
     {
         RConfig config;
         
@@ -260,8 +260,8 @@ class RHandler : BaseLanguageHandler
     /// Enhance configuration from project structure
     private void enhanceConfigFromProject(
         ref RConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)
@@ -363,7 +363,7 @@ class RHandler : BaseLanguageHandler
     }
     
     /// Install project dependencies
-    private bool installProjectDependencies(ref RConfig config, Target target, WorkspaceConfig workspace)
+    private bool installProjectDependencies(ref RConfig config, in Target target, in WorkspaceConfig workspace)
     {
         string projectDir = workspace.root;
         if (!target.sources.empty)

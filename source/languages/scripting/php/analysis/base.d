@@ -34,9 +34,9 @@ interface Analyzer
 {
     /// Analyze PHP source files
     AnalysisResult analyze(
-        string[] sources,
+        const string[] sources,
         AnalysisConfig config,
-        string projectRoot
+        const string projectRoot
     );
     
     /// Check if analyzer is available on system
@@ -141,9 +141,9 @@ class AnalyzerFactory
 class NullAnalyzer : Analyzer
 {
     AnalysisResult analyze(
-        string[] sources,
+        const string[] sources,
         AnalysisConfig config,
-        string projectRoot
+        const string projectRoot
     )
     {
         AnalysisResult result;

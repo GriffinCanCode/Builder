@@ -18,10 +18,10 @@ import utils.logging.logger;
 class BytecodeBuilder : LuaBuilder
 {
     override BuildResult build(
-        string[] sources,
-        LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in LuaConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BuildResult result;

@@ -19,10 +19,10 @@ import utils.logging.logger;
 class MixProjectBuilder : ElixirBuilder
 {
     override ElixirBuildResult build(
-        string[] sources,
-        ElixirConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in ElixirConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     ) @trusted
     {
         ElixirBuildResult result;

@@ -18,10 +18,10 @@ import utils.logging.logger;
 class ScriptBuilder : LuaBuilder
 {
     override BuildResult build(
-        string[] sources,
-        LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in LuaConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BuildResult result;
@@ -35,7 +35,7 @@ class ScriptBuilder : LuaBuilder
         // Get Lua interpreter
         string luaCmd = getRuntimeCommand(config.runtime);
         
-        if (!isAvailable(luaCmd))
+        if (!.isAvailable(luaCmd))
         {
             result.error = "Lua interpreter not found: " ~ luaCmd;
             return result;

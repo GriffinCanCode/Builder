@@ -106,7 +106,7 @@ class PyFormatters
 class Formatter
 {
     /// Format code with configured formatter
-    static FormatResult format(string[] sources, PyFormatter formatter, string pythonCmd = "python3", bool check = false)
+    static FormatResult format(const string[] sources, PyFormatter formatter, string pythonCmd = "python3", bool check = false)
     {
         if (formatter == PyFormatter.None)
         {

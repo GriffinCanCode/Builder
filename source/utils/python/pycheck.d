@@ -57,7 +57,7 @@ class PyValidator
     }
     
     /// Validate multiple Python files in a single batch
-    static PyValidationResult validate(string[] files)
+    static PyValidationResult validate(const string[] files)
     {
         enforce(!files.empty, "No files to validate");
         
