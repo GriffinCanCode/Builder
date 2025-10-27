@@ -54,6 +54,7 @@ struct HealthCheckpoint
         double avgTaskTime) @trusted
     {
         auto stats = GC.stats();
+        auto profileStats = GC.profileStats();
         
         HealthCheckpoint checkpoint;
         checkpoint.timestamp = Clock.currTime();
@@ -64,7 +65,7 @@ struct HealthCheckpoint
         checkpoint.pendingTasks = pendingTasks;
         checkpoint.memoryUsed = stats.usedSize;
         checkpoint.memoryTotal = stats.usedSize + stats.freeSize;
-        checkpoint.gcCollections = stats.numCollections;
+        checkpoint.gcCollections = profileStats.numCollections;
         checkpoint.workerCount = workerCount;
         checkpoint.activeWorkers = activeWorkers;
         
@@ -218,7 +219,7 @@ final class HealthMonitor
         synchronized (monitorMutex)
         {
             checkpoints = [];
-            timer = StopWatch(AutoStart.yes);
+            timer.start();
             monitoring = true;
         }
     }
@@ -293,16 +294,14 @@ final class HealthMonitor
     }
     
     /// Get latest checkpoint
-    Result!(HealthCheckpoint, TelemetryError) getLatest() const @trusted
+    Result!(HealthCheckpoint, string) getLatest() const @trusted
     {
         synchronized (monitorMutex)
         {
             if (checkpoints.length == 0)
-                return Result!(HealthCheckpoint, TelemetryError).err(
-                    TelemetryError.invalidData("No checkpoints recorded")
-                );
+                return Result!(HealthCheckpoint, string).err("No checkpoints recorded");
             
-            return Result!(HealthCheckpoint, TelemetryError).ok(
+            return Result!(HealthCheckpoint, string).ok(
                 checkpoints[$-1]
             );
         }

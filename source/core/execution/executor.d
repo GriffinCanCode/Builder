@@ -33,6 +33,8 @@ import languages.compiled.nim;
 import languages.scripting.lua;
 import languages.scripting.r;
 import utils.logging.logger;
+import utils.logging.structured;
+import core.telemetry.tracing;
 import utils.concurrency.pool;
 import utils.concurrency.lockfree;
 import utils.concurrency.scheduler;
@@ -80,6 +82,8 @@ final class BuildExecutor
     private bool enableCheckpoints;
     private bool enableRetries;
     private bool useWorkStealing;  // Enable work-stealing scheduler
+    private Tracer tracer;  // Distributed tracing
+    private StructuredLogger structuredLogger;  // Structured logging
     
     this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null, bool enableCheckpoints = true, bool enableRetries = true, bool useWorkStealing = true) @trusted
     {
@@ -89,6 +93,10 @@ final class BuildExecutor
         this.enableCheckpoints = enableCheckpoints;
         this.enableRetries = enableRetries;
         this.useWorkStealing = useWorkStealing;
+        
+        // Initialize observability
+        this.tracer = getTracer();
+        this.structuredLogger = getStructuredLogger();
         
         // Initialize cache with configuration from environment
         const cacheConfig = CacheConfig.fromEnvironment();
@@ -114,7 +122,10 @@ final class BuildExecutor
                 workerCount,
                 (BuildNode node) @trusted => buildNodeWithScheduler(node)
             );
-            Logger.debugLog("Work-stealing scheduler enabled for critical path optimization");
+            string[string] fields;
+            fields["scheduler"] = "work-stealing";
+            fields["workers"] = workerCount.to!string;
+            structuredLogger.debug_("Work-stealing scheduler enabled", fields);
         }
         
         // Register language handlers
@@ -214,7 +225,10 @@ final class BuildExecutor
         }
         catch (Exception e)
         {
-            Logger.error("Build failed for " ~ node.id ~ ": " ~ e.msg);
+            string[string] fields;
+            fields["target.id"] = node.id;
+            fields["error"] = e.msg;
+            structuredLogger.exception(e, "Build failed in work-stealing scheduler");
             atomicOp!"+="(failedTasks, 1);
         }
     }
@@ -224,13 +238,26 @@ final class BuildExecutor
     {
         import core.memory : GC;
         
+        // Start distributed trace for entire build
+        tracer.startTrace();
+        auto buildSpan = tracer.startSpan("build-execute", SpanKind.Internal);
+        scope(exit) {
+            tracer.finishSpan(buildSpan);
+            tracer.flush();
+        }
+        
         auto sw = StopWatch(AutoStart.yes);
         
         auto sortResult = graph.topologicalSort();
         if (sortResult.isErr)
         {
             auto error = sortResult.unwrapErr();
-            Logger.error("Cannot build: " ~ format(error));
+            buildSpan.recordException(new Exception(error.message()));
+            buildSpan.setStatus(SpanStatus.Error, error.message());
+            
+            string[string] fields;
+            fields["error.type"] = "topological_sort_failed";
+            structuredLogger.error("Cannot build: " ~ format(error), fields);
             
             if (eventPublisher !is null)
             {
@@ -241,11 +268,20 @@ final class BuildExecutor
         }
         
         auto sorted = sortResult.unwrap();
-        Logger.info("Building " ~ sorted.length.to!string ~ " targets...");
+        buildSpan.setAttribute("build.total_targets", sorted.length.to!string);
+        buildSpan.setAttribute("build.max_parallelism", workerCount.to!string);
+        
+        string[string] fields;
+        fields["total_targets"] = sorted.length.to!string;
+        fields["parallelism"] = workerCount.to!string;
+        structuredLogger.info("Building targets", fields);
         
         // Check for checkpoint and attempt resume
         if (enableCheckpoints && checkpointManager.exists())
         {
+            auto checkpointSpan = tracer.startSpan("checkpoint-load", SpanKind.Internal, buildSpan);
+            scope(exit) tracer.finishSpan(checkpointSpan);
+            
             auto checkpointResult = checkpointManager.load();
             if (checkpointResult.isOk)
             {
@@ -253,8 +289,12 @@ final class BuildExecutor
                 
                 if (checkpoint.isValid(graph) && !checkpointManager.isStale())
                 {
-                    Logger.info("Found valid checkpoint from " ~ 
-                               checkpoint.timestamp.toSimpleString());
+                    checkpointSpan.setAttribute("checkpoint.valid", "true");
+                    checkpointSpan.setAttribute("checkpoint.timestamp", checkpoint.timestamp.toSimpleString());
+                    
+                    string[string] cpFields;
+                    cpFields["checkpoint.timestamp"] = checkpoint.timestamp.toSimpleString();
+                    structuredLogger.info("Found valid checkpoint", cpFields);
                     
                     // Attempt resume with smart strategy
                     auto planner = new ResumePlanner(ResumeConfig.fromEnvironment());
@@ -265,13 +305,15 @@ final class BuildExecutor
                         auto plan = planResult.unwrap();
                         plan.print();
                         
-                        Logger.info("Resuming build (saving ~" ~ 
-                                   plan.estimatedSavings().to!string[0..min(MIN_STAT_STRING_LENGTH, plan.estimatedSavings().to!string.length)] ~ "% time)...");
+                        checkpointSpan.setAttribute("checkpoint.savings_pct", plan.estimatedSavings().to!string);
+                        cpFields["savings_percent"] = plan.estimatedSavings().to!string;
+                        structuredLogger.info("Resuming build", cpFields);
                     }
                 }
                 else
                 {
-                    Logger.info("Checkpoint stale or invalid, rebuilding...");
+                    checkpointSpan.setAttribute("checkpoint.valid", "false");
+                    structuredLogger.info("Checkpoint stale or invalid, rebuilding");
                     checkpointManager.clear();
                 }
             }
@@ -282,7 +324,12 @@ final class BuildExecutor
         if (useGcControl)
         {
             GC.disable();
-            Logger.debugLog("GC disabled for large build (" ~ sorted.length.to!string ~ " targets)");
+            buildSpan.setAttribute("gc.disabled", "true");
+            buildSpan.addEvent("gc-disabled");
+            
+            string[string] gcFields;
+            gcFields["target_count"] = sorted.length.to!string;
+            structuredLogger.debug_("GC disabled for large build", gcFields);
         }
         
         // Ensure GC is re-enabled on exit
@@ -292,7 +339,8 @@ final class BuildExecutor
             {
                 GC.enable();
                 GC.collect(); // Cleanup after build
-                Logger.debugLog("GC re-enabled and collected");
+                buildSpan.addEvent("gc-enabled");
+                structuredLogger.debug_("GC re-enabled and collected");
             }
         }
         
@@ -524,13 +572,27 @@ final class BuildExecutor
     /// Build a single node
     private BuildResult buildNode(BuildNode node)
     {
+        // Create span for this target build
+        auto targetSpan = tracer.startSpan("build-target", SpanKind.Internal);
+        scope(exit) tracer.finishSpan(targetSpan);
+        
+        targetSpan.setAttribute("target.id", node.id);
+        targetSpan.setAttribute("target.language", node.target.language.to!string);
+        targetSpan.setAttribute("target.type", node.target.type.to!string);
+        
+        // Set thread-local logging context
+        auto logContext = ScopedLogContext(node.id);
+        
         BuildResult result;
         result.targetId = node.id;
         auto nodeTimer = StopWatch(AutoStart.yes);
         
         try
         {
-            Logger.info("Building " ~ node.id ~ "...");
+            string[string] fields;
+            fields["target.language"] = node.target.language.to!string;
+            fields["target.type"] = node.target.type.to!string;
+            structuredLogger.info("Building target", fields);
             
             // Publish target started event
             if (eventPublisher !is null)
@@ -548,10 +610,21 @@ final class BuildExecutor
             auto target = node.target;
             auto deps = node.dependencies.map!(d => d.id).array;
             
-            // Check cache
-            if (cache.isCached(node.id, target.sources, deps))
+            // Check cache with span
+            auto cacheSpan = tracer.startSpan("cache-check", SpanKind.Internal, targetSpan);
+            bool isCached = cache.isCached(node.id, target.sources, deps);
+            cacheSpan.setAttribute("cache.hit", isCached.to!string);
+            tracer.finishSpan(cacheSpan);
+            
+            if (isCached)
             {
-                Logger.success("  ✓ " ~ node.id ~ " (cached)");
+                targetSpan.setAttribute("build.cached", "true");
+                targetSpan.setStatus(SpanStatus.Ok);
+                
+                string[string] cacheFields;
+                cacheFields["cache.hit"] = "true";
+                structuredLogger.info("Target cached", cacheFields);
+                
                 result.success = true;
                 result.cached = true;
                 
@@ -575,11 +648,22 @@ final class BuildExecutor
                     ErrorCode.HandlerNotFound
                 );
                 result.error = error.message();
-                Logger.error(format(error));
+                
+                targetSpan.recordException(new Exception(error.message()));
+                targetSpan.setStatus(SpanStatus.Error, error.message());
+                
+                string[string] errFields;
+                errFields["error.code"] = "handler_not_found";
+                errFields["language"] = target.language.to!string;
+                structuredLogger.error(format(error), errFields);
+                
                 return result;
             }
             
             // Build the target using new Result-based API with retry logic
+            auto compileSpan = tracer.startSpan("compile", SpanKind.Internal, targetSpan);
+            compileSpan.setAttribute("target.sources_count", target.sources.length.to!string);
+            
             Result!(string, BuildError) buildResult;
             
             if (enableRetries)
@@ -591,7 +675,13 @@ final class BuildExecutor
                     () {
                         immutable attempt = node.retryAttempts;
                         if (attempt > 0)
-                            Logger.info("  Retry attempt " ~ attempt.to!string ~ " for " ~ node.id);
+                        {
+                            compileSpan.addEvent("retry-attempt", ["attempt": attempt.to!string]);
+                            
+                            string[string] retryFields;
+                            retryFields["attempt"] = attempt.to!string;
+                            structuredLogger.info("Retry attempt", retryFields);
+                        }
                         
                         node.incrementRetries();
                         return handler.build(target, config);
@@ -604,16 +694,27 @@ final class BuildExecutor
                 buildResult = handler.build(target, config);
             }
             
+            tracer.finishSpan(compileSpan);
+            
             if (buildResult.isOk)
             {
                 auto outputHash = buildResult.unwrap();
+                
+                // Update cache with span
+                auto cacheUpdateSpan = tracer.startSpan("cache-update", SpanKind.Internal, targetSpan);
                 cache.update(node.id, target.sources, deps, outputHash);
+                tracer.finishSpan(cacheUpdateSpan);
+                
+                targetSpan.setStatus(SpanStatus.Ok);
                 
                 // Show retry success if retried
+                string[string] successFields;
                 if (node.retryAttempts > 1)
-                    Logger.success("  ✓ " ~ node.id ~ " (succeeded after " ~ (node.retryAttempts - 1).to!string ~ " retries)");
-                else
-                    Logger.success("  ✓ " ~ node.id);
+                {
+                    successFields["retries"] = (node.retryAttempts - 1).to!string;
+                    targetSpan.setAttribute("build.retries", (node.retryAttempts - 1).to!string);
+                }
+                structuredLogger.info("Target built successfully", successFields);
                 
                 result.success = true;
                 node.resetRetries();
@@ -631,7 +732,13 @@ final class BuildExecutor
                 auto error = buildResult.unwrapErr();
                 node.lastError = error.message();
                 result.error = error.message();
-                Logger.error(format(error));
+                
+                targetSpan.recordException(new Exception(error.message()));
+                targetSpan.setStatus(SpanStatus.Error, error.message());
+                
+                string[string] errFields;
+                errFields["error.code"] = error.code().to!string;
+                structuredLogger.error(format(error), errFields);
                 
                 // Publish target failed event
                 if (eventPublisher !is null)
@@ -647,7 +754,11 @@ final class BuildExecutor
             auto error = new BuildFailureError(node.id, e.msg);
             error.addContext(ErrorContext("building node", "exception caught"));
             result.error = error.message();
-            Logger.error(format(error));
+            
+            targetSpan.recordException(e);
+            targetSpan.setStatus(SpanStatus.Error, e.msg);
+            
+            structuredLogger.exception(e, "Build failed with exception");
             
             // Publish target failed event
             if (eventPublisher !is null)

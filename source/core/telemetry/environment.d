@@ -57,11 +57,11 @@ struct BuildEnvironment
     bool isCompatible(const BuildEnvironment other) const pure nothrow @safe
     {
         // Check tool versions match
-        foreach (tool, version_; toolVersions.byKeyValue)
+        foreach (pair; toolVersions.byKeyValue)
         {
-            if (auto otherVersion = tool in other.toolVersions)
+            if (auto otherVersion = pair.key in other.toolVersions)
             {
-                if (*otherVersion != version_)
+                if (*otherVersion != pair.value)
                     return false; // Version mismatch
             }
             else
@@ -71,13 +71,13 @@ struct BuildEnvironment
         }
         
         // Check critical environment variables match
-        foreach (key, value; envVars.byKeyValue)
+        foreach (pair; envVars.byKeyValue)
         {
-            if (isCriticalEnvVar(key))
+            if (isCriticalEnvVar(pair.key))
             {
-                if (auto otherValue = key in other.envVars)
+                if (auto otherValue = pair.key in other.envVars)
                 {
-                    if (*otherValue != value)
+                    if (*otherValue != pair.value)
                         return false; // Critical env var mismatch
                 }
                 else
@@ -102,39 +102,39 @@ struct BuildEnvironment
         string[] differences;
         
         // Tool version differences
-        foreach (tool, version_; toolVersions.byKeyValue)
+        foreach (pair; toolVersions.byKeyValue)
         {
-            if (auto otherVersion = tool in other.toolVersions)
+            if (auto otherVersion = pair.key in other.toolVersions)
             {
-                if (*otherVersion != version_)
-                    differences ~= "Tool " ~ tool ~ ": " ~ version_ ~ " → " ~ *otherVersion;
+                if (*otherVersion != pair.value)
+                    differences ~= "Tool " ~ pair.key ~ ": " ~ pair.value ~ " → " ~ *otherVersion;
             }
             else
             {
-                differences ~= "Tool " ~ tool ~ ": present → missing";
+                differences ~= "Tool " ~ pair.key ~ ": present → missing";
             }
         }
         
         // Check for new tools in other
-        foreach (tool, version_; other.toolVersions.byKeyValue)
+        foreach (pair; other.toolVersions.byKeyValue)
         {
-            if (tool !in toolVersions)
-                differences ~= "Tool " ~ tool ~ ": missing → " ~ version_;
+            if (pair.key !in toolVersions)
+                differences ~= "Tool " ~ pair.key ~ ": missing → " ~ pair.value;
         }
         
         // Environment variable differences
-        foreach (key, value; envVars.byKeyValue)
+        foreach (pair; envVars.byKeyValue)
         {
-            if (isCriticalEnvVar(key))
+            if (isCriticalEnvVar(pair.key))
             {
-                if (auto otherValue = key in other.envVars)
+                if (auto otherValue = pair.key in other.envVars)
                 {
-                    if (*otherValue != value)
-                        differences ~= "EnvVar " ~ key ~ ": " ~ value ~ " → " ~ *otherValue;
+                    if (*otherValue != pair.value)
+                        differences ~= "EnvVar " ~ pair.key ~ ": " ~ pair.value ~ " → " ~ *otherValue;
                 }
                 else
                 {
-                    differences ~= "EnvVar " ~ key ~ ": present → missing";
+                    differences ~= "EnvVar " ~ pair.key ~ ": present → missing";
                 }
             }
         }

@@ -47,20 +47,21 @@ struct MemorySnapshot
     static MemorySnapshot take(string label = "") @trusted
     {
         auto stats = GC.stats();
+        auto profileStats = GC.profileStats();
         
         MemorySnapshot snap;
         snap.timestamp = Clock.currTime();
         snap.heapUsed = stats.usedSize;
         snap.heapFree = stats.freeSize;
         snap.heapTotal = stats.usedSize + stats.freeSize;
-        snap.gcCollections = stats.numCollections;
+        snap.gcCollections = profileStats.numCollections;
         snap.label = label;
         
         return snap;
     }
     
     /// Format memory size as human-readable string
-    string formatSize(size_t bytes) const pure nothrow @safe
+    string formatSize(size_t bytes) const pure @safe
     {
         if (bytes < 1024)
             return format("%d B", bytes);
@@ -257,7 +258,7 @@ struct MemoryProfiler
     }
     
     /// Display full profiling report
-    string report() const pure @safe
+    string report() const @safe
     {
         if (snapshots.length == 0)
             return "No memory snapshots recorded\n";
@@ -311,6 +312,7 @@ struct MemoryProfiler
 MemoryDelta trackMemory(T)(T delegate() func, string label = "operation") @trusted
 {
     auto before = MemorySnapshot.take(label ~ " (before)");
+    MemorySnapshot after;
     
     try
     {
@@ -318,15 +320,17 @@ MemoryDelta trackMemory(T)(T delegate() func, string label = "operation") @trust
     }
     finally
     {
-        auto after = MemorySnapshot.take(label ~ " (after)");
-        return MemoryDelta.between(before, after);
+        after = MemorySnapshot.take(label ~ " (after)");
     }
+    
+    return MemoryDelta.between(before, after);
 }
 
 /// Overload for void functions
 MemoryDelta trackMemory(void delegate() func, string label = "operation") @trusted
 {
     auto before = MemorySnapshot.take(label ~ " (before)");
+    MemorySnapshot after;
     
     try
     {
@@ -334,9 +338,10 @@ MemoryDelta trackMemory(void delegate() func, string label = "operation") @trust
     }
     finally
     {
-        auto after = MemorySnapshot.take(label ~ " (after)");
-        return MemoryDelta.between(before, after);
+        after = MemorySnapshot.take(label ~ " (after)");
     }
+    
+    return MemoryDelta.between(before, after);
 }
 
 unittest

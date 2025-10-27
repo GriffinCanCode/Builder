@@ -11,11 +11,18 @@
     "sourcePaths": ["source"],
     "importPaths": ["source"],
     "dependencies": {},
+    "preBuildCommands": [
+        "mkdir -p bin/obj",
+        "clang -c -O3 -fPIC source/utils/crypto/c/blake3.c -o bin/obj/blake3.o || true",
+        "clang -c -O3 -fPIC source/utils/simd/c/cpu_detect.c -o bin/obj/cpu_detect.o || true",
+        "clang -c -O3 -fPIC source/utils/simd/c/blake3_dispatch.c -o bin/obj/blake3_dispatch.o || true",
+        "clang -c -O3 -fPIC source/utils/simd/c/simd_ops.c -o bin/obj/simd_ops.o || true"
+    ],
     "sourceFiles": [
-        "source/utils/crypto/c/blake3.c",
-        "source/utils/simd/c/cpu_detect.c",
-        "source/utils/simd/c/blake3_dispatch.c",
-        "source/utils/simd/c/simd_ops.c"
+        "bin/obj/blake3.o",
+        "bin/obj/cpu_detect.o",
+        "bin/obj/blake3_dispatch.o",
+        "bin/obj/simd_ops.o"
     ],
     "dflags": ["-L-lstdc++", "-preview=dip1000"],
     "lflags": ["-lm"],

@@ -6,6 +6,16 @@
 #include "cpu_detect.h"
 #include <string.h>
 
+/* Include SIMD headers at file scope based on architecture */
+#if defined(__AVX2__)
+#include <immintrin.h>
+#endif
+
+/* Skip ARM NEON when using LDC's ImportC due to header compatibility issues */
+#if (defined(__ARM_NEON) || defined(__aarch64__)) && !defined(__LDC__)
+#include <arm_neon.h>
+#endif
+
 /* Fast memcpy with SIMD */
 void simd_memcpy(void* dest, const void* src, size_t n) {
     /* For small sizes, regular memcpy is faster due to overhead */
@@ -18,7 +28,6 @@ void simd_memcpy(void* dest, const void* src, size_t n) {
     
 #if defined(__AVX2__)
     if (level >= SIMD_LEVEL_AVX2 && n >= 256) {
-        #include <immintrin.h>
         uint8_t* d = (uint8_t*)dest;
         const uint8_t* s = (const uint8_t*)src;
         size_t i = 0;
@@ -64,7 +73,6 @@ int simd_memcmp(const void* s1, const void* s2, size_t n) {
     
 #if defined(__AVX2__)
     if (level >= SIMD_LEVEL_AVX2) {
-        #include <immintrin.h>
         const uint8_t* p1 = (const uint8_t*)s1;
         const uint8_t* p2 = (const uint8_t*)s2;
         size_t i = 0;
@@ -100,7 +108,6 @@ void simd_memset(void* dest, int val, size_t n) {
     
 #if defined(__AVX2__)
     if (level >= SIMD_LEVEL_AVX2) {
-        #include <immintrin.h>
         uint8_t* d = (uint8_t*)dest;
         __m256i v = _mm256_set1_epi8(val);
         size_t i = 0;
@@ -129,7 +136,6 @@ size_t simd_count_matches(const uint8_t* s1, const uint8_t* s2, size_t n) {
 #if defined(__AVX2__)
     simd_level_t level = cpu_get_simd_level();
     if (level >= SIMD_LEVEL_AVX2 && n >= 32) {
-        #include <immintrin.h>
         size_t i = 0;
         
         for (; i + 32 <= n; i += 32) {
@@ -159,7 +165,6 @@ void simd_xor(uint8_t* dest, const uint8_t* src1, const uint8_t* src2, size_t n)
 #if defined(__AVX2__)
     simd_level_t level = cpu_get_simd_level();
     if (level >= SIMD_LEVEL_AVX2 && n >= 32) {
-        #include <immintrin.h>
         size_t i = 0;
         
         for (; i + 32 <= n; i += 32) {
@@ -228,7 +233,6 @@ int simd_constant_time_equals(const void* s1, const void* s2, size_t n) {
     
 #if defined(__AVX2__)
     if (level >= SIMD_LEVEL_AVX2 && n >= 32) {
-        #include <immintrin.h>
         size_t i = 0;
         
         /* Process 32 bytes at a time - accumulate differences */
@@ -257,9 +261,9 @@ int simd_constant_time_equals(const void* s1, const void* s2, size_t n) {
     }
 #endif
     
-#if defined(__ARM_NEON) || defined(__aarch64__)
+/* Skip NEON intrinsics when using LDC's ImportC - header compatibility issues */
+#if (defined(__ARM_NEON) || defined(__aarch64__)) && !defined(__LDC__)
     if (level >= SIMD_LEVEL_NEON && n >= 16) {
-        #include <arm_neon.h>
         size_t i = 0;
         
         /* Process 16 bytes at a time */
