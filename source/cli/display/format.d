@@ -176,18 +176,21 @@ struct Formatter
         auto midLine = "╠" ~ formatSeparatorWide('═', maxLen) ~ "╣";
         auto botLine = "╚" ~ formatSeparatorWide('═', maxLen) ~ "╝";
         
-        string[] result = [topLine, titleLine];
+        auto result = appender!(string[]);
+        result.reserve(lines.length + 4); // Pre-allocate for box lines + content
+        result.put(topLine);
+        result.put(titleLine);
         
         if (lines.length > 0)
         {
-            result ~= midLine;
+            result.put(midLine);
             foreach (line; lines)
-                result ~= "║ " ~ leftJustify(line, maxLen - 2) ~ " ║";
+                result.put("║ " ~ leftJustify(line, maxLen - 2) ~ " ║");
         }
         
-        result ~= botLine;
+        result.put(botLine);
         
-        return result.join("\n");
+        return result.data.join("\n");
     }
     
     /// Apply styling to text
@@ -196,18 +199,19 @@ struct Formatter
         if (!useColors)
             return text;
         
-        string result;
+        auto result = appender!string;
+        result.reserve(text.length + 20); // Reserve for text + ANSI codes
         
         if (style == Style.Bold)
-            result ~= ANSI.BOLD;
+            result.put(ANSI.BOLD);
         else if (style == Style.Dim)
-            result ~= ANSI.DIM;
+            result.put(ANSI.DIM);
         
-        result ~= ANSI.FG[color];
-        result ~= text;
-        result ~= ANSI.reset();
+        result.put(ANSI.FG[color]);
+        result.put(text);
+        result.put(ANSI.reset());
         
-        return result;
+        return result.data;
     }
 }
 

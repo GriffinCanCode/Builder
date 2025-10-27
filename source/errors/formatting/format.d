@@ -36,35 +36,41 @@ struct FormatOptions
 /// Format error for display
 string format(const BuildError error, FormatOptions opts = FormatOptions.init)
 {
-    string result;
+    import std.array : appender;
+    auto result = appender!string;
+    result.reserve(256); // Reserve capacity for typical error message
     
     // Header with category and code
     if (opts.showCategory)
     {
         if (opts.colors)
-            result ~= Color.Bold ~ Color.Red;
+            result.put(Color.Bold ~ Color.Red);
         
-        result ~= "[" ~ error.category().to!string;
+        result.put("[");
+        result.put(error.category().to!string);
         
         if (opts.showCode)
-            result ~= ":" ~ error.code().to!string;
+        {
+            result.put(":");
+            result.put(error.code().to!string);
+        }
         
-        result ~= "]";
+        result.put("]");
         
         if (opts.colors)
-            result ~= Color.Reset;
+            result.put(Color.Reset);
         
-        result ~= " ";
+        result.put(" ");
     }
     
     // Main message
     if (opts.colors)
-        result ~= Color.Red;
-    result ~= error.message();
+        result.put(Color.Red);
+    result.put(error.message());
     if (opts.colors)
-        result ~= Color.Reset;
+        result.put(Color.Reset);
     
-    result ~= "\n";
+    result.put("\n");
     
     // Context chain
     if (opts.showContexts)
@@ -72,144 +78,179 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
         foreach (ctx; error.contexts())
         {
             if (opts.colors)
-                result ~= Color.Gray;
-            result ~= "  → " ~ ctx.toString() ~ "\n";
+                result.put(Color.Gray);
+            result.put("  → ");
+            result.put(ctx.toString());
+            result.put("\n");
             if (opts.colors)
-                result ~= Color.Reset;
+                result.put(Color.Reset);
         }
     }
     
     // Type-specific formatting
-    result ~= formatSpecific(error, opts);
+    result.put(formatSpecific(error, opts));
     
-    return result;
+    return result.data;
 }
 
 /// Format type-specific error details
 private string formatSpecific(const BuildError error, FormatOptions opts)
 {
     import std.traits : hasMember;
+    import std.array : appender;
     
-    string result;
+    auto result = appender!string;
+    result.reserve(128);
     
     // Try to cast to known types for additional formatting
     if (auto buildErr = cast(const BuildFailureError)error)
     {
         if (opts.colors)
-            result ~= Color.Gray;
-        result ~= "  Target: " ~ buildErr.targetId ~ "\n";
+            result.put(Color.Gray);
+        result.put("  Target: ");
+        result.put(buildErr.targetId);
+        result.put("\n");
         
         if (!buildErr.failedDeps.empty)
         {
-            result ~= "  Failed dependencies:\n";
+            result.put("  Failed dependencies:\n");
             foreach (dep; buildErr.failedDeps)
-                result ~= "    - " ~ dep ~ "\n";
+            {
+                result.put("    - ");
+                result.put(dep);
+                result.put("\n");
+            }
         }
         
         if (opts.colors)
-            result ~= Color.Reset;
+            result.put(Color.Reset);
     }
     else if (auto parseErr = cast(const ParseError)error)
     {
         if (opts.colors)
-            result ~= Color.Gray;
+            result.put(Color.Gray);
         
         if (!parseErr.filePath.empty)
         {
-            result ~= "  File: " ~ parseErr.filePath;
+            result.put("  File: ");
+            result.put(parseErr.filePath);
             if (parseErr.line > 0)
-                result ~= ":" ~ parseErr.line.to!string;
+            {
+                result.put(":");
+                result.put(parseErr.line.to!string);
+            }
             if (parseErr.column > 0)
-                result ~= ":" ~ parseErr.column.to!string;
-            result ~= "\n";
+            {
+                result.put(":");
+                result.put(parseErr.column.to!string);
+            }
+            result.put("\n");
         }
         
         if (!parseErr.snippet.empty)
         {
-            result ~= "\n" ~ formatCodeSnippet(parseErr.snippet, parseErr.line, opts) ~ "\n";
+            result.put("\n");
+            result.put(formatCodeSnippet(parseErr.snippet, parseErr.line, opts));
+            result.put("\n");
         }
         
         if (opts.colors)
-            result ~= Color.Reset;
+            result.put(Color.Reset);
     }
     else if (auto analysisErr = cast(const AnalysisError)error)
     {
         if (opts.colors)
-            result ~= Color.Gray;
+            result.put(Color.Gray);
         
-        result ~= "  Target: " ~ analysisErr.targetName ~ "\n";
+        result.put("  Target: ");
+        result.put(analysisErr.targetName);
+        result.put("\n");
         
         if (!analysisErr.unresolvedImports.empty)
         {
-            result ~= "  Unresolved imports:\n";
+            result.put("  Unresolved imports:\n");
             foreach (imp; analysisErr.unresolvedImports)
-                result ~= "    - " ~ imp ~ "\n";
+            {
+                result.put("    - ");
+                result.put(imp);
+                result.put("\n");
+            }
         }
         
         if (!analysisErr.cyclePath.empty)
         {
-            result ~= "  Dependency cycle:\n    ";
-            result ~= analysisErr.cyclePath.join(" → ") ~ "\n";
+            result.put("  Dependency cycle:\n    ");
+            result.put(analysisErr.cyclePath.join(" → "));
+            result.put("\n");
         }
         
         if (opts.colors)
-            result ~= Color.Reset;
+            result.put(Color.Reset);
     }
     else if (auto langErr = cast(const LanguageError)error)
     {
         if (opts.colors)
-            result ~= Color.Gray;
+            result.put(Color.Gray);
         
-        result ~= "  Language: " ~ langErr.language ~ "\n";
+        result.put("  Language: ");
+        result.put(langErr.language);
+        result.put("\n");
         
         if (!langErr.filePath.empty)
         {
-            result ~= "  File: " ~ langErr.filePath;
+            result.put("  File: ");
+            result.put(langErr.filePath);
             if (langErr.line > 0)
-                result ~= ":" ~ langErr.line.to!string;
-            result ~= "\n";
+            {
+                result.put(":");
+                result.put(langErr.line.to!string);
+            }
+            result.put("\n");
         }
         
         if (!langErr.compilerOutput.empty)
         {
-            result ~= "\n  Compiler output:\n";
-            result ~= indent(langErr.compilerOutput, 4) ~ "\n";
+            result.put("\n  Compiler output:\n");
+            result.put(indent(langErr.compilerOutput, 4));
+            result.put("\n");
         }
         
         if (opts.colors)
-            result ~= Color.Reset;
+            result.put(Color.Reset);
     }
     
-    return result;
+    return result.data;
 }
 
 /// Format a code snippet with line numbers and highlighting
 private string formatCodeSnippet(string code, size_t errorLine, FormatOptions opts)
 {
+    import std.array : appender;
     auto lines = code.split("\n");
-    string result;
+    auto result = appender!string;
+    result.reserve(code.length + lines.length * 20); // Reserve space for line numbers and formatting
     
     foreach (i, line; lines)
     {
         size_t lineNum = errorLine + i;
         
         if (opts.colors)
-            result ~= Color.Gray;
+            result.put(Color.Gray);
         
-        result ~= sformat("%4d | ", lineNum);
+        result.put(sformat("%4d | ", lineNum));
         
         if (opts.colors && i == 0)
-            result ~= Color.Red;
+            result.put(Color.Red);
         
-        result ~= line;
+        result.put(line);
         
         if (opts.colors)
-            result ~= Color.Reset;
+            result.put(Color.Reset);
         
-        result ~= "\n";
+        result.put("\n");
     }
     
-    return result;
+    return result.data;
 }
 
 /// Indent text by N spaces
