@@ -79,7 +79,12 @@ enum ErrorCode
     InternalError = 9000,
     NotImplemented,
     AssertionFailed,
-    UnreachableCode
+    UnreachableCode,
+    
+    // Telemetry errors (10000-10999)
+    TelemetryNoSession = 10000,
+    TelemetryStorage,
+    TelemetryInvalid
 }
 
 /// Get error category from error code
@@ -96,6 +101,7 @@ ErrorCategory categoryOf(ErrorCode code) pure nothrow @nogc
         case 7: return ErrorCategory.Language;
         case 8: return ErrorCategory.System;
         case 9: return ErrorCategory.Internal;
+        case 10: return ErrorCategory.Internal;
         case 0: return ErrorCategory.Internal;
     }
 }
@@ -153,6 +159,9 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.NotImplemented:
         case ErrorCode.AssertionFailed:
         case ErrorCode.UnreachableCode:
+        case ErrorCode.TelemetryNoSession:
+        case ErrorCode.TelemetryStorage:
+        case ErrorCode.TelemetryInvalid:
             return false;
     }
 }
@@ -206,6 +215,9 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.NotImplemented: return "Not implemented";
         case ErrorCode.AssertionFailed: return "Assertion failed";
         case ErrorCode.UnreachableCode: return "Unreachable code reached";
+        case ErrorCode.TelemetryNoSession: return "No active telemetry session";
+        case ErrorCode.TelemetryStorage: return "Telemetry storage error";
+        case ErrorCode.TelemetryInvalid: return "Invalid telemetry data";
     }
 }
 

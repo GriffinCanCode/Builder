@@ -380,6 +380,9 @@ string[] suggestFixes(const BuildError error)
         case ErrorCode.NotImplemented:
         case ErrorCode.AssertionFailed:
         case ErrorCode.UnreachableCode:
+        case ErrorCode.TelemetryNoSession:
+        case ErrorCode.TelemetryStorage:
+        case ErrorCode.TelemetryInvalid:
             break;
     }
     
