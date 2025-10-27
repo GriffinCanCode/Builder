@@ -80,7 +80,7 @@ class FatJARBuilder : JARBuilder
             return result;
         
         // Create fat JAR
-        if (!createJAR(tempDir, outputPath, config, result))
+        if (!createJAR(tempDir, outputPath, config, target, result))
             return result;
         
         result.success = true;

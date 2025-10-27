@@ -161,6 +161,7 @@ class ModularJARBuilder : JARBuilder
         string classDir,
         string outputPath,
         const JavaConfig config,
+        const Target target,
         ref JavaBuildResult result
     )
     {
@@ -174,9 +175,20 @@ class ModularJARBuilder : JARBuilder
         // Create modular JAR
         cmd ~= ["--create", "--file=" ~ outputPath];
         
+        // Auto-detect main class for executable JARs if not specified
+        string mainClass = config.packaging.mainClass;
+        if (mainClass.empty && target.type == TargetType.Executable)
+        {
+            mainClass = detectMainClass(classDir);
+            if (!mainClass.empty)
+            {
+                Logger.debug_("Auto-detected main class: " ~ mainClass);
+            }
+        }
+        
         // Add main class if specified
-        if (!config.packaging.mainClass.empty)
-            cmd ~= ["--main-class=" ~ config.packaging.mainClass];
+        if (!mainClass.empty)
+            cmd ~= ["--main-class=" ~ mainClass];
         
         // Add module version if specified
         if (!config.modules.moduleName.empty && !config.packaging.manifestAttributes.get("Module-Version", "").empty)
@@ -184,6 +196,10 @@ class ModularJARBuilder : JARBuilder
             string moduleVersion = config.packaging.manifestAttributes["Module-Version"];
             cmd ~= ["--module-version=" ~ moduleVersion];
         }
+        
+        // Generate index if requested
+        if (config.packaging.createIndex)
+            cmd ~= "--generate-index=.";
         
         // Add classes
         cmd ~= ["-C", classDir, "."];

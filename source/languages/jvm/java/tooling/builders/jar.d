@@ -69,7 +69,7 @@ class JARBuilder : JavaBuilder
             return result;
         
         // Create JAR
-        if (!createJAR(tempDir, outputPath, config, result))
+        if (!createJAR(tempDir, outputPath, config, target, result))
             return result;
         
         result.success = true;
@@ -177,6 +177,7 @@ class JARBuilder : JavaBuilder
         string classDir,
         string outputPath,
         const JavaConfig config,
+        const Target target,
         ref JavaBuildResult result
     )
     {
@@ -185,31 +186,44 @@ class JARBuilder : JavaBuilder
         string jarCmd = JavaToolDetection.getJarCommand();
         string[] cmd = [jarCmd];
         
+        // Auto-detect main class for executable JARs if not specified
+        string mainClass = config.packaging.mainClass;
+        if (mainClass.empty && target.type == TargetType.Executable)
+        {
+            mainClass = detectMainClass(classDir);
+            if (!mainClass.empty)
+            {
+                Logger.debug_("Auto-detected main class: " ~ mainClass);
+            }
+        }
+        
         // Determine if this is an executable JAR
-        bool isExecutable = !config.packaging.mainClass.empty;
+        bool isExecutable = !mainClass.empty;
+        bool hasManifestAttrs = !config.packaging.manifestAttributes.empty;
         
-        if (isExecutable)
+        // Build JAR command flags
+        // Order matters: c=create, f=file, m=manifest, e=entry(main)
+        // Note: 'i' (index) cannot be combined with 'c' in short-form commands
+        string flags = "cf";
+        
+        // Decide whether to use manifest file or 'e' flag
+        // Use manifest file if there are custom attributes, otherwise use 'e' flag for simplicity
+        bool useManifestFile = hasManifestAttrs || isExecutable;
+        string manifestFile;
+        
+        if (useManifestFile)
         {
-            // Create executable JAR with main class
-            cmd ~= ["cfe", outputPath, config.packaging.mainClass];
-        }
-        else
-        {
-            // Create library JAR
-            cmd ~= ["cf", outputPath];
+            flags ~= "m";
+            manifestFile = buildPath(classDir, "MANIFEST.MF");
+            createManifestWithMainClass(manifestFile, config, mainClass);
         }
         
-        // Add manifest attributes if any
-        if (!config.packaging.manifestAttributes.empty || isExecutable)
-        {
-            string manifestFile = buildPath(classDir, "MANIFEST.MF");
-            createManifest(manifestFile, config);
-            cmd ~= ["-m", manifestFile];
-        }
+        // Add flags and output path
+        cmd ~= [flags, outputPath];
         
-        // Create index
-        if (config.packaging.createIndex)
-            cmd ~= "i";
+        // Add manifest file if using it
+        if (useManifestFile)
+            cmd ~= manifestFile;
         
         // Add classes
         cmd ~= ["-C", classDir, "."];
@@ -224,22 +238,93 @@ class JARBuilder : JavaBuilder
             return false;
         }
         
+        // Add index if requested (must be done after JAR creation)
+        if (config.packaging.createIndex)
+        {
+            Logger.debug_("Adding index to JAR");
+            string[] indexCmd = [jarCmd, "i", outputPath];
+            auto indexRes = execute(indexCmd);
+            
+            if (indexRes.status != 0)
+            {
+                // Index creation is not critical, just log warning
+                Logger.warning("Failed to create JAR index: " ~ indexRes.output);
+            }
+        }
+        
         return true;
     }
     
-    protected void createManifest(string manifestPath, const JavaConfig config)
+    protected void createManifestWithMainClass(string manifestPath, const JavaConfig config, string mainClass)
     {
         auto f = File(manifestPath, "w");
         
         f.writeln("Manifest-Version: 1.0");
         
-        if (!config.packaging.mainClass.empty)
-            f.writeln("Main-Class: " ~ config.packaging.mainClass);
+        if (!mainClass.empty)
+            f.writeln("Main-Class: " ~ mainClass);
         
         foreach (key, value; config.packaging.manifestAttributes)
             f.writeln(key ~ ": " ~ value);
         
         f.close();
+    }
+    
+    /// Auto-detect main class by searching for classes with public static void main(String[]) method
+    protected string detectMainClass(string classDir)
+    {
+        import std.file : dirEntries, SpanMode;
+        import std.algorithm : endsWith;
+        
+        // Search for .class files
+        foreach (entry; dirEntries(classDir, SpanMode.depth))
+        {
+            if (!entry.isFile || !entry.name.endsWith(".class"))
+                continue;
+            
+            // Get class name from path
+            string relPath = entry.name[classDir.length + 1 .. $];
+            if (relPath.startsWith("./"))
+                relPath = relPath[2 .. $];
+            
+            // Convert path to class name (remove .class and replace / with .)
+            string className = relPath[0 .. $ - 6].replace("/", ".").replace("\\", ".");
+            
+            // Skip inner classes (containing $)
+            if (className.indexOf('$') >= 0)
+                continue;
+            
+            // Check if this class has a main method using javap
+            if (hasMainMethod(className, classDir))
+            {
+                return className;
+            }
+        }
+        
+        return "";
+    }
+    
+    /// Check if a class has a public static void main(String[]) method
+    private bool hasMainMethod(string className, string classDir)
+    {
+        try
+        {
+            // Use javap to inspect the class
+            auto result = execute(["javap", "-cp", classDir, "-public", className]);
+            
+            if (result.status == 0)
+            {
+                // Look for main method signature
+                auto regex = regex(`public\s+static\s+void\s+main\s*\(\s*java\.lang\.String\s*\[\s*\]\s*\)`);
+                return !matchFirst(result.output, regex).empty;
+            }
+        }
+        catch (Exception e)
+        {
+            // Ignore errors
+        }
+        
+        return false;
     }
     
     protected string buildClasspath(const Target target, const WorkspaceConfig workspace, const JavaConfig config)
