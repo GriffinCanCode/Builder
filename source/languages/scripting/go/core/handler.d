@@ -86,6 +86,14 @@ class GoHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
+        // Check for empty sources
+        if (target.sources.length == 0)
+        {
+            result.success = false;
+            result.error = "No source files specified for target " ~ target.name;
+            return result;
+        }
+        
         // Create appropriate builder
         auto builder = GoBuilderFactory.createAuto(goConfig);
         

@@ -98,6 +98,14 @@ class JavaScriptHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
+        // Check for empty sources
+        if (target.sources.length == 0)
+        {
+            result.success = false;
+            result.error = "No source files specified for target " ~ target.name;
+            return result;
+        }
+        
         // Auto-detect mode if not specified
         if (jsConfig.mode == JSBuildMode.Node && jsConfig.bundler == BundlerType.Auto)
         {
@@ -121,6 +129,16 @@ class JavaScriptHandler : BaseLanguageHandler
     
     private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
     {
+        LanguageBuildResult result;
+        
+        // Check for empty sources
+        if (target.sources.length == 0)
+        {
+            result.success = false;
+            result.error = "No source files specified for target " ~ target.name;
+            return result;
+        }
+        
         // Libraries should use library mode
         if (jsConfig.mode == JSBuildMode.Node)
         {
@@ -139,6 +157,14 @@ class JavaScriptHandler : BaseLanguageHandler
     private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
     {
         LanguageBuildResult result;
+        
+        // Check for empty sources
+        if (target.sources.length == 0)
+        {
+            result.success = false;
+            result.error = "No source files specified for target " ~ target.name;
+            return result;
+        }
         
         // Run tests with configured test runner
         string[] cmd;

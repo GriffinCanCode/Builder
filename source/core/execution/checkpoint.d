@@ -219,38 +219,38 @@ final class CheckpointManager
     
     private ubyte[] serialize(const ref Checkpoint checkpoint) const pure @trusted
     {
-        import std.bitmanip : write;
+        import std.bitmanip : nativeToBigEndian;
         
         ubyte[] buffer;
         buffer.reserve(4096); // Pre-allocate reasonable size
         
         // Magic number for validation
-        buffer.write!uint(0x434B5054, 0); // "CKPT"
+        buffer ~= nativeToBigEndian!uint(0x434B5054); // "CKPT"
         
         // Version
-        buffer.write!ubyte(1, buffer.length);
+        buffer ~= cast(ubyte)1;
         
         // Workspace root
         buffer.writeString(checkpoint.workspaceRoot);
         
         // Timestamp (Unix time)
-        buffer.write!long(checkpoint.timestamp.toUnixTime(), buffer.length);
+        buffer ~= nativeToBigEndian!long(checkpoint.timestamp.toUnixTime());
         
         // Counts
-        buffer.write!uint(cast(uint)checkpoint.totalTargets, buffer.length);
-        buffer.write!uint(cast(uint)checkpoint.completedTargets, buffer.length);
-        buffer.write!uint(cast(uint)checkpoint.failedTargets, buffer.length);
+        buffer ~= nativeToBigEndian!uint(cast(uint)checkpoint.totalTargets);
+        buffer ~= nativeToBigEndian!uint(cast(uint)checkpoint.completedTargets);
+        buffer ~= nativeToBigEndian!uint(cast(uint)checkpoint.failedTargets);
         
         // Node states
-        buffer.write!uint(cast(uint)checkpoint.nodeStates.length, buffer.length);
+        buffer ~= nativeToBigEndian!uint(cast(uint)checkpoint.nodeStates.length);
         foreach (targetId, status; checkpoint.nodeStates)
         {
             buffer.writeString(targetId);
-            buffer.write!ubyte(cast(ubyte)status, buffer.length);
+            buffer ~= cast(ubyte)status;
         }
         
         // Node hashes
-        buffer.write!uint(cast(uint)checkpoint.nodeHashes.length, buffer.length);
+        buffer ~= nativeToBigEndian!uint(cast(uint)checkpoint.nodeHashes.length);
         foreach (targetId, hash; checkpoint.nodeHashes)
         {
             buffer.writeString(targetId);
@@ -258,7 +258,7 @@ final class CheckpointManager
         }
         
         // Failed targets
-        buffer.write!uint(cast(uint)checkpoint.failedTargetIds.length, buffer.length);
+        buffer ~= nativeToBigEndian!uint(cast(uint)checkpoint.failedTargetIds.length);
         foreach (targetId; checkpoint.failedTargetIds)
         {
             buffer.writeString(targetId);
@@ -339,10 +339,10 @@ final class CheckpointManager
 /// Binary serialization helpers
 private void writeString(ref ubyte[] buffer, string str) pure @trusted
 {
-    import std.bitmanip : write;
+    import std.bitmanip : nativeToBigEndian;
     
     // Length prefix
-    buffer.write!uint(cast(uint)str.length, buffer.length);
+    buffer ~= nativeToBigEndian!uint(cast(uint)str.length);
     
     // String data
     buffer ~= cast(ubyte[])str;

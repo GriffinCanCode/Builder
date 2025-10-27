@@ -102,6 +102,14 @@ class PHPHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
+        // Check for empty sources
+        if (target.sources.length == 0)
+        {
+            result.success = false;
+            result.error = "No source files specified for target " ~ target.name;
+            return result;
+        }
+        
         // Install Composer dependencies if requested
         if (phpConfig.composer.autoInstall)
         {

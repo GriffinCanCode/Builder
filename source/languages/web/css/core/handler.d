@@ -83,6 +83,14 @@ class CSSHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
+        // Check for empty sources
+        if (target.sources.length == 0)
+        {
+            result.success = false;
+            result.error = "No source files specified for target " ~ target.name;
+            return result;
+        }
+        
         // Production mode enables minification
         if (cssConfig.mode == CSSBuildMode.Production)
         {

@@ -60,9 +60,17 @@ struct RetryPolicy
         immutable capped = min(calculated, maxDelay.total!"msecs");
         
         // Add jitter: ±jitterFactor * delay
-        auto rng = Mt19937(unpredictableSeed);
-        immutable jitter = uniform(-jitterFactor, jitterFactor, rng);
-        immutable withJitter = cast(long)(capped * (1.0 + jitter));
+        long withJitter;
+        if (jitterFactor > 0.0)
+        {
+            auto rng = Mt19937(unpredictableSeed);
+            immutable jitter = uniform(-jitterFactor, jitterFactor, rng);
+            withJitter = cast(long)(capped * (1.0 + jitter));
+        }
+        else
+        {
+            withJitter = capped;
+        }
         
         return max(withJitter, 0).msecs;
     }
