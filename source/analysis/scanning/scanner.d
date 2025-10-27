@@ -43,23 +43,32 @@ class FileScanner
         return imports;
     }
     
-    /// Scan multiple files in parallel
+    /// Scan multiple files in parallel using work-stealing scheduler
+    /// Optimized for variable file sizes and analysis times
     string[][string] scanImportsParallel(string[] paths, Regex!char pattern)
     {
-        import std.parallelism;
+        import utils.concurrency.parallel;
+        import std.typecons : Tuple, tuple;
         
-        string[][string] results;
+        if (paths.empty)
+            return null;
         
-        foreach (path; parallel(paths))
-        {
-            auto imports = scanImports(path, pattern);
-            synchronized
-            {
-                results[path] = imports;
+        // Use work-stealing for better load balancing
+        alias ScanResult = Tuple!(string, string[]);
+        auto results = ParallelExecutor.mapWorkStealing(
+            paths,
+            (string path) @trusted {
+                auto imports = scanImports(path, pattern);
+                return tuple(path, imports);
             }
-        }
+        );
         
-        return results;
+        // Convert array of tuples to associative array
+        string[][string] resultMap;
+        foreach (result; results)
+            resultMap[result[0]] = result[1];
+        
+        return resultMap;
     }
     
     /// Check if file has changed since last scan

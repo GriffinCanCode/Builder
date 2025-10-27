@@ -7,7 +7,7 @@ module utils;
 ///   glob.d      - Glob pattern matching
 ///   hash.d      - File hashing and checksums (now uses BLAKE3)
 ///   ignore.d    - Ignore patterns for dependency and build directories
-///   parallel.d  - Parallel processing utilities
+///   parallel.d  - Enhanced parallel processing with work-stealing and load balancing
 ///   pool.d      - Thread pool implementation
 ///   chunking.d  - File chunking utilities
 ///   logger.d    - Logging infrastructure
@@ -19,6 +19,12 @@ module utils;
 ///   validation.d - Security validation for paths and command arguments
 ///   process.d   - Process and tool availability checking utilities
 ///
+/// Concurrency (Advanced):
+///   deque.d     - Lock-free work-stealing deque (Chase-Lev algorithm)
+///   scheduler.d - Work-stealing scheduler with priority support
+///   balancer.d  - Dynamic load balancing with multiple strategies
+///   priority.d  - Priority queues and critical path scheduling
+///
 /// Usage:
 ///   import utils;
 ///   
@@ -27,6 +33,15 @@ module utils;
 ///   
 ///   auto pool = new ThreadPool(4);
 ///   pool.submit({ /* work */ });
+///   
+///   // Basic parallel execution (backward compatible)
+///   auto results = ParallelExecutor.execute(items, func, 4);
+///   
+///   // Advanced parallel execution with work-stealing
+///   auto results2 = ParallelExecutor.mapWorkStealing(items, func);
+///   
+///   // Priority-based scheduling
+///   auto results3 = ParallelExecutor.mapPriority(items, func, Priority.High);
 ///   
 ///   // SIMD operations
 ///   CPU.printInfo();              // Show CPU capabilities
@@ -40,6 +55,10 @@ public import utils.concurrency.parallel;
 public import utils.concurrency.pool;
 public import utils.concurrency.simd;
 public import utils.concurrency.lockfree;
+public import utils.concurrency.deque;
+public import utils.concurrency.scheduler;
+public import utils.concurrency.balancer;
+public import utils.concurrency.priority;
 public import utils.files.chunking;
 public import utils.logging.logger;
 public import utils.files.metadata;

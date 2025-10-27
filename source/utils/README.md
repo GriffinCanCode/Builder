@@ -2,39 +2,168 @@
 
 The utils package provides common utilities for file handling, parallelization, hashing, and benchmarking used throughout the Builder system.
 
-## Modules
+## Core Modules
 
+### File Operations
 - **glob.d** - Glob pattern matching for file selection
-- **hash.d** - Fast file hashing with SHA-256
-- **parallel.d** - Parallel processing utilities
-- **pool.d** - Thread pool implementation
+- **hash.d** - Fast file hashing with BLAKE3
 - **chunking.d** - File chunking for parallel processing
-- **logger.d** - Structured logging infrastructure
 - **metadata.d** - File metadata and timestamps
+- **ignore.d** - Ignore patterns for dependency and build directories
+
+### Concurrency (Basic)
+- **pool.d** - Persistent thread pool implementation
+- **simd.d** - SIMD-aware parallel operations
+- **lockfree.d** - Lock-free queue and hash cache
+
+### Concurrency (Advanced)
+- **parallel.d** - Enhanced parallel execution with multiple strategies
+- **deque.d** - Lock-free work-stealing deque (Chase-Lev algorithm)
+- **scheduler.d** - Work-stealing scheduler with priority support
+- **balancer.d** - Dynamic load balancing with adaptive strategies
+- **priority.d** - Priority queues and critical path scheduling
+
+### Other
+- **logger.d** - Structured logging infrastructure
 - **bench.d** - Performance benchmarking utilities
 - **pycheck.d** - Python environment validation
 - **pywrap.d** - Python integration wrapper
+- **validation.d** - Security validation for paths and arguments
+- **process.d** - Process and tool availability checking
 
-## Usage
+## Usage Examples
 
+### Basic Parallel Execution (Backward Compatible)
 ```d
 import utils;
 
-auto files = glob("src/**/*.d");
-auto hash = hashFile("source.d");
+// Simple parallel execution
+auto results = ParallelExecutor.execute(items, func, 4);
 
-auto pool = new ThreadPool(4);
-pool.submit({ /* work */ });
+// Auto-detect CPU count
+auto results = ParallelExecutor.executeAuto(items, func);
+```
 
-Logger.info("Build completed");
+### Advanced Work-Stealing Scheduler
+```d
+import utils;
+
+// Work-stealing with automatic load balancing
+auto results = ParallelExecutor.mapWorkStealing(items, func);
+
+// With custom parallelism
+auto results = ParallelExecutor.mapWorkStealing(items, func, 8);
+```
+
+### Priority-Based Scheduling
+```d
+import utils;
+
+// High-priority execution for critical path
+auto results = ParallelExecutor.mapPriority(items, func, Priority.Critical);
+
+// Dynamic load balancing
+auto results = ParallelExecutor.mapLoadBalanced(items, func);
+```
+
+### Advanced Configuration
+```d
+import utils;
+
+ParallelConfig config;
+config.mode = ExecutionMode.WorkStealing;
+config.basePriority = Priority.High;
+config.balanceStrategy = BalanceStrategy.Adaptive;
+config.maxParallelism = 8;
+
+auto results = ParallelExecutor.executeAdvanced(items, func, config);
+```
+
+### Statistics Collection
+```d
+import utils;
+
+ParallelConfig config;
+config.mode = ExecutionMode.WorkStealing;
+config.enableStatistics = true;
+
+ExecutionStats stats;
+auto results = ParallelExecutor.executeWithStats(items, func, results, config);
+
+writeln("Total stolen: ", stats.totalStolen);
+writeln("Steal success rate: ", stats.stealSuccessRate);
+writeln("Load imbalance: ", stats.loadImbalance);
+```
+
+### Direct Scheduler Usage
+```d
+import utils;
+
+auto scheduler = new WorkStealingScheduler!Task(
+    4,  // worker count
+    (Task t) { /* execute task */ }
+);
+
+// Submit with priorities
+scheduler.submit(task1, Priority.Critical, 1000, 1, 5);
+scheduler.submit(task2, Priority.Normal);
+
+scheduler.waitAll();
+auto stats = scheduler.getStats();
+scheduler.shutdown();
+```
+
+### Load Balancer
+```d
+import utils;
+
+auto balancer = new LoadBalancer(4, BalanceStrategy.Adaptive);
+
+// Select worker for task assignment
+auto workerId = balancer.selectWorker();
+
+// Select victim for work stealing
+auto victimId = balancer.selectVictim(thiefId);
+
+// Check if rebalancing needed
+if (balancer.needsRebalancing()) {
+    // Trigger rebalancing logic
+}
 ```
 
 ## Key Features
 
-- Fast glob matching with pattern compilation
-- Content-based hashing for cache keys
-- Work-stealing thread pool
-- Structured logging with levels
-- File chunking for parallel I/O
-- Python environment detection and validation
+### Performance
+- **Lock-free data structures** - Chase-Lev deque for minimal contention
+- **Work-stealing** - Automatic load balancing across workers
+- **Priority scheduling** - Critical path optimization
+- **Dynamic load balancing** - Adaptive strategies based on runtime metrics
+- **SIMD acceleration** - Data-parallel operations where applicable
+- **BLAKE3 hashing** - 3-5x faster than SHA-256 with SIMD
+
+### Scheduling Strategies
+- **Simple** - Basic std.parallelism (backward compatible)
+- **WorkStealing** - Distributed deques with stealing on demand
+- **LoadBalanced** - Dynamic distribution based on worker load
+- **Priority** - Critical path tasks scheduled first
+- **Adaptive** - Dynamically adjusts based on system metrics
+
+### Design Principles
+- **Backward compatible** - Existing code continues to work
+- **Zero-cost abstraction** - Advanced features only when used
+- **Type-safe** - Strong typing reduces runtime errors
+- **Well-tested** - Comprehensive unit tests for all components
+- **Documented** - Extensive inline documentation and examples
+
+## Architecture
+
+The concurrency system is layered:
+
+1. **Foundation** - Lock-free deque (deque.d) for low-level task storage
+2. **Prioritization** - Priority queues (priority.d) for task ordering
+3. **Scheduling** - Work-stealing scheduler (scheduler.d) coordinates workers
+4. **Balancing** - Load balancer (balancer.d) optimizes distribution
+5. **Interface** - ParallelExecutor (parallel.d) provides high-level API
+
+Each layer is independently testable and can be used standalone or composed.
 

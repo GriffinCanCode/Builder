@@ -17,6 +17,7 @@ import analysis.resolution.resolver;
 import utils.logging.logger;
 import languages.registry;
 import utils.files.hash;
+import utils.concurrency.parallel;
 import errors;
 
 /// Modern dependency analyzer using compile-time metaprogramming
@@ -63,11 +64,63 @@ class DependencyAnalyzer
         }
         
         // Analyze each target and resolve dependencies
-        foreach (ref target; config.targets)
+        // Filter targets that are in the graph
+        auto targetsToAnalyze = config.targets.filter!(t => t.name in graph.nodes).array;
+        
+        if (targetsToAnalyze.length > 1)
         {
-            if (target.name !in graph.nodes)
-                continue;
+            // Parallel analysis for multiple targets
+            auto analyses = ParallelExecutor.mapWorkStealing(
+                targetsToAnalyze,
+                (Target target) @trusted {
+                    return analyzeTarget(target);
+                }
+            );
             
+            // Process results and add dependencies to graph
+            foreach (i, analysisResult; analyses)
+            {
+                auto target = targetsToAnalyze[i];
+                
+                if (analysisResult.isErr)
+                {
+                    auto error = analysisResult.unwrapErr();
+                    Logger.warning("Analysis failed for " ~ target.name);
+                    Logger.error(format(error));
+                    continue;
+                }
+                
+                auto analysis = analysisResult.unwrap();
+                
+                if (!analysis.isValid)
+                {
+                    Logger.warning("Analysis errors in " ~ target.name);
+                    continue;
+                }
+                
+                // Add resolved dependencies to graph (no cycle check yet)
+                foreach (dep; analysis.dependencies)
+                {
+                    if (dep.targetName in graph.nodes)
+                    {
+                        auto addResult = graph.addDependency(target.name, dep.targetName);
+                        if (addResult.isErr)
+                        {
+                            auto error = addResult.unwrapErr();
+                            Logger.error("Failed to add dependency: " ~ format(error));
+                            // Continue processing other dependencies
+                        }
+                    }
+                }
+                
+                Logger.debugLog("  " ~ target.name ~ ": " ~ 
+                             analysis.dependencies.length.to!string ~ " dependencies");
+            }
+        }
+        else if (targetsToAnalyze.length == 1)
+        {
+            // Single target - no need for parallelization overhead
+            auto target = targetsToAnalyze[0];
             auto analysisResult = analyzeTarget(target);
             
             if (analysisResult.isErr)
@@ -75,34 +128,35 @@ class DependencyAnalyzer
                 auto error = analysisResult.unwrapErr();
                 Logger.warning("Analysis failed for " ~ target.name);
                 Logger.error(format(error));
-                continue;
             }
-            
-            auto analysis = analysisResult.unwrap();
-            
-            if (!analysis.isValid)
+            else
             {
-                Logger.warning("Analysis errors in " ~ target.name);
-                continue;
-            }
-            
-            // Add resolved dependencies to graph (no cycle check yet)
-            foreach (dep; analysis.dependencies)
-            {
-                if (dep.targetName in graph.nodes)
+                auto analysis = analysisResult.unwrap();
+                
+                if (!analysis.isValid)
                 {
-                    auto addResult = graph.addDependency(target.name, dep.targetName);
-                    if (addResult.isErr)
+                    Logger.warning("Analysis errors in " ~ target.name);
+                }
+                else
+                {
+                    // Add resolved dependencies to graph
+                    foreach (dep; analysis.dependencies)
                     {
-                        auto error = addResult.unwrapErr();
-                        Logger.error("Failed to add dependency: " ~ format(error));
-                        // Continue processing other dependencies
+                        if (dep.targetName in graph.nodes)
+                        {
+                            auto addResult = graph.addDependency(target.name, dep.targetName);
+                            if (addResult.isErr)
+                            {
+                                auto error = addResult.unwrapErr();
+                                Logger.error("Failed to add dependency: " ~ format(error));
+                            }
+                        }
                     }
+                    
+                    Logger.debugLog("  " ~ target.name ~ ": " ~ 
+                                 analysis.dependencies.length.to!string ~ " dependencies");
                 }
             }
-            
-            Logger.debugLog("  " ~ target.name ~ ": " ~ 
-                         analysis.dependencies.length.to!string ~ " dependencies");
         }
         
         // Validate graph for cycles once at the end (O(V+E) total)
@@ -131,9 +185,8 @@ class DependencyAnalyzer
         TargetAnalysis result;
         result.targetName = target.name;
         
-        // Aggregate file analysis results with work-stealing for better load balancing
-        // (different files have varying analysis complexity)
-        auto aggregated = aggregateMapWorkStealing(
+        // Aggregate file analysis results
+        auto aggregated = aggregateMap(
             target.sources,
             (string source) {
                 // Check file exists
