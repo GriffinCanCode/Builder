@@ -310,6 +310,18 @@ class InternalError : BaseBuildError
     }
 }
 
+/// Generic error for simple use cases and testing
+class GenericError : BaseBuildError
+{
+    this(string message, ErrorCode code = ErrorCode.UnknownError)
+    {
+        super(code, message);
+    }
+}
+
+/// Alias for backward compatibility and convenience
+alias BuildError_Impl = GenericError;
+
 /// Error builder for fluent API
 struct ErrorBuilder(T : BaseBuildError)
 {

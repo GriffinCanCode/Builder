@@ -19,6 +19,9 @@ enum ErrorCategory
 /// Specific error codes for programmatic handling
 enum ErrorCode
 {
+    // General errors (0-999)
+    UnknownError = 0,
+    
     // Build errors (1000-1999)
     BuildFailed = 1000,
     BuildTimeout,
@@ -119,6 +122,7 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
             return true;
             
         // Non-recoverable errors
+        case ErrorCode.UnknownError:
         case ErrorCode.BuildFailed:
         case ErrorCode.BuildCancelled:
         case ErrorCode.TargetNotFound:
@@ -171,6 +175,7 @@ string messageTemplate(ErrorCode code) pure nothrow
 {
     final switch (code)
     {
+        case ErrorCode.UnknownError: return "Unknown error";
         case ErrorCode.BuildFailed: return "Build failed";
         case ErrorCode.BuildTimeout: return "Build timed out";
         case ErrorCode.BuildCancelled: return "Build was cancelled";

@@ -342,6 +342,7 @@ string[] suggestFixes(const BuildError error)
             break;
             
         // All other cases - no specific suggestions
+        case ErrorCode.UnknownError:
         case ErrorCode.BuildFailed:
         case ErrorCode.BuildTimeout:
         case ErrorCode.BuildCancelled:

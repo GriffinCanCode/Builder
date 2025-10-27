@@ -543,3 +543,102 @@ Result!BuildError parseWorkspaceDSL(string source, string filePath, ref Workspac
     return analyzer.analyze(ast, config);
 }
 
+/// High-level Workspace class for convenient workspace management
+class Workspace
+{
+    private string _rootPath;
+    private string _name;
+    private WorkspaceConfig _config;
+    
+    this(string rootPath)
+    {
+        this._rootPath = rootPath;
+        import std.path : baseName;
+        this._name = baseName(rootPath);
+    }
+    
+    /// Load workspace from directory
+    static Workspace load(string path)
+    {
+        import std.file : exists, isDir;
+        import std.path : buildPath;
+        
+        if (!exists(path) || !isDir(path))
+            return null;
+        
+        auto workspace = new Workspace(path);
+        
+        // Try to load Builderspace file if it exists
+        auto builderspacePath = buildPath(path, "Builderspace");
+        if (exists(builderspacePath))
+        {
+            import std.file : readText;
+            try
+            {
+                auto content = readText(builderspacePath);
+                
+                // Parse the workspace file
+                auto lexResult = lex(content, builderspacePath);
+                if (lexResult.isOk)
+                {
+                    auto tokens = lexResult.unwrap();
+                    auto parser = WorkspaceParser(tokens, builderspacePath);
+                    auto parseResult = parser.parse();
+                    
+                    if (parseResult.isOk)
+                    {
+                        auto wsFile = parseResult.unwrap();
+                        workspace._name = wsFile.workspace.name;
+                        
+                        // Also analyze for config
+                        auto analyzer = WorkspaceAnalyzer(builderspacePath);
+                        analyzer.analyze(wsFile, workspace._config);
+                    }
+                }
+            }
+            catch (Exception) {}
+        }
+        
+        return workspace;
+    }
+    
+    /// Get workspace name
+    @property string name() const
+    {
+        return _name;
+    }
+    
+    /// Get workspace root path
+    @property string rootPath() const
+    {
+        return _rootPath;
+    }
+    
+    /// Find all Builderfiles in workspace
+    string[] findBuilderfiles()
+    {
+        import std.file : dirEntries, SpanMode, isFile;
+        import std.algorithm : filter, map;
+        import std.array : array;
+        import std.path : baseName;
+        
+        try
+        {
+            return dirEntries(_rootPath, SpanMode.depth)
+                .filter!(e => e.isFile && e.name.baseName == "Builderfile")
+                .map!(e => e.name)
+                .array;
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+    }
+    
+    /// Get workspace configuration
+    @property ref WorkspaceConfig config()
+    {
+        return _config;
+    }
+}
+

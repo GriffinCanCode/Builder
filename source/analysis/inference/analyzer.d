@@ -4,6 +4,8 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import std.file;
+import std.path;
+import std.string;
 import std.datetime.stopwatch;
 import core.graph.graph;
 import config.schema.schema;
@@ -232,3 +234,352 @@ static assert(is(typeof(DependencyAnalyzer.init.analyzeFile(TargetLanguage.Pytho
 
 /// Import for string conversion
 import std.conv : to;
+
+/// Build inference result
+struct InferenceResult
+{
+    string buildType;
+    double confidence;
+}
+
+/// Simple build inference analyzer for zero-config builds
+class BuildInferenceAnalyzer
+{
+    this() {}
+    
+    /// Infer build type (executable, library, test)
+    string inferBuildType(string basePath, TargetLanguage language)
+    {
+        // Check for test patterns first (tests can have main functions)
+        if (hasTestPatterns(basePath, language))
+            return "test";
+        
+        // Check for main function indicating executable
+        if (hasMainFunction(basePath, language))
+            return "executable";
+        
+        // Check for library patterns
+        if (hasLibraryPatterns(basePath, language))
+            return "library";
+        
+        // Default to library if no main found
+        return "library";
+    }
+    
+    /// Infer dependencies from imports/requires
+    string[] inferDependencies(string basePath, TargetLanguage language)
+    {
+        string[] dependencies;
+        
+        try
+        {
+            auto files = getSourceFiles(basePath, language);
+            
+            foreach (file; files)
+            {
+                if (!exists(file) || !isFile(file))
+                    continue;
+                
+                auto content = readText(file);
+                auto fileDeps = extractDependencies(content, language);
+                
+                foreach (dep; fileDeps)
+                {
+                    if (!dependencies.canFind(dep))
+                        dependencies ~= dep;
+                }
+            }
+        }
+        catch (Exception) {}
+        
+        return dependencies;
+    }
+    
+    /// Infer compiler flags from source code
+    string[] inferCompilerFlags(string basePath, TargetLanguage language)
+    {
+        string[] flags;
+        
+        try
+        {
+            auto files = getSourceFiles(basePath, language);
+            
+            foreach (file; files)
+            {
+                if (!exists(file) || !isFile(file))
+                    continue;
+                
+                auto content = readText(file);
+                
+                // Check for C++17/20 features
+                if (language == TargetLanguage.Cpp)
+                {
+                    if (content.canFind("<optional>") || 
+                        content.canFind("std::optional") ||
+                        content.canFind("<variant>") ||
+                        content.canFind("<filesystem>"))
+                    {
+                        if (!flags.canFind("-std=c++17"))
+                            flags ~= "-std=c++17";
+                    }
+                }
+            }
+        }
+        catch (Exception) {}
+        
+        return flags;
+    }
+    
+    /// Infer output name from directory or project files
+    string inferOutputName(string basePath)
+    {
+        import std.path : baseName;
+        return baseName(basePath);
+    }
+    
+    /// Infer source files for a language
+    string[] inferSourceFiles(string basePath, TargetLanguage language)
+    {
+        return getSourceFiles(basePath, language);
+    }
+    
+    /// Infer include directories from project structure
+    string[] inferIncludeDirectories(string basePath)
+    {
+        import std.path : buildPath;
+        import std.file : dirEntries, SpanMode, isDir;
+        
+        string[] includes;
+        
+        try
+        {
+            // Common include directory names
+            immutable dirs = ["include", "inc", "headers"];
+            
+            foreach (dir; dirs)
+            {
+                auto path = buildPath(basePath, dir);
+                if (exists(path) && isDir(path))
+                    includes ~= path;
+            }
+            
+            // Also check subdirectories
+            foreach (entry; dirEntries(basePath, SpanMode.shallow))
+            {
+                if (entry.isDir && entry.name.baseName == "include")
+                    includes ~= entry.name;
+            }
+        }
+        catch (Exception) {}
+        
+        return includes;
+    }
+    
+    /// Analyze with confidence scoring
+    InferenceResult analyzeWithConfidence(string basePath, TargetLanguage language)
+    {
+        InferenceResult result;
+        result.buildType = inferBuildType(basePath, language);
+        
+        // Calculate confidence based on evidence
+        double confidence = 0.5;  // Base confidence
+        
+        // Increase confidence for clear indicators
+        if (hasMainFunction(basePath, language))
+            confidence += 0.3;
+        
+        // Check for manifest files (increases confidence)
+        if (hasManifestFile(basePath, language))
+            confidence += 0.2;
+        
+        result.confidence = confidence > 1.0 ? 1.0 : confidence;
+        return result;
+    }
+    
+    // Helper methods
+    
+    private bool hasMainFunction(string basePath, TargetLanguage language)
+    {
+        try
+        {
+            auto files = getSourceFiles(basePath, language);
+            
+            foreach (file; files)
+            {
+                if (!exists(file) || !isFile(file))
+                    continue;
+                
+                auto content = readText(file);
+                
+                // Check for main function patterns
+                if (content.canFind("int main(") || 
+                    content.canFind("fn main()") ||
+                    content.canFind("func main()") ||
+                    content.canFind("def main(") ||
+                    content.canFind("public static void main"))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception) {}
+        
+        return false;
+    }
+    
+    private bool hasTestPatterns(string basePath, TargetLanguage language)
+    {
+        import std.path : baseName;
+        
+        try
+        {
+            auto files = getSourceFiles(basePath, language);
+            
+            foreach (file; files)
+            {
+                auto name = baseName(file);
+                
+                if (name.startsWith("test_") || name.startsWith("Test"))
+                    return true;
+                
+                if (!exists(file) || !isFile(file))
+                    continue;
+                
+                auto content = readText(file);
+                
+                // Check for test framework imports
+                if (content.canFind("gtest") || 
+                    content.canFind("unittest") ||
+                    content.canFind("pytest") ||
+                    content.canFind("@Test"))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception) {}
+        
+        return false;
+    }
+    
+    private bool hasLibraryPatterns(string basePath, TargetLanguage language)
+    {
+        try
+        {
+            // Check for package/library manifest files
+            if (language == TargetLanguage.Python)
+            {
+                if (exists(buildPath(basePath, "setup.py")) ||
+                    exists(buildPath(basePath, "__init__.py")))
+                    return true;
+            }
+            else if (language == TargetLanguage.JavaScript || language == TargetLanguage.TypeScript)
+            {
+                if (exists(buildPath(basePath, "package.json")))
+                    return true;
+            }
+        }
+        catch (Exception) {}
+        
+        return false;
+    }
+    
+    private bool hasManifestFile(string basePath, TargetLanguage language)
+    {
+        try
+        {
+            immutable manifests = [
+                "package.json", "Cargo.toml", "go.mod", "setup.py", 
+                "pom.xml", "build.gradle", "Makefile"
+            ];
+            
+            foreach (manifest; manifests)
+            {
+                if (exists(buildPath(basePath, manifest)))
+                    return true;
+            }
+        }
+        catch (Exception) {}
+        
+        return false;
+    }
+    
+    private string[] getSourceFiles(string basePath, TargetLanguage language)
+    {
+        import std.file : dirEntries, SpanMode;
+        import std.path : extension;
+        
+        string[] files;
+        
+        try
+        {
+            auto extensions = languageExtensions(language);
+            
+            foreach (entry; dirEntries(basePath, SpanMode.depth))
+            {
+                if (!entry.isFile)
+                    continue;
+                
+                auto ext = entry.name.extension;
+                if (extensions.canFind(ext))
+                    files ~= entry.name;
+            }
+        }
+        catch (Exception) {}
+        
+        return files;
+    }
+    
+    private string[] extractDependencies(string content, TargetLanguage language)
+    {
+        import std.regex;
+        
+        string[] deps;
+        
+        try
+        {
+            if (language == TargetLanguage.Python)
+            {
+                // Match: import numpy, from pandas import ...
+                auto re = regex(`^(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)`, "m");
+                foreach (match; matchAll(content, re))
+                {
+                    auto dep = match[1];
+                    if (!deps.canFind(dep))
+                        deps ~= dep;
+                }
+            }
+            else if (language == TargetLanguage.JavaScript || language == TargetLanguage.TypeScript)
+            {
+                // Match: import React from 'react', require('express')
+                auto re = regex(`(?:import|require)\s*\(?\s*['"]([^'"]+)['"]`, "m");
+                foreach (match; matchAll(content, re))
+                {
+                    auto dep = match[1];
+                    if (!deps.canFind(dep))
+                        deps ~= dep;
+                }
+            }
+        }
+        catch (Exception) {}
+        
+        return deps;
+    }
+    
+    private string[] languageExtensions(TargetLanguage language)
+    {
+        switch (language)
+        {
+            case TargetLanguage.Python: return [".py"];
+            case TargetLanguage.JavaScript: return [".js", ".mjs", ".cjs", ".jsx"];
+            case TargetLanguage.TypeScript: return [".ts", ".tsx"];
+            case TargetLanguage.Cpp: return [".cpp", ".cc", ".cxx", ".hpp", ".h"];
+            case TargetLanguage.C: return [".c", ".h"];
+            case TargetLanguage.Rust: return [".rs"];
+            case TargetLanguage.Go: return [".go"];
+            case TargetLanguage.Java: return [".java"];
+            case TargetLanguage.Ruby: return [".rb"];
+            default: return [];
+        }
+    }
+}

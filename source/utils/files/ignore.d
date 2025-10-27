@@ -236,6 +236,66 @@ class IgnoreRegistry
         ];
     }
     
+    /// Get ignore patterns for a specific language
+    static IgnorePatterns getPatternsForLanguage(TargetLanguage lang)
+    {
+        if (lang in languageIgnores)
+        {
+            // Cast from immutable to mutable for return
+            auto patterns = languageIgnores[lang];
+            return IgnorePatterns(
+                patterns.directories.dup,
+                patterns.prefixes.dup,
+                patterns.patterns.dup
+            );
+        }
+        return IgnorePatterns([], [], []);
+    }
+    
+    /// Check if a directory/file should be ignored
+    static bool shouldIgnore(string name, TargetLanguage lang = TargetLanguage.Generic)
+    {
+        immutable baseName = name.baseName;
+        
+        // Always ignore VCS directories
+        if (vcsIgnores.canFind(baseName))
+            return true;
+        
+        // Check common ignores
+        if (commonIgnores.canFind(baseName))
+            return true;
+        
+        // Check language-specific ignores
+        if (lang in languageIgnores)
+        {
+            auto patterns = languageIgnores[lang];
+            if (patterns.directories.canFind(baseName))
+                return true;
+            
+            // Check prefixes
+            foreach (prefix; patterns.prefixes)
+            {
+                if (baseName.startsWith(prefix))
+                    return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /// Check if a path should be ignored
+    static bool shouldIgnorePath(string path, TargetLanguage lang = TargetLanguage.Generic)
+    {
+        // Check each component of the path
+        import std.path : pathSplitter;
+        foreach (component; path.pathSplitter)
+        {
+            if (shouldIgnore(component, lang))
+                return true;
+        }
+        return false;
+    }
+    
     /// Check if a directory should be ignored (exact match)
     static bool shouldIgnoreDirectory(string dirName, TargetLanguage lang = TargetLanguage.Generic)
     {

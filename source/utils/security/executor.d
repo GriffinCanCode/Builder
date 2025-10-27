@@ -60,6 +60,65 @@ struct SecureExecutor
         return this;
     }
     
+    /// Validate a command (helper for testing)
+    bool validateCommand(scope const(string)[] cmd) @safe
+    {
+        if (cmd.length == 0)
+            return false;
+        
+        // Check executable
+        if (!SecurityValidator.isArgumentSafe(cmd[0]))
+            return false;
+        
+        // Check all arguments
+        foreach (arg; cmd[1 .. $])
+        {
+            if (!SecurityValidator.isArgumentSafe(arg))
+                return false;
+        }
+        
+        return true;
+    }
+    
+    /// Validate a single path (helper for testing)
+    bool validatePath(string path) @safe
+    {
+        return SecurityValidator.isPathSafe(path);
+    }
+    
+    /// Validate a working directory (helper for testing)
+    bool validateWorkingDir(string dir) @safe
+    {
+        // Check if path is safe and not a system directory
+        if (!SecurityValidator.isPathSafe(dir))
+            return false;
+        
+        // Check for absolute system paths
+        version(Posix)
+        {
+            immutable systemPaths = ["/etc", "/proc", "/sys", "/dev", "/boot"];
+            foreach (sysPath; systemPaths)
+            {
+                if (dir == sysPath || dir.startsWith(sysPath ~ "/"))
+                    return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /// Set environment variable (helper for testing)
+    void setEnv(string key, string value) @safe nothrow
+    {
+        this.environment[key] = value;
+    }
+    
+    /// Get all environment variables (helper for testing)
+    string[string] getEnv() @safe nothrow
+    {
+        return this.environment;
+    }
+    
     /// Execute command with full validation
     /// Returns: Result monad with ProcessResult or SecurityError
     auto run(scope const(string)[] cmd) @trusted

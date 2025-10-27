@@ -127,7 +127,7 @@ struct Lexer
             if (isAtEnd())
                 break;
             
-            auto tokenResult = nextToken();
+            auto tokenResult = nextTokenInternal();
             if (tokenResult.isErr)
                 return Err!(Token[], BuildError)(tokenResult.unwrapErr());
             
@@ -140,8 +140,41 @@ struct Lexer
         return Ok!(Token[], BuildError)(tokens);
     }
     
-    /// Get next token
-    private Result!(Token, BuildError) nextToken()
+    /// Public method to get next token (for testing and incremental parsing)
+    Token nextToken()
+    {
+        skipWhitespaceAndComments();
+        if (isAtEnd())
+            return Token(TokenType.EOF, "", line, column);
+        
+        auto result = nextTokenInternal();
+        if (result.isErr)
+            return Token(TokenType.Invalid, "", line, column);
+        
+        return result.unwrap();
+    }
+    
+    /// Peek at the next token without consuming it
+    Token peekToken()
+    {
+        // Save current state
+        auto savedPosition = position;
+        auto savedLine = line;
+        auto savedColumn = column;
+        
+        // Get next token
+        auto token = nextToken();
+        
+        // Restore state
+        position = savedPosition;
+        line = savedLine;
+        column = savedColumn;
+        
+        return token;
+    }
+    
+    /// Get next token (internal implementation)
+    private Result!(Token, BuildError) nextTokenInternal()
     {
         if (isAtEnd())
             return Ok!(Token, BuildError)(Token(TokenType.EOF, "", line, column));
@@ -298,6 +331,7 @@ struct Lexer
                 case "Env": return ok(TokenType.Env, value, startLine, startCol);
                 case "Output": return ok(TokenType.Output, value, startLine, startCol);
                 case "Includes": return ok(TokenType.Includes, value, startLine, startCol);
+                case "Config": return ok(TokenType.Config, value, startLine, startCol);
                 case "Executable": return ok(TokenType.Executable, value, startLine, startCol);
                 case "Library": return ok(TokenType.Library, value, startLine, startCol);
                 case "Test": return ok(TokenType.Test, value, startLine, startCol);

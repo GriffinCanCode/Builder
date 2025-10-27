@@ -71,6 +71,17 @@ struct IntegrityValidator
         return constantTimeEquals(computed, signature);
     }
     
+    /// Verify HMAC-BLAKE3 signature with dynamic array (convenience overload)
+    bool verify(scope const(ubyte)[] data, scope const(ubyte)[] signature) const @trusted
+    {
+        if (signature.length != 32)
+            return false;
+        
+        ubyte[32] fixedSig;
+        fixedSig[0 .. 32] = signature[0 .. 32];
+        return verify(data, fixedSig);
+    }
+    
     /// Sign with timestamp and version info
     SignedData signWithMetadata(scope const(ubyte)[] data, uint version_ = 1) const @trusted
     {
@@ -100,6 +111,9 @@ struct IntegrityValidator
         
         return verify(payload, signed.signature);
     }
+    
+    /// Alias for verifyWithMetadata
+    alias verifyMetadata = verifyWithMetadata;
     
     /// Check if signed data is expired
     static bool isExpired(in SignedData signed, Duration maxAge) @safe

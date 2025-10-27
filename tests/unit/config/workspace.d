@@ -16,7 +16,7 @@ unittest
     
     // Create a Builderspace file
     auto builderspacePath = buildPath(wsPath, "Builderspace");
-    std.file.write(builderspacePath, "workspace test_workspace\n");
+    std.file.write(builderspacePath, "workspace(\"test_workspace\") {\n}\n");
     
     auto ws = Workspace.load(wsPath);
     
@@ -33,7 +33,7 @@ unittest
     auto wsPath = tempDir.getPath();
     
     auto builderspacePath = buildPath(wsPath, "Builderspace");
-    std.file.write(builderspacePath, "workspace test\n");
+    std.file.write(builderspacePath, "workspace(\"test\") {\n}\n");
     
     auto ws = Workspace.load(wsPath);
     
@@ -52,7 +52,7 @@ unittest
     
     // Create Builderspace
     auto builderspacePath = buildPath(wsPath, "Builderspace");
-    std.file.write(builderspacePath, "workspace test\n");
+    std.file.write(builderspacePath, "workspace(\"test\") {\n}\n");
     
     // Create a Builderfile
     auto builderfilePath = buildPath(wsPath, "Builderfile");
@@ -74,7 +74,7 @@ unittest
     auto wsPath = tempDir.getPath();
     
     auto builderspacePath = buildPath(wsPath, "Builderspace");
-    std.file.write(builderspacePath, "workspace my_awesome_project\n");
+    std.file.write(builderspacePath, "workspace(\"my_awesome_project\") {\n}\n");
     
     auto ws = Workspace.load(wsPath);
     
@@ -91,7 +91,7 @@ unittest
     auto wsPath = tempDir.getPath();
     
     // Create Builderspace
-    std.file.write(buildPath(wsPath, "Builderspace"), "workspace test\n");
+    std.file.write(buildPath(wsPath, "Builderspace"), "workspace(\"test\") {\n}\n");
     
     // Create nested structure
     auto subdir = buildPath(wsPath, "subdir");
@@ -130,7 +130,7 @@ unittest
     auto tempDir = scoped(new TempDir("workspace-test"));
     auto wsPath = tempDir.getPath();
     
-    std.file.write(buildPath(wsPath, "Builderspace"), "workspace test\n");
+    std.file.write(buildPath(wsPath, "Builderspace"), "workspace(\"test\") {\n}\n");
     
     // Create ignored directory with Builderfile
     auto nodeModules = buildPath(wsPath, "node_modules");
@@ -157,7 +157,7 @@ unittest
     auto tempDir = scoped(new TempDir("workspace-test"));
     auto wsPath = tempDir.getPath();
     
-    std.file.write(buildPath(wsPath, "Builderspace"), "workspace test\n");
+    std.file.write(buildPath(wsPath, "Builderspace"), "workspace(\"test\") {\n}\n");
     
     // Create typical project structure
     mkdir(buildPath(wsPath, "src"));

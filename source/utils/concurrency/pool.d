@@ -96,12 +96,59 @@ final class ThreadPool
         return map(items, dg);
     }
     
+    /// Execute function on items in parallel without collecting results (forEach)
+    @trusted // Thread synchronization and atomic operations
+    void forEach(T)(scope T[] items, scope void delegate(T) func)
+    {
+        if (items.empty)
+            return;
+        
+        if (items.length == 1)
+        {
+            func(items[0]);
+            return;
+        }
+        
+        synchronized (jobMutex)
+        {
+            jobs.reserve(items.length);
+            jobs.length = items.length;
+            atomicStore(pendingJobs, items.length);
+            atomicStore(nextJobIndex, cast(size_t)0);
+            
+            foreach (i, ref item; items)
+            {
+                jobs[i].id = i;
+                jobs[i].work = makeForEachWork(item, func);
+                atomicStore(jobs[i].completed, false);
+            }
+            
+            jobAvailable.notifyAll();
+        }
+        
+        synchronized (jobMutex)
+        {
+            while (atomicLoad(pendingJobs) > 0)
+                jobComplete.wait();
+        }
+    }
+    
     /// Helper to create work delegate with proper value capture
     @trusted // Delegate creation with captured variables - returns @safe delegate wrapped in @trusted context
     private void delegate() @safe makeWork(T, R)(size_t index, T item, ref R[] results, scope R delegate(T) func)
     {
         void delegate() @safe safeDel = () @trusted {
             results[index] = func(item);
+        };
+        return safeDel;
+    }
+    
+    /// Helper for forEach work delegate
+    @trusted // Delegate creation with captured variables
+    private void delegate() @safe makeForEachWork(T)(T item, scope void delegate(T) func)
+    {
+        void delegate() @safe safeDel = () @trusted {
+            func(item);
         };
         return safeDel;
     }
