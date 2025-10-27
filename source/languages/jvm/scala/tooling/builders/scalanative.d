@@ -20,10 +20,10 @@ import utils.logging.logger;
 class ScalaNativeBuilder : ScalaBuilder
 {
     override ScalaBuildResult build(
-        const string[] sources,
-        ScalaConfig config,
-        const Target target,
-        const WorkspaceConfig workspace
+        in string[] sources,
+        in ScalaConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         ScalaBuildResult result;

@@ -14,10 +14,10 @@ import utils.logging.logger;
 class CrossBuilder : StandardBuilder
 {
     override GoBuildResult build(
-        string[] sources,
-        GoConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in GoConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         if (!config.cross.goos.empty)

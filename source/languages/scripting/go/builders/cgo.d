@@ -13,10 +13,10 @@ import utils.logging.logger;
 class CGoBuilder : StandardBuilder
 {
     override GoBuildResult build(
-        string[] sources,
-        GoConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in GoConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         // Ensure CGO is enabled

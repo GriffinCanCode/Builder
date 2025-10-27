@@ -16,10 +16,10 @@ import utils.logging.logger;
 class NervesBuilder : MixProjectBuilder
 {
     override ElixirBuildResult build(
-        string[] sources,
-        ElixirConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in ElixirConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         ElixirBuildResult result;

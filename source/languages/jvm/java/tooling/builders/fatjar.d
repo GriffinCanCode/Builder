@@ -30,10 +30,10 @@ class FatJARBuilder : JARBuilder
     }
     
     override JavaBuildResult build(
-        const string[] sources,
-        JavaConfig config,
-        const Target target,
-        const WorkspaceConfig workspace
+        in string[] sources,
+        in JavaConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         JavaBuildResult result;

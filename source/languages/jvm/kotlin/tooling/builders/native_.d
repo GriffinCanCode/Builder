@@ -18,10 +18,10 @@ import utils.logging.logger;
 class NativeBuilder : KotlinBuilder
 {
     override KotlinBuildResult build(
-        const string[] sources,
-        KotlinConfig config,
-        const Target target,
-        const WorkspaceConfig workspace
+        in string[] sources,
+        in KotlinConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;

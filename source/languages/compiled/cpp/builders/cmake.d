@@ -25,10 +25,10 @@ class CMakeBuilder : BaseCppBuilder
     }
     
     override CppCompileResult build(
-        string[] sources,
-        CppConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in CppConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         CppCompileResult result;

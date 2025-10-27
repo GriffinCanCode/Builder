@@ -11,10 +11,10 @@ import utils.logging.logger;
 class PluginBuilder : StandardBuilder
 {
     override GoBuildResult build(
-        string[] sources,
-        GoConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in GoConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         Logger.info("Building Go plugin (Note: Go plugins are deprecated in Go 1.16+)");
