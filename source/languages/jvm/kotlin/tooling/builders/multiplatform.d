@@ -13,6 +13,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Kotlin Multiplatform builder
 class MultiplatformBuilder : KotlinBuilder
@@ -90,6 +91,7 @@ class MultiplatformBuilder : KotlinBuilder
                 if (exists(jvmLibs))
                 {
                     result.outputs ~= dirEntries(jvmLibs, "*.jar", SpanMode.shallow)
+                        .filter!(e => SecurityValidator.isPathWithinBase(e.name, jvmLibs))
                         .map!(e => e.name)
                         .array;
                 }
@@ -99,6 +101,7 @@ class MultiplatformBuilder : KotlinBuilder
                 if (exists(jsDir))
                 {
                     result.outputs ~= dirEntries(jsDir, "*.js", SpanMode.shallow)
+                        .filter!(e => SecurityValidator.isPathWithinBase(e.name, jsDir))
                         .map!(e => e.name)
                         .array;
                 }
@@ -108,7 +111,7 @@ class MultiplatformBuilder : KotlinBuilder
                 if (exists(nativeDir))
                 {
                     result.outputs ~= dirEntries(nativeDir, "*", SpanMode.shallow)
-                        .filter!(e => e.isFile)
+                        .filter!(e => e.isFile && SecurityValidator.isPathWithinBase(e.name, nativeDir))
                         .map!(e => e.name)
                         .array;
                 }

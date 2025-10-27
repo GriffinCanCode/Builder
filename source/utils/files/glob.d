@@ -11,6 +11,7 @@ import std.range;
 import std.parallelism;
 import core.sync.mutex;
 import utils.files.ignore;
+import utils.security.validation;
 
 @safe:
 
@@ -73,13 +74,23 @@ class GlobMatcher
     @trusted // File system operations
     private static string[] matchSingle(in string pattern, in string baseDir)
     {
+        // Validate pattern for path traversal attempts
+        if (!SecurityValidator.isPathTraversalSafe(pattern))
+            return [];
+        
         immutable fullPattern = buildPath(baseDir, pattern);
         
         // Direct file reference (no wildcards)
         if (!pattern.canFind("*") && !pattern.canFind("?") && !pattern.canFind("["))
         {
             if (exists(fullPattern) && isFile(fullPattern))
+            {
+                // Validate that resolved path is within base directory
+                immutable normalizedBase = buildNormalizedPath(absolutePath(baseDir));
+                if (!isPathWithinBase(fullPattern, normalizedBase))
+                    return [];
                 return [fullPattern];
+            }
             return [];
         }
         
@@ -133,6 +144,9 @@ class GlobMatcher
         string[] files;
         auto mutex = new Mutex();
         
+        // Normalize base directory for boundary checking
+        immutable normalizedBase = buildNormalizedPath(absolutePath(startDir));
+        
         // Collect all subdirectories first
         string[] directories = [startDir];
         size_t processed = 0;
@@ -147,6 +161,10 @@ class GlobMatcher
                 {
                     if (entry.isDir)
                     {
+                        // Validate directory is within base before adding
+                        if (!isPathWithinBase(entry.name, normalizedBase))
+                            continue;
+                        
                         // Skip ignored directories to avoid scanning dependency folders
                         if (!IgnoreRegistry.shouldIgnoreDirectoryAny(entry.name))
                         {
@@ -172,6 +190,10 @@ class GlobMatcher
                 {
                     if (entry.isFile)
                     {
+                        // Validate file is within base directory
+                        if (!isPathWithinBase(entry.name, normalizedBase))
+                            continue;
+                        
                         string matchPath;
                         
                         if (matchFullPath)
@@ -221,6 +243,9 @@ class GlobMatcher
         if (!exists(dir) || !isDir(dir))
             return [];
         
+        // Normalize base directory for boundary checking
+        immutable normalizedBase = buildNormalizedPath(absolutePath(baseDir));
+        
         auto patternRegex = globToRegex(filePattern);
         
         try
@@ -229,7 +254,11 @@ class GlobMatcher
             {
                 if (entry.isFile && matchFirst(entry.name.baseName, patternRegex))
                 {
-                    files ~= entry.name;
+                    // Validate file is within base directory
+                    if (isPathWithinBase(entry.name, normalizedBase))
+                    {
+                        files ~= entry.name;
+                    }
                 }
             }
         }
@@ -309,6 +338,26 @@ class GlobMatcher
         
         regexPattern ~= "$";
         return regex(regexPattern);
+    }
+    
+    /// Helper function to validate path is within base directory
+    /// Uses normalized absolute paths to prevent traversal attacks
+    @trusted // File system operations for path normalization
+    private static bool isPathWithinBase(string path, string normalizedBase) nothrow
+    {
+        try
+        {
+            // Normalize the path for comparison
+            auto normalPath = buildNormalizedPath(absolutePath(path));
+            
+            // Check if normalized path starts with base directory
+            return normalPath.startsWith(normalizedBase);
+        }
+        catch (Exception)
+        {
+            // On any error, reject the path for safety
+            return false;
+        }
     }
 }
 

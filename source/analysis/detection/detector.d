@@ -9,6 +9,7 @@ import std.string;
 import config.schema.schema;
 import utils.files.ignore;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Language detection result
 struct LanguageInfo
@@ -130,6 +131,10 @@ class ProjectDetector
         {
             foreach (DirEntry entry; dirEntries(dir, SpanMode.shallow))
             {
+                // Validate entry is within directory to prevent traversal attacks
+                if (!SecurityValidator.isPathWithinBase(entry.name, dir))
+                    continue;
+                
                 immutable name = baseName(entry.name);
                 
                 // Skip ignored directories using centralized ignore registry

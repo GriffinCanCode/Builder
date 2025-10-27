@@ -170,6 +170,11 @@ class ConfigParser
         
         foreach (entry; dirEntries(root, SpanMode.depth))
         {
+            // Validate entry is within root directory to prevent traversal attacks
+            import utils.security.validation;
+            if (!SecurityValidator.isPathWithinBase(entry.name, root))
+                continue;
+            
             if (entry.isFile && entry.name.baseName == "Builderfile")
                 buildFiles ~= entry.name;
         }
@@ -196,6 +201,20 @@ class ConfigParser
                 foreach (ref target; targets)
                 {
                     target.sources = expandGlobs(target.sources, dir);
+                    
+                    // Validate all expanded sources are within workspace
+                    foreach (source; target.sources)
+                    {
+                        import utils.security.validation;
+                        if (!SecurityValidator.isPathWithinBase(source, root))
+                        {
+                            auto error = new ParseError(path, 
+                                "Source file outside workspace: " ~ source, 
+                                ErrorCode.InvalidFieldValue);
+                            error.addContext(ErrorContext("validating sources", "path traversal detected"));
+                            return Err!(Target[], BuildError)(error);
+                        }
+                    }
                     
                     // Generate full target name
                     string relativeDir = relativePath(dir, root);

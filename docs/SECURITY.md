@@ -148,22 +148,32 @@ auto tmp = AtomicTempDir.in_(outputDir, "java-fatjar");
 
 ---
 
-### 🔄 IN PROGRESS: Path Traversal in Parsers
+### ✅ FIXED: Path Traversal in Parsers and Glob Expansions
 
 **Vulnerability**: Glob expansion without boundary checks
 ```d
-// VULNERABLE:
+// BEFORE (VULNERABLE):
 target.sources = expandGlobs(patterns, dir);  // No validation
 
-// FIX NEEDED:
+// AFTER (SECURE):
+target.sources = expandGlobs(patterns, dir);
 foreach (source; target.sources) {
     if (!SecurityValidator.isPathWithinBase(source, workspace.root))
-        throw new SecurityException("Path traversal");
+        throw new SecurityException("Path traversal detected");
 }
 ```
 
-**Files Needing Fix**:
-- `config/parsing/parser.d` (line 198)
+**Files Fixed**:
+- `utils/files/glob.d` - Added validation to all glob matching functions
+- `config/parsing/parser.d` - Added validation after glob expansion and in findBuildFiles
+- `languages/jvm/java/tooling/builders/war.d` - Added validation to copyRecursive
+- `languages/compiled/rust/analysis/manifest.d` - Added validation to workspace member expansion
+- `languages/compiled/zig/builders/build.d` - Added validation to collectOutputs
+- `languages/jvm/kotlin/tooling/builders/multiplatform.d` - Added validation to output collection
+- `analysis/detection/detector.d` - Added validation to directory scanning
+- `languages/dotnet/csharp/analysis/solution.d` - Added validation to solution finding
+- `languages/dotnet/csharp/analysis/project.d` - Added validation to project finding
+- `languages/scripting/r/analysis/dependencies.d` - Added validation to R file scanning
 
 ---
 
@@ -195,7 +205,7 @@ foreach (source; target.sources) {
 1. **Command Injection**: ✅ Prevented by `SecureExecutor`
 2. **Cache Poisoning**: ✅ Prevented by HMAC validation
 3. **TOCTOU Attacks**: ✅ Prevented by atomic temp dirs
-4. **Path Traversal**: ⚠️ Partially (validation framework ready)
+4. **Path Traversal**: ✅ Prevented by glob validation framework
 5. **Dependency Confusion**: 🔄 Framework designed, integration needed
 
 ### Remaining Risks

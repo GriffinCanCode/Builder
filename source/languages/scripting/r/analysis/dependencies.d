@@ -284,6 +284,7 @@ RPackageDep[] detectDependencies(string projectDir)
 RPackageDep[] scanRFilesForDependencies(string projectDir)
 {
     import std.file : dirEntries, SpanMode;
+    import utils.security.validation;
     
     RPackageDep[string] depsMap; // Use map to deduplicate
     
@@ -291,6 +292,10 @@ RPackageDep[] scanRFilesForDependencies(string projectDir)
     {
         foreach (entry; dirEntries(projectDir, "*.{R,r}", SpanMode.shallow))
         {
+            // Validate entry is within project directory
+            if (!SecurityValidator.isPathWithinBase(entry.name, projectDir))
+                continue;
+            
             if (entry.isFile)
             {
                 auto fileDeps = scanRFile(entry.name);

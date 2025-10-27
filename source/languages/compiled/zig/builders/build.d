@@ -16,6 +16,7 @@ import languages.compiled.zig.builders.base;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Builder using build.zig build system
 class BuildZigBuilder : ZigBuilder
@@ -238,6 +239,10 @@ class BuildZigBuilder : ZigBuilder
         {
             foreach (entry; dirEntries(binDir, SpanMode.shallow))
             {
+                // Validate output file is within bin directory
+                if (!SecurityValidator.isPathWithinBase(entry.name, binDir))
+                    continue;
+                
                 if (entry.isFile)
                 {
                     outputs ~= entry.name;
@@ -253,6 +258,10 @@ class BuildZigBuilder : ZigBuilder
             {
                 foreach (entry; dirEntries(libDir, SpanMode.shallow))
                 {
+                    // Validate output file is within lib directory
+                    if (!SecurityValidator.isPathWithinBase(entry.name, libDir))
+                        continue;
+                    
                     if (entry.isFile)
                     {
                         outputs ~= entry.name;

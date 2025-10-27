@@ -183,6 +183,8 @@ ProjectInfo parseProjectFile(string filePath)
 /// Find all .csproj files in directory
 string[] findProjectFiles(string dir)
 {
+    import utils.security.validation;
+    
     string[] projects;
     
     if (!exists(dir) || !isDir(dir))
@@ -190,7 +192,9 @@ string[] findProjectFiles(string dir)
     
     foreach (entry; dirEntries(dir, "*.csproj", SpanMode.shallow))
     {
-        projects ~= entry.name;
+        // Validate entry is within directory
+        if (SecurityValidator.isPathWithinBase(entry.name, dir))
+            projects ~= entry.name;
     }
     
     return projects;

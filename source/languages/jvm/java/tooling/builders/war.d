@@ -14,6 +14,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// WAR (Web Application Archive) builder
 class WARBuilder : JARBuilder
@@ -99,7 +100,7 @@ class WARBuilder : JARBuilder
         return result;
     }
     
-    protected override string getOutputPath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
+    protected override string getOutputPath(const Target target, const WorkspaceConfig workspace, const JavaConfig config)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);
@@ -140,7 +141,7 @@ class WARBuilder : JARBuilder
         string libDir,
         const Target target,
         const WorkspaceConfig workspace,
-        JavaConfig config
+        const JavaConfig config
     )
     {
         foreach (dep; target.deps)
@@ -164,8 +165,16 @@ class WARBuilder : JARBuilder
         
         foreach (entry; dirEntries(source, SpanMode.depth))
         {
+            // Validate entry path is within source directory to prevent traversal attacks
+            if (!SecurityValidator.isPathWithinBase(entry.name, source))
+                continue;
+            
             string relativePath = entry.relativePath(source);
             string destPath = buildPath(dest, relativePath);
+            
+            // Validate destination path to prevent writing outside dest directory
+            if (!SecurityValidator.isPathWithinBase(destPath, dest))
+                continue;
             
             if (entry.isDir)
             {

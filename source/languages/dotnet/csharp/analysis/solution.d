@@ -112,11 +112,16 @@ SolutionInfo parseSolutionFile(string filePath)
 /// Find solution file in directory
 string findSolutionFile(string dir)
 {
+    import utils.security.validation;
+    
     if (!exists(dir) || !isDir(dir))
         return "";
     
     foreach (entry; dirEntries(dir, "*.sln", SpanMode.shallow))
     {
+        // Validate entry is within directory
+        if (!SecurityValidator.isPathWithinBase(entry.name, dir))
+            continue;
         return entry.name;
     }
     
@@ -126,6 +131,8 @@ string findSolutionFile(string dir)
 /// Find all solution files in directory
 string[] findSolutionFiles(string dir)
 {
+    import utils.security.validation;
+    
     string[] solutions;
     
     if (!exists(dir) || !isDir(dir))
@@ -133,7 +140,9 @@ string[] findSolutionFiles(string dir)
     
     foreach (entry; dirEntries(dir, "*.sln", SpanMode.shallow))
     {
-        solutions ~= entry.name;
+        // Validate entry is within directory
+        if (SecurityValidator.isPathWithinBase(entry.name, dir))
+            solutions ~= entry.name;
     }
     
     return solutions;

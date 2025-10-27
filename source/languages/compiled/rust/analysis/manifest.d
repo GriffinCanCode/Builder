@@ -9,6 +9,7 @@ import std.range;
 import std.json;
 import std.conv;
 import utils.logging.logger;
+import utils.security.validation;
 
 /// Cargo.toml dependency information
 struct CargoDependency
@@ -202,6 +203,10 @@ class CargoParser
         string[] members;
         foreach (member; manifest.workspace.members)
         {
+            // Validate member pattern for path traversal
+            if (!SecurityValidator.isPathTraversalSafe(member))
+                continue;
+            
             // Handle glob patterns
             if (member.canFind("*"))
             {
@@ -214,6 +219,10 @@ class CargoParser
                     {
                         foreach (entry; dirEntries(baseDir, SpanMode.shallow))
                         {
+                            // Validate entry is within workspace root
+                            if (!SecurityValidator.isPathWithinBase(entry.name, workspaceRoot))
+                                continue;
+                            
                             if (entry.isDir)
                             {
                                 string cargoToml = buildPath(entry.name, "Cargo.toml");
@@ -227,8 +236,12 @@ class CargoParser
             else
             {
                 string memberPath = buildPath(workspaceRoot, member);
-                if (exists(memberPath) && isDir(memberPath))
+                // Validate member path is within workspace
+                if (exists(memberPath) && isDir(memberPath) && 
+                    SecurityValidator.isPathWithinBase(memberPath, workspaceRoot))
+                {
                     members ~= memberPath;
+                }
             }
         }
         
