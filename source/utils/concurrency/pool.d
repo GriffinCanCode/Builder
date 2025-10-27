@@ -33,6 +33,16 @@ final class ThreadPool
     /// 3. Mutex/Condition creation is safe
     /// 4. Worker array is properly reserved before population
     /// 5. Each worker is started only after full initialization
+    /// 
+    /// Invariants:
+    /// - All workers are created and started before constructor returns
+    /// - Atomic running flag is set before workers start
+    /// - Mutex and condition are initialized before use
+    /// 
+    /// What could go wrong:
+    /// - Thread creation could fail: exception propagates to caller
+    /// - Resource exhaustion: too many threads could fail (OS limit)
+    /// - Race during initialization: prevented by setting running flag first
     @trusted
     this(size_t workerCount = 0)
     {
@@ -63,6 +73,17 @@ final class ThreadPool
     /// 3. Result array is pre-allocated to exact size (no reallocation)
     /// 4. Jobs are properly synchronized via jobMutex
     /// 5. Wait loop ensures all work completes before returning
+    /// 
+    /// Invariants:
+    /// - Results array matches input array length exactly
+    /// - All jobs complete before function returns
+    /// - No result slots are uninitialized
+    /// 
+    /// What could go wrong:
+    /// - func throws exception: propagates to caller, partial results lost
+    /// - Deadlock: impossible due to single mutex and proper wait/notify
+    /// - Memory: pre-allocated results array, no growth/reallocation
+    /// - Thread safety: mutex ensures exclusive access to shared state
     @trusted
     R[] map(T, R)(scope T[] items, scope R delegate(T) func)
     {

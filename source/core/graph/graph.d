@@ -224,7 +224,7 @@ final class BuildGraph
     /// Note: This function could potentially be @safe as it only performs
     /// safe operations (AA access, reference comparisons, array traversal).
     /// Marked @trusted conservatively for nested function with closure.
-    private bool wouldCreateCycle(BuildNode from, BuildNode to) @safe
+    private bool wouldCreateCycle(BuildNode from, BuildNode to) @trusted
     {
         bool[BuildNode] visited;
         

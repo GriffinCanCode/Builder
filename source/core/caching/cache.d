@@ -47,6 +47,23 @@ final class BuildCache
     private Mutex cacheMutex;  // Protects all mutable state
     private IntegrityValidator validator;  // HMAC validation for tampering detection
     
+    /// Constructor: Initialize cache with directory and configuration
+    /// 
+    /// Safety: This constructor is @trusted because:
+    /// 1. buildPath() is safe string concatenation
+    /// 2. File system operations (exists, mkdirRecurse) are inherently unsafe I/O
+    /// 3. Mutex creation is safe
+    /// 4. loadCache() is a member function call
+    /// 
+    /// Invariants:
+    /// - cacheDir directory exists after construction
+    /// - cacheMutex is properly initialized
+    /// - validator is initialized with workspace-specific key
+    /// 
+    /// What could go wrong:
+    /// - Directory creation could fail due to permissions: throws exception
+    /// - loadCache() could fail to read existing cache: handled gracefully
+    /// - getcwd() could fail: throws exception (caller must handle)
     this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @trusted
     {
         this.cacheDir = cacheDir;
@@ -90,6 +107,23 @@ final class BuildCache
     /// Check if a target is cached and up-to-date
     /// Uses two-tier hashing for 1000x speedup on unchanged files
     /// Thread-safe: synchronized via internal mutex
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Mutex synchronization ensures thread-safe access to entries
+    /// 2. File system operations (exists, timeLastModified, FastHash) are unsafe I/O
+    /// 3. Associative array access is bounds-checked (safe)
+    /// 4. Pointer access (entryPtr) is safe within synchronized block
+    /// 
+    /// Invariants:
+    /// - cacheMutex must be held for entire duration of cache lookup
+    /// - Entry access times are updated atomically with the check
+    /// - File metadata is consistent at time of check (TOCTOU acknowledged)
+    /// 
+    /// What could go wrong:
+    /// - TOCTOU: file could be modified between check and use (unavoidable)
+    /// - File could be deleted between metadata check and hash: returns false (safe)
+    /// - Hash computation could fail: caught and returns false
+    /// - Large files could slow down hashing: mitigated by FastHash tiers
     bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @trusted
     {
         synchronized (cacheMutex)
@@ -153,6 +187,23 @@ final class BuildCache
     /// Defers write until flush() is called
     /// Uses SIMD-aware parallel hashing for multiple sources
     /// Thread-safe: synchronized via internal mutex
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Mutex synchronization ensures thread-safe access to entries
+    /// 2. File system operations (FastHash.hashFile, timeLastModified) are unsafe I/O
+    /// 3. Parallel hashing may spawn threads (synchronized internally)
+    /// 4. Associative array insert/update is memory-safe
+    /// 
+    /// Invariants:
+    /// - cacheMutex must be held during entry creation and insertion
+    /// - dirty flag is set to ensure flush() will persist changes
+    /// - All file hashes are computed before entry is created
+    /// 
+    /// What could go wrong:
+    /// - Hash computation could fail for missing files: exception propagates
+    /// - Parallel hashing could fail: exception propagates to caller
+    /// - Memory usage could grow: limited by eviction policy on flush()
+    /// - File modification during hashing: hash reflects state at that moment
     void update(string targetId, scope const(string)[] sources, scope const(string)[] deps, string outputHash) @trusted
     {
         synchronized (cacheMutex)

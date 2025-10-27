@@ -20,6 +20,14 @@ struct Blake3
     /// 1. Hasher is a valid struct member (not dangling)
     /// 2. Calls extern(C) blake3_hasher_init with valid pointer
     /// 3. No memory allocation or escaping references
+    /// 
+    /// Invariants:
+    /// - Hasher is initialized to default BLAKE3 state
+    /// - Safe for immediate use after construction
+    /// 
+    /// What could go wrong:
+    /// - C library not linked: linker error (compile-time)
+    /// - Pointer to hasher is guaranteed valid (stack-allocated struct member)
     @trusted
     this(int dummy)  // Dummy parameter to allow construction
     {
@@ -32,6 +40,15 @@ struct Blake3
     /// 1. Key is a fixed-size array (BLAKE3_KEY_LEN) - no buffer overflows
     /// 2. Calls extern(C) blake3_hasher_init_keyed with validated static array
     /// 3. Hasher is stack-allocated and returned by value (no dangling)
+    /// 
+    /// Invariants:
+    /// - Key must be exactly BLAKE3_KEY_LEN (32) bytes (enforced by type)
+    /// - Same key produces deterministic hashes
+    /// 
+    /// What could go wrong:
+    /// - Weak key: user's responsibility to provide strong key
+    /// - Key reuse across contexts: user's responsibility to manage keys
+    /// - C library call is safe (key length validated by type system)
     @trusted
     static Blake3 keyed(in ubyte[BLAKE3_KEY_LEN] key)
     {
@@ -46,6 +63,15 @@ struct Blake3
     /// 1. toStringz() creates a null-terminated copy (safe for C interop)
     /// 2. Calls extern(C) blake3_hasher_init_derive_key with valid C string
     /// 3. No memory leaks - temporary string is GC-managed
+    /// 
+    /// Invariants:
+    /// - Context string is null-terminated for C interop
+    /// - Same context produces same key derivation
+    /// 
+    /// What could go wrong:
+    /// - Empty context: allowed, produces deterministic result
+    /// - toStringz() allocates: GC-managed, no leaks
+    /// - Context with null bytes: truncated by toStringz (D string semantics)
     @trusted
     static Blake3 deriveKey(in string context)
     {
@@ -60,6 +86,15 @@ struct Blake3
     /// 1. D slice guarantees pointer validity and accurate length
     /// 2. Empty check prevents invalid pointer dereference
     /// 3. Calls extern(C) blake3_hasher_update with validated parameters
+    /// 
+    /// Invariants:
+    /// - data.ptr is valid for data.length bytes (D slice guarantee)
+    /// - Empty data is no-op (safe to call)
+    /// 
+    /// What could go wrong:
+    /// - Nothing: D slices ensure pointer safety
+    /// - Empty data: handled explicitly with early return
+    /// - C function respects length parameter (BLAKE3 implementation validated)
     @trusted
     void put(in ubyte[] data)
     {
@@ -73,6 +108,14 @@ struct Blake3
     /// 1. Casting string to ubyte[] is safe (same memory layout)
     /// 2. Delegates to trusted put(ubyte[]) which validates parameters
     /// 3. No mutations to the original string
+    /// 
+    /// Invariants:
+    /// - String is valid UTF-8 (D guarantee, but not required for hashing)
+    /// - Cast preserves all bytes exactly
+    /// 
+    /// What could go wrong:
+    /// - Nothing: string and ubyte[] have identical memory representation
+    /// - UTF-8 validity not checked: intentional, hashing raw bytes
     @trusted
     void put(in string data)
     {
@@ -85,6 +128,16 @@ struct Blake3
     /// 1. Allocates buffer with exact requested length (no buffer overrun)
     /// 2. Calls extern(C) blake3_hasher_finalize with matching buffer and size
     /// 3. Returns owned array (no dangling references)
+    /// 
+    /// Invariants:
+    /// - Output buffer is exactly 'length' bytes
+    /// - BLAKE3 can produce arbitrary-length output (XOF mode)
+    /// - Hasher state is consumed but remains valid for reuse
+    /// 
+    /// What could go wrong:
+    /// - Very large length: allocation could fail (exception propagates)
+    /// - Zero length: valid, returns empty array
+    /// - C function writes exactly 'length' bytes (BLAKE3 specification)
     @trusted
     ubyte[] finish(in size_t length = BLAKE3_OUT_LEN)
     {
@@ -97,8 +150,16 @@ struct Blake3
     /// 
     /// Safety: This function is @trusted because:
     /// 1. Delegates to trusted finish() which performs validation
-    /// 2. toHexString() is @safe (converts to hex representation)
+    /// 2. toHexString() itself is @trusted but wraps safe operations
     /// 3. No unsafe operations performed
+    /// 
+    /// Invariants:
+    /// - Output is lowercase hexadecimal string
+    /// - Length of result is 2 * length (2 hex chars per byte)
+    /// 
+    /// What could go wrong:
+    /// - Large length: could cause memory allocation failure (propagates)
+    /// - Nothing else: hex encoding is deterministic and safe
     @trusted
     string finishHex(in size_t length = BLAKE3_OUT_LEN)
     {
@@ -112,6 +173,14 @@ struct Blake3
     /// 1. Hasher is a valid struct member
     /// 2. Calls extern(C) blake3_hasher_reset with valid pointer
     /// 3. No memory allocation or deallocation
+    /// 
+    /// Invariants:
+    /// - Hasher returns to initial state (as if freshly constructed)
+    /// - Safe to reuse for new hash computation
+    /// 
+    /// What could go wrong:
+    /// - Nothing: reset is idempotent and safe
+    /// - Pointer to hasher is always valid (struct member)
     @trusted
     void reset()
     {
@@ -119,7 +188,20 @@ struct Blake3
     }
     
     /// One-shot hash of data
-    @trusted // Delegates to trusted Blake3 methods
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Delegates to trusted Blake3 constructor, put(), and finish()
+    /// 2. Local Blake3 instance is stack-allocated (no leaks)
+    /// 3. All operations are validated by called methods
+    /// 
+    /// Invariants:
+    /// - Equivalent to constructing Blake3, calling put(), then finish()
+    /// - Deterministic: same data produces same hash
+    /// 
+    /// What could go wrong:
+    /// - Large data or length: allocation could fail (exception propagates)
+    /// - Otherwise: all operations are safe (validated by callees)
+    @trusted
     static ubyte[] hash(in ubyte[] data, in size_t length = BLAKE3_OUT_LEN)
     {
         auto b = Blake3(0);
@@ -128,7 +210,17 @@ struct Blake3
     }
     
     /// One-shot hash of string
-    @trusted // Safe cast and delegates to trusted hash()
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Cast from string to ubyte[] is safe (identical memory layout)
+    /// 2. Delegates to trusted hash(ubyte[]) method
+    /// 
+    /// Invariants:
+    /// - String bytes are hashed as-is (UTF-8 encoding)
+    /// 
+    /// What could go wrong:
+    /// - Nothing: cast and delegation are both safe
+    @trusted
     static ubyte[] hash(in string data, in size_t length = BLAKE3_OUT_LEN)
     {
         return hash(cast(ubyte[])data, length);
@@ -142,7 +234,17 @@ struct Blake3
     }
     
     /// One-shot hash of string returning hex string
-    @trusted // Safe cast of string to ubyte[] for hashing
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Cast from string to ubyte[] is safe (identical memory layout)
+    /// 2. Delegates to hashHex(ubyte[]) overload
+    /// 
+    /// Invariants:
+    /// - Produces lowercase hexadecimal string
+    /// 
+    /// What could go wrong:
+    /// - Nothing: safe cast and delegation
+    @trusted
     static string hashHex(string data, size_t length = BLAKE3_OUT_LEN)
     {
         return hashHex(cast(ubyte[])data, length);
@@ -150,7 +252,21 @@ struct Blake3
 }
 
 /// Convert byte array to hex string (lowercase)
-@trusted // Safe cast of char[] to string (immutable)
+/// 
+/// Safety: This function is @trusted because:
+/// 1. Allocates char array with exact required size (2 * bytes.length)
+/// 2. Array indexing is in-bounds (i * 2 and i * 2 + 1 for i < bytes.length)
+/// 3. Cast from char[] to string is safe (chars are valid UTF-8)
+/// 
+/// Invariants:
+/// - Output length is exactly 2 * input length
+/// - Output is valid UTF-8 (only contains 0-9, a-f)
+/// - Deterministic: same bytes produce same hex string
+/// 
+/// What could go wrong:
+/// - Very large input: allocation could fail (exception propagates)
+/// - Array indexing is mathematically proven in-bounds
+@trusted
 string toHexString(const ubyte[] bytes)
 {
     static immutable hexDigits = "0123456789abcdef";

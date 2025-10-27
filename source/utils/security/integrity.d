@@ -38,6 +38,22 @@ struct IntegrityValidator
     }
     
     /// Create with environment-specific key (for distributed builds)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. sha256Of performs hash computation (uses C bindings internally)
+    /// 2. getMachineId() performs system calls for machine identification
+    /// 3. String concatenation for key derivation is safe
+    /// 4. Blake3.keyed() uses extern(C) functions with validated parameters
+    /// 
+    /// Invariants:
+    /// - Machine ID is stable for the system
+    /// - Workspace path is incorporated into key derivation
+    /// - Resulting validator has unique key per machine+workspace combo
+    /// 
+    /// What could go wrong:
+    /// - Machine ID could change on system reconfiguration: cache invalidated (intended)
+    /// - Workspace path with special characters: handled by hash function
+    /// - getMachineId() could fail: throws exception (caller must handle)
     static IntegrityValidator fromEnvironment(string workspace) @trusted
     {
         import std.digest.sha : sha256Of;
@@ -51,6 +67,21 @@ struct IntegrityValidator
     }
     
     /// Generate HMAC-BLAKE3 for data
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Blake3 wrapper uses extern(C) BLAKE3 implementation
+    /// 2. Keyed hashing with validated key (set in constructor)
+    /// 3. finish() allocates exact-size buffer (no overrun)
+    /// 4. Array slicing with [0..32] is bounds-checked
+    /// 
+    /// Invariants:
+    /// - key is exactly BLAKE3_KEY_LEN bytes (enforced by type)
+    /// - Output is always exactly 32 bytes
+    /// - Same data produces same signature (deterministic)
+    /// 
+    /// What could go wrong:
+    /// - Nothing: keyed BLAKE3 is cryptographically secure
+    /// - Side channel attacks: possible but mitigated by constant-time ops in BLAKE3
     ubyte[32] sign(scope const(ubyte)[] data) const @trusted
     {
         // HMAC-BLAKE3: H(K XOR opad || H(K XOR ipad || message))
@@ -65,6 +96,19 @@ struct IntegrityValidator
     }
     
     /// Verify HMAC-BLAKE3 signature (constant-time comparison)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Delegates to trusted sign() function
+    /// 2. constantTimeEquals prevents timing attacks (critical for security)
+    /// 3. Fixed-size array comparison is memory-safe
+    /// 
+    /// Invariants:
+    /// - Comparison is constant-time (no early exit on mismatch)
+    /// - Both arrays are exactly 32 bytes
+    /// 
+    /// What could go wrong:
+    /// - Timing attacks if not constant-time: prevented by constantTimeEquals
+    /// - Signature forgery: cryptographically infeasible with BLAKE3-HMAC
     bool verify(scope const(ubyte)[] data, in ubyte[32] signature) const @trusted
     {
         auto computed = sign(data);
@@ -72,6 +116,19 @@ struct IntegrityValidator
     }
     
     /// Verify HMAC-BLAKE3 signature with dynamic array (convenience overload)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Length check prevents out-of-bounds access
+    /// 2. Array slicing to fixed-size array is validated by length check
+    /// 3. Delegates to trusted verify() with fixed-size array
+    /// 
+    /// Invariants:
+    /// - Signature must be exactly 32 bytes or verification fails
+    /// - Copies signature data to fixed array before verification
+    /// 
+    /// What could go wrong:
+    /// - Invalid signature length: returns false (safe failure mode)
+    /// - Truncated signature: rejected by length check
     bool verify(scope const(ubyte)[] data, scope const(ubyte)[] signature) const @trusted
     {
         if (signature.length != 32)
@@ -83,6 +140,22 @@ struct IntegrityValidator
     }
     
     /// Sign with timestamp and version info
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Clock.currTime() is system call (unsafe I/O)
+    /// 2. nativeToBigEndian for endianness conversion is safe
+    /// 3. Array concatenation and copy operations are memory-safe
+    /// 4. Delegates to trusted sign() function
+    /// 
+    /// Invariants:
+    /// - Timestamp is monotonic (system clock dependent)
+    /// - Version and timestamp are encoded in big-endian
+    /// - Signature covers version + timestamp + data (tamper-proof)
+    /// 
+    /// What could go wrong:
+    /// - System clock manipulation: could create backdated signatures (unavoidable)
+    /// - Replay attacks: mitigated by including timestamp in signature
+    /// - Version mismatch on deserialization: handled by version check
     SignedData signWithMetadata(scope const(ubyte)[] data, uint version_ = 1) const @trusted
     {
         SignedData signed;
@@ -101,6 +174,22 @@ struct IntegrityValidator
     }
     
     /// Verify signed data with metadata
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Reconstructs payload with same encoding as signWithMetadata
+    /// 2. nativeToBigEndian is safe for endianness conversion
+    /// 3. Array concatenation is memory-safe
+    /// 4. Delegates to trusted verify() for constant-time comparison
+    /// 
+    /// Invariants:
+    /// - Payload reconstruction must match signing process exactly
+    /// - Version and timestamp encoding must be identical to signing
+    /// - Verification is constant-time (prevents timing attacks)
+    /// 
+    /// What could go wrong:
+    /// - Modified version or timestamp: signature verification fails (intended)
+    /// - Replay attack with old valid signature: caller must check timestamp freshness
+    /// - Endianness mismatch: prevented by explicit big-endian encoding
     bool verifyWithMetadata(in SignedData signed) const @trusted
     {
         // Reconstruct payload
@@ -133,6 +222,21 @@ struct SignedData
     ubyte[32] signature;
     
     /// Serialize to binary format
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. nativeToBigEndian produces fixed-size arrays (no buffer overrun)
+    /// 2. Array concatenation (~=) is memory-safe
+    /// 3. reserve() pre-allocates to avoid reallocations
+    /// 4. Cast of string to ubyte[] has same memory layout
+    /// 
+    /// Invariants:
+    /// - Result has deterministic size: 4 + 8 + 32 + 4 + data.length
+    /// - All multi-byte integers are big-endian encoded
+    /// - Pure function: no side effects
+    /// 
+    /// What could go wrong:
+    /// - Very large data could cause allocation failure: exception propagates
+    /// - Nothing else: serialization format is unambiguous
     ubyte[] serialize() const @trusted pure
     {
         ubyte[] result;
@@ -148,6 +252,22 @@ struct SignedData
     }
     
     /// Deserialize from binary format
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Length validation prevents out-of-bounds access
+    /// 2. read() from std.bitmanip is bounds-checked
+    /// 3. Array slicing is validated against remaining length
+    /// 4. Cast of ubyte[] to string is safe (UTF-8 validation not required here)
+    /// 
+    /// Invariants:
+    /// - Minimum size check prevents buffer underrun
+    /// - Data length is validated before slicing
+    /// - All multi-byte integers decoded as big-endian
+    /// 
+    /// What could go wrong:
+    /// - Corrupted data: length mismatch throws exception (safe failure)
+    /// - Truncated input: caught by length check
+    /// - Invalid UTF-8 in data: not validated (caller responsibility)
     static SignedData deserialize(scope const(ubyte)[] bytes) @trusted
     {
         if (bytes.length < 4 + 8 + 32 + 4)
@@ -191,6 +311,23 @@ bool constantTimeEquals(in ubyte[] a, in ubyte[] b) @safe pure nothrow @nogc
 }
 
 /// Get machine-specific identifier
+/// 
+/// Safety: This function is @trusted because:
+/// 1. File system operations to read machine ID files are unsafe I/O
+/// 2. String operations (strip, readText) are safe
+/// 3. Fallback to username is safe (getenv uses C bindings)
+/// 4. Exception handling prevents crashes
+/// 
+/// Invariants:
+/// - Returns stable identifier for the machine (OS-specific)
+/// - Falls back to username if machine ID unavailable
+/// - Last resort: returns "unknown" (safe default)
+/// 
+/// What could go wrong:
+/// - Machine ID files could be unreadable: falls back to username
+/// - Username unavailable: falls back to "unknown"
+/// - Machine ID could change on system update: cache invalidation (intended)
+/// - Containers/VMs: may share machine ID (limitation of approach)
 private string getMachineId() @trusted
 {
     version(Posix)

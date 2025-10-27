@@ -83,7 +83,26 @@ struct SecurityValidator
     
     /// Validates that a file path exists and is within allowed directory
     /// baseDir: The base directory that the path must be within
-    @trusted // File system operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File system operations (exists, absolutePath) are unsafe I/O
+    /// 2. Path normalization requires file system access
+    /// 3. String prefix comparison (startsWith) is memory-safe
+    /// 4. Exception handling ensures nothrow-like behavior
+    /// 
+    /// Invariants:
+    /// - Both paths are normalized before comparison (canonical form)
+    /// - Symlinks are NOT resolved (exists checks link itself)
+    /// - Empty or non-existent paths return false (fail-safe)
+    /// 
+    /// What could go wrong:
+    /// - Symlink attacks: path could point outside baseDir via symlink
+    /// - TOCTOU: path could be modified after validation
+    /// - Case-sensitive filesystems: bypasses on different case (platform-specific)
+    /// - Relative path handling: mitigated by absolutePath normalization
+    /// 
+    /// NOTE: This is less secure than glob.d's isPathWithinBase which resolves symlinks
+    @trusted
     static bool isPathWithinBase(string path, string baseDir)
     {
         try
@@ -157,7 +176,25 @@ struct SecurityValidator
     
     /// Escape a file path for safe use in shell commands (when executeShell is unavoidable)
     /// This is a last resort - prefer using execute() with array form
-    @trusted // String operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. String operations (replace, format) are memory-safe
+    /// 2. Character filtering and escaping don't involve pointers
+    /// 3. Platform-specific escaping rules are hardcoded (no external input)
+    /// 
+    /// Invariants:
+    /// - Windows: wraps path in double quotes, escapes internal quotes
+    /// - POSIX: single quotes with escaped single quotes
+    /// - Empty paths are passed through (caller must validate)
+    /// 
+    /// What could go wrong:
+    /// - Complex shell injection: escaped form may not be sufficient for all shells
+    /// - Platform detection wrong: could use wrong escaping rules
+    /// - Unicode/special characters: may not be handled by all shells
+    /// - This is BEST EFFORT - strongly prefer execute() with arrays!
+    /// 
+    /// SECURITY WARNING: This does NOT guarantee safety for all shells/contexts
+    @trusted
     static string escapeShellPath(string path)
     {
         version(Windows)
@@ -215,7 +252,24 @@ struct SecurityValidator
 }
 
 /// Safe execute wrapper that validates paths before execution
-@trusted // Process execution
+/// 
+/// Safety: This struct is @trusted because:
+/// 1. Wraps std.process.execute which requires system calls (unsafe I/O)
+/// 2. Validates all paths before passing to execute()
+/// 3. Uses array form of execute (prevents shell injection)
+/// 4. No internal unsafe operations beyond process execution
+/// 
+/// Invariants:
+/// - All file paths are validated before execution
+/// - Commands use array form (no shell interpretation)
+/// - Working directory is validated if specified
+/// 
+/// What could go wrong:
+/// - Process execution inherently unsafe: limited by OS security
+/// - Path validation could be bypassed: mitigated by multiple validation layers
+/// - TOCTOU: files could change between validation and execution
+/// - Resource exhaustion: process could consume unlimited resources (no sandboxing)
+@trusted
 struct SafeExecute
 {
     import std.process;
