@@ -36,10 +36,10 @@ class NativeImageBuilder : JARBuilder
     }
     
     override JavaBuildResult build(
-        string[] sources,
+        const string[] sources,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         JavaBuildResult result;
@@ -63,13 +63,13 @@ class NativeImageBuilder : JARBuilder
         string outputDir = dirName(outputPath);
         string jarPath = buildPath(outputDir, target.name.split(":")[$ - 1] ~ "-temp.jar");
         
-        // Temporarily change output path for JAR building
-        string originalOutput = target.outputPath;
-        target.outputPath = jarPath;
+        // Create a mutable copy of target for JAR building
+        import config.schema.schema : Target;
+        Target mutableTarget = cast(Target) target;
+        string originalOutput = mutableTarget.outputPath;
+        mutableTarget.outputPath = jarPath;
         
-        auto jarResult = super.build(sources, config, target, workspace);
-        
-        target.outputPath = originalOutput;
+        auto jarResult = super.build(sources, config, mutableTarget, workspace);
         
         if (!jarResult.success)
         {
@@ -191,7 +191,7 @@ class NativeImageBuilder : JARBuilder
         return true;
     }
     
-    protected override string getOutputPath(Target target, WorkspaceConfig workspace, JavaConfig config)
+    protected override string getOutputPath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);

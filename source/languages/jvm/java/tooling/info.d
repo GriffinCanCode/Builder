@@ -263,6 +263,9 @@ class JavaInfo
     /// Detect class file version from .class file
     static int detectClassFileVersion(string classFile)
     {
+        import std.stdio : File;
+        import std.file : exists;
+        
         try
         {
             if (!exists(classFile))

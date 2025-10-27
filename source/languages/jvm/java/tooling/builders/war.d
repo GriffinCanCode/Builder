@@ -29,10 +29,10 @@ class WARBuilder : JARBuilder
     }
     
     override JavaBuildResult build(
-        string[] sources,
+        const string[] sources,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         JavaBuildResult result;
@@ -59,13 +59,23 @@ class WARBuilder : JARBuilder
         mkdirRecurse(classesDir);
         mkdirRecurse(libDir);
         
-        scope(exit)
+        scope(failure)
         {
             if (exists(tempDir))
             {
-                try { rmdirRecurse(tempDir); }
-                catch (Exception) {}
+                try {
+                    rmdirRecurse(tempDir);
+                }
+                catch (Exception e) {
+                    // Ignore cleanup errors
+                }
             }
+        }
+        
+        scope(success)
+        {
+            if (exists(tempDir))
+                rmdirRecurse(tempDir);
         }
         
         // Compile sources to WEB-INF/classes
@@ -89,7 +99,7 @@ class WARBuilder : JARBuilder
         return result;
     }
     
-    protected override string getOutputPath(Target target, WorkspaceConfig workspace, JavaConfig config)
+    protected override string getOutputPath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);
@@ -128,8 +138,8 @@ class WARBuilder : JARBuilder
     
     private void copyDependenciesToLib(
         string libDir,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         JavaConfig config
     )
     {

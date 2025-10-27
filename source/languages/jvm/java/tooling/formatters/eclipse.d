@@ -14,7 +14,7 @@ import utils.logging.logger;
 /// Eclipse formatter
 class EclipseFormatter : JavaFormatter
 {
-    override FormatResult format(string[] sources, FormatterConfig config, string workingDir, bool checkOnly = false)
+    override FormatResult format(const string[] sources, FormatterConfig config, string workingDir, bool checkOnly = false)
     {
         FormatResult result;
         

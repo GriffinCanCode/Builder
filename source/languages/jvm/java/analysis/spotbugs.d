@@ -15,7 +15,7 @@ import utils.logging.logger;
 /// SpotBugs static analyzer
 class SpotBugsAnalyzer : Analyzer
 {
-    override AnalysisResult analyze(string[] sources, AnalysisConfig config, string workingDir)
+    override AnalysisResult analyze(const string[] sources, AnalysisConfig config, string workingDir)
     {
         AnalysisResult result;
         

@@ -8,7 +8,7 @@ import utils.logging.logger;
 /// WartRemover checker - functional purity linter
 class WartRemoverChecker : Checker
 {
-    override CheckResult check(string[] sources, LinterConfig config, string workingDir)
+    override CheckResult check(const string[] sources, LinterConfig config, string workingDir)
     {
         CheckResult result;
         

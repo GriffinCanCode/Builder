@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
 import languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.tooling.builders.jar;
 import languages.jvm.java.core.config;
@@ -29,10 +30,10 @@ class ModularJARBuilder : JARBuilder
     }
     
     override JavaBuildResult build(
-        string[] sources,
+        const string[] sources,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         JavaBuildResult result;
@@ -65,11 +66,11 @@ class ModularJARBuilder : JARBuilder
     }
     
     override protected bool compileSources(
-        string[] sources,
+        const string[] sources,
         string outputDir,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         ref JavaBuildResult result
     )
     {

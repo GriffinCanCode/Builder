@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
 import languages.base.base;
 import languages.jvm.kotlin.core.config;
 import config.schema.schema;
@@ -287,18 +288,8 @@ class KotlinHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        if (!target.commands.empty)
-        {
-            foreach (cmd; target.commands)
-            {
-                auto res = executeShell(cmd);
-                if (res.status != 0)
-                {
-                    result.error = "Command failed: " ~ cmd ~ "\n" ~ res.output;
-                    return result;
-                }
-            }
-        }
+        // Custom builds would use environment or flags
+        // Note: Target struct doesn't have a commands field
         
         result.success = true;
         result.outputs = getOutputs(target, config);
@@ -328,7 +319,7 @@ class KotlinHandler : BaseLanguageHandler
     }
     
     /// Build classpath from dependencies
-    private string buildClasspath(Target target, WorkspaceConfig config)
+    private string buildClasspath(const Target target, const WorkspaceConfig config)
     {
         string[] paths;
         

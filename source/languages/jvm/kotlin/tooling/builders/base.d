@@ -19,10 +19,10 @@ interface KotlinBuilder
 {
     /// Build Kotlin sources
     KotlinBuildResult build(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     );
     
     /// Check if builder is available

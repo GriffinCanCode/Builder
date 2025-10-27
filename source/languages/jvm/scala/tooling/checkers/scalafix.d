@@ -14,7 +14,7 @@ import utils.logging.logger;
 /// Scalafix checker/linter implementation
 class ScalafixChecker : Checker
 {
-    override CheckResult check(string[] sources, LinterConfig config, string workingDir)
+    override CheckResult check(const string[] sources, LinterConfig config, string workingDir)
     {
         CheckResult result;
         

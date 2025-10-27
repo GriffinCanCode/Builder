@@ -18,10 +18,10 @@ import utils.logging.logger;
 class AndroidBuilder : KotlinBuilder
 {
     override KotlinBuildResult build(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;
@@ -124,7 +124,7 @@ class AndroidBuilder : KotlinBuilder
         return mode == KotlinBuildMode.Android;
     }
     
-    private string findProjectRoot(string[] sources)
+    private string findProjectRoot(const string[] sources)
     {
         if (sources.empty)
             return ".";

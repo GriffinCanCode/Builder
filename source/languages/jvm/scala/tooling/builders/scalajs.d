@@ -19,10 +19,10 @@ import utils.logging.logger;
 class ScalaJSBuilder : ScalaBuilder
 {
     override ScalaBuildResult build(
-        string[] sources,
+        const string[] sources,
         ScalaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ScalaBuildResult result;
@@ -67,9 +67,9 @@ class ScalaJSBuilder : ScalaBuilder
     }
     
     private ScalaBuildResult buildWithSbt(
-        Target target,
+        const Target target,
         ScalaConfig config,
-        WorkspaceConfig workspace,
+        const WorkspaceConfig workspace,
         ScalaBuildResult result
     )
     {
@@ -130,9 +130,9 @@ class ScalaJSBuilder : ScalaBuilder
     }
     
     private ScalaBuildResult buildWithMill(
-        Target target,
+        const Target target,
         ScalaConfig config,
-        WorkspaceConfig workspace,
+        const WorkspaceConfig workspace,
         ScalaBuildResult result
     )
     {
@@ -207,7 +207,7 @@ class ScalaJSBuilder : ScalaBuilder
         return "";
     }
     
-    private string getOutputPath(Target target, WorkspaceConfig workspace)
+    private string getOutputPath(const Target target, const WorkspaceConfig workspace)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);

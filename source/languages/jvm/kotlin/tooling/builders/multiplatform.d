@@ -18,10 +18,10 @@ import utils.logging.logger;
 class MultiplatformBuilder : KotlinBuilder
 {
     override KotlinBuildResult build(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;
@@ -152,7 +152,7 @@ class MultiplatformBuilder : KotlinBuilder
         return mode == KotlinBuildMode.Multiplatform;
     }
     
-    private string findProjectRoot(string[] sources)
+    private string findProjectRoot(const string[] sources)
     {
         if (sources.empty)
             return ".";

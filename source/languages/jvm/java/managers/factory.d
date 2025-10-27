@@ -159,7 +159,7 @@ class BuildToolFactory
                 if (meta.isAndroid())
                 {
                     // Android projects need special handling
-                    config.packaging.packaging = "apk";
+                    // Note: Android packaging would need additional config
                 }
                 break;
             

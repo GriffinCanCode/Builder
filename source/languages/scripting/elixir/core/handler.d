@@ -116,8 +116,8 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
@@ -218,8 +218,8 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
@@ -306,8 +306,8 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
@@ -418,7 +418,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Parse Elixir configuration from target
-    private ElixirConfig parseElixirConfig(Target target)
+    private ElixirConfig parseElixirConfig(const Target target)
     {
         ElixirConfig config;
         
@@ -448,7 +448,7 @@ class ElixirHandler : BaseLanguageHandler
     /// Enhance configuration based on project structure
     private void enhanceConfigFromProject(
         ref ElixirConfig config,
-        Target target,
+        const Target target,
         WorkspaceConfig workspace
     )
     {

@@ -217,8 +217,9 @@ class AnalyzerFactory
         {
             case KotlinAnalyzer.Auto:
                 // Try detekt first, fallback to compiler
-                if (DetektAnalyzer.staticIsAvailable())
-                    return new DetektAnalyzer();
+                auto detekt = new DetektAnalyzer();
+                if (detekt.isAvailable())
+                    return detekt;
                 return new CompilerAnalyzer();
             
             case KotlinAnalyzer.Detekt:

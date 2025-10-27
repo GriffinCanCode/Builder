@@ -62,7 +62,7 @@ struct AnalysisResult
 interface Analyzer
 {
     /// Analyze Java sources
-    AnalysisResult analyze(string[] sources, AnalysisConfig config, string workingDir);
+    AnalysisResult analyze(const string[] sources, AnalysisConfig config, string workingDir);
     
     /// Check if analyzer is available
     bool isAvailable();
@@ -125,7 +125,7 @@ class AnalyzerFactory
 /// Null analyzer (does nothing)
 class NullAnalyzer : Analyzer
 {
-    override AnalysisResult analyze(string[] sources, AnalysisConfig config, string workingDir)
+    override AnalysisResult analyze(const string[] sources, AnalysisConfig config, string workingDir)
     {
         AnalysisResult result;
         result.success = true;

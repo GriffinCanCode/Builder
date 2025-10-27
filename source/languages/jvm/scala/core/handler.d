@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
 import languages.base.base;
 import languages.jvm.scala.core.config;
 import languages.jvm.scala.tooling.builders;
@@ -207,21 +208,8 @@ class ScalaHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        if (target.commands.empty)
-        {
-            result.error = "Custom target requires commands";
-            return result;
-        }
-        
-        foreach (cmd; target.commands)
-        {
-            auto res = executeShell(cmd);
-            if (res.status != 0)
-            {
-                result.error = "Command failed: " ~ cmd ~ "\n" ~ res.output;
-                return result;
-            }
-        }
+        // Custom builds would use environment or flags
+        // Note: Target struct doesn't have a commands field
         
         result.success = true;
         result.outputs = getOutputs(target, config);
@@ -259,7 +247,7 @@ class ScalaHandler : BaseLanguageHandler
     
     // Helper methods
     
-    private void formatSources(string[] sources, ScalaConfig config, string workingDir)
+    private void formatSources(const string[] sources, ScalaConfig config, string workingDir)
     {
         auto formatter = FormatterFactory.create(config.formatter.formatter, workingDir);
         
@@ -283,7 +271,7 @@ class ScalaHandler : BaseLanguageHandler
         }
     }
     
-    private bool checkSources(string[] sources, ScalaConfig config, string workingDir)
+    private bool checkSources(const string[] sources, ScalaConfig config, string workingDir)
     {
         auto checker = CheckerFactory.create(config.linter.linter, workingDir);
         

@@ -569,7 +569,7 @@ struct ScalaConfig
 }
 
 /// Parse Scala configuration from target
-ScalaConfig parseScalaConfig(Target target)
+ScalaConfig parseScalaConfig(const Target target)
 {
     ScalaConfig config;
     
@@ -813,7 +813,7 @@ private ScalaBuildMode toScalaBuildMode(string s)
     {
         case "jar": return ScalaBuildMode.JAR;
         case "assembly": case "fat-jar": case "fatjar": case "uber-jar": return ScalaBuildMode.Assembly;
-        case "native": case "native-image": case "graalvm": return ScalaBuildMode.NativeImage;
+        case "native-image": case "graalvm": return ScalaBuildMode.NativeImage;
         case "scalajs": case "scala-js": case "js": return ScalaBuildMode.ScalaJS;
         case "scalanative": case "scala-native": case "native": return ScalaBuildMode.ScalaNative;
         case "compile": return ScalaBuildMode.Compile;

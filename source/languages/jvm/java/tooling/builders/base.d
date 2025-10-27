@@ -19,10 +19,10 @@ interface JavaBuilder
 {
     /// Build Java sources
     JavaBuildResult build(
-        string[] sources,
+        const string[] sources,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     );
     
     /// Check if builder is available

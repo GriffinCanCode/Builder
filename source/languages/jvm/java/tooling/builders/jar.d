@@ -20,10 +20,10 @@ import utils.logging.logger;
 class JARBuilder : JavaBuilder
 {
     override JavaBuildResult build(
-        string[] sources,
+        const string[] sources,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         JavaBuildResult result;
@@ -43,14 +43,25 @@ class JARBuilder : JavaBuilder
             rmdirRecurse(tempDir);
         mkdirRecurse(tempDir);
         
-        scope(exit)
+        scope(failure)
         {
-            // Clean up temp directory
+            // Clean up temp directory on failure
             if (exists(tempDir))
             {
-                try { rmdirRecurse(tempDir); }
-                catch (Exception) {}
+                try {
+                    rmdirRecurse(tempDir);
+                }
+                catch (Exception e) {
+                    // Ignore cleanup errors
+                }
             }
+        }
+        
+        scope(success)
+        {
+            // Clean up temp directory on success
+            if (exists(tempDir))
+                rmdirRecurse(tempDir);
         }
         
         // Compile sources
@@ -84,11 +95,11 @@ class JARBuilder : JavaBuilder
     }
     
     protected bool compileSources(
-        string[] sources,
+        const string[] sources,
         string outputDir,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         ref JavaBuildResult result
     )
     {
@@ -231,7 +242,7 @@ class JARBuilder : JavaBuilder
         f.close();
     }
     
-    protected string buildClasspath(Target target, WorkspaceConfig workspace, JavaConfig config)
+    protected string buildClasspath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
     {
         string[] paths;
         
@@ -265,7 +276,7 @@ class JARBuilder : JavaBuilder
             return ":";
     }
     
-    protected string getOutputPath(Target target, WorkspaceConfig workspace, JavaConfig config)
+    protected string getOutputPath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);

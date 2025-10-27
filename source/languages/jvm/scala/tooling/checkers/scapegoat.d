@@ -8,7 +8,7 @@ import utils.logging.logger;
 /// Scapegoat checker - static analysis tool
 class ScapegoatChecker : Checker
 {
-    override CheckResult check(string[] sources, LinterConfig config, string workingDir)
+    override CheckResult check(const string[] sources, LinterConfig config, string workingDir)
     {
         CheckResult result;
         

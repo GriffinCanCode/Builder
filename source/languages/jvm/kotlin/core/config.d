@@ -704,7 +704,7 @@ struct KotlinConfig
 }
 
 /// Parse Kotlin configuration from target
-KotlinConfig parseKotlinConfig(Target target)
+KotlinConfig parseKotlinConfig(const Target target)
 {
     KotlinConfig config;
     

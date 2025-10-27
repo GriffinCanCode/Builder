@@ -20,10 +20,10 @@ import utils.logging.logger;
 class JARBuilder : ScalaBuilder
 {
     override ScalaBuildResult build(
-        string[] sources,
+        const string[] sources,
         ScalaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ScalaBuildResult result;
@@ -42,14 +42,18 @@ class JARBuilder : ScalaBuilder
         if (!exists(tempDir))
             mkdirRecurse(tempDir);
         
-        scope(exit)
+        scope(failure)
         {
-            // Clean up temp directory
+            // Clean up temp directory on failure
             if (exists(tempDir))
-            {
-                try { rmdirRecurse(tempDir); }
-                catch (Exception) { }
-            }
+                rmdirRecurse(tempDir);
+        }
+        
+        scope(success)
+        {
+            // Clean up temp directory on success
+            if (exists(tempDir))
+                rmdirRecurse(tempDir);
         }
         
         // Compile sources
@@ -85,11 +89,11 @@ class JARBuilder : ScalaBuilder
     }
     
     private bool compileSources(
-        string[] sources,
+        const string[] sources,
         string outputDir,
         ScalaConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         ref ScalaBuildResult result
     )
     {
@@ -139,7 +143,7 @@ class JARBuilder : ScalaBuilder
         string classDir,
         string outputPath,
         ScalaConfig config,
-        Target target,
+        const Target target,
         ref ScalaBuildResult result
     )
     {
@@ -209,7 +213,7 @@ class JARBuilder : ScalaBuilder
             {
                 auto optOpts = ScalaInfoDetector.getOptimizationOptions(
                     config.compiler.optimization, 
-                    config.versionInfoInfo
+                    config.versionInfo
                 );
                 options ~= optOpts;
             }
@@ -252,7 +256,7 @@ class JARBuilder : ScalaBuilder
         return options;
     }
     
-    private string buildClasspath(Target target, WorkspaceConfig workspace)
+    private string buildClasspath(const Target target, const WorkspaceConfig workspace)
     {
         string[] paths;
         
@@ -293,7 +297,7 @@ class JARBuilder : ScalaBuilder
         f.close();
     }
     
-    private string getOutputPath(Target target, WorkspaceConfig workspace)
+    private string getOutputPath(const Target target, const WorkspaceConfig workspace)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);

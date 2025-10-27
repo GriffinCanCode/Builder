@@ -16,7 +16,7 @@ struct CheckResult
 interface Checker
 {
     /// Check/lint Scala sources
-    CheckResult check(string[] sources, LinterConfig config, string workingDir);
+    CheckResult check(const string[] sources, LinterConfig config, string workingDir);
     
     /// Check if checker is available
     bool isAvailable();
@@ -79,7 +79,7 @@ class CheckerFactory
 /// Null checker (does nothing)
 class NullChecker : Checker
 {
-    override CheckResult check(string[] sources, LinterConfig config, string workingDir)
+    override CheckResult check(const string[] sources, LinterConfig config, string workingDir)
     {
         CheckResult result;
         result.success = true;

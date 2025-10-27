@@ -96,7 +96,7 @@ void main(string[] args)
 
 void printHelp() @safe
 {
-    writeln("Builder - Smart Build System for Mixed-Language Monorepos\n");
+    writeln("Builder - Build System for Mixed-Language Projects\n");
     writeln("Usage:");
     writeln("  builder <command> [options] [target]\n");
     writeln("Commands:");

@@ -18,10 +18,10 @@ import utils.logging.logger;
 class JARBuilder : KotlinBuilder
 {
     override KotlinBuildResult build(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;
@@ -79,10 +79,10 @@ class JARBuilder : KotlinBuilder
     }
     
     private KotlinBuildResult buildWithGradle(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         string outputPath
     )
     {
@@ -133,10 +133,10 @@ class JARBuilder : KotlinBuilder
     }
     
     private KotlinBuildResult buildWithMaven(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         string outputPath
     )
     {
@@ -187,10 +187,10 @@ class JARBuilder : KotlinBuilder
     }
     
     private KotlinBuildResult buildWithKotlinC(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         string outputPath
     )
     {

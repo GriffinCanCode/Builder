@@ -20,10 +20,10 @@ import utils.logging.logger;
 class NativeImageBuilder : ScalaBuilder
 {
     override ScalaBuildResult build(
-        string[] sources,
+        const string[] sources,
         ScalaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ScalaBuildResult result;
@@ -95,8 +95,8 @@ class NativeImageBuilder : ScalaBuilder
     private string buildNativeImage(
         string jarPath,
         ScalaConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         ref ScalaBuildResult result
     )
     {

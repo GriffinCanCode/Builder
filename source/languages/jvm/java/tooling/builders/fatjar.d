@@ -30,10 +30,10 @@ class FatJARBuilder : JARBuilder
     }
     
     override JavaBuildResult build(
-        string[] sources,
+        const string[] sources,
         JavaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         JavaBuildResult result;
@@ -53,13 +53,23 @@ class FatJARBuilder : JARBuilder
             rmdirRecurse(tempDir);
         mkdirRecurse(tempDir);
         
-        scope(exit)
+        scope(failure)
         {
             if (exists(tempDir))
             {
-                try { rmdirRecurse(tempDir); }
-                catch (Exception) {}
+                try {
+                    rmdirRecurse(tempDir);
+                }
+                catch (Exception e) {
+                    // Ignore cleanup errors
+                }
             }
+        }
+        
+        scope(success)
+        {
+            if (exists(tempDir))
+                rmdirRecurse(tempDir);
         }
         
         // Compile sources
@@ -83,8 +93,8 @@ class FatJARBuilder : JARBuilder
     
     private bool mergeDependencies(
         string tempDir,
-        Target target,
-        WorkspaceConfig workspace,
+        const Target target,
+        const WorkspaceConfig workspace,
         JavaConfig config,
         ref JavaBuildResult result
     )

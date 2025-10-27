@@ -16,7 +16,7 @@ struct FormatResult
 interface Formatter
 {
     /// Format Scala sources
-    FormatResult format(string[] sources, FormatterConfig config, string workingDir, bool checkOnly = false);
+    FormatResult format(const string[] sources, FormatterConfig config, string workingDir, bool checkOnly = false);
     
     /// Check if formatter is available
     bool isAvailable();
@@ -59,7 +59,7 @@ class FormatterFactory
 /// Null formatter (does nothing)
 class NullFormatter : Formatter
 {
-    override FormatResult format(string[] sources, FormatterConfig config, string workingDir, bool checkOnly = false)
+    override FormatResult format(const string[] sources, FormatterConfig config, string workingDir, bool checkOnly = false)
     {
         FormatResult result;
         result.success = true;

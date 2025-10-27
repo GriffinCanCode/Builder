@@ -278,8 +278,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildWithBuildTool(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {
@@ -331,8 +331,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runJUnitTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {

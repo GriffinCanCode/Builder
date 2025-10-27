@@ -18,10 +18,10 @@ import utils.logging.logger;
 class FatJARBuilder : KotlinBuilder
 {
     override KotlinBuildResult build(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;
@@ -63,10 +63,10 @@ class FatJARBuilder : KotlinBuilder
     }
     
     private KotlinBuildResult buildWithGradle(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;
@@ -113,10 +113,10 @@ class FatJARBuilder : KotlinBuilder
     }
     
     private KotlinBuildResult buildWithMaven(
-        string[] sources,
+        const string[] sources,
         KotlinConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         KotlinBuildResult result;
@@ -156,7 +156,7 @@ class FatJARBuilder : KotlinBuilder
         return result;
     }
     
-    private string findProjectRoot(string[] sources, string[] markers)
+    private string findProjectRoot(const string[] sources, string[] markers)
     {
         if (sources.empty)
             return ".";
