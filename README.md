@@ -1,4 +1,4 @@
-# Builder - Smart Build System
+# Builder
 
 A high-performance build system for mixed-language monorepos, leveraging D's compile-time metaprogramming for zero-cost abstractions and type-safe dependency analysis.
 
