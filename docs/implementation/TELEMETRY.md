@@ -305,7 +305,7 @@ BUILDER_TELEMETRY_ENABLED=0 builder build
 
 ## Data Privacy
 
-- **Local Storage**: All data stored locally in `.builder-telemetry/`
+- **Local Storage**: All data stored locally in `.builder-cache/telemetry/`
 - **No Cloud Upload**: No automatic transmission to external services
 - **No PII**: Only build metadata, no source code or secrets
 - **Full Control**: Complete ownership and control over your data
@@ -369,7 +369,7 @@ builder build
 **Solution**:
 ```bash
 # Check permissions
-ls -la .builder-telemetry/
+ls -la .builder-cache/telemetry/
 
 # Clear corrupted data
 builder telemetry clear

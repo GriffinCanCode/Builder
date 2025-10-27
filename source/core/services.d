@@ -53,7 +53,7 @@ final class BuildServices
         if (this._telemetryEnabled)
         {
             this._telemetryCollector = new TelemetryCollector();
-            this._telemetryStorage = new TelemetryStorage(".builder-telemetry", telemetryConfig);
+            this._telemetryStorage = new TelemetryStorage(".builder-cache/telemetry", telemetryConfig);
             this._publisher.subscribe(this._telemetryCollector);
         }
     }

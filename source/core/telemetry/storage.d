@@ -25,7 +25,7 @@ final class TelemetryStorage
     private Mutex storageMutex;
     private TelemetryConfig config;
     
-    this(string storageDir = ".builder-telemetry", TelemetryConfig config = TelemetryConfig.init) @safe
+    this(string storageDir = ".builder-cache/telemetry", TelemetryConfig config = TelemetryConfig.init) @safe
     {
         this.storageDir = storageDir;
         this.storageFile = buildPath(storageDir, "telemetry.bin");

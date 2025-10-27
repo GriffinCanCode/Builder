@@ -13,7 +13,7 @@ struct TelemetryCommand
     static void execute(string subcommand = "summary", size_t count = 10)
     {
         auto config = TelemetryConfig.fromEnvironment();
-        auto storage = new TelemetryStorage(".builder-telemetry", config);
+        auto storage = new TelemetryStorage(".builder-cache/telemetry", config);
         
         switch (subcommand)
         {
