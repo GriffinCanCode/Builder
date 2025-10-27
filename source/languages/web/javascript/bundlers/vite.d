@@ -127,8 +127,23 @@ class ViteBundler : Bundler
             target
         );
         
-        // Write temporary config
+        // Write temporary config in project root (where package.json is)
+        // Walk up from entry file to find package.json
         string projectDir = dirName(absolutePath(entry));
+        string packageJsonPath = "";
+        string searchDir = projectDir;
+        while (searchDir != "/" && searchDir.length > 1)
+        {
+            string pkgPath = buildPath(searchDir, "package.json");
+            if (exists(pkgPath))
+            {
+                packageJsonPath = pkgPath;
+                projectDir = searchDir;
+                break;
+            }
+            searchDir = dirName(searchDir);
+        }
+        
         string tempConfig = buildPath(projectDir, "vite.config.temp.js");
         std.file.write(tempConfig, viteConfig);
         
