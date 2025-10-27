@@ -144,7 +144,7 @@ class ViteBundler : Bundler
             searchDir = dirName(searchDir);
         }
         
-        string tempConfig = buildPath(projectDir, "vite.config.temp.js");
+        string tempConfig = buildPath(projectDir, "vite.config.temp.cjs");
         std.file.write(tempConfig, viteConfig);
         
         scope(exit)
@@ -285,10 +285,15 @@ class ViteBundler : Bundler
         string buildSection = generateBuildSection(entry, outputDir, outputFile, config);
         string resolveSection = generateResolveSection(config);
         
-        return `import { defineConfig } from 'vite';
+        // Use CommonJS format (.cjs) with createRequire to properly resolve from project dir
+        // This ensures plugins are loaded from project's node_modules, not npx cache
+        return `const { createRequire } = require('module');
+const { join } = require('path');
+// Create require from current directory (where package.json is) to resolve from project's node_modules
+const projectRequire = createRequire(join(__dirname, 'package.json'));
 ` ~ pluginsSection ~ `
 
-export default defineConfig({
+module.exports = {
   plugins: [` ~ getPluginsList(framework) ~ `],
   build: ` ~ buildSection ~ `,
   resolve: ` ~ resolveSection ~ `,
@@ -297,29 +302,18 @@ export default defineConfig({
     jsx: ` ~ (config.jsx ? "'transform'" : "'automatic'") ~ `,
     jsxFactory: '` ~ config.jsxFactory ~ `'
   }
-});
+};
 `;
     }
     
-    /// Generate plugins section
+    /// Generate plugins section (using CommonJS require to avoid ESM resolution issues)
     private string generatePlugins(Framework framework, JSConfig config)
     {
-        final switch (framework)
-        {
-            case Framework.None:
-                return "";
-            case Framework.React:
-                return "import react from '@vitejs/plugin-react';";
-            case Framework.Vue:
-                return "import vue from '@vitejs/plugin-vue';";
-            case Framework.Svelte:
-                return "import { svelte } from '@sveltejs/vite-plugin-svelte';";
-            case Framework.Preact:
-                return "import preact from '@preact/preset-vite';";
-        }
+        // Return empty - we'll use inline require() in getPluginsList
+        return "";
     }
     
-    /// Get plugins list for config
+    /// Get plugins list for config (using projectRequire to load from project's node_modules)
     private string getPluginsList(Framework framework)
     {
         final switch (framework)
@@ -327,13 +321,13 @@ export default defineConfig({
             case Framework.None:
                 return "";
             case Framework.React:
-                return "react()";
+                return "projectRequire('@vitejs/plugin-react').default()";
             case Framework.Vue:
-                return "vue()";
+                return "projectRequire('@vitejs/plugin-vue').default()";
             case Framework.Svelte:
-                return "svelte()";
+                return "projectRequire('@sveltejs/vite-plugin-svelte').svelte()";
             case Framework.Preact:
-                return "preact()";
+                return "projectRequire('@preact/preset-vite').default()";
         }
     }
     
