@@ -21,7 +21,9 @@ import utils.logging.logger;
 /// Go build handler - modular and extensible
 class GoHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
+    /// Build implementation for Go targets
+    /// Note: Called through @trusted wrapper in base class
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @system
     {
         LanguageBuildResult result;
         
@@ -53,7 +55,9 @@ class GoHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(in Target target, in WorkspaceConfig config) @trusted
+    /// Get output files for Go target
+    /// Note: Called through @trusted wrapper in base class
+    override string[] getOutputs(in Target target, in WorkspaceConfig config) @system
     {
         string[] outputs;
         
@@ -82,7 +86,7 @@ class GoHandler : BaseLanguageHandler
         const Target target,
         const WorkspaceConfig config,
         GoConfig goConfig
-    ) @trusted
+    ) @system
     {
         LanguageBuildResult result;
         
@@ -130,7 +134,7 @@ class GoHandler : BaseLanguageHandler
         const Target target,
         const WorkspaceConfig config,
         GoConfig goConfig
-    ) @trusted
+    ) @system
     {
         // Libraries in Go are just packages - build them to ensure compilation
         goConfig.mode = GoBuildMode.Library;
@@ -163,7 +167,7 @@ class GoHandler : BaseLanguageHandler
         const Target target,
         const WorkspaceConfig config,
         GoConfig goConfig
-    ) @trusted
+    ) @system
     {
         LanguageBuildResult result;
         
@@ -258,7 +262,7 @@ class GoHandler : BaseLanguageHandler
     }
     
     /// Parse Go configuration from target
-    private GoConfig parseGoConfig(const Target target) @trusted
+    private GoConfig parseGoConfig(const Target target) @system
     {
         GoConfig config;
         
@@ -290,7 +294,7 @@ class GoHandler : BaseLanguageHandler
         ref GoConfig config,
         const Target target,
         const WorkspaceConfig workspace
-    ) @trusted
+    ) @system
     {
         if (target.sources.empty)
             return;
@@ -345,7 +349,7 @@ class GoHandler : BaseLanguageHandler
     }
     
     /// Check if source file contains CGO code
-    private bool hasCGoCode(string filePath) @trusted
+    private bool hasCGoCode(string filePath) @system
     {
         try
         {
@@ -367,6 +371,8 @@ class GoHandler : BaseLanguageHandler
         }
     }
     
+    /// Analyze imports in Go source files
+    /// Note: Called through @trusted wrapper in base class
     override Import[] analyzeImports(in string[] sources) @trusted
     {
         auto spec = getLanguageSpec(TargetLanguage.Go);

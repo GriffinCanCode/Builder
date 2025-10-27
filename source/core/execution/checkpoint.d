@@ -49,6 +49,12 @@ struct Checkpoint
     }
     
     /// Merge with current graph state (preserves successful builds)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Associative array lookups are bounds-checked
+    /// 2. node.status is atomic property (thread-safe)
+    /// 3. Hash assignment is safe string copy
+    /// 4. Read-only traversal of checkpoint data (const)
     void mergeWith(BuildGraph graph) const @trusted
     {
         foreach (targetId, status; nodeStates)
@@ -77,7 +83,14 @@ final class CheckpointManager
     private string checkpointPath;
     private bool autoSave;
     
-    @trusted // File system operations
+    /// Constructor
+    /// 
+    /// Safety: This constructor is @trusted because:
+    /// 1. buildPath() performs safe path construction
+    /// 2. exists() and mkdirRecurse() are file I/O operations
+    /// 3. Directory creation is safe and idempotent
+    /// 4. All paths are validated by buildPath
+    @trusted
     this(string workspaceRoot = ".", bool autoSave = true)
     {
         this.autoSave = autoSave;
@@ -125,7 +138,14 @@ final class CheckpointManager
     }
     
     /// Save checkpoint to disk
-    void save(const ref Checkpoint checkpoint) @trusted
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. serialize() returns owned ubyte[] (no dangling references)
+    /// 2. std.file.write() is file I/O operation
+    /// 3. Exception handling prevents crashes
+    /// 4. writeln() for user feedback is safe
+    @trusted
+    void save(const ref Checkpoint checkpoint)
     {
         if (!autoSave)
             return;
@@ -147,7 +167,14 @@ final class CheckpointManager
     }
     
     /// Load checkpoint from disk
-    Result!(Checkpoint, string) load() @trusted
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. exists() check prevents file not found errors
+    /// 2. std.file.read() returns owned ubyte[] array
+    /// 3. deserialize() validates data before reconstruction
+    /// 4. Exception handling converts to Result type
+    @trusted
+    Result!(Checkpoint, string) load()
     {
         if (!std.file.exists(checkpointPath))
             return Result!(Checkpoint, string).err("No checkpoint found");
@@ -165,7 +192,12 @@ final class CheckpointManager
     }
     
     /// Check if checkpoint exists
-    @trusted // File system check
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. std.file.exists() is file system query (read-only)
+    /// 2. Exception handling ensures nothrow guarantee
+    /// 3. Returns simple bool (no references)
+    @trusted
     bool exists() const nothrow
     {
         try
@@ -179,7 +211,13 @@ final class CheckpointManager
     }
     
     /// Clear checkpoint
-    void clear() @trusted
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. std.file.exists() and remove() are file I/O operations
+    /// 2. Exception handling prevents crashes
+    /// 3. File removal is safe operation (idempotent)
+    @trusted
+    void clear()
     {
         if (std.file.exists(checkpointPath))
         {
@@ -217,6 +255,14 @@ final class CheckpointManager
         return age() > 24.hours;
     }
     
+    /// Serialize checkpoint to binary format
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. nativeToBigEndian produces static arrays (safe)
+    /// 2. Array appending (~=) is memory-safe
+    /// 3. Casts to ubyte/uint are for serialization (validated ranges)
+    /// 4. writeString() is helper that validates string encoding
+    /// 5. Returns owned array (no dangling references)
     private ubyte[] serialize(const ref Checkpoint checkpoint) const pure @trusted
     {
         import std.bitmanip : nativeToBigEndian;
@@ -267,6 +313,15 @@ final class CheckpointManager
         return buffer;
     }
     
+    /// Deserialize checkpoint from binary format
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. read() from std.bitmanip is bounds-checked
+    /// 2. Magic number validation prevents corrupt data
+    /// 3. Version validation ensures format compatibility
+    /// 4. All array slicing is bounds-checked
+    /// 5. readString() helper validates string lengths
+    /// 6. Throws exception on validation failure (safe error handling)
     private Checkpoint deserialize(ubyte[] data) const @trusted
     {
         import std.bitmanip : read, bigEndianToNative;

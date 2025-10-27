@@ -27,10 +27,17 @@ interface LanguageHandler
 /// Base implementation with common functionality
 abstract class BaseLanguageHandler : LanguageHandler
 {
+    /// Build a target with error handling and Result wrapper
+    /// 
+    /// Safety: Calls buildImpl() and getOutputs() through @trusted wrappers because
+    /// language handlers may perform file I/O, process execution, and other
+    /// operations that are inherently @system but have been validated for safety
     Result!(string, BuildError) build(Target target, WorkspaceConfig config) @safe
     {
         try
         {
+            // Safety: buildImpl() may perform file I/O and process execution
+            // Each language handler validates its operations for memory safety
             auto result = () @trusted { return buildImpl(target, config); }();
             
             if (result.success)
@@ -70,6 +77,7 @@ abstract class BaseLanguageHandler : LanguageHandler
     {
         import std.file : exists;
         
+        // Safety: getOutputs() performs path operations which are memory-safe
         auto outputs = () @trusted { return getOutputs(target, config); }();
         
         // Rebuild if any output is missing
@@ -86,6 +94,7 @@ abstract class BaseLanguageHandler : LanguageHandler
     {
         import std.file : remove, exists;
         
+        // Safety: getOutputs() performs path operations which are memory-safe
         auto outputs = () @trusted { return getOutputs(target, config); }();
         
         foreach (output; outputs)

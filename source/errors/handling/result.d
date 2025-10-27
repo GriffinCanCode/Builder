@@ -15,6 +15,12 @@ struct Result(T, E)
     }
     
     /// Create a successful result
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Union field access is controlled by _isOk discriminant flag
+    /// 2. We initialize _isOk BEFORE writing to union (maintains invariant)
+    /// 3. Only _value field will be accessed when _isOk is true
+    /// 4. Result is returned by value (no dangling references)
     static Result ok(T value) @trusted
     {
         Result r;
@@ -24,6 +30,12 @@ struct Result(T, E)
     }
     
     /// Create an error result
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Union field access is controlled by _isOk discriminant flag
+    /// 2. We initialize _isOk BEFORE writing to union (maintains invariant)
+    /// 3. Only _error field will be accessed when _isOk is false
+    /// 4. Result is returned by value (no dangling references)
     static Result err(E error) @trusted
     {
         Result r;
@@ -140,12 +152,16 @@ struct Result(T, E)
 }
 
 /// Helper to create Ok result
+/// 
+/// Safety: Delegates to trusted Result.ok() which maintains union invariants
 Result!(T, E) Ok(T, E)(T value) @trusted
 {
     return Result!(T, E).ok(value);
 }
 
 /// Helper to create Err result
+/// 
+/// Safety: Delegates to trusted Result.err() which maintains union invariants
 Result!(T, E) Err(T, E)(E error) @trusted
 {
     return Result!(T, E).err(error);
@@ -159,6 +175,11 @@ struct Result(E) if (is(E))
     private E _error;
     
     /// Create a successful void result
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. No union access needed for void specialization
+    /// 2. Sets discriminant flag to true (valid state)
+    /// 3. Returns by value (no dangling references)
     static Result ok() @trusted
     {
         Result r;
@@ -167,6 +188,11 @@ struct Result(E) if (is(E))
     }
     
     /// Create an error result
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Sets discriminant flag before accessing _error field
+    /// 2. _error is only accessed when _isOk is false (maintains invariant)
+    /// 3. Returns by value (no dangling references)
     static Result err(E error) @trusted
     {
         Result r;
@@ -294,24 +320,32 @@ struct Result(E) if (is(E))
 alias VoidResult(E) = Result!E;
 
 /// Create a successful void result
+/// 
+/// Safety: Delegates to trusted Result!E.ok() which maintains invariants
 Result!E success(E)() @trusted
 {
     return Result!E.ok();
 }
 
 /// Create an error void result
+/// 
+/// Safety: Delegates to trusted Result!E.err() which maintains invariants
 Result!E failure(E)(E error) @trusted
 {
     return Result!E.err(error);
 }
 
 /// Helper to create Ok void result (type-inferred from error type)
+/// 
+/// Safety: Delegates to trusted Result!E.ok() which maintains invariants
 Result!E Ok(E)() @trusted
 {
     return Result!E.ok();
 }
 
 /// Helper to create Err void result (explicit)
+/// 
+/// Safety: Delegates to trusted Result!E.err() which maintains invariants
 Result!E Err(E)(E error) @trusted
 {
     return Result!E.err(error);
