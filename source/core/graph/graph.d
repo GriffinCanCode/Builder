@@ -43,6 +43,12 @@ final class BuildNode
     /// 2. _status is shared - requires atomic operations for thread safety
     /// 3. Read-only operation with no side effects
     /// 4. Returns enum by value (no references)
+    /// 
+    /// Invariants:
+    /// - _status is always a valid BuildStatus enum value
+    /// 
+    /// What could go wrong:
+    /// - Nothing: atomic read of shared enum is safe, no memory corruption possible
     @property BuildStatus status() const nothrow @trusted @nogc
     {
         return atomicLoad(this._status);
@@ -55,6 +61,12 @@ final class BuildNode
     /// 2. _status is shared - requires atomic operations for thread safety
     /// 3. Prevents data races during concurrent builds
     /// 4. Enum parameter is trivially copyable
+    /// 
+    /// Invariants:
+    /// - Only valid BuildStatus enum values are written
+    /// 
+    /// What could go wrong:
+    /// - Nothing: atomic write of shared enum is safe, no memory corruption possible
     @property void status(BuildStatus newStatus) nothrow @trusted @nogc
     {
         atomicStore(this._status, newStatus);
@@ -66,6 +78,12 @@ final class BuildNode
     /// 1. atomicLoad() performs sequentially-consistent atomic read
     /// 2. _retryAttempts is shared - requires atomic operations
     /// 3. Read-only operation with no side effects
+    /// 
+    /// Invariants:
+    /// - _retryAttempts is always >= 0 (size_t is unsigned)
+    /// 
+    /// What could go wrong:
+    /// - Nothing: atomic read of shared size_t is safe, no memory corruption possible
     @property size_t retryAttempts() const nothrow @trusted @nogc
     {
         return atomicLoad(this._retryAttempts);
@@ -77,6 +95,12 @@ final class BuildNode
     /// 1. atomicOp!"+=" performs atomic read-modify-write operation
     /// 2. _retryAttempts is shared - requires atomic operations
     /// 3. Prevents race conditions during concurrent retries
+    /// 
+    /// Invariants:
+    /// - Counter increments are atomic (no lost updates)
+    /// 
+    /// What could go wrong:
+    /// - Overflow: If retries exceed size_t.max, wraps to 0 (extremely unlikely)
     void incrementRetries() nothrow @trusted @nogc
     {
         atomicOp!"+="(this._retryAttempts, 1);
@@ -88,6 +112,12 @@ final class BuildNode
     /// 1. atomicStore() performs sequentially-consistent atomic write
     /// 2. _retryAttempts is shared - requires atomic operations
     /// 3. Cast to size_t is safe (compile-time constant 0)
+    /// 
+    /// Invariants:
+    /// - Counter is reset to exactly 0
+    /// 
+    /// What could go wrong:
+    /// - Nothing: atomic write of constant 0 is safe, no memory corruption possible
     void resetRetries() nothrow @trusted @nogc
     {
         atomicStore(this._retryAttempts, cast(size_t)0);
@@ -101,6 +131,15 @@ final class BuildNode
     /// 2. dependencies array is immutable after graph construction
     /// 3. atomicLoad() ensures memory-safe concurrent reads
     /// 4. Read-only operation with no mutations
+    /// 
+    /// Invariants:
+    /// - dependencies array must NOT be modified after graph construction
+    /// - All dependency nodes must remain valid for the lifetime of this node
+    /// 
+    /// What could go wrong:
+    /// - If dependencies array is modified during iteration: undefined behavior
+    /// - If dependency nodes are freed: dangling pointer access
+    /// - These are prevented by design: graph is immutable after construction
     bool isReady() const @trusted nothrow
     {
         foreach (dep; dependencies)
@@ -182,12 +221,10 @@ final class BuildGraph
     
     /// Check if adding an edge would create a cycle
     /// 
-    /// Safety: This function is @trusted because:
-    /// 1. Nested function accesses only parameters and local state
-    /// 2. BuildNode comparisons by reference are safe
-    /// 3. Associative array access is bounds-checked
-    /// 4. Read-only traversal of existing graph structure
-    private bool wouldCreateCycle(BuildNode from, BuildNode to) @trusted
+    /// Note: This function could potentially be @safe as it only performs
+    /// safe operations (AA access, reference comparisons, array traversal).
+    /// Marked @trusted conservatively for nested function with closure.
+    private bool wouldCreateCycle(BuildNode from, BuildNode to) @safe
     {
         bool[BuildNode] visited;
         
@@ -221,6 +258,19 @@ final class BuildGraph
     /// 3. Array appending (~=) is memory-safe
     /// 4. const(BuildNode) prevents mutations during traversal
     /// 5. Error result propagation maintains type safety
+    /// 6. CRITICAL: Casts away const on line 254 to return mutable BuildNode[]
+    ///    This is safe because callers have mutable access to the graph nodes
+    /// 
+    /// Invariants:
+    /// - Graph structure is not modified during traversal (const method)
+    /// - Node references remain valid (classes on GC heap)
+    /// - const-to-mutable cast only returns references, doesn't enable mutation
+    ///   of graph structure itself
+    /// 
+    /// What could go wrong:
+    /// - If this method is called on a truly const BuildGraph (not just const ref
+    ///   to mutable graph), and caller modifies returned nodes: undefined behavior
+    /// - In practice, graph is mutable; const is for read-only traversal guarantee
     Result!(BuildNode[], BuildError) topologicalSort() const @trusted
     {
         BuildNode[] sorted;

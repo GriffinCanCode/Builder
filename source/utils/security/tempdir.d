@@ -105,7 +105,10 @@ struct AtomicTempDir
                     import utils.logging.logger : Logger;
                     Logger.warning("Failed to clean up temp directory: " ~ path ~ " - " ~ e.msg);
                 }
-                catch (Exception) {}
+                catch (Exception)
+                {
+                    // Logger may fail in destructor context - safe to ignore
+                }
             }
         }
     }

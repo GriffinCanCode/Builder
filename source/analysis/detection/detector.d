@@ -368,7 +368,10 @@ class ProjectDetector
                 else if (content.canFind("FastAPI"))
                     framework = ProjectFramework.FastAPI;
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // File may not exist or be readable, framework detection will use other heuristics
+            }
         }
         
         if (TargetLanguage.Python in found && framework != ProjectFramework.None)
@@ -397,7 +400,10 @@ class ProjectDetector
             if (TargetLanguage.Go in found && framework != ProjectFramework.None)
                 found[TargetLanguage.Go].framework = framework;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // File may not exist or be readable, framework detection will use other heuristics
+        }
     }
     
     /// Detect Rust framework
@@ -422,7 +428,10 @@ class ProjectDetector
             if (TargetLanguage.Rust in found && framework != ProjectFramework.None)
                 found[TargetLanguage.Rust].framework = framework;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // File may not exist or be readable, framework detection will use other heuristics
+        }
     }
     
     /// Detect Ruby framework
@@ -458,7 +467,10 @@ class ProjectDetector
             if (TargetLanguage.Elixir in found && framework != ProjectFramework.None)
                 found[TargetLanguage.Elixir].framework = framework;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // File may not exist or be readable, framework detection will use other heuristics
+        }
     }
     
     /// Detect Java framework
@@ -481,7 +493,10 @@ class ProjectDetector
                     found[TargetLanguage.Java].framework = framework;
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // File may not exist or be readable, framework detection will use other heuristics
+        }
     }
     
     /// Detect PHP framework
@@ -512,7 +527,10 @@ class ProjectDetector
             if (TargetLanguage.PHP in found && framework != ProjectFramework.None)
                 found[TargetLanguage.PHP].framework = framework;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // File may not exist or be readable, framework detection will use other heuristics
+        }
     }
     
     /// Add or update language info

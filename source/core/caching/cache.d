@@ -440,7 +440,11 @@ final class BuildCache
         catch (Exception e)
         {
             // Can't print during GC, just fail silently
-            try { writeln("Warning: Could not save cache: ", e.msg); } catch (Exception) {}
+            try { writeln("Warning: Could not save cache: ", e.msg); } 
+            catch (Exception) 
+            {
+                // writeln may fail during GC - this is expected and safe to ignore
+            }
         }
     }
     

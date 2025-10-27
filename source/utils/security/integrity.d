@@ -204,7 +204,10 @@ private string getMachineId() @trusted
             import std.file : readText;
             return readText("/etc/machine-id").strip;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // Expected to fail on non-Linux systems, continue to next method
+        }
         
         // Try hostid (Unix)
         try
@@ -213,7 +216,10 @@ private string getMachineId() @trusted
             if (result.status == 0)
                 return result.output.strip;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // Expected to fail if hostid not available, continue to next method
+        }
     }
     
     version(Windows)
@@ -227,7 +233,10 @@ private string getMachineId() @trusted
             if (result.status == 0)
                 return result.output.strip;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // Expected to fail if wmic not available, will use fallback
+        }
     }
     
     // Fallback: use username + hostname

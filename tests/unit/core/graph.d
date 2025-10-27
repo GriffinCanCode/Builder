@@ -8,6 +8,7 @@ import core.graph.graph;
 import config.schema.schema;
 import tests.harness;
 import tests.fixtures;
+import errors;
 
 unittest
 {
@@ -39,7 +40,8 @@ unittest
     
     graph.addTarget(target1);
     graph.addTarget(target2);
-    graph.addDependency("app", "lib");
+    auto result = graph.addDependency("app", "lib");
+    Assert.isTrue(result.isOk);
     
     auto appNode = graph.nodes["app"];
     auto libNode = graph.nodes["lib"];
@@ -66,10 +68,13 @@ unittest
     graph.addTarget(lib1);
     graph.addTarget(app);
     graph.addTarget(exe);
-    graph.addDependency("app", "lib1");
-    graph.addDependency("exe", "app");
+    auto r1 = graph.addDependency("app", "lib1");
+    auto r2 = graph.addDependency("exe", "app");
+    Assert.isTrue(r1.isOk && r2.isOk);
     
-    auto sorted = graph.topologicalSort();
+    auto sortResult = graph.topologicalSort();
+    Assert.isTrue(sortResult.isOk);
+    auto sorted = sortResult.unwrap();
     
     Assert.equal(sorted.length, 3);
     
@@ -97,10 +102,12 @@ unittest
     graph.addTarget(target2);
     
     // Create cycle: a -> b -> a
-    graph.addDependency("a", "b");
+    auto r1 = graph.addDependency("a", "b");
+    Assert.isTrue(r1.isOk);
     
-    void addCycle() { graph.addDependency("b", "a"); }
-    Assert.throws!Exception(addCycle());
+    // Cycle detection should return error
+    auto cycleResult = graph.addDependency("b", "a");
+    Assert.isTrue(cycleResult.isErr);
     
     writeln("\x1b[32m  ✓ Cycle detection prevents circular dependencies\x1b[0m");
 }
@@ -119,8 +126,9 @@ unittest
     graph.addTarget(a);
     graph.addTarget(b);
     graph.addTarget(c);
-    graph.addDependency("b", "a");
-    graph.addDependency("c", "b");
+    auto r1 = graph.addDependency("b", "a");
+    auto r2 = graph.addDependency("c", "b");
+    Assert.isTrue(r1.isOk && r2.isOk);
     
     Assert.equal(graph.nodes["a"].depth(), 0);
     Assert.equal(graph.nodes["b"].depth(), 1);
@@ -140,7 +148,8 @@ unittest
     
     graph.addTarget(lib);
     graph.addTarget(app);
-    graph.addDependency("app", "lib");
+    auto result = graph.addDependency("app", "lib");
+    Assert.isTrue(result.isOk);
     
     // Initially only lib is ready
     auto ready1 = graph.getReadyNodes();
@@ -169,8 +178,9 @@ unittest
     graph.addTarget(a);
     graph.addTarget(b);
     graph.addTarget(c);
-    graph.addDependency("b", "a");
-    graph.addDependency("c", "a");
+    auto r1 = graph.addDependency("b", "a");
+    auto r2 = graph.addDependency("c", "a");
+    Assert.isTrue(r1.isOk && r2.isOk);
     
     auto stats = graph.getStats();
     
@@ -199,12 +209,13 @@ unittest
     graph.addTarget(b);
     graph.addTarget(c);
     
-    graph.addDependency("a", "b");
-    graph.addDependency("b", "c");
+    auto r1 = graph.addDependency("a", "b");
+    auto r2 = graph.addDependency("b", "c");
+    Assert.isTrue(r1.isOk && r2.isOk);
     
     // This should detect the cycle through the chain
-    void createCycle() { graph.addDependency("c", "a"); }
-    Assert.throws!Exception(createCycle());
+    auto cycleResult = graph.addDependency("c", "a");
+    Assert.isTrue(cycleResult.isErr);
     
     writeln("\x1b[32m  ✓ Indirect cycle detection works\x1b[0m");
 }
@@ -218,8 +229,8 @@ unittest
     graph.addTarget(target);
     
     // Self-dependency should be detected
-    void addSelfDep() { graph.addDependency("self", "self"); }
-    Assert.throws!Exception(addSelfDep());
+    auto selfDepResult = graph.addDependency("self", "self");
+    Assert.isTrue(selfDepResult.isErr);
     
     writeln("\x1b[32m  ✓ Self-dependency prevented\x1b[0m");
 }
@@ -245,12 +256,12 @@ unittest
     graph.addTarget(right);
     graph.addTarget(bottom);
     
-    graph.addDependency("top", "left");
-    graph.addDependency("top", "right");
-    graph.addDependency("left", "bottom");
-    graph.addDependency("right", "bottom");
+    graph.addDependency("top", "left").unwrap();
+    graph.addDependency("top", "right").unwrap();
+    graph.addDependency("left", "bottom").unwrap();
+    graph.addDependency("right", "bottom").unwrap();
     
-    auto sorted = graph.topologicalSort();
+    auto sorted = graph.topologicalSort().unwrap();
     
     // bottom must come before both left and right
     // left and right must come before top
@@ -284,10 +295,10 @@ unittest
     graph.addTarget(b1);
     graph.addTarget(b2);
     
-    graph.addDependency("a2", "a1");
-    graph.addDependency("b2", "b1");
+    graph.addDependency("a2", "a1").unwrap();
+    graph.addDependency("b2", "b1").unwrap();
     
-    auto sorted = graph.topologicalSort();
+    auto sorted = graph.topologicalSort().unwrap();
     Assert.equal(sorted.length, 4);
     
     // Within each chain, order must be preserved
@@ -317,11 +328,11 @@ unittest
         
         if (i > 0)
         {
-            graph.addDependency("level" ~ i.to!string, "level" ~ (i-1).to!string);
+            graph.addDependency("level" ~ i.to!string, "level" ~ (i-1).to!string).unwrap();
         }
     }
     
-    auto sorted = graph.topologicalSort();
+    auto sorted = graph.topologicalSort().unwrap();
     Assert.equal(sorted.length, depth);
     
     // Verify each level comes after the previous
@@ -377,11 +388,11 @@ unittest
     graph.addTarget(b);
     graph.addTarget(c);
     
-    graph.addDependency("a", "b");
-    graph.addDependency("b", "c");
-    graph.addDependency("a", "c"); // Redundant but valid
+    graph.addDependency("a", "b").unwrap();
+    graph.addDependency("b", "c").unwrap();
+    graph.addDependency("a", "c").unwrap(); // Redundant but valid
     
-    auto sorted = graph.topologicalSort();
+    auto sorted = graph.topologicalSort().unwrap();
     
     // Should still produce valid order
     auto cIdx = sorted.countUntil!(n => n.id == "c");
@@ -408,8 +419,8 @@ unittest
     graph.addTarget(lib2);
     graph.addTarget(app);
     
-    graph.addDependency("app", "lib1");
-    graph.addDependency("app", "lib2");
+    graph.addDependency("app", "lib1").unwrap();
+    graph.addDependency("app", "lib2").unwrap();
     
     auto roots = graph.getRoots();
     Assert.equal(roots.length, 2);
@@ -438,9 +449,9 @@ unittest
     graph.addTarget(app);
     graph.addTarget(exe);
     
-    graph.addDependency("app", "lib1");
-    graph.addDependency("app", "lib2");
-    graph.addDependency("exe", "app");
+    graph.addDependency("app", "lib1").unwrap();
+    graph.addDependency("app", "lib2").unwrap();
+    graph.addDependency("exe", "app").unwrap();
     
     // Initially, both libs are ready
     auto ready1 = graph.getReadyNodes();
@@ -478,7 +489,7 @@ unittest
     
     graph.addTarget(lib);
     graph.addTarget(app);
-    graph.addDependency("app", "lib");
+    graph.addDependency("app", "lib").unwrap();
     
     // Set lib as cached (not built, but valid)
     graph.nodes["lib"].status = BuildStatus.Cached;

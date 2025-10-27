@@ -137,7 +137,21 @@ final class BuildExecutor
         
         auto sw = StopWatch(AutoStart.yes);
         
-        auto sorted = graph.topologicalSort();
+        auto sortResult = graph.topologicalSort();
+        if (sortResult.isErr)
+        {
+            auto error = sortResult.unwrapErr();
+            Logger.error("Cannot build: " ~ format(error));
+            
+            if (eventPublisher !is null)
+            {
+                auto event = new BuildFailedEvent(error.message(), 0, sw.peek(), sw.peek());
+                eventPublisher.publish(event);
+            }
+            return;
+        }
+        
+        auto sorted = sortResult.unwrap();
         Logger.info("Building " ~ sorted.length.to!string ~ " targets...");
         
         // Check for checkpoint and attempt resume
@@ -341,8 +355,8 @@ final class BuildExecutor
             Logger.info("  Metadata hit rate: " ~ cacheStats.metadataHitRate.to!string[0..min(4, cacheStats.metadataHitRate.to!string.length)] ~ "%");
         }
         
-        if (failed > 0)
-            throw new Exception("Build failed with " ~ failed.to!string ~ " errors");
+        // No longer throw exception - let caller check failed count
+        // Errors are already logged and events published
     }
     
     /// Format size in human-readable format
@@ -374,10 +388,14 @@ final class BuildExecutor
             // Publish target started event
             if (eventPublisher !is null)
             {
-                auto sorted = graph.topologicalSort();
-                auto index = sorted.countUntil(node) + 1;
-                auto event = new TargetStartedEvent(node.id, index, sorted.length, nodeTimer.peek());
-                eventPublisher.publish(event);
+                auto sortedResult = graph.topologicalSort();
+                if (sortedResult.isOk)
+                {
+                    auto sorted = sortedResult.unwrap();
+                    auto index = sorted.countUntil(node) + 1;
+                    auto event = new TargetStartedEvent(node.id, index, sorted.length, nodeTimer.peek());
+                    eventPublisher.publish(event);
+                }
             }
             
             auto target = node.target;
