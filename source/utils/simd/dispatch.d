@@ -86,13 +86,62 @@ void blake3_hash_many_neon(
 /// Initialize SIMD dispatch (called automatically)
 void blake3_simd_init();
 
-/// D-friendly wrapper for SIMD dispatch
+/// D-friendly wrapper for SIMD dispatch with automatic lazy initialization
 struct SIMDDispatch
 {
-    /// Initialize dispatch system
-    static void initialize()
+    private __gshared bool _initialized = false;
+    
+    /// Ensure SIMD is initialized (thread-safe, idempotent)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Uses synchronized block for thread-safe initialization
+    /// 2. Double-checked locking pattern prevents race conditions
+    /// 3. blake3_simd_init() is idempotent (safe to call multiple times)
+    /// 4. _initialized flag prevents redundant initialization
+    /// 
+    /// Invariants:
+    /// - After first call, SIMD dispatch is fully initialized
+    /// - Concurrent calls are serialized by synchronized block
+    /// 
+    /// What could go wrong:
+    /// - Nothing: C code has its own initialization guard
+    private static void ensureInitialized() @trusted
     {
-        blake3_simd_init();
+        // Fast path: already initialized (no lock needed)
+        if (_initialized)
+            return;
+        
+        // Slow path: need to initialize (with lock)
+        synchronized
+        {
+            // Double-check after acquiring lock
+            if (!_initialized)
+            {
+                blake3_simd_init();
+                _initialized = true;
+            }
+        }
+    }
+    
+    /// Initialize dispatch system (now optional - auto-initializes on first use)
+    /// Can still be called explicitly for control over initialization timing
+    static void initialize() @trusted
+    {
+        ensureInitialized();
+    }
+    
+    /// Get compression function (auto-initializes if needed)
+    static blake3_compress_fn getCompressFn() @trusted
+    {
+        ensureInitialized();
+        return blake3_get_compress_fn();
+    }
+    
+    /// Get hash-many function (auto-initializes if needed)
+    static blake3_hash_many_fn getHashManyFn() @trusted
+    {
+        ensureInitialized();
+        return blake3_get_hash_many_fn();
     }
     
     /// Get active compression implementation name
@@ -115,6 +164,12 @@ struct SIMDDispatch
     {
         import utils.simd.detection;
         return CPU.simdLevel() != SIMDLevel.None;
+    }
+    
+    /// Check if SIMD has been initialized
+    static bool isInitialized() @trusted nothrow @nogc
+    {
+        return _initialized;
     }
 }
 

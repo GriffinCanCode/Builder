@@ -8,6 +8,7 @@ import std.path;
 import std.conv;
 import config.schema.schema;
 import analysis.targets.types;
+import errors;
 
 /// Resolves import statements to build targets
 class DependencyResolver
@@ -40,6 +41,30 @@ class DependencyResolver
         
         // Package-relative: //path/to:target
         return dep;
+    }
+    
+    /// Resolve a dependency reference to a TargetId (type-safe version)
+    Result!(TargetId, BuildError) resolveToId(string dep, TargetId fromTarget)
+    {
+        import errors : ParseError;
+        
+        // Absolute reference: //path/to:target or workspace//path:target
+        if (dep.indexOf("//") >= 0 || dep.indexOf(":") >= 0)
+        {
+            return TargetId.parse(dep);
+        }
+        
+        // Relative reference: :target (same package)
+        if (dep.startsWith(":"))
+        {
+            auto newName = dep[1 .. $];  // Remove leading ":"
+            auto resolved = TargetId(fromTarget.workspace, fromTarget.path, newName);
+            return Result!(TargetId, BuildError).ok(resolved);
+        }
+        
+        // Simple name - same workspace and path
+        auto resolved = TargetId(fromTarget.workspace, fromTarget.path, dep);
+        return Result!(TargetId, BuildError).ok(resolved);
     }
     
     /// Resolve an import statement to a target

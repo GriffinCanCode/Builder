@@ -35,7 +35,7 @@ abstract class BaseBuildError : BuildError
     private string _message;
     private ErrorContext[] _contexts;
     
-    this(ErrorCode code, string message)
+    this(ErrorCode code, string message) @trusted
     {
         _code = code;
         _message = message;
@@ -117,7 +117,7 @@ class ParseError : BaseBuildError
     size_t column;
     string snippet;
     
-    this(string filePath, string message, ErrorCode code = ErrorCode.ParseFailed)
+    this(string filePath, string message, ErrorCode code = ErrorCode.ParseFailed) @trusted
     {
         super(code, message);
         this.filePath = filePath;

@@ -13,7 +13,7 @@ import errors;
 /// Thread-safe: status field is accessed atomically
 final class BuildNode
 {
-    string id;
+    string id;  // String ID for backward compatibility
     Target target;
     BuildNode[] dependencies;
     BuildNode[] dependents;
@@ -34,6 +34,12 @@ final class BuildNode
         // Pre-allocate reasonable capacity to avoid reallocations
         dependencies.reserve(8);  // Most targets have <8 dependencies
         dependents.reserve(4);    // Fewer dependents on average
+    }
+    
+    /// Get strongly-typed target identifier
+    @property TargetId targetId() const @safe
+    {
+        return target.id;
     }
     
     /// Get status atomically (thread-safe)
@@ -170,12 +176,23 @@ enum BuildStatus
 }
 
 /// Build graph with topological ordering and cycle detection
+/// 
+/// TargetId Migration:
+/// - Use `addTargetById(TargetId, Target)` for type-safe target addition
+/// - Use `addDependencyById(TargetId, TargetId)` for type-safe dependencies
+/// - Use `getNode(TargetId)` and `hasTarget(TargetId)` for lookups
+/// - Old string-based methods still available for backward compatibility
+/// 
+/// Example:
+///   auto id = TargetId.parse("//path:target").unwrap();
+///   graph.addTargetById(id, target);
+///   graph.addDependencyById(id, otherId);
 final class BuildGraph
 {
-    BuildNode[string] nodes;
+    BuildNode[string] nodes;  // Keep string keys for backward compatibility
     BuildNode[] roots;
     
-    /// Add a target to the graph
+    /// Add a target to the graph (string version for backward compatibility)
     void addTarget(Target target) @safe
     {
         if (target.name !in nodes)
@@ -185,7 +202,33 @@ final class BuildGraph
         }
     }
     
-    /// Add dependency between two targets
+    /// Add a target to the graph using TargetId
+    void addTargetById(TargetId id, Target target) @safe
+    {
+        auto key = id.toString();
+        if (key !in nodes)
+        {
+            auto node = new BuildNode(key, target);
+            nodes[key] = node;
+        }
+    }
+    
+    /// Get node by TargetId
+    BuildNode* getNode(TargetId id) @safe
+    {
+        auto key = id.toString();
+        if (key in nodes)
+            return &nodes[key];
+        return null;
+    }
+    
+    /// Check if graph contains a target by TargetId
+    bool hasTarget(TargetId id) @safe
+    {
+        return (id.toString() in nodes) !is null;
+    }
+    
+    /// Add dependency between two targets (string version for backward compatibility)
     Result!BuildError addDependency(in string from, in string to) @safe
     {
         if (from !in nodes)
@@ -209,6 +252,43 @@ final class BuildGraph
         if (wouldCreateCycle(fromNode, toNode))
         {
             auto error = new GraphError("Circular dependency detected: " ~ from ~ " -> " ~ to, ErrorCode.GraphCycle);
+            error.addContext(ErrorContext("adding dependency", "would create cycle"));
+            return Result!BuildError.err(cast(BuildError) error);
+        }
+        
+        fromNode.dependencies ~= toNode;
+        toNode.dependents ~= fromNode;
+        
+        return Ok!BuildError();
+    }
+    
+    /// Add dependency using TargetId (type-safe version)
+    Result!BuildError addDependencyById(TargetId from, TargetId to) @safe
+    {
+        auto fromKey = from.toString();
+        auto toKey = to.toString();
+        
+        if (fromKey !in nodes)
+        {
+            auto error = new GraphError("Target not found in graph: " ~ fromKey, ErrorCode.NodeNotFound);
+            error.addContext(ErrorContext("adding dependency", "from: " ~ fromKey ~ ", to: " ~ toKey));
+            return Result!BuildError.err(cast(BuildError) error);
+        }
+        
+        if (toKey !in nodes)
+        {
+            auto error = new GraphError("Target not found in graph: " ~ toKey, ErrorCode.NodeNotFound);
+            error.addContext(ErrorContext("adding dependency", "from: " ~ fromKey ~ ", to: " ~ toKey));
+            return Result!BuildError.err(cast(BuildError) error);
+        }
+        
+        auto fromNode = nodes[fromKey];
+        auto toNode = nodes[toKey];
+        
+        // Check for cycles before adding
+        if (wouldCreateCycle(fromNode, toNode))
+        {
+            auto error = new GraphError("Circular dependency detected: " ~ fromKey ~ " -> " ~ toKey, ErrorCode.GraphCycle);
             error.addContext(ErrorContext("adding dependency", "would create cycle"));
             return Result!BuildError.err(cast(BuildError) error);
         }

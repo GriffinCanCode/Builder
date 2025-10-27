@@ -36,6 +36,7 @@ class DependencyAnalyzer
     }
     
     /// Analyze dependencies and build graph
+    /// Note: Uses target.id for type-safe identification where possible
     BuildGraph analyze(in string targetFilter = "") @trusted
     {
         Logger.info("Analyzing dependencies...");
@@ -44,9 +45,15 @@ class DependencyAnalyzer
         auto graph = new BuildGraph();
         
         // Add all targets to graph
+        // Uses TargetId for filtering when available
         foreach (ref target; config.targets)
         {
-            if (targetFilter.empty || matchesFilter(target.name, targetFilter))
+            // Use TargetId.matches() for more flexible filtering
+            bool shouldInclude = targetFilter.empty || 
+                                matchesFilter(target.name, targetFilter) ||
+                                target.id.matches(targetFilter);
+            
+            if (shouldInclude)
             {
                 graph.addTarget(target);
             }
