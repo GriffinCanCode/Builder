@@ -34,6 +34,7 @@ import languages.scripting.lua;
 import languages.scripting.r;
 import utils.logging.logger;
 import utils.concurrency.pool;
+import utils.concurrency.lockfree;
 import errors;
 import cli.events.events;
 import core.execution.retry;
@@ -45,8 +46,8 @@ import core.execution.resume;
 /// Thread Safety:
 /// - activeTasks, failedTasks: atomic operations only
 /// - BuildNode.status: atomic property accessors (thread-safe)
-/// - stateMutex: protects graph traversal and node status updates
-/// - All node status changes are synchronized to ensure consistency
+/// - readyQueue: lock-free queue for ready nodes (no contention)
+/// - Node dependency counters: atomic decrements for detecting readiness
 /// - ThreadPool handles parallel task execution with internal synchronization
 /// - BuildCache: internally synchronized, safe for concurrent access from buildNode()
 final class BuildExecutor
@@ -58,14 +59,14 @@ final class BuildExecutor
     private enum size_t MB_PER_GB = 1024;             // MB in a gigabyte
     private enum size_t MAX_STAT_STRING_LENGTH = 4;   // Max chars for percentage display
     private enum size_t MIN_STAT_STRING_LENGTH = 5;   // Max chars for savings estimate
+    private enum size_t READY_QUEUE_SIZE = 1024;      // Lock-free queue capacity
     
     private BuildGraph graph;
     private WorkspaceConfig config;
     private BuildCache cache;
     private LanguageHandler[TargetLanguage] handlers;
     private ThreadPool pool;
-    private Mutex stateMutex;  // Protects graph state and coordinated status changes
-    private Condition tasksReady;
+    private LockFreeQueue!BuildNode readyQueue;  // Lock-free ready queue for scalability
     private shared size_t activeTasks;  // Atomic: number of currently executing tasks
     private shared size_t failedTasks;  // Atomic: number of failed tasks
     private immutable size_t workerCount;
@@ -94,8 +95,8 @@ final class BuildExecutor
         // Initialize checkpoint manager
         this.checkpointManager = new CheckpointManager(".", enableCheckpoints);
         
-        this.stateMutex = new Mutex();
-        this.tasksReady = new Condition(stateMutex);
+        // Initialize lock-free ready queue
+        this.readyQueue = LockFreeQueue!BuildNode(READY_QUEUE_SIZE);
         
         this.workerCount = maxParallelism == 0 ? totalCPUs : maxParallelism;
         this.pool = new ThreadPool(workerCount);
@@ -225,80 +226,132 @@ final class BuildExecutor
         size_t built = 0;
         size_t cached = 0;
         
-        synchronized (stateMutex)
-        {
-            atomicStore(activeTasks, cast(size_t)0);
-            atomicStore(failedTasks, cast(size_t)0);
-        }
+        atomicStore(activeTasks, cast(size_t)0);
+        atomicStore(failedTasks, cast(size_t)0);
         
         auto stats = graph.getStats();
         Logger.info("Max parallelism: " ~ workerCount.to!string ~ " jobs");
         
-        // Event-driven execution: submit ready nodes immediately
+        // Initialize pending dependency counters for lock-free execution
+        foreach (node; sorted)
+            node.initPendingDeps();
+        
+        // Enqueue initially ready nodes (those with no dependencies)
+        foreach (node; sorted)
+        {
+            if (node.pendingDeps == 0)
+            {
+                if (!readyQueue.enqueue(node))
+                {
+                    Logger.error("Failed to enqueue initial node: " ~ node.id);
+                }
+            }
+        }
+        
+        // Lock-free execution: workers dequeue and build in parallel
+        // Pre-allocate batch buffer to avoid repeated allocations
+        BuildNode[] currentBatch;
+        currentBatch.reserve(workerCount);
+        size_t batchSize = 0;  // Track batch size without changing array length
+        
         while (atomicLoad(failedTasks) == 0)
         {
-            BuildNode[] ready;
+            batchSize = 0;  // Reset batch size
             
-            // CRITICAL SECTION: Graph traversal and status coordination
-            synchronized (stateMutex)
+            // Dequeue a batch of ready nodes for parallel execution
+            // Reuse buffer to avoid allocation
+            foreach (i; 0 .. workerCount)
             {
-                // getReadyNodes() reads node status atomically (thread-safe)
-                ready = graph.getReadyNodes();
+                auto node = readyQueue.tryDequeue();
+                if (node is null)
+                    break;
                 
-                if (ready.empty && atomicLoad(activeTasks) == 0)
-                    break; // All done
+                // Mark as building
+                node.status = BuildStatus.Building;
                 
-                if (ready.empty)
-                {
-                    // Wait for tasks to complete and free up dependencies
-                    tasksReady.wait();
-                    continue;
-                }
-                
-                // Mark nodes as Building BEFORE submitting to prevent duplicates
-                // Status is updated atomically via property accessor
-                foreach (node; ready)
-                {
-                    Logger.debugLog("Marking " ~ node.id ~ " as Building (was " ~ node.status.to!string ~ ")");
-                    node.status = BuildStatus.Building;
-                }
-                
-                Logger.debugLog("Ready nodes: " ~ ready.map!(n => n.id).join(", "));
-                
-                atomicOp!"+="(activeTasks, ready.length);
+                // Grow array only if needed, reuse existing capacity
+                if (batchSize >= currentBatch.length)
+                    currentBatch.length = batchSize + 1;
+                currentBatch[batchSize++] = node;
             }
             
-            // Execute ready nodes in parallel using persistent pool
-            // Each thread builds independently, reading BuildNode.status atomically
-            auto results = pool.map(ready, &buildNode);
+            // If no ready nodes and no active tasks, we're done
+            if (batchSize == 0 && atomicLoad(activeTasks) == 0)
+                break;
             
-            // CRITICAL SECTION: Update node status with build results
-            synchronized (stateMutex)
+            // If batch is empty but tasks are active, wait briefly
+            if (batchSize == 0)
             {
-                foreach (i, result; results)
+                import core.thread : Thread;
+                import core.time : msecs;
+                Thread.sleep(1.msecs);
+                continue;
+            }
+            
+            // Use slice of actual batch (avoid processing empty slots)
+            auto batch = currentBatch[0 .. batchSize];
+            Logger.debugLog("Building batch: " ~ batch.map!(n => n.id).join(", "));
+            
+            atomicOp!"+="(activeTasks, cast(size_t)batchSize);
+            
+            // Execute batch in parallel using persistent pool
+            auto results = pool.map(batch, (BuildNode node) {
+                auto result = buildNode(node);
+                
+                // On completion, enqueue ready dependents atomically
+                if (result.success)
                 {
-                    auto node = ready[i];
-                    
-                    // Status updates are atomic via property accessor
-                    if (result.success)
+                    foreach (dependent; node.dependents)
                     {
-                        node.status = result.cached ? BuildStatus.Cached : BuildStatus.Success;
-                        if (result.cached)
-                            cached++;
-                        else
-                            built++;
+                        immutable remaining = dependent.decrementPendingDeps();
+                        if (remaining == 0)
+                        {
+                            // All dependencies satisfied, enqueue for building
+                            if (!readyQueue.enqueue(dependent))
+                            {
+                                Logger.error("Failed to enqueue dependent: " ~ dependent.id);
+                            }
+                        }
                     }
+                }
+                else
+                {
+                    // Mark all dependents as failed (cascading failure)
+                    foreach (dependent; node.dependents)
+                    {
+                        if (dependent.status == BuildStatus.Pending)
+                        {
+                            dependent.status = BuildStatus.Failed;
+                            atomicOp!"+="(failedTasks, cast(size_t)1);
+                        }
+                    }
+                }
+                
+                return result;
+            });
+            
+            // Process results  
+            foreach (i, result; results)
+            {
+                auto node = batch[i];
+                
+                if (result.success)
+                {
+                    node.status = result.cached ? BuildStatus.Cached : BuildStatus.Success;
+                    if (result.cached)
+                        cached++;
                     else
-                    {
-                        node.status = BuildStatus.Failed;
-                        atomicOp!"+="(failedTasks, 1);
-                        Logger.error("Failed to build " ~ node.id ~ ": " ~ result.error);
-                    }
+                        built++;
                 }
-                
-                atomicOp!"-="(activeTasks, ready.length);
-                tasksReady.notifyAll();  // Wake waiting threads
+                else
+                {
+                    node.status = BuildStatus.Failed;
+                    atomicOp!"+="(failedTasks, cast(size_t)1);
+                    Logger.error("Failed to build " ~ node.id ~ ": " ~ result.error);
+                }
             }
+            
+            atomicOp!"-="(activeTasks, cast(size_t)batchSize);
         }
         
         sw.stop();
@@ -361,6 +414,12 @@ final class BuildExecutor
             Logger.info("  Total entries: " ~ cacheStats.totalEntries.to!string);
             Logger.info("  Cache size: " ~ formatSize(cacheStats.totalSize));
             Logger.info("  Metadata hit rate: " ~ cacheStats.metadataHitRate.to!string[0..min(MAX_STAT_STRING_LENGTH, cacheStats.metadataHitRate.to!string.length)] ~ "%");
+            
+            if (cacheStats.hashCacheHits + cacheStats.hashCacheMisses > 0)
+            {
+                Logger.info("  Hash cache hit rate: " ~ cacheStats.hashCacheHitRate.to!string[0..min(MAX_STAT_STRING_LENGTH, cacheStats.hashCacheHitRate.to!string.length)] ~ "%");
+                Logger.info("  Hash cache saves: " ~ cacheStats.hashCacheHits.to!string ~ " duplicate hashes avoided");
+            }
         }
         
         // No longer throw exception - let caller check failed count

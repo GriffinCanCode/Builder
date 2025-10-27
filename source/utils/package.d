@@ -39,6 +39,7 @@ public import utils.files.ignore;
 public import utils.concurrency.parallel;
 public import utils.concurrency.pool;
 public import utils.concurrency.simd;
+public import utils.concurrency.lockfree;
 public import utils.files.chunking;
 public import utils.logging.logger;
 public import utils.files.metadata;

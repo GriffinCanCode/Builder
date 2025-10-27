@@ -14,6 +14,7 @@ import utils.simd.ops;
 import core.caching.storage;
 import core.caching.eviction;
 import utils.security.integrity;
+import utils.concurrency.lockfree;
 import errors;
 
 /// High-performance build cache with lazy writes and LRU eviction
@@ -49,6 +50,7 @@ final class BuildCache
     private size_t metadataHitCount;  // Stats: how many metadata hits
     private Mutex cacheMutex;  // Protects all mutable state
     private IntegrityValidator validator;  // HMAC validation for tampering detection
+    private FastHashCache hashCache;  // Per-build-session hash memoization
     
     /// Constructor: Initialize cache with directory and configuration
     /// 
@@ -217,7 +219,7 @@ final class BuildCache
             entry.lastAccess = Clock.currTime();
             entry.buildHash = outputHash;
         
-        // Hash all source files in parallel with SIMD acceleration
+        // Hash all source files with memoization to avoid duplicate hashing
         if (sources.length > 4) {
             // Use SIMD-aware parallel processing for multiple files
             import utils.concurrency.simd;
@@ -243,14 +245,20 @@ final class BuildCache
                 // Use only the filled portion of the workspace
                 auto existingSources = hashWorkspace[0 .. existingCount];
                 
-                // Parallel hash with SIMD
+                // Parallel hash with SIMD and memoization
                 alias HashResult = Tuple!(string, string, string);
                 auto hashes = SIMDParallel.mapSIMD(existingSources, (string source) {
-                    return tuple(
-                        source,
-                        FastHash.hashFile(source),
-                        FastHash.hashMetadata(source)
-                    );
+                    // Check hash cache first to avoid duplicate computation
+                    auto cached = hashCache.get(source);
+                    if (cached.found) {
+                        return tuple(source, cached.contentHash, cached.metadataHash);
+                    }
+                    
+                    // Compute and cache for future use
+                    auto contentHash = FastHash.hashFile(source);
+                    auto metadataHash = FastHash.hashMetadata(source);
+                    hashCache.put(source, contentHash, metadataHash);
+                    return tuple(source, contentHash, metadataHash);
                 });
                 
                 foreach (result; hashes) {
@@ -264,8 +272,19 @@ final class BuildCache
             {
                 if (exists(source))
                 {
-                    entry.sourceHashes[source] = FastHash.hashFile(source);
-                    entry.sourceMetadata[source] = FastHash.hashMetadata(source);
+                    // Check hash cache first
+                    auto cached = hashCache.get(source);
+                    if (cached.found) {
+                        entry.sourceHashes[source] = cached.contentHash;
+                        entry.sourceMetadata[source] = cached.metadataHash;
+                    } else {
+                        // Compute and cache
+                        auto contentHash = FastHash.hashFile(source);
+                        auto metadataHash = FastHash.hashMetadata(source);
+                        hashCache.put(source, contentHash, metadataHash);
+                        entry.sourceHashes[source] = contentHash;
+                        entry.sourceMetadata[source] = metadataHash;
+                    }
                 }
             }
         }
@@ -354,6 +373,9 @@ final class BuildCache
             // Save to binary format
             saveCache();
             dirty = false;
+            
+            // Clear hash cache at end of build
+            hashCache.clear();
         }
     }
     
@@ -367,6 +389,9 @@ final class BuildCache
         size_t contentHashes;    // How many content hashes performed
         size_t metadataHits;     // How many metadata hits (fast path)
         float metadataHitRate;   // Percentage of fast path hits
+        size_t hashCacheHits;    // How many build-session hash cache hits
+        size_t hashCacheMisses;  // How many build-session hash cache misses
+        float hashCacheHitRate;  // Percentage of hash cache hits
     }
     
     /// Get cache statistics
@@ -394,6 +419,12 @@ final class BuildCache
             immutable total = contentHashCount + metadataHitCount;
             if (total > 0)
                 stats.metadataHitRate = (metadataHitCount * 100.0) / total;
+            
+            // Build-session hash cache statistics
+            auto hashCacheStats = hashCache.getStats();
+            stats.hashCacheHits = hashCacheStats.hits;
+            stats.hashCacheMisses = hashCacheStats.misses;
+            stats.hashCacheHitRate = hashCacheStats.hitRate;
             
             return stats;
         }

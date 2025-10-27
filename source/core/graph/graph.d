@@ -24,12 +24,16 @@ final class BuildNode
     private shared size_t _retryAttempts;  // Atomic access only
     string lastError;                       // Last error message
     
+    // Lock-free execution metadata
+    private shared size_t _pendingDeps;  // Atomic: remaining dependencies to build
+    
     this(string id, Target target) @safe pure nothrow
     {
         this.id = id;
         this.target = target;
         atomicStore(this._status, BuildStatus.Pending);
         atomicStore(this._retryAttempts, cast(size_t)0);
+        atomicStore(this._pendingDeps, cast(size_t)0);
         
         // Pre-allocate reasonable capacity to avoid reallocations
         dependencies.reserve(8);  // Most targets have <8 dependencies
@@ -127,6 +131,43 @@ final class BuildNode
     void resetRetries() nothrow @trusted @nogc
     {
         atomicStore(this._retryAttempts, cast(size_t)0);
+    }
+    
+    /// Initialize pending dependencies counter (call before execution)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. atomicStore() performs sequentially-consistent atomic write
+    /// 2. _pendingDeps is shared - requires atomic operations
+    /// 3. dependencies.length is safe to read
+    void initPendingDeps() nothrow @trusted @nogc
+    {
+        atomicStore(this._pendingDeps, dependencies.length);
+    }
+    
+    /// Atomically decrement pending dependencies and return new count
+    /// Used by lock-free execution to detect when node becomes ready
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. atomicOp!"-=" performs atomic read-modify-write operation
+    /// 2. _pendingDeps is shared - requires atomic operations
+    /// 3. Returns the new value after decrement
+    /// 
+    /// Invariants:
+    /// - Decrement is atomic (no lost updates)
+    /// - Returns value after decrement
+    /// 
+    /// What could go wrong:
+    /// - Underflow: If decremented too many times (caller's responsibility)
+    size_t decrementPendingDeps() nothrow @trusted @nogc
+    {
+        atomicOp!"-="(this._pendingDeps, 1);
+        return atomicLoad(this._pendingDeps);
+    }
+    
+    /// Get current pending dependencies count
+    size_t pendingDeps() const nothrow @trusted @nogc
+    {
+        return atomicLoad(this._pendingDeps);
     }
     
     /// Check if this node is ready to build (all deps built)

@@ -6,16 +6,66 @@ import std.parallelism;
 import std.array;
 import utils.simd.ops;
 import utils.concurrency.pool;
+import core.sync.mutex;
 
 @safe:
 
+/// Global thread pool for SIMD operations to avoid repeated allocation
+/// Lazily initialized on first use, shared across all mapSIMD calls
+private __gshared ThreadPool globalSIMDPool;
+private __gshared Mutex globalSIMDPoolMutex;
+
+/// Initialize the global SIMD thread pool (thread-safe)
+/// 
+/// Safety: This function is @trusted because:
+/// 1. Uses mutex to ensure thread-safe initialization
+/// 2. Only initializes once (double-checked locking pattern)
+/// 3. ThreadPool creation is properly synchronized
+@trusted
+private ThreadPool getSIMDPool(size_t workerCount = 0) nothrow
+{
+    import std.parallelism : totalCPUs;
+    
+    try
+    {
+        // Fast path: pool already exists
+        if (globalSIMDPool !is null)
+            return globalSIMDPool;
+        
+        // Slow path: need to initialize
+        if (globalSIMDPoolMutex is null)
+            globalSIMDPoolMutex = new Mutex();
+        
+        synchronized (globalSIMDPoolMutex)
+        {
+            // Double-check after acquiring lock
+            if (globalSIMDPool is null)
+            {
+                auto count = workerCount == 0 ? totalCPUs : workerCount;
+                globalSIMDPool = new ThreadPool(count);
+            }
+        }
+        
+        return globalSIMDPool;
+    }
+    catch (Exception e)
+    {
+        // If initialization fails, return null (caller will handle)
+        return null;
+    }
+}
+
 /// SIMD-aware parallel operations
 /// Combines task parallelism with data parallelism for maximum throughput
+/// 
+/// Optimization: Uses shared global thread pool to avoid repeated allocation
 struct SIMDParallel
 {
     /// Parallel map with SIMD acceleration for data operations
     /// Use when func performs SIMD-friendly operations (memcpy, hash, compare)
-    @trusted // Thread pool creation and parallel execution
+    /// 
+    /// Optimization: Reuses global thread pool instead of creating new one per call
+    @trusted // Thread pool access and parallel execution
     static auto mapSIMD(T, F)(T[] items, F func, size_t maxParallelism = 0)
     {
         import std.parallelism : totalCPUs;
@@ -29,9 +79,15 @@ struct SIMDParallel
         if (items.length == 1)
             return [func(items[0])];
         
-        auto workerCount = maxParallelism == 0 ? totalCPUs : maxParallelism;
-        auto pool = new ThreadPool(workerCount);
-        scope(exit) pool.shutdown();
+        // Use global shared pool to avoid repeated allocation overhead
+        auto pool = getSIMDPool(maxParallelism);
+        if (pool is null)
+        {
+            // Fallback: create temporary pool if global init fails
+            auto workerCount = maxParallelism == 0 ? totalCPUs : maxParallelism;
+            pool = new ThreadPool(workerCount);
+            scope(exit) pool.shutdown();
+        }
         
         return pool.map(items, func);
     }
