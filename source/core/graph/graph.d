@@ -5,35 +5,77 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.range;
+import core.atomic;
 import config.schema.schema;
 
 /// Represents a node in the build graph
+/// Thread-safe: status field is accessed atomically
 final class BuildNode
 {
     string id;
     Target target;
     BuildNode[] dependencies;
     BuildNode[] dependents;
-    BuildStatus status;
+    private shared BuildStatus _status;  // Atomic access only
     string hash;
+    
+    // Retry metadata
+    private shared size_t _retryAttempts;  // Atomic access only
+    string lastError;                       // Last error message
     
     this(string id, Target target) @safe pure nothrow
     {
         this.id = id;
         this.target = target;
-        this.status = BuildStatus.Pending;
+        atomicStore(this._status, BuildStatus.Pending);
+        atomicStore(this._retryAttempts, cast(size_t)0);
         
         // Pre-allocate reasonable capacity to avoid reallocations
         dependencies.reserve(8);  // Most targets have <8 dependencies
         dependents.reserve(4);    // Fewer dependents on average
     }
     
-    /// Check if this node is ready to build (all deps built)
-    bool isReady() const @safe pure nothrow
+    /// Get status atomically (thread-safe)
+    @property BuildStatus status() const nothrow @trusted @nogc
     {
-        return dependencies.all!(dep => 
-            dep.status == BuildStatus.Success || 
-            dep.status == BuildStatus.Cached);
+        return atomicLoad(this._status);
+    }
+    
+    /// Set status atomically (thread-safe)
+    @property void status(BuildStatus newStatus) nothrow @trusted @nogc
+    {
+        atomicStore(this._status, newStatus);
+    }
+    
+    /// Get retry attempts atomically (thread-safe)
+    @property size_t retryAttempts() const nothrow @trusted @nogc
+    {
+        return atomicLoad(this._retryAttempts);
+    }
+    
+    /// Increment retry attempts atomically (thread-safe)
+    void incrementRetries() nothrow @trusted @nogc
+    {
+        atomicOp!"+="(this._retryAttempts, 1);
+    }
+    
+    /// Reset retry attempts atomically (thread-safe)
+    void resetRetries() nothrow @trusted @nogc
+    {
+        atomicStore(this._retryAttempts, cast(size_t)0);
+    }
+    
+    /// Check if this node is ready to build (all deps built)
+    /// Thread-safe: reads dependency status atomically
+    bool isReady() const @trusted nothrow
+    {
+        foreach (dep; dependencies)
+        {
+            auto depStatus = atomicLoad(dep._status);
+            if (depStatus != BuildStatus.Success && depStatus != BuildStatus.Cached)
+                return false;
+        }
+        return true;
     }
     
     /// Get topological depth for scheduling

@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.datetime;
 import std.typecons : tuple;
+import core.sync.mutex;
 import utils.files.hash;
 import utils.simd.ops;
 import core.caching.storage;
@@ -15,6 +16,11 @@ import core.caching.eviction;
 import errors;
 
 /// High-performance build cache with lazy writes and LRU eviction
+/// 
+/// Thread Safety:
+/// - All public methods are synchronized via internal mutex
+/// - Safe for concurrent access from multiple build threads
+/// 
 /// Optimizations:
 /// - Binary format: 5-10x faster than JSON
 /// - Lazy writes: Write once per build instead of per target
@@ -31,6 +37,7 @@ final class BuildCache
     private CacheConfig config;
     private size_t contentHashCount;  // Stats: how many content hashes performed
     private size_t metadataHitCount;  // Stats: how many metadata hits
+    private Mutex cacheMutex;  // Protects all mutable state
     
     this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @trusted
     {
@@ -39,6 +46,7 @@ final class BuildCache
         this.config = config;
         this.dirty = false;
         this.eviction = EvictionPolicy(config.maxSize, config.maxEntries, config.maxAge);
+        this.cacheMutex = new Mutex();
         
         if (!exists(cacheDir))
             mkdirRecurse(cacheDir);
@@ -69,57 +77,61 @@ final class BuildCache
     
     /// Check if a target is cached and up-to-date
     /// Uses two-tier hashing for 1000x speedup on unchanged files
+    /// Thread-safe: synchronized via internal mutex
     bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @trusted
     {
-        auto entryPtr = targetId in entries;
-        if (entryPtr is null)
-            return false;
-        
-        // Update access time for LRU - use pointer to avoid copy
-        entryPtr.lastAccess = Clock.currTime();
-        dirty = true;
-        
-        // Check if any source files changed (two-tier strategy)
-        foreach (source; sources)
+        synchronized (cacheMutex)
         {
-            if (!exists(source))
+            auto entryPtr = targetId in entries;
+            if (entryPtr is null)
                 return false;
             
-            // Get old metadata hash if exists
-            immutable oldMetadataHash = entryPtr.sourceMetadata.get(source, "");
+            // Update access time for LRU - use pointer to avoid copy
+            entryPtr.lastAccess = Clock.currTime();
+            dirty = true;
             
-            // Two-tier hash: check metadata first
-            const hashResult = FastHash.hashFileTwoTier(source, oldMetadataHash);
-            
-            if (hashResult.contentHashed)
+            // Check if any source files changed (two-tier strategy)
+            foreach (source; sources)
             {
-                // Metadata changed, check content hash
-                contentHashCount++;
+                if (!exists(source))
+                    return false;
                 
-                immutable oldContentHash = entryPtr.sourceHashes.get(source, "");
-                // Use SIMD-accelerated comparison for hash strings
-                if (!fastHashEquals(hashResult.contentHash, oldContentHash))
+                // Get old metadata hash if exists
+                immutable oldMetadataHash = entryPtr.sourceMetadata.get(source, "");
+                
+                // Two-tier hash: check metadata first
+                const hashResult = FastHash.hashFileTwoTier(source, oldMetadataHash);
+                
+                if (hashResult.contentHashed)
+                {
+                    // Metadata changed, check content hash
+                    contentHashCount++;
+                    
+                    immutable oldContentHash = entryPtr.sourceHashes.get(source, "");
+                    // Use SIMD-accelerated comparison for hash strings
+                    if (!fastHashEquals(hashResult.contentHash, oldContentHash))
+                        return false;
+                }
+                else
+                {
+                    // Metadata unchanged, assume content unchanged (fast path)
+                    metadataHitCount++;
+                }
+            }
+            
+            // Check if any dependencies changed
+            foreach (dep; deps)
+            {
+                if (dep !in entries)
+                    return false;
+                
+                // SIMD-accelerated hash comparison
+                if (!fastHashEquals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
                     return false;
             }
-            else
-            {
-                // Metadata unchanged, assume content unchanged (fast path)
-                metadataHitCount++;
-            }
-        }
-        
-        // Check if any dependencies changed
-        foreach (dep; deps)
-        {
-            if (dep !in entries)
-                return false;
             
-            // SIMD-accelerated hash comparison
-            if (!fastHashEquals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
-                return false;
+            return true;
         }
-        
-        return true;
     }
     
     /// Reusable workspace for parallel hashing to reduce allocations
@@ -128,13 +140,16 @@ final class BuildCache
     /// Update cache entry for a target
     /// Defers write until flush() is called
     /// Uses SIMD-aware parallel hashing for multiple sources
+    /// Thread-safe: synchronized via internal mutex
     void update(string targetId, scope const(string)[] sources, scope const(string)[] deps, string outputHash) @trusted
     {
-        CacheEntry entry;
-        entry.targetId = targetId;
-        entry.timestamp = Clock.currTime();
-        entry.lastAccess = Clock.currTime();
-        entry.buildHash = outputHash;
+        synchronized (cacheMutex)
+        {
+            CacheEntry entry;
+            entry.targetId = targetId;
+            entry.timestamp = Clock.currTime();
+            entry.lastAccess = Clock.currTime();
+            entry.buildHash = outputHash;
         
         // Hash all source files in parallel with SIMD acceleration
         if (sources.length > 4) {
@@ -189,29 +204,45 @@ final class BuildCache
             }
         }
         
-        // Store dependency hashes
-        foreach (dep; deps)
-        {
-            if (dep in entries)
-                entry.depHashes[dep] = entries[dep].buildHash;
+            // Store dependency hashes
+            foreach (dep; deps)
+            {
+                if (dep in entries)
+                    entry.depHashes[dep] = entries[dep].buildHash;
+            }
+            
+            entries[targetId] = entry;
+            dirty = true;
         }
-        
-        entries[targetId] = entry;
-        dirty = true;
     }
     
     /// Invalidate cache for a target
-    void invalidate(in string targetId) @safe nothrow
+    /// Thread-safe: synchronized via internal mutex
+    void invalidate(in string targetId) @trusted nothrow
     {
-        entries.remove(targetId);
-        dirty = true;
+        try
+        {
+            synchronized (cacheMutex)
+            {
+                entries.remove(targetId);
+                dirty = true;
+            }
+        }
+        catch (Exception e)
+        {
+            // Mutex lock failed, ignore (nothrow requirement)
+        }
     }
     
     /// Clear entire cache
+    /// Thread-safe: synchronized via internal mutex
     void clear() @trusted
     {
-        entries.clear();
-        dirty = false;
+        synchronized (cacheMutex)
+        {
+            entries.clear();
+            dirty = false;
+        }
         
         if (exists(cacheDir))
             rmdirRecurse(cacheDir);
@@ -220,12 +251,15 @@ final class BuildCache
     
     /// Flush cache to disk (lazy write)
     /// This is called once at the end of build instead of on every update
+    /// Thread-safe: synchronized via internal mutex
     /// Params:
     ///   runEviction = whether to run eviction policy (default true, false in destructor)
     void flush(in bool runEviction = true) @trusted
     {
-        if (!dirty)
-            return;
+        synchronized (cacheMutex)
+        {
+            if (!dirty)
+                return;
         
         // Run eviction policy before saving (skip in destructor to avoid GC issues)
         if (runEviction)
@@ -251,9 +285,10 @@ final class BuildCache
             }
         }
         
-        // Save to binary format
-        saveCache();
-        dirty = false;
+            // Save to binary format
+            saveCache();
+            dirty = false;
+        }
     }
     
     /// Get cache statistics
@@ -268,29 +303,34 @@ final class BuildCache
         float metadataHitRate;   // Percentage of fast path hits
     }
     
+    /// Get cache statistics
+    /// Thread-safe: synchronized via internal mutex
     CacheStats getStats() const @trusted
     {
-        CacheStats stats;
-        stats.totalEntries = entries.length;
-        
-        if (entries.empty)
+        synchronized (cast(Mutex)cacheMutex)  // const_cast for read-only access
+        {
+            CacheStats stats;
+            stats.totalEntries = entries.length;
+            
+            if (entries.empty)
+                return stats;
+            
+            stats.oldestEntry = entries.values.map!(e => e.timestamp).minElement;
+            stats.newestEntry = entries.values.map!(e => e.timestamp).maxElement;
+            
+            // Calculate cache size (cast away const for calculation)
+            stats.totalSize = (cast(EvictionPolicy)eviction).calculateTotalSize(cast(CacheEntry[string])entries);
+            
+            // Hash statistics
+            stats.contentHashes = contentHashCount;
+            stats.metadataHits = metadataHitCount;
+            
+            immutable total = contentHashCount + metadataHitCount;
+            if (total > 0)
+                stats.metadataHitRate = (metadataHitCount * 100.0) / total;
+            
             return stats;
-        
-        stats.oldestEntry = entries.values.map!(e => e.timestamp).minElement;
-        stats.newestEntry = entries.values.map!(e => e.timestamp).maxElement;
-        
-        // Calculate cache size (cast away const for calculation)
-        stats.totalSize = (cast(EvictionPolicy)eviction).calculateTotalSize(cast(CacheEntry[string])entries);
-        
-        // Hash statistics
-        stats.contentHashes = contentHashCount;
-        stats.metadataHits = metadataHitCount;
-        
-        immutable total = contentHashCount + metadataHitCount;
-        if (total > 0)
-            stats.metadataHitRate = (metadataHitCount * 100.0) / total;
-        
-        return stats;
+        }
     }
     
     private void loadCache() @trusted

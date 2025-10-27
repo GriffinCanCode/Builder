@@ -1,6 +1,6 @@
 # Builder Makefile
 
-.PHONY: all build test clean install help
+.PHONY: all build test clean install help tsan test-tsan
 
 all: build
 
@@ -56,6 +56,18 @@ bench:
 	@echo "Running benchmarks..."
 	@dub test -- --filter="bench"
 
+# Build with Thread Sanitizer (requires LDC)
+tsan:
+	@echo "Building with Thread Sanitizer (TSan)..."
+	@echo "Note: Requires LDC compiler (use: dub build --compiler=ldc2 --build=tsan)"
+	@dub build --compiler=ldc2 --build=tsan
+
+# Run tests with Thread Sanitizer
+test-tsan:
+	@echo "Running tests with Thread Sanitizer (TSan)..."
+	@echo "Note: This will detect data races and threading issues"
+	@./tools/run-tsan-tests.sh
+
 # Format code
 fmt:
 	@echo "Formatting code..."
@@ -71,6 +83,8 @@ help:
 	@echo "  make test           - Run tests"
 	@echo "  make test-coverage  - Run tests with coverage"
 	@echo "  make test-parallel  - Run tests in parallel"
+	@echo "  make test-tsan      - Run tests with Thread Sanitizer (requires LDC)"
+	@echo "  make tsan           - Build with Thread Sanitizer"
 	@echo "  make bench          - Run benchmarks"
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make install        - Install to /usr/local/bin"

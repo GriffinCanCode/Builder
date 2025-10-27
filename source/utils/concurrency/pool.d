@@ -10,19 +10,23 @@ import std.exception;
 import std.conv : to;
 import std.parallelism : totalCPUs;
 
+@safe:
+
 /// Persistent thread pool for reusable parallel execution
+/// Thread-safe: All shared state is protected by mutex or atomic operations
 final class ThreadPool
 {
     private Worker[] workers;
     private Job[] jobs;
-    private Mutex jobMutex;
+    private Mutex jobMutex;  // Protects jobs array access
     private Condition jobAvailable;
     private Condition jobComplete;
-    private shared bool running;
-    private shared size_t pendingJobs;
-    private shared size_t nextJobIndex;
+    private shared bool running;  // Atomic access
+    private shared size_t pendingJobs;  // Atomic access
+    private shared size_t nextJobIndex;  // Atomic access (work stealing)
     
-    this(size_t workerCount = 0) @trusted
+    @trusted // Thread creation and atomic operations
+    this(size_t workerCount = 0)
     {
         if (workerCount == 0)
             workerCount = totalCPUs;
@@ -44,7 +48,8 @@ final class ThreadPool
     }
     
     /// Execute function on items in parallel
-    R[] map(T, R)(scope T[] items, scope R delegate(T) func) @trusted
+    @trusted // Thread synchronization and atomic operations
+    R[] map(T, R)(scope T[] items, scope R delegate(T) func)
     {
         if (items.empty)
             return [];
@@ -67,7 +72,7 @@ final class ThreadPool
                 jobs[i].id = i;
                 // Use a helper function to properly capture by value
                 jobs[i].work = makeWork(i, item, results, func);
-                jobs[i].completed = false;
+                atomicStore(jobs[i].completed, false);
             }
             
             jobAvailable.notifyAll();
@@ -83,15 +88,18 @@ final class ThreadPool
     }
     
     /// Helper to create work delegate with proper value capture
-    private void delegate() makeWork(T, R)(size_t index, T item, ref R[] results, scope R delegate(T) func) @trusted
+    @trusted // Delegate creation with captured variables - returns @safe delegate wrapped in @trusted context
+    private void delegate() @safe makeWork(T, R)(size_t index, T item, ref R[] results, scope R delegate(T) func)
     {
-        return () {
+        void delegate() @safe safeDel = () @trusted {
             results[index] = func(item);
         };
+        return safeDel;
     }
     
     /// Shutdown pool and wait for workers
-    void shutdown() @trusted
+    @trusted // Thread synchronization
+    void shutdown()
     {
         atomicStore(running, false);
         
@@ -106,7 +114,8 @@ final class ThreadPool
     
     package:
     
-    Job* nextJob() @trusted
+    @trusted // Thread synchronization and atomic operations
+    Job* nextJob()
     {
         synchronized (jobMutex)
         {
@@ -124,7 +133,7 @@ final class ThreadPool
                 // Try to claim this job
                 if (cas(&nextJobIndex, idx, idx + 1))
                 {
-                    if (!jobs[idx].completed)
+                    if (!atomicLoad(jobs[idx].completed))
                         return &jobs[idx];
                 }
             }
@@ -133,7 +142,8 @@ final class ThreadPool
         }
     }
     
-    void completeJob() @trusted
+    @trusted // Thread synchronization and atomic operations
+    void completeJob()
     {
         synchronized (jobMutex)
         {
@@ -144,7 +154,8 @@ final class ThreadPool
         }
     }
     
-    bool isRunning() const nothrow @trusted @nogc
+    @trusted // Atomic load operation
+    bool isRunning() const nothrow @nogc
     {
         return atomicLoad(running);
     }
@@ -156,24 +167,28 @@ private final class Worker
     private ThreadPool pool;
     private Thread thread;
     
-    this(size_t id, ThreadPool pool) @safe
+    @trusted // Thread creation
+    this(size_t id, ThreadPool pool)
     {
         this.id = id;
         this.pool = pool;
         this.thread = new Thread(&run);
     }
     
-    void start() @trusted
+    @trusted // Thread operations
+    void start()
     {
         thread.start();
     }
     
-    void join() @trusted
+    @trusted // Thread operations
+    void join()
     {
         thread.join();
     }
     
-    private void run() @trusted
+    @trusted // Thread execution and atomic operations
+    private void run()
     {
         while (pool.isRunning())
         {
@@ -185,12 +200,12 @@ private final class Worker
             try
             {
                 job.work();
-                job.completed = true;
+                atomicStore(job.completed, true);
             }
             catch (Exception e)
             {
                 // Log error but continue
-                job.completed = true;
+                atomicStore(job.completed, true);
             }
             
             pool.completeJob();
@@ -198,11 +213,13 @@ private final class Worker
     }
 }
 
+/// Job structure for work distribution
+/// Thread-safe: completed flag is accessed atomically
 private struct Job
 {
     size_t id;
     void delegate() work;
-    bool completed;
+    shared bool completed;  // Atomic access for thread-safe completion checking
 }
 
 

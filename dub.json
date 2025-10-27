@@ -29,7 +29,7 @@
         "source/utils/simd/c/blake3_sse2.c",
         "source/utils/simd/c/blake3_sse41.c"
     ],
-    "dflags": ["-L-lstdc++"],
+    "dflags": ["-L-lstdc++", "-preview=dip1000"],
     "lflags": ["-lm"],
     "configurations": [
         {
@@ -62,6 +62,11 @@
         },
         "release-debug": {
             "buildOptions": ["releaseMode", "optimize", "debugInfo"]
+        },
+        "tsan": {
+            "buildOptions": ["debugMode", "debugInfo"],
+            "dflags-ldc": ["-fsanitize=thread"],
+            "lflags-ldc": ["-fsanitize=thread"]
         }
     }
 }

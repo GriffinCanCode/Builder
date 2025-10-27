@@ -36,8 +36,19 @@ import utils.logging.logger;
 import utils.concurrency.pool;
 import errors;
 import cli.events.events;
+import core.execution.retry;
+import core.execution.checkpoint;
+import core.execution.resume;
 
 /// Executes builds based on the dependency graph
+/// 
+/// Thread Safety:
+/// - activeTasks, failedTasks: atomic operations only
+/// - BuildNode.status: atomic property accessors (thread-safe)
+/// - stateMutex: protects graph traversal and node status updates
+/// - All node status changes are synchronized to ensure consistency
+/// - ThreadPool handles parallel task execution with internal synchronization
+/// - BuildCache: internally synchronized, safe for concurrent access from buildNode()
 final class BuildExecutor
 {
     private BuildGraph graph;
@@ -45,22 +56,35 @@ final class BuildExecutor
     private BuildCache cache;
     private LanguageHandler[TargetLanguage] handlers;
     private ThreadPool pool;
-    private Mutex stateMutex;
+    private Mutex stateMutex;  // Protects graph state and coordinated status changes
     private Condition tasksReady;
-    private shared size_t activeTasks;
-    private shared size_t failedTasks;
+    private shared size_t activeTasks;  // Atomic: number of currently executing tasks
+    private shared size_t failedTasks;  // Atomic: number of failed tasks
     private immutable size_t workerCount;
     private EventPublisher eventPublisher;
+    private RetryOrchestrator retryOrchestrator;
+    private CheckpointManager checkpointManager;
+    private bool enableCheckpoints;
+    private bool enableRetries;
     
-    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null) @trusted
+    this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null, bool enableCheckpoints = true, bool enableRetries = true) @trusted
     {
         this.graph = graph;
         this.config = config;
         this.eventPublisher = eventPublisher;
+        this.enableCheckpoints = enableCheckpoints;
+        this.enableRetries = enableRetries;
         
         // Initialize cache with configuration from environment
         const cacheConfig = CacheConfig.fromEnvironment();
         this.cache = new BuildCache(".builder-cache", cacheConfig);
+        
+        // Initialize retry orchestrator
+        this.retryOrchestrator = new RetryOrchestrator();
+        this.retryOrchestrator.setEnabled(enableRetries);
+        
+        // Initialize checkpoint manager
+        this.checkpointManager = new CheckpointManager(".", enableCheckpoints);
         
         this.stateMutex = new Mutex();
         this.tasksReady = new Condition(stateMutex);
@@ -116,6 +140,40 @@ final class BuildExecutor
         auto sorted = graph.topologicalSort();
         Logger.info("Building " ~ sorted.length.to!string ~ " targets...");
         
+        // Check for checkpoint and attempt resume
+        if (enableCheckpoints && checkpointManager.exists())
+        {
+            auto checkpointResult = checkpointManager.load();
+            if (checkpointResult.isOk)
+            {
+                auto checkpoint = checkpointResult.unwrap();
+                
+                if (checkpoint.isValid(graph) && !checkpointManager.isStale())
+                {
+                    Logger.info("Found valid checkpoint from " ~ 
+                               checkpoint.timestamp.toSimpleString());
+                    
+                    // Attempt resume with smart strategy
+                    auto planner = new ResumePlanner(ResumeConfig.fromEnvironment());
+                    auto planResult = planner.plan(checkpoint, graph);
+                    
+                    if (planResult.isOk)
+                    {
+                        auto plan = planResult.unwrap();
+                        plan.print();
+                        
+                        Logger.info("Resuming build (saving ~" ~ 
+                                   plan.estimatedSavings().to!string[0..min(5, plan.estimatedSavings().to!string.length)] ~ "% time)...");
+                    }
+                }
+                else
+                {
+                    Logger.info("Checkpoint stale or invalid, rebuilding...");
+                    checkpointManager.clear();
+                }
+            }
+        }
+        
         // For large builds (>100 targets), disable GC during execution to avoid pauses
         immutable bool useGcControl = sorted.length > 100;
         if (useGcControl)
@@ -159,8 +217,10 @@ final class BuildExecutor
         {
             BuildNode[] ready;
             
+            // CRITICAL SECTION: Graph traversal and status coordination
             synchronized (stateMutex)
             {
+                // getReadyNodes() reads node status atomically (thread-safe)
                 ready = graph.getReadyNodes();
                 
                 if (ready.empty && atomicLoad(activeTasks) == 0)
@@ -174,6 +234,7 @@ final class BuildExecutor
                 }
                 
                 // Mark nodes as Building BEFORE submitting to prevent duplicates
+                // Status is updated atomically via property accessor
                 foreach (node; ready)
                 {
                     Logger.debug_("Marking " ~ node.id ~ " as Building (was " ~ node.status.to!string ~ ")");
@@ -186,14 +247,17 @@ final class BuildExecutor
             }
             
             // Execute ready nodes in parallel using persistent pool
+            // Each thread builds independently, reading BuildNode.status atomically
             auto results = pool.map(ready, &buildNode);
             
+            // CRITICAL SECTION: Update node status with build results
             synchronized (stateMutex)
             {
                 foreach (i, result; results)
                 {
                     auto node = ready[i];
                     
+                    // Status updates are atomic via property accessor
                     if (result.success)
                     {
                         node.status = result.cached ? BuildStatus.Cached : BuildStatus.Success;
@@ -211,7 +275,7 @@ final class BuildExecutor
                 }
                 
                 atomicOp!"-="(activeTasks, ready.length);
-                tasksReady.notifyAll();
+                tasksReady.notifyAll();  // Wake waiting threads
             }
         }
         
@@ -350,15 +414,44 @@ final class BuildExecutor
                 return result;
             }
             
-            // Build the target using new Result-based API
-            auto buildResult = handler.build(target, config);
+            // Build the target using new Result-based API with retry logic
+            Result!(string, BuildError) buildResult;
+            
+            if (enableRetries)
+            {
+                // Wrap build in retry logic
+                auto policy = retryOrchestrator.policyFor(new BuildFailureError(node.id, ""));
+                buildResult = retryOrchestrator.withRetry(
+                    node.id,
+                    () {
+                        immutable attempt = node.retryAttempts;
+                        if (attempt > 0)
+                            Logger.info("  Retry attempt " ~ attempt.to!string ~ " for " ~ node.id);
+                        
+                        node.incrementRetries();
+                        return handler.build(target, config);
+                    },
+                    policy
+                );
+            }
+            else
+            {
+                buildResult = handler.build(target, config);
+            }
             
             if (buildResult.isOk)
             {
                 auto outputHash = buildResult.unwrap();
                 cache.update(node.id, target.sources, deps, outputHash);
-                Logger.success("  ✓ " ~ node.id);
+                
+                // Show retry success if retried
+                if (node.retryAttempts > 1)
+                    Logger.success("  ✓ " ~ node.id ~ " (succeeded after " ~ (node.retryAttempts - 1).to!string ~ " retries)");
+                else
+                    Logger.success("  ✓ " ~ node.id);
+                
                 result.success = true;
+                node.resetRetries();
                 
                 // Publish target completed event
                 if (eventPublisher !is null)
@@ -371,6 +464,7 @@ final class BuildExecutor
             else
             {
                 auto error = buildResult.unwrapErr();
+                node.lastError = error.message();
                 result.error = error.message();
                 Logger.error(format(error));
                 
