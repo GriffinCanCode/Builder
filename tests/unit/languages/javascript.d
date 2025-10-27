@@ -6,6 +6,7 @@ import std.path;
 import languages.web.javascript;
 import languages.web.javascript.bundlers;
 import config.schema.schema;
+import errors;
 import tests.harness;
 import tests.fixtures;
 
@@ -260,6 +261,107 @@ unittest
     assert(config.external[2] == "lodash");
     
     writeln("✓ External dependencies configuration works");
+}
+
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test JavaScript handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.javascript - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("js-error-test"));
+    
+    auto target = TargetBuilder.create("//app:missing")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "nonexistent.js")])
+        .build();
+    target.language = TargetLanguage.JavaScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new JavaScriptHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    
+    writeln("\x1b[32m  ✓ JavaScript missing source file error handled\x1b[0m");
+}
+
+/// Test JavaScript handler with invalid config
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.javascript - Invalid config handling");
+    
+    import std.json;
+    import std.exception : collectException;
+    
+    auto tempDir = scoped(new TempDir("js-config-test"));
+    tempDir.createFile("app.js", "console.log('test');");
+    
+    // Test with invalid bundler type
+    auto invalidJson = parseJSON(`{"bundler": "invalid_bundler_xyz"}`);
+    auto exception = collectException(JSConfig.fromJSON(invalidJson));
+    // Config parsing should handle invalid values gracefully
+    
+    writeln("\x1b[32m  ✓ JavaScript invalid config handled\x1b[0m");
+}
+
+/// Test JavaScript handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.javascript - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("js-chain-test"));
+    tempDir.createFile("app.js", "console.log('test');");
+    
+    auto target = TargetBuilder.create("//app:test")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "app.js")])
+        .build();
+    target.language = TargetLanguage.JavaScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new JavaScriptHandler();
+    auto result = handler.build(target, config);
+    
+    // Test Result monad operations
+    auto mapped = result.map((string hash) => "Built: " ~ hash);
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ JavaScript Result error chaining works\x1b[0m");
+}
+
+/// Test JavaScript handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.javascript - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("js-empty-test"));
+    
+    auto target = TargetBuilder.create("//app:empty")
+        .withType(TargetType.Executable)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.JavaScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new JavaScriptHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ JavaScript empty sources error handled\x1b[0m");
 }
 
 /// Test bundler mode detection

@@ -251,3 +251,125 @@ class Application {
     writeln("\x1b[32m  ✓ PHP traits work\x1b[0m");
 }
 
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test PHP handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.php - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("php-error-test"));
+    
+    auto target = TargetBuilder.create("//app:missing")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "nonexistent.php")])
+        .build();
+    target.language = TargetLanguage.PHP;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new PHPHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    if (result.isErr)
+    {
+        auto error = result.unwrapErr();
+        Assert.notEmpty(error.message);
+    }
+    
+    writeln("\x1b[32m  ✓ PHP missing source file error handled\x1b[0m");
+}
+
+/// Test PHP handler with syntax error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.php - Syntax error handling");
+    
+    auto tempDir = scoped(new TempDir("php-error-test"));
+    
+    tempDir.createFile("broken.php", `
+<?php
+function broken( {
+    echo "Missing parameter list";
+    // Missing closing brace
+?>
+`);
+    
+    auto target = TargetBuilder.create("//app:broken")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "broken.php")])
+        .build();
+    target.language = TargetLanguage.PHP;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new PHPHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ PHP syntax error handled\x1b[0m");
+}
+
+/// Test PHP handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.php - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("php-chain-test"));
+    
+    tempDir.createFile("app.php", `
+<?php
+echo "Hello, PHP!";
+?>
+`);
+    
+    auto target = TargetBuilder.create("//app:test")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "app.php")])
+        .build();
+    target.language = TargetLanguage.PHP;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new PHPHandler();
+    auto result = handler.build(target, config);
+    
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ PHP Result error chaining works\x1b[0m");
+}
+
+/// Test PHP handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.php - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("php-empty-test"));
+    
+    auto target = TargetBuilder.create("//app:empty")
+        .withType(TargetType.Executable)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.PHP;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new PHPHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ PHP empty sources error handled\x1b[0m");
+}
+

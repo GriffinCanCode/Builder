@@ -17,15 +17,17 @@ unittest
     
     auto tempDir = scoped(new TempDir("config-test"));
     
-    // Create a valid Builderfile
-    JSONValue config;
-    config["name"] = "test-app";
-    config["type"] = "executable";
-    config["language"] = "python";
-    config["sources"] = ["main.py", "utils.py"];
-    config["deps"] = ["//lib:helper"];
+    // Create a valid Builderfile in DSL format
+    string builderfileContent = `
+target("test-app") {
+    type: executable;
+    language: python;
+    sources: ["main.py", "utils.py"];
+    deps: ["//lib:helper"];
+}
+`;
     
-    tempDir.createFile("Builderfile", config.toPrettyString());
+    tempDir.createFile("Builderfile", builderfileContent);
     tempDir.createFile("main.py", "# Main file");
     tempDir.createFile("utils.py", "# Utils file");
     
@@ -52,22 +54,20 @@ unittest
     
     auto tempDir = scoped(new TempDir("config-test"));
     
-    // Create Builderfile with array of targets
-    JSONValue targets;
-    targets = JSONValue([
-        JSONValue([
-            "name": JSONValue("lib"),
-            "type": JSONValue("library"),
-            "sources": JSONValue(["lib.py"])
-        ]),
-        JSONValue([
-            "name": JSONValue("app"),
-            "type": JSONValue("executable"),
-            "sources": JSONValue(["app.py"])
-        ])
-    ]);
+    // Create Builderfile with multiple targets in DSL format
+    string builderfileContent = `
+target("lib") {
+    type: library;
+    sources: ["lib.py"];
+}
+
+target("app") {
+    type: executable;
+    sources: ["app.py"];
+}
+`;
     
-    tempDir.createFile("Builderfile", targets.toPrettyString());
+    tempDir.createFile("Builderfile", builderfileContent);
     tempDir.createFile("lib.py", "# Library");
     tempDir.createFile("app.py", "# Application");
     
@@ -88,13 +88,15 @@ unittest
     
     auto tempDir = scoped(new TempDir("parser-test"));
     
-    // Create Builderfile without explicit language
-    JSONValue config;
-    config["name"] = "inferred";
-    config["type"] = "executable";
-    config["sources"] = ["main.py"];
+    // Create Builderfile without explicit language in DSL format
+    string builderfileContent = `
+target("inferred") {
+    type: executable;
+    sources: ["main.py"];
+}
+`;
     
-    tempDir.createFile("Builderfile", config.toPrettyString());
+    tempDir.createFile("Builderfile", builderfileContent);
     tempDir.createFile("main.py", "# Python file");
     
     auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
@@ -121,13 +123,15 @@ unittest
     tempDir.createFile("src/b.py", "# B");
     tempDir.createFile("src/c.py", "# C");
     
-    // Create Builderfile with glob pattern
-    JSONValue config;
-    config["name"] = "globbed";
-    config["type"] = "library";
-    config["sources"] = ["src/*.py"];
+    // Create Builderfile with glob pattern in DSL format
+    string builderfileContent = `
+target("globbed") {
+    type: library;
+    sources: ["src/*.py"];
+}
+`;
     
-    tempDir.createFile("Builderfile", config.toPrettyString());
+    tempDir.createFile("Builderfile", builderfileContent);
     
     auto wsResult = ConfigParser.parseWorkspace(tempDir.getPath());
     Assert.isTrue(wsResult.isOk);

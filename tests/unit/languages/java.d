@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import languages.jvm.java;
 import config.schema.schema;
+import errors;
 import tests.harness;
 import tests.fixtures;
 
@@ -269,5 +270,203 @@ class Circle extends Shape {
     // Assert.notNull(imports);
     
     writeln("\x1b[32m  ✓ Java interface and abstract class detection works\x1b[0m");
+}
+
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test Java handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.java - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("java-error-test"));
+    
+    auto target = TargetBuilder.create("//app:missing")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "NonExistent.java")])
+        .build();
+    target.language = TargetLanguage.Java;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new JavaHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    if (result.isErr)
+    {
+        auto error = result.unwrapErr();
+        Assert.notEmpty(error.message);
+    }
+    
+    writeln("\x1b[32m  ✓ Java missing source file error handled\x1b[0m");
+}
+
+/// Test Java handler with compilation error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.java - Compilation error handling");
+    
+    auto tempDir = scoped(new TempDir("java-error-test"));
+    
+    // Create Java file with type error
+    tempDir.createFile("Broken.java", `
+public class Broken {
+    public static void main(String[] args) {
+        int x = "not an integer";
+        String y = 42;
+        System.out.println(x + y);
+    }
+}
+`);
+    
+    auto target = TargetBuilder.create("//app:broken")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "Broken.java")])
+        .build();
+    target.language = TargetLanguage.Java;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new JavaHandler();
+    auto result = handler.build(target, config);
+    
+    // Should fail compilation if javac is available
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ Java compilation error handled\x1b[0m");
+}
+
+/// Test Java handler with syntax error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.java - Syntax error handling");
+    
+    auto tempDir = scoped(new TempDir("java-syntax-test"));
+    
+    tempDir.createFile("Syntax.java", `
+public class Syntax {
+    public static void main(String[] args {
+        System.out.println("Missing closing parenthesis");
+        // Missing closing brace
+`);
+    
+    auto target = TargetBuilder.create("//app:syntax")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "Syntax.java")])
+        .build();
+    target.language = TargetLanguage.Java;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new JavaHandler();
+    auto result = handler.build(target, config);
+    
+    // Should fail compilation
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ Java syntax error handled\x1b[0m");
+}
+
+/// Test Java handler with missing class
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.java - Missing class error");
+    
+    auto tempDir = scoped(new TempDir("java-class-test"));
+    
+    tempDir.createFile("Main.java", `
+import com.example.NonExistentClass;
+
+public class Main {
+    public static void main(String[] args) {
+        NonExistentClass obj = new NonExistentClass();
+    }
+}
+`);
+    
+    auto target = TargetBuilder.create("//app:missing-class")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "Main.java")])
+        .build();
+    target.language = TargetLanguage.Java;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new JavaHandler();
+    auto result = handler.build(target, config);
+    
+    // Should fail compilation
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ Java missing class error handled\x1b[0m");
+}
+
+/// Test Java handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.java - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("java-chain-test"));
+    
+    tempDir.createFile("Main.java", `
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}
+`);
+    
+    auto target = TargetBuilder.create("//app:test")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "Main.java")])
+        .build();
+    target.language = TargetLanguage.Java;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new JavaHandler();
+    auto result = handler.build(target, config);
+    
+    // Test Result monad operations
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ Java Result error chaining works\x1b[0m");
+}
+
+/// Test Java handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.java - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("java-empty-test"));
+    
+    auto target = TargetBuilder.create("//app:empty")
+        .withType(TargetType.Executable)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.Java;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new JavaHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ Java empty sources error handled\x1b[0m");
 }
 

@@ -268,12 +268,9 @@ final class ResumePlanner
             
             visited[node.id] = true;
             
-            // Mark as pending
-            if (node.status != BuildStatus.Pending)
-            {
-                node.status = BuildStatus.Pending;
-                plan.targetsToRetry ~= node.id;
-            }
+            // Mark as pending and add to retry list
+            node.status = BuildStatus.Pending;
+            plan.targetsToRetry ~= node.id;
             
             // Recursively mark dependents
             foreach (dependent; node.dependents)

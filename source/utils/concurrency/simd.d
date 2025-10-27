@@ -124,7 +124,7 @@ struct SIMDParallel
     foreach (i; 0 .. 4) {
         testData[i] = new ubyte[1024];
         foreach (j, ref b; testData[i])
-            b = cast(ubyte)(i * 256 + j);
+            b = cast(ubyte)((i * 17 + j) & 0xFF);  // Use different multiplier to avoid overflow issues
     }
     
     auto hashes = SIMDParallel.hashBatch(testData[]);

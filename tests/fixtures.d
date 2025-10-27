@@ -6,6 +6,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.conv;
+import std.string;
 import config.schema.schema;
 
 /// Base fixture interface
@@ -105,21 +106,44 @@ class MockWorkspace : Fixture
     /// Create a mock target with Builderfile
     void createTarget(string name, TargetType type, string[] sources, string[] deps = [])
     {
-        import std.json;
+        import std.array : join;
         
         auto targetPath = buildPath(workspacePath, name);
         if (!exists(targetPath))
             mkdirRecurse(targetPath);
         
-        // Create Builderfile
-        JSONValue config;
-        config["name"] = name;
-        config["type"] = type.to!string;
-        config["sources"] = JSONValue(sources);
-        config["deps"] = JSONValue(deps);
+        // Create Builderfile in DSL format
+        string builderfileContent = "// Auto-generated Builderfile\n\n";
+        builderfileContent ~= "target(\"" ~ name ~ "\") {\n";
+        builderfileContent ~= "    type: " ~ type.to!string.toLower ~ ";\n";
+        
+        // Add sources
+        builderfileContent ~= "    sources: [";
+        foreach (i, src; sources)
+        {
+            builderfileContent ~= "\"" ~ src ~ "\"";
+            if (i < sources.length - 1)
+                builderfileContent ~= ", ";
+        }
+        builderfileContent ~= "];\n";
+        
+        // Add deps if any
+        if (deps.length > 0)
+        {
+            builderfileContent ~= "    deps: [";
+            foreach (i, dep; deps)
+            {
+                builderfileContent ~= "\"" ~ dep ~ "\"";
+                if (i < deps.length - 1)
+                    builderfileContent ~= ", ";
+            }
+            builderfileContent ~= "];\n";
+        }
+        
+        builderfileContent ~= "}\n";
         
         auto buildFile = buildPath(targetPath, "Builderfile");
-        std.file.write(buildFile, config.toPrettyString());
+        std.file.write(buildFile, builderfileContent);
         
         // Create source files
         foreach (src; sources)

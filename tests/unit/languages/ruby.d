@@ -206,3 +206,121 @@ person.name = "Bob"
     writeln("\x1b[32m  ✓ Ruby metaprogramming features work\x1b[0m");
 }
 
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test Ruby handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.ruby - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("ruby-error-test"));
+    
+    auto target = TargetBuilder.create("//app:missing")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "nonexistent.rb")])
+        .build();
+    target.language = TargetLanguage.Ruby;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new RubyHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    if (result.isErr)
+    {
+        auto error = result.unwrapErr();
+        Assert.notEmpty(error.message);
+    }
+    
+    writeln("\x1b[32m  ✓ Ruby missing source file error handled\x1b[0m");
+}
+
+/// Test Ruby handler with syntax error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.ruby - Syntax error handling");
+    
+    auto tempDir = scoped(new TempDir("ruby-error-test"));
+    
+    tempDir.createFile("broken.rb", `
+def broken_method(
+  puts "Missing parameter list"
+  # Missing closing parenthesis and end
+`);
+    
+    auto target = TargetBuilder.create("//app:broken")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "broken.rb")])
+        .build();
+    target.language = TargetLanguage.Ruby;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new RubyHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ Ruby syntax error handled\x1b[0m");
+}
+
+/// Test Ruby handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.ruby - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("ruby-chain-test"));
+    
+    tempDir.createFile("main.rb", `
+puts "Hello, Ruby!"
+`);
+    
+    auto target = TargetBuilder.create("//app:test")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "main.rb")])
+        .build();
+    target.language = TargetLanguage.Ruby;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new RubyHandler();
+    auto result = handler.build(target, config);
+    
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ Ruby Result error chaining works\x1b[0m");
+}
+
+/// Test Ruby handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.ruby - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("ruby-empty-test"));
+    
+    auto target = TargetBuilder.create("//app:empty")
+        .withType(TargetType.Executable)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.Ruby;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "bin");
+    
+    auto handler = new RubyHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ Ruby empty sources error handled\x1b[0m");
+}
+

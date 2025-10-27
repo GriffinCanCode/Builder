@@ -593,16 +593,26 @@ class UserIgnorePatterns
         if (negatedDirectories.canFind(dirName))
             return false;
         
-        // Check negated glob patterns
+        // Check negated glob patterns (for directories)
+        foreach (pattern; negatedDirectories)
+        {
+            if (matchesGlobPattern(dirName, pattern))
+                return false;
+        }
+        
+        // Check negated glob patterns (for files, but may match directories)
         foreach (pattern; negatedPatterns)
         {
             if (matchesGlobPattern(dirName, pattern))
                 return false;
         }
         
-        // Check exact directory names
-        if (directories.canFind(dirName))
-            return true;
+        // Check directory patterns (exact match or glob)
+        foreach (pattern; directories)
+        {
+            if (pattern == dirName || matchesGlobPattern(dirName, pattern))
+                return true;
+        }
         
         // Check glob patterns against directory name
         foreach (pattern; patterns)

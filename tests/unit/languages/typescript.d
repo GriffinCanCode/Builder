@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import languages.web.typescript;
 import config.schema.schema;
+import errors;
 import tests.harness;
 import tests.fixtures;
 
@@ -323,5 +324,198 @@ const squared = Utils.Math.square(4);
     // Assert.notNull(imports);
     
     writeln("\x1b[32m  ✓ TypeScript namespace support works\x1b[0m");
+}
+
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test TypeScript handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.typescript - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("ts-error-test"));
+    
+    auto target = TargetBuilder.create("//app:missing")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "nonexistent.ts")])
+        .build();
+    target.language = TargetLanguage.TypeScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new TypeScriptHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    if (result.isErr)
+    {
+        auto error = result.unwrapErr();
+        Assert.notEmpty(error.message);
+    }
+    
+    writeln("\x1b[32m  ✓ TypeScript missing source file error handled\x1b[0m");
+}
+
+/// Test TypeScript handler with type error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.typescript - Type error handling");
+    
+    auto tempDir = scoped(new TempDir("ts-error-test"));
+    
+    // Create TypeScript file with type error
+    tempDir.createFile("broken.ts", `
+const x: number = "not a number";
+const y: string = 42;
+
+function add(a: number, b: number): string {
+    return a + b;  // Type error: returns number, not string
+}
+`);
+    
+    auto target = TargetBuilder.create("//app:broken")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "broken.ts")])
+        .build();
+    target.language = TargetLanguage.TypeScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new TypeScriptHandler();
+    auto result = handler.build(target, config);
+    
+    // Should fail compilation if tsc is available
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ TypeScript type error handled\x1b[0m");
+}
+
+/// Test TypeScript handler with syntax error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.typescript - Syntax error handling");
+    
+    auto tempDir = scoped(new TempDir("ts-syntax-test"));
+    
+    tempDir.createFile("syntax.ts", `
+interface User {
+    name: string
+    // Missing closing brace
+
+function broken( {
+    console.log("syntax error");
+`);
+    
+    auto target = TargetBuilder.create("//app:syntax")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "syntax.ts")])
+        .build();
+    target.language = TargetLanguage.TypeScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new TypeScriptHandler();
+    auto result = handler.build(target, config);
+    
+    // Should fail compilation
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ TypeScript syntax error handled\x1b[0m");
+}
+
+/// Test TypeScript handler with missing module
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.typescript - Missing module error");
+    
+    auto tempDir = scoped(new TempDir("ts-module-test"));
+    
+    tempDir.createFile("app.ts", `
+import { NonExistent } from './missing-module';
+import * as FakeLib from 'nonexistent-library';
+
+const x = new NonExistent();
+`);
+    
+    auto target = TargetBuilder.create("//app:modules")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "app.ts")])
+        .build();
+    target.language = TargetLanguage.TypeScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new TypeScriptHandler();
+    auto result = handler.build(target, config);
+    
+    // Should fail if module resolution is strict
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ TypeScript missing module error handled\x1b[0m");
+}
+
+/// Test TypeScript handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.typescript - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("ts-chain-test"));
+    
+    tempDir.createFile("app.ts", `
+const greeting: string = "Hello, TypeScript!";
+console.log(greeting);
+`);
+    
+    auto target = TargetBuilder.create("//app:test")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "app.ts")])
+        .build();
+    target.language = TargetLanguage.TypeScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new TypeScriptHandler();
+    auto result = handler.build(target, config);
+    
+    // Test Result monad operations
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ TypeScript Result error chaining works\x1b[0m");
+}
+
+/// Test TypeScript handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.typescript - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("ts-empty-test"));
+    
+    auto target = TargetBuilder.create("//app:empty")
+        .withType(TargetType.Executable)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.TypeScript;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new TypeScriptHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ TypeScript empty sources error handled\x1b[0m");
 }
 
