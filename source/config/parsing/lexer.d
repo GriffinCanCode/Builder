@@ -194,7 +194,9 @@ struct Lexer
         size_t startCol = column;
         advance(); // Opening quote
         
-        string value = "";
+        // Use Appender to avoid O(n²) allocations from string concatenation
+        auto builder = appender!string;
+        builder.reserve(64); // Reserve reasonable capacity for typical strings
         
         while (!isAtEnd() && peek() != quote)
         {
@@ -206,20 +208,20 @@ struct Lexer
                     char escaped = peek();
                     switch (escaped)
                     {
-                        case 'n': value ~= '\n'; break;
-                        case 't': value ~= '\t'; break;
-                        case 'r': value ~= '\r'; break;
-                        case '\\': value ~= '\\'; break;
-                        case '"': value ~= '"'; break;
-                        case '\'': value ~= '\''; break;
-                        default: value ~= escaped; break;
+                        case 'n': builder.put('\n'); break;
+                        case 't': builder.put('\t'); break;
+                        case 'r': builder.put('\r'); break;
+                        case '\\': builder.put('\\'); break;
+                        case '"': builder.put('"'); break;
+                        case '\'': builder.put('\''); break;
+                        default: builder.put(escaped); break;
                     }
                     advance();
                 }
             }
             else
             {
-                value ~= peek();
+                builder.put(peek());
                 advance();
             }
         }
@@ -235,7 +237,7 @@ struct Lexer
         }
         
         advance(); // Closing quote
-        return ok(TokenType.String, value, startLine, startCol);
+        return ok(TokenType.String, builder.data, startLine, startCol);
     }
     
     /// Scan number literal
@@ -243,21 +245,24 @@ struct Lexer
     {
         size_t startLine = line;
         size_t startCol = column;
-        string value = "";
+        
+        // Use Appender for efficient string building
+        auto builder = appender!string;
+        builder.reserve(16); // Numbers are typically short
         
         if (peek() == '-')
         {
-            value ~= peek();
+            builder.put(peek());
             advance();
         }
         
         while (!isAtEnd() && isDigit(peek()))
         {
-            value ~= peek();
+            builder.put(peek());
             advance();
         }
         
-        return ok(TokenType.Number, value, startLine, startCol);
+        return ok(TokenType.Number, builder.data, startLine, startCol);
     }
     
     /// Scan identifier or keyword
@@ -265,13 +270,18 @@ struct Lexer
     {
         size_t startLine = line;
         size_t startCol = column;
-        string value = "";
+        
+        // Use Appender for efficient string building
+        auto builder = appender!string;
+        builder.reserve(32); // Identifiers are typically short
         
         while (!isAtEnd() && (isAlphaNum(peek()) || peek() == '_' || peek() == '-'))
         {
-            value ~= peek();
+            builder.put(peek());
             advance();
         }
+        
+        string value = builder.data;
         
         // Check if it's a keyword
         if (auto keywordType = value in keywords)

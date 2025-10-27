@@ -133,6 +133,8 @@ struct FastHash
         {
             // Use memory-mapped file for efficient access
             auto mmfile = new MmFile(path, MmFile.Mode.read, 0, null);
+            scope(exit) destroy(mmfile); // Ensure cleanup even on exception
+            
             auto data = cast(ubyte[])mmfile[];
             
             // Hash first 512KB (SIMD-accelerated internally)
@@ -161,8 +163,6 @@ struct FastHash
                     hash.put(data[pos .. sampleEnd]);
                 }
             }
-            
-            destroy(mmfile);
         }
         catch (Exception e)
         {

@@ -122,6 +122,9 @@ final class BuildCache
         return true;
     }
     
+    /// Reusable workspace for parallel hashing to reduce allocations
+    private static string[] hashWorkspace;
+    
     /// Update cache entry for a target
     /// Defers write until flush() is called
     /// Uses SIMD-aware parallel hashing for multiple sources
@@ -147,12 +150,17 @@ final class BuildCache
             
             // Only allocate if we have sources to process
             if (existingCount > 0) {
-                // Allocate exact size needed
-                auto existingSources = new string[existingCount];
+                // Reuse workspace buffer if large enough, otherwise allocate
+                if (hashWorkspace.length < existingCount)
+                    hashWorkspace.length = existingCount;
+                
                 size_t idx = 0;
                 foreach (source; sources)
                     if (exists(source))
-                        existingSources[idx++] = source;
+                        hashWorkspace[idx++] = source;
+                
+                // Use only the filled portion of the workspace
+                auto existingSources = hashWorkspace[0 .. existingCount];
                 
                 // Parallel hash with SIMD
                 alias HashResult = Tuple!(string, string, string);

@@ -109,10 +109,31 @@ final class BuildExecutor
     /// Execute the build with event-driven scheduling
     void execute()
     {
+        import core.memory : GC;
+        
         auto sw = StopWatch(AutoStart.yes);
         
         auto sorted = graph.topologicalSort();
         Logger.info("Building " ~ sorted.length.to!string ~ " targets...");
+        
+        // For large builds (>100 targets), disable GC during execution to avoid pauses
+        immutable bool useGcControl = sorted.length > 100;
+        if (useGcControl)
+        {
+            GC.disable();
+            Logger.debug_("GC disabled for large build (" ~ sorted.length.to!string ~ " targets)");
+        }
+        
+        // Ensure GC is re-enabled on exit
+        scope(exit) 
+        {
+            if (useGcControl)
+            {
+                GC.enable();
+                GC.collect(); // Cleanup after build
+                Logger.debug_("GC re-enabled and collected");
+            }
+        }
         
         // Publish build started event
         if (eventPublisher !is null)

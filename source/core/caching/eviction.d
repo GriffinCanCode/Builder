@@ -70,7 +70,7 @@ struct EvictionPolicy
     }
     
     /// Estimate the size of a cache entry in bytes
-    private size_t estimateEntrySize(T)(T entry)
+    private size_t estimateEntrySize(T)(T entry) pure nothrow @nogc
     {
         size_t size = 0;
         
@@ -93,7 +93,7 @@ struct EvictionPolicy
     }
     
     /// Calculate total cache size
-    size_t calculateTotalSize(T)(T[string] entries)
+    size_t calculateTotalSize(T)(T[string] entries) pure nothrow @nogc
     {
         size_t total = 0;
         foreach (entry; entries.byValue)

@@ -22,6 +22,10 @@ final class BuildNode
         this.id = id;
         this.target = target;
         this.status = BuildStatus.Pending;
+        
+        // Pre-allocate reasonable capacity to avoid reallocations
+        dependencies.reserve(8);  // Most targets have <8 dependencies
+        dependents.reserve(4);    // Fewer dependents on average
     }
     
     /// Check if this node is ready to build (all deps built)
