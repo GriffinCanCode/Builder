@@ -22,6 +22,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// Lua language build handler - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler
@@ -612,20 +613,6 @@ class LuaHandler : BaseLanguageHandler
         return isCommandAvailable("busted") ? LuaTestFramework.Busted : LuaTestFramework.LuaUnit;
     }
     
-    /// Check if command is available
-    private bool isCommandAvailable(string command) @trusted
-    {
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
-    }
     
     /// Convert runtime enum to string
     private string runtimeToString(LuaRuntime runtime) @safe pure nothrow

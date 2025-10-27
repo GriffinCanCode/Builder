@@ -8,6 +8,7 @@ import languages.scripting.go.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// CGO builder - handles C interop compilation
 class CGoBuilder : StandardBuilder
@@ -70,20 +71,5 @@ class CGoBuilder : StandardBuilder
                mode == GoBuildMode.Library;
     }
     
-    private bool isCommandAvailable(string command)
-    {
-        import std.process : execute;
-        
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
-    }
 }
 

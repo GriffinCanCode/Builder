@@ -7,6 +7,7 @@ import std.array;
 import std.conv;
 import std.regex;
 import languages.scripting.lua.core.config;
+import utils.process : isCommandAvailable;
 
 /// Detect the best available Lua runtime
 LuaRuntime detectRuntime()
@@ -183,16 +184,7 @@ LuaVersionInfo detectLuaVersion(string interpreter = "lua")
 /// Check if a command is available on the system
 bool isAvailable(string command)
 {
-    version(Windows)
-    {
-        auto res = execute(["where", command]);
-    }
-    else
-    {
-        auto res = execute(["which", command]);
-    }
-    
-    return res.status == 0;
+    return isCommandAvailable(command);
 }
 
 /// Check if LuaRocks is available

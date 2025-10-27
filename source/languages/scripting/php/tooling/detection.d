@@ -9,6 +9,7 @@ import std.string;
 import std.regex;
 import std.conv;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// Result of running a PHP tool
 struct ToolResult
@@ -541,19 +542,5 @@ class PHPTools
         return 0;
     }
     
-    /// Check if a command is available in PATH or vendor/bin
-    private static bool isCommandAvailable(string command)
-    {
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
-    }
 }
 

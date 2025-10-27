@@ -6,6 +6,7 @@ import std.path;
 import std.json;
 import std.string;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// Find package.json in source tree
 string findPackageJson(string[] sources)
@@ -76,20 +77,5 @@ void installDependencies(string[] sources, string packageManager)
     {
         Logger.info("Dependencies installed successfully");
     }
-}
-
-/// Check if command is available
-bool isCommandAvailable(string command)
-{
-    version(Windows)
-    {
-        auto res = execute(["where", command]);
-    }
-    else
-    {
-        auto res = execute(["which", command]);
-    }
-    
-    return res.status == 0;
 }
 

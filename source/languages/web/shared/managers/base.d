@@ -6,6 +6,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.json;
+import utils.process : isCommandAvailable;
 
 /// Base interface for Node.js package managers
 interface PackageManager
@@ -85,21 +86,6 @@ struct ExecuteResult
     bool success;
     string output;
     int exitCode;
-}
-
-/// Check if a command is available in PATH
-bool isCommandAvailable(string command)
-{
-    version(Windows)
-    {
-        auto res = execute(["where", command]);
-    }
-    else
-    {
-        auto res = execute(["which", command]);
-    }
-    
-    return res.status == 0;
 }
 
 /// Find package.json in directory tree

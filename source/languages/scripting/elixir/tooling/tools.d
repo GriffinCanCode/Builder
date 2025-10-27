@@ -9,6 +9,7 @@ import std.array;
 import std.string;
 import std.regex;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// Elixir tools availability and version checking
 class ElixirTools
@@ -74,19 +75,5 @@ class ElixirTools
         return "unknown";
     }
     
-    /// Check if command is available in PATH
-    static bool isCommandAvailable(string command)
-    {
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
-    }
 }
 

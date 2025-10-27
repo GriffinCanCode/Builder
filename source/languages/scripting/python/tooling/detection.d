@@ -3,6 +3,7 @@ module languages.scripting.python.tooling.detection;
 import std.process;
 import std.string;
 import std.array;
+import utils.process : isCommandAvailable;
 
 /// Tool detection utilities
 class ToolDetection
@@ -18,20 +19,6 @@ class ToolDetection
         return "Unknown";
     }
     
-    /// Check if a command is available in PATH
-    static bool isCommandAvailable(string command)
-    {
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
-    }
     
     /// Check if python3 is available
     static bool isPythonAvailable()

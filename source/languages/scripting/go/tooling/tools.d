@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// Result of running a Go tool
 struct ToolResult
@@ -367,19 +368,5 @@ class GoTools
         return result;
     }
     
-    /// Check if a command is available in PATH
-    private static bool isCommandAvailable(string command)
-    {
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
-    }
 }
 

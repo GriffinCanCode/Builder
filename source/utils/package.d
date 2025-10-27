@@ -17,6 +17,7 @@ module utils;
 ///   pycheck.d   - Python validation
 ///   pywrap.d    - Python wrapper utilities
 ///   validation.d - Security validation for paths and command arguments
+///   process.d   - Process and tool availability checking utilities
 ///
 /// Usage:
 ///   import utils;
@@ -47,4 +48,5 @@ public import utils.python.pycheck;
 public import utils.python.pywrap;
 public import utils.simd;
 public import utils.security.validation;
+public import utils.process;
 

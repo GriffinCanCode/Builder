@@ -10,6 +10,7 @@ import std.conv;
 import std.regex;
 import languages.compiled.cpp.core.config;
 import utils.logging.logger;
+import utils.process : isCommandAvailable;
 
 /// Compiler information
 struct CompilerInfo
@@ -386,16 +387,7 @@ class Toolchain
     /// Check if command is available
     static bool isAvailable(string command)
     {
-        version(Windows)
-        {
-            auto res = execute(["where", command]);
-        }
-        else
-        {
-            auto res = execute(["which", command]);
-        }
-        
-        return res.status == 0;
+        return isCommandAvailable(command);
     }
     
     /// Get compiler include paths
