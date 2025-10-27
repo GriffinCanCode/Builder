@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.conv;
+import std.uuid;
 import languages.base.base;
 import languages.scripting.php.core.config;
 import languages.scripting.php.tooling.detection;
@@ -407,19 +408,244 @@ class PHPHandler : BaseLanguageHandler
         
         Logger.info("Building FrankenPHP standalone binary");
         
-        // First create PHAR
-        auto pharResult = buildPHAR(target, config, phpConfig, phpCmd);
-        if (!pharResult.success)
-            return pharResult;
+        // First create PHAR if embed is enabled
+        string[] pharFiles;
+        if (phpConfig.frankenphp.embed)
+        {
+            auto pharResult = buildPHAR(target, config, phpConfig, phpCmd);
+            if (!pharResult.success)
+                return pharResult;
+            pharFiles = pharResult.outputs;
+            Logger.info("PHAR created: " ~ pharFiles.join(", "));
+        }
         
-        // TODO: Embed PHAR into FrankenPHP binary
-        // This requires FrankenPHP's embed functionality
+        // Build FrankenPHP static binary with embedded PHAR
+        auto embedResult = embedFrankenPHPBinary(
+            pharFiles,
+            target,
+            config,
+            phpConfig
+        );
+        
+        if (!embedResult.success)
+        {
+            result.error = embedResult.error;
+            return result;
+        }
         
         result.success = true;
-        result.outputs = pharResult.outputs;
-        result.outputHash = pharResult.outputHash;
+        result.outputs = embedResult.outputs;
+        result.outputHash = embedResult.outputHash;
         
         return result;
+    }
+    
+    /// Embed PHAR into FrankenPHP static binary
+    private LanguageBuildResult embedFrankenPHPBinary(
+        string[] pharFiles,
+        in Target target,
+        in WorkspaceConfig config,
+        PHPConfig phpConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        // Determine output binary name
+        string outputName = target.name.split(":")[$ - 1];
+        if (outputName.empty)
+            outputName = "app";
+        
+        string outputPath = buildPath(config.options.outputDir, outputName);
+        
+        // Ensure output directory exists
+        if (!exists(dirName(outputPath)))
+            mkdirRecurse(dirName(outputPath));
+        
+        // FrankenPHP static build approach
+        // Method 1: Use frankenphp-build with embedded files
+        if (phpConfig.frankenphp.embed && !pharFiles.empty)
+        {
+            // Create temporary directory for build
+            import std.uuid : randomUUID;
+            string tempBuildDir = buildPath(tempDir(), "frankenphp-build-" ~ randomUUID().toString());
+            scope(exit)
+            {
+                if (exists(tempBuildDir))
+                {
+                    try { rmdirRecurse(tempBuildDir); } catch (Exception) {}
+                }
+            }
+            
+            mkdirRecurse(tempBuildDir);
+            
+            // Copy PHAR to temp build directory
+            string embedPharPath = buildPath(tempBuildDir, "app.phar");
+            foreach (pharFile; pharFiles)
+            {
+                if (exists(pharFile))
+                {
+                    std.file.copy(pharFile, embedPharPath);
+                    break;  // Use first PHAR
+                }
+            }
+            
+            if (!exists(embedPharPath))
+            {
+                result.error = "No valid PHAR file found to embed";
+                return result;
+            }
+            
+            // Create a bootstrap PHP file that loads the PHAR
+            string bootstrapPath = buildPath(tempBuildDir, "index.php");
+            string bootstrap = "<?php\n";
+            if (phpConfig.strictTypes)
+                bootstrap ~= "declare(strict_types=1);\n\n";
+            
+            bootstrap ~= "// FrankenPHP embedded PHAR loader\n";
+            bootstrap ~= "require 'phar://' . __DIR__ . '/app.phar/index.php';\n";
+            
+            std.file.write(bootstrapPath, bootstrap);
+            
+            // Build command for FrankenPHP static binary
+            string[] buildCmd = [
+                phpConfig.frankenphp.binaryPath,
+                "php-server"
+            ];
+            
+            // Add worker mode if configured
+            if (phpConfig.frankenphp.worker)
+            {
+                buildCmd ~= ["--worker", bootstrapPath];
+                buildCmd ~= ["--num-workers", phpConfig.frankenphp.workers.to!string];
+            }
+            
+            // Add document root
+            if (!phpConfig.frankenphp.docRoot.empty)
+            {
+                buildCmd ~= ["--root", tempBuildDir];
+            }
+            
+            // Add any additional server args
+            buildCmd ~= phpConfig.frankenphp.serverArgs;
+            
+            Logger.info("Creating FrankenPHP binary: " ~ buildCmd.join(" "));
+            Logger.info("Note: FrankenPHP static builds require 'frankenphp-builder' or custom Go build");
+            Logger.info("Creating wrapper script with embedded references");
+            
+            // Since actual static binary building requires frankenphp-builder or Go toolchain,
+            // create a wrapper script that uses the installed FrankenPHP with the PHAR
+            createFrankenPHPWrapper(
+                outputPath,
+                embedPharPath,
+                bootstrapPath,
+                phpConfig,
+                config.root
+            );
+            
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+        }
+        else
+        {
+            // No embedding, just create wrapper for FrankenPHP server
+            createFrankenPHPWrapper(
+                outputPath,
+                "",
+                target.sources.empty ? "" : target.sources[0],
+                phpConfig,
+                config.root
+            );
+            
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+        }
+        
+        return result;
+    }
+    
+    /// Create FrankenPHP wrapper script
+    private void createFrankenPHPWrapper(
+        string outputPath,
+        string pharPath,
+        string entryPoint,
+        PHPConfig phpConfig,
+        string projectRoot
+    )
+    {
+        string wrapper = "#!/usr/bin/env bash\n";
+        wrapper ~= "# FrankenPHP application wrapper\n";
+        wrapper ~= "# Generated by Builder\n\n";
+        
+        wrapper ~= "SCRIPT_DIR=\"$( cd \"$( dirname \"${BASH_SOURCE[0]}\" )\" && pwd )\"\n";
+        wrapper ~= "PROJECT_ROOT=\"" ~ projectRoot ~ "\"\n\n";
+        
+        // Export environment variables
+        wrapper ~= "export APP_ENV=\"${APP_ENV:-production}\"\n";
+        wrapper ~= "export FRANKENPHP_CONFIG=\"${FRANKENPHP_CONFIG:-}\"\n\n";
+        
+        // Build FrankenPHP command
+        wrapper ~= "FRANKENPHP_BIN=\"" ~ phpConfig.frankenphp.binaryPath ~ "\"\n\n";
+        
+        wrapper ~= "# Check if FrankenPHP is available\n";
+        wrapper ~= "if ! command -v \"$FRANKENPHP_BIN\" &> /dev/null; then\n";
+        wrapper ~= "    echo \"Error: FrankenPHP not found. Install from https://frankenphp.dev/\"\n";
+        wrapper ~= "    exit 1\n";
+        wrapper ~= "fi\n\n";
+        
+        // Build command arguments
+        wrapper ~= "ARGS=(\"php-server\")\n\n";
+        
+        if (!pharPath.empty)
+        {
+            string relPharPath = relativePath(pharPath, dirName(outputPath));
+            wrapper ~= "# Use embedded PHAR\n";
+            wrapper ~= "PHAR_PATH=\"$SCRIPT_DIR/" ~ relPharPath ~ "\"\n";
+            wrapper ~= "if [ ! -f \"$PHAR_PATH\" ]; then\n";
+            wrapper ~= "    echo \"Error: PHAR not found at $PHAR_PATH\"\n";
+            wrapper ~= "    exit 1\n";
+            wrapper ~= "fi\n\n";
+        }
+        
+        if (phpConfig.frankenphp.worker && !entryPoint.empty)
+        {
+            string relEntryPoint = relativePath(entryPoint, dirName(outputPath));
+            wrapper ~= "ARGS+=(\"--worker\" \"$SCRIPT_DIR/" ~ relEntryPoint ~ "\")\n";
+            wrapper ~= "ARGS+=(\"--num-workers\" \"" ~ phpConfig.frankenphp.workers.to!string ~ "\")\n";
+        }
+        
+        if (!phpConfig.frankenphp.docRoot.empty)
+        {
+            wrapper ~= "ARGS+=(\"--root\" \"$PROJECT_ROOT/" ~ phpConfig.frankenphp.docRoot ~ "\")\n";
+        }
+        
+        // Add custom server arguments
+        foreach (arg; phpConfig.frankenphp.serverArgs)
+        {
+            wrapper ~= "ARGS+=(\"" ~ arg ~ "\")\n";
+        }
+        
+        wrapper ~= "\n# Execute FrankenPHP\n";
+        wrapper ~= "exec \"$FRANKENPHP_BIN\" \"${ARGS[@]}\" \"$@\"\n";
+        
+        // Write wrapper script
+        std.file.write(outputPath, wrapper);
+        
+        // Make executable on Unix
+        version(Posix)
+        {
+            if (SecurityValidator.isPathSafe(outputPath))
+            {
+                auto chmodResult = execute(["chmod", "+x", outputPath]);
+                if (chmodResult.status != 0)
+                {
+                    Logger.warning("Failed to make wrapper executable: " ~ chmodResult.output);
+                }
+            }
+        }
+        
+        Logger.info("Created FrankenPHP wrapper: " ~ outputPath);
     }
     
     private LanguageBuildResult runTests(

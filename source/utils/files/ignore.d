@@ -472,6 +472,8 @@ class UserIgnorePatterns
 {
     private string[] directories;
     private string[] patterns;
+    private string[] negatedDirectories;  // Negation patterns for directories
+    private string[] negatedPatterns;     // Negation patterns for files
     private string baseDir;
     
     @trusted // File I/O operations
@@ -522,9 +524,16 @@ class UserIgnorePatterns
                 if (line.empty || line.startsWith("#"))
                     continue;
                 
-                // TODO: Handle negation patterns (!) in the future
+                // Handle negation patterns (!)
+                bool isNegated = false;
                 if (line.startsWith("!"))
-                    continue;  // Skip negation for now
+                {
+                    isNegated = true;
+                    line = line[1 .. $].strip();  // Remove ! and re-strip
+                    
+                    if (line.empty)
+                        continue;
+                }
                 
                 // Directory pattern (ends with /)
                 if (line.endsWith("/"))
@@ -534,8 +543,18 @@ class UserIgnorePatterns
                     if (dirName.startsWith("/"))
                         dirName = dirName[1 .. $];
                     
-                    if (!dirName.empty && !directories.canFind(dirName))
-                        directories ~= dirName;
+                    if (!dirName.empty)
+                    {
+                        if (isNegated)
+                        {
+                            if (!negatedDirectories.canFind(dirName))
+                                negatedDirectories ~= dirName;
+                        }
+                        else if (!directories.canFind(dirName))
+                        {
+                            directories ~= dirName;
+                        }
+                    }
                 }
                 else
                 {
@@ -544,8 +563,18 @@ class UserIgnorePatterns
                     if (line.startsWith("/"))
                         line = line[1 .. $];
                     
-                    if (!line.empty && !patterns.canFind(line))
-                        patterns ~= line;
+                    if (!line.empty)
+                    {
+                        if (isNegated)
+                        {
+                            if (!negatedPatterns.canFind(line))
+                                negatedPatterns ~= line;
+                        }
+                        else if (!patterns.canFind(line))
+                        {
+                            patterns ~= line;
+                        }
+                    }
                 }
             }
         }
@@ -559,6 +588,17 @@ class UserIgnorePatterns
     bool shouldIgnoreDirectory(string dirPath)
     {
         immutable dirName = baseName(dirPath);
+        
+        // First check if it's negated (negation takes precedence)
+        if (negatedDirectories.canFind(dirName))
+            return false;
+        
+        // Check negated glob patterns
+        foreach (pattern; negatedPatterns)
+        {
+            if (matchesGlobPattern(dirName, pattern))
+                return false;
+        }
         
         // Check exact directory names
         if (directories.canFind(dirName))
@@ -578,6 +618,13 @@ class UserIgnorePatterns
     bool shouldIgnoreFile(string filePath)
     {
         immutable fileName = baseName(filePath);
+        
+        // First check if it's negated (negation takes precedence)
+        foreach (pattern; negatedPatterns)
+        {
+            if (matchesGlobPattern(fileName, pattern))
+                return false;
+        }
         
         // Check glob patterns
         foreach (pattern; patterns)
@@ -762,5 +809,43 @@ unittest
         remove(testIgnorePath);
     
     writeln("User ignore pattern tests passed!");
+}
+
+unittest
+{
+    import std.stdio : writeln;
+    import std.file : tempDir, write, remove;
+    
+    writeln("Testing negation patterns...");
+    
+    // Create temporary .builderignore file with negation patterns
+    string testDir = tempDir();
+    string testIgnorePath = buildPath(testDir, ".builderignore");
+    
+    // Ignore all .log files but not important.log
+    // Ignore all build directories but not build_prod/
+    write(testIgnorePath, "*.log\n!important.log\nbuild*/\n!build_prod/\n");
+    
+    auto userIgnore = new UserIgnorePatterns(testDir);
+    
+    // Regular .log files should be ignored
+    assert(userIgnore.shouldIgnoreFile("debug.log"));
+    assert(userIgnore.shouldIgnoreFile("error.log"));
+    
+    // important.log should NOT be ignored (negated)
+    assert(!userIgnore.shouldIgnoreFile("important.log"));
+    
+    // build directories should be ignored
+    assert(userIgnore.shouldIgnoreDirectory("build_debug"));
+    assert(userIgnore.shouldIgnoreDirectory("build_test"));
+    
+    // build_prod should NOT be ignored (negated)
+    assert(!userIgnore.shouldIgnoreDirectory("build_prod"));
+    
+    // Clean up
+    if (exists(testIgnorePath))
+        remove(testIgnorePath);
+    
+    writeln("Negation pattern tests passed!");
 }
 

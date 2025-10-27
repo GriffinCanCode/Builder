@@ -21,6 +21,7 @@ class RetryStrategy : RecoveryStrategy
     private size_t maxAttempts;
     private Duration initialDelay;
     private float backoffMultiplier;
+    private size_t[ErrorCode] attemptCounts;  // Track attempts per error code
     
     this(size_t maxAttempts = 3, Duration initialDelay = 1.seconds, float backoffMultiplier = 2.0)
     {
@@ -34,15 +35,52 @@ class RetryStrategy : RecoveryStrategy
         if (!error.recoverable())
             return false;
         
-        // Retry logic would go here
-        // This is a placeholder - actual implementation would retry the operation
-        return false;
+        // Get current attempt count for this error type
+        auto errorCode = error.code();
+        size_t currentAttempt = attemptCounts.get(errorCode, 0);
+        
+        // Check if we've exceeded max attempts
+        if (currentAttempt >= maxAttempts)
+        {
+            // Reset counter for future errors
+            attemptCounts.remove(errorCode);
+            return false;
+        }
+        
+        // Increment attempt counter
+        attemptCounts[errorCode] = currentAttempt + 1;
+        
+        // Calculate delay with exponential backoff
+        import std.math : pow;
+        import core.thread : Thread;
+        
+        double multiplier = pow(backoffMultiplier, cast(double)currentAttempt);
+        Duration delay = initialDelay * cast(long)multiplier;
+        
+        // Apply the delay
+        Thread.sleep(delay);
+        
+        // Return true to indicate retry should be attempted
+        return true;
+    }
+    
+    /// Reset attempt counters (useful for testing or fresh starts)
+    void reset()
+    {
+        attemptCounts.clear();
+    }
+    
+    /// Get current attempt count for an error code
+    size_t getAttemptCount(ErrorCode code) const
+    {
+        return attemptCounts.get(code, 0);
     }
     
     string description() const
     {
         import std.conv;
-        return "Retry up to " ~ maxAttempts.to!string ~ " times with exponential backoff";
+        return "Retry up to " ~ maxAttempts.to!string ~ " times with exponential backoff (initial delay: " ~ 
+               initialDelay.to!string ~ ", multiplier: " ~ backoffMultiplier.to!string ~ ")";
     }
 }
 
@@ -183,5 +221,67 @@ auto withRecovery(T)(T delegate() fn, RecoveryManager manager = null)
     }
     
     return Result!(T, BuildError).err(new InternalError("Max recovery attempts exceeded"));
+}
+
+unittest
+{
+    import std.stdio : writeln;
+    import core.time : msecs;
+    
+    writeln("Testing RetryStrategy...");
+    
+    // Create a retry strategy with short delays for testing
+    auto strategy = new RetryStrategy(3, 10.msecs, 2.0);
+    
+    // Create a cache error (recoverable)
+    auto cacheError = new CacheError("Cache temporarily unavailable", ErrorCode.CacheLoadFailed);
+    
+    // First retry should succeed
+    assert(strategy.recover(cacheError));
+    assert(strategy.getAttemptCount(ErrorCode.CacheLoadFailed) == 1);
+    
+    // Second retry should succeed
+    assert(strategy.recover(cacheError));
+    assert(strategy.getAttemptCount(ErrorCode.CacheLoadFailed) == 2);
+    
+    // Third retry should succeed
+    assert(strategy.recover(cacheError));
+    assert(strategy.getAttemptCount(ErrorCode.CacheLoadFailed) == 3);
+    
+    // Fourth retry should fail (max attempts reached)
+    assert(!strategy.recover(cacheError));
+    assert(strategy.getAttemptCount(ErrorCode.CacheLoadFailed) == 0);  // Counter reset
+    
+    // Test reset functionality
+    strategy.reset();
+    auto newError = new CacheError("Another cache error", ErrorCode.CacheLoadFailed);
+    assert(strategy.recover(newError));
+    assert(strategy.getAttemptCount(ErrorCode.CacheLoadFailed) == 1);
+    
+    // Test non-recoverable error
+    auto parseError = new ParseError("test.txt", "Syntax error", ErrorCode.ParseFailed);
+    assert(!strategy.recover(parseError));  // Parse errors are not recoverable
+    
+    writeln("RetryStrategy tests passed!");
+}
+
+unittest
+{
+    import std.stdio : writeln;
+    
+    writeln("Testing RecoveryManager...");
+    
+    auto manager = createDefaultRecoveryManager();
+    
+    // Test that default strategies are registered
+    assert(manager.getStrategy(ErrorCode.BuildTimeout) !is null);
+    assert(manager.getStrategy(ErrorCode.CacheLoadFailed) !is null);
+    
+    // Test recovery attempt
+    auto cacheError = new CacheError("Cache error", ErrorCode.CacheLoadFailed);
+    bool recovered = manager.attemptRecovery(cacheError);
+    assert(recovered);  // Should succeed first time
+    
+    writeln("RecoveryManager tests passed!");
 }
 
