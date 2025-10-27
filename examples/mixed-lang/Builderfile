@@ -24,5 +24,10 @@ target("web-ui") {
     type: library;
     language: javascript;
     sources: ["ui.js"];
+    
+    config: {
+        "mode": "node",
+        "bundler": "none"
+    };
 }
 

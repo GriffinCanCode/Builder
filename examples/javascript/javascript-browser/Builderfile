@@ -5,7 +5,7 @@ target("bundle") {
     sources: ["src/**/*.js"];
     output: "bundle.js";
     
-    jsConfig: {
+    config: {
         "mode": "bundle",
         "bundler": "esbuild",
         "entry": "src/app.js",

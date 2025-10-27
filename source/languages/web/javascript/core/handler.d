@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv : to;
 import languages.base.base;
 import languages.web.javascript.bundlers;
 import languages.web.javascript.core.config;
@@ -139,16 +140,22 @@ class JavaScriptHandler : BaseLanguageHandler
             return result;
         }
         
-        // Libraries should use library mode
+        // Libraries should use library mode (but respect explicit "none" bundler)
         if (jsConfig.mode == JSBuildMode.Node)
         {
             jsConfig.mode = JSBuildMode.Library;
         }
         
-        // Prefer rollup for libraries (better tree-shaking)
+        // Prefer rollup for libraries when bundler is auto
+        // But if user explicitly set bundler to "none", respect that
         if (jsConfig.bundler == BundlerType.Auto)
         {
             jsConfig.bundler = BundlerType.Rollup;
+        }
+        else if (jsConfig.bundler == BundlerType.None)
+        {
+            // For libraries with bundler "none", just validate and copy sources
+            return validateOnly(target, config);
         }
         
         return bundleTarget(target, config, jsConfig);

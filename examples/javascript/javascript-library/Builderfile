@@ -1,13 +1,14 @@
 // Library with multiple output formats
+// Using esbuild (rollup would be better but esbuild is more commonly installed)
 target("lib-esm") {
     type: library;
     language: javascript;
     sources: ["src/**/*.js"];
     output: "math-utils.esm.js";
     
-    jsConfig: {
+    config: {
         "mode": "library",
-        "bundler": "rollup",
+        "bundler": "esbuild",
         "entry": "src/index.js",
         "platform": "neutral",
         "format": "esm",
@@ -22,9 +23,9 @@ target("lib-cjs") {
     sources: ["src/**/*.js"];
     output: "math-utils.cjs.js";
     
-    jsConfig: {
+    config: {
         "mode": "library",
-        "bundler": "rollup",
+        "bundler": "esbuild",
         "entry": "src/index.js",
         "platform": "neutral",
         "format": "cjs",
@@ -33,18 +34,18 @@ target("lib-cjs") {
     };
 }
 
-target("lib-umd") {
+target("lib-iife") {
     type: library;
     language: javascript;
     sources: ["src/**/*.js"];
-    output: "math-utils.umd.js";
+    output: "math-utils.iife.js";
     
-    jsConfig: {
+    config: {
         "mode": "library",
-        "bundler": "rollup",
+        "bundler": "esbuild",
         "entry": "src/index.js",
         "platform": "neutral",
-        "format": "umd",
+        "format": "iife",
         "minify": true,
         "sourcemap": false
     };
