@@ -14,7 +14,7 @@ struct FormatResult
 interface Formatter
 {
     /// Format Lua source files
-    FormatResult format(string[] sources, LuaConfig config);
+    FormatResult format(const string[] sources, LuaConfig config);
     
     /// Check if formatter is available
     bool isAvailable();
@@ -58,7 +58,7 @@ class FormatterFactory
 /// Null formatter (does nothing)
 class NullFormatter : Formatter
 {
-    override FormatResult format(string[] sources, LuaConfig config)
+    override FormatResult format(const string[] sources, LuaConfig config)
     {
         FormatResult result;
         result.success = true;

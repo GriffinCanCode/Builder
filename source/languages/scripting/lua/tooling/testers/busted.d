@@ -21,10 +21,10 @@ import utils.logging.logger;
 class BustedTester : Tester
 {
     override TestResult runTests(
-        string[] sources,
+        const string[] sources,
         LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         TestResult result;

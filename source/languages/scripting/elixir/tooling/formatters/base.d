@@ -29,7 +29,7 @@ class Formatter
     /// Format files
     static FormatResult format(
         FormatConfig config,
-        string[] files,
+        const string[] files,
         string mixCmd = "mix",
         bool checkOnly = false
     )

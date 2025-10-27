@@ -44,7 +44,7 @@ class GoTools
     }
     
     /// Format Go source files with gofmt
-    static ToolResult format(string[] sources, bool write = false)
+    static ToolResult format(const string[] sources, bool write = false)
     {
         ToolResult result;
         result.success = true;

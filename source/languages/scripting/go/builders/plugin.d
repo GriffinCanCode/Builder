@@ -20,7 +20,8 @@ class PluginBuilder : StandardBuilder
         Logger.info("Building Go plugin (Note: Go plugins are deprecated in Go 1.16+)");
         
         // Force plugin mode
-        config.mode = GoBuildMode.Plugin;
+        GoConfig mutableConfig = cast(GoConfig)config;
+        mutableConfig.mode = GoBuildMode.Plugin;
         
         // Plugins don't work on all platforms
         version(Windows)
@@ -31,7 +32,7 @@ class PluginBuilder : StandardBuilder
         }
         
         // Use standard builder with plugin mode
-        return super.build(sources, config, target, workspace);
+        return super.build(sources, mutableConfig, target, workspace);
     }
     
     override string name() const

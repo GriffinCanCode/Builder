@@ -31,7 +31,7 @@ class AssemblyBuilder : ScalaBuilder
         Logger.debug_("Building Scala assembly JAR: " ~ target.name);
         
         // Detect build tool
-        auto buildTool = config.buildTool;
+        ScalaBuildTool buildTool = config.buildTool;
         if (buildTool == ScalaBuildTool.Auto)
             buildTool = ScalaToolDetection.detectBuildTool(workspace.root);
         
@@ -72,7 +72,7 @@ class AssemblyBuilder : ScalaBuilder
     
     private ScalaBuildResult buildWithSbtAssembly(
         const Target target,
-        ScalaConfig config,
+        const ScalaConfig config,
         const WorkspaceConfig workspace,
         ScalaBuildResult result
     )
@@ -125,7 +125,7 @@ class AssemblyBuilder : ScalaBuilder
     
     private ScalaBuildResult buildWithMill(
         const Target target,
-        ScalaConfig config,
+        const ScalaConfig config,
         const WorkspaceConfig workspace,
         ScalaBuildResult result
     )

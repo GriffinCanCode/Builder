@@ -311,7 +311,7 @@ struct DotNetOps
 }
 
 /// Get framework moniker from config
-private string getFrameworkMoniker(CSharpConfig config)
+private string getFrameworkMoniker(const CSharpConfig config)
 {
     if (!config.customFramework.empty)
         return config.customFramework;
@@ -346,7 +346,7 @@ private string getFrameworkMoniker(CSharpConfig config)
 }
 
 /// Get runtime identifier from config
-private string getRuntimeId(CSharpConfig config)
+private string getRuntimeId(const CSharpConfig config)
 {
     if (!config.customRuntime.empty)
         return config.customRuntime;

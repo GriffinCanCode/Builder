@@ -43,7 +43,9 @@ class CrossBuilder : StandardBuilder
         else
         {
             // Explicitly disable CGO for cross-compilation
-            config.cgo.enabled = false;
+            GoConfig mutableConfig = cast(GoConfig)config;
+            mutableConfig.cgo.enabled = false;
+            return super.build(sources, mutableConfig, target, workspace);
         }
         
         // Use standard builder with cross-compilation environment

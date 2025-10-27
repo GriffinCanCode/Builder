@@ -64,7 +64,7 @@ class FatJARBuilder : KotlinBuilder
     
     private KotlinBuildResult buildWithGradle(
         const string[] sources,
-        KotlinConfig config,
+        const KotlinConfig config,
         const Target target,
         const WorkspaceConfig workspace
     )
@@ -114,7 +114,7 @@ class FatJARBuilder : KotlinBuilder
     
     private KotlinBuildResult buildWithMaven(
         const string[] sources,
-        KotlinConfig config,
+        const KotlinConfig config,
         const Target target,
         const WorkspaceConfig workspace
     )

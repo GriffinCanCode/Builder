@@ -125,7 +125,7 @@ class ScriptBuilder : LuaBuilder
         }
     }
     
-    private void createWrapper(string mainScript, string outputPath, LuaConfig config, string luaCmd)
+    private void createWrapper(string mainScript, string outputPath, const LuaConfig config, string luaCmd)
     {
         import std.format : format;
         

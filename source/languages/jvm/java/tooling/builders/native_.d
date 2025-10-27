@@ -100,7 +100,7 @@ class NativeImageBuilder : JARBuilder
     private bool buildNativeImage(
         string jarPath,
         string outputPath,
-        JavaConfig config,
+        const JavaConfig config,
         ref JavaBuildResult result
     )
     {
@@ -191,7 +191,7 @@ class NativeImageBuilder : JARBuilder
         return true;
     }
     
-    protected override string getOutputPath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
+    protected override string getOutputPath(const Target target, const WorkspaceConfig workspace, const JavaConfig config)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);

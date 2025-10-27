@@ -4,7 +4,7 @@ import std.stdio;
 import std.path;
 import std.algorithm;
 import std.range;
-import analysis.resolver;
+import analysis.resolution.resolver;
 import config.schema;
 import tests.harness;
 import tests.fixtures;

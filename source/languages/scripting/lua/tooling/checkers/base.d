@@ -14,7 +14,7 @@ struct CheckResult
 interface Checker
 {
     /// Check Lua source files
-    CheckResult check(string[] sources, LuaConfig config);
+    CheckResult check(const string[] sources, LuaConfig config);
     
     /// Check if checker is available
     bool isAvailable();
@@ -59,7 +59,7 @@ class CheckerFactory
 /// Null checker (does nothing)
 class NullChecker : Checker
 {
-    override CheckResult check(string[] sources, LuaConfig config)
+    override CheckResult check(const string[] sources, LuaConfig config)
     {
         CheckResult result;
         result.success = true;

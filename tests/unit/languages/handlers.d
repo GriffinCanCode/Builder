@@ -22,6 +22,12 @@ import languages.scripting.php;
 import languages.compiled.zig;
 import languages.scripting.lua;
 import languages.scripting.r;
+import languages.scripting.elixir;
+import languages.compiled.cpp;
+import languages.compiled.nim;
+import languages.compiled.swift;
+import languages.dotnet.fsharp;
+import languages.web.css;
 import config.schema;
 import errors;
 import tests.harness;
@@ -467,6 +473,186 @@ unittest
     writeln("\x1b[32m  ✓ R handler basic functionality works\x1b[0m");
 }
 
+// ==================== C++ HANDLER TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.handlers - C++ handler basic functionality");
+    
+    auto handler = new CppHandler();
+    auto tempDir = scoped(new TempDir("cpp-test"));
+    
+    tempDir.createFile("main.cpp", 
+        "#include <iostream>\n\nint main() {\n    std::cout << \"Hello\" << std::endl;\n    return 0;\n}\n");
+    auto sourcePath = buildPath(tempDir.getPath(), "main.cpp");
+    
+    auto target = TargetBuilder.create("app")
+        .withType(TargetType.Executable)
+        .withLanguage("Cpp")
+        .withSources([sourcePath])
+        .build();
+    
+    auto config = new WorkspaceConfig();
+    config.rootDir = tempDir.getPath();
+    
+    Assert.isTrue(handler.needsRebuild(target, config));
+    
+    auto imports = handler.analyzeImports([sourcePath]);
+    Assert.notNull(imports);
+    
+    writeln("\x1b[32m  ✓ C++ handler basic functionality works\x1b[0m");
+}
+
+// ==================== NIM HANDLER TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.handlers - Nim handler basic functionality");
+    
+    auto handler = new NimHandler();
+    auto tempDir = scoped(new TempDir("nim-test"));
+    
+    tempDir.createFile("main.nim", 
+        "echo \"Hello from Nim\"\n");
+    auto sourcePath = buildPath(tempDir.getPath(), "main.nim");
+    
+    auto target = TargetBuilder.create("app")
+        .withType(TargetType.Executable)
+        .withLanguage("Nim")
+        .withSources([sourcePath])
+        .build();
+    
+    auto config = new WorkspaceConfig();
+    config.rootDir = tempDir.getPath();
+    
+    Assert.isTrue(handler.needsRebuild(target, config));
+    
+    auto imports = handler.analyzeImports([sourcePath]);
+    Assert.notNull(imports);
+    
+    writeln("\x1b[32m  ✓ Nim handler basic functionality works\x1b[0m");
+}
+
+// ==================== SWIFT HANDLER TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.handlers - Swift handler basic functionality");
+    
+    auto handler = new SwiftHandler();
+    auto tempDir = scoped(new TempDir("swift-test"));
+    
+    tempDir.createFile("main.swift", 
+        "import Foundation\n\nprint(\"Hello from Swift\")\n");
+    auto sourcePath = buildPath(tempDir.getPath(), "main.swift");
+    
+    auto target = TargetBuilder.create("app")
+        .withType(TargetType.Executable)
+        .withLanguage("Swift")
+        .withSources([sourcePath])
+        .build();
+    
+    auto config = new WorkspaceConfig();
+    config.rootDir = tempDir.getPath();
+    
+    Assert.isTrue(handler.needsRebuild(target, config));
+    
+    auto imports = handler.analyzeImports([sourcePath]);
+    Assert.notNull(imports);
+    
+    writeln("\x1b[32m  ✓ Swift handler basic functionality works\x1b[0m");
+}
+
+// ==================== F# HANDLER TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.handlers - F# handler basic functionality");
+    
+    auto handler = new FSharpHandler();
+    auto tempDir = scoped(new TempDir("fsharp-test"));
+    
+    tempDir.createFile("Program.fs", 
+        "[<EntryPoint>]\nlet main argv =\n    printfn \"Hello from F#\"\n    0\n");
+    auto sourcePath = buildPath(tempDir.getPath(), "Program.fs");
+    
+    auto target = TargetBuilder.create("app")
+        .withType(TargetType.Executable)
+        .withLanguage("FSharp")
+        .withSources([sourcePath])
+        .build();
+    
+    auto config = new WorkspaceConfig();
+    config.rootDir = tempDir.getPath();
+    
+    Assert.isTrue(handler.needsRebuild(target, config));
+    
+    auto imports = handler.analyzeImports([sourcePath]);
+    Assert.notNull(imports);
+    
+    writeln("\x1b[32m  ✓ F# handler basic functionality works\x1b[0m");
+}
+
+// ==================== ELIXIR HANDLER TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.handlers - Elixir handler basic functionality");
+    
+    auto handler = new ElixirHandler();
+    auto tempDir = scoped(new TempDir("elixir-test"));
+    
+    tempDir.createFile("hello.ex", 
+        "defmodule Hello do\n  def main do\n    IO.puts \"Hello from Elixir\"\n  end\nend\n");
+    auto sourcePath = buildPath(tempDir.getPath(), "hello.ex");
+    
+    auto target = TargetBuilder.create("app")
+        .withType(TargetType.Executable)
+        .withLanguage("Elixir")
+        .withSources([sourcePath])
+        .build();
+    
+    auto config = new WorkspaceConfig();
+    config.rootDir = tempDir.getPath();
+    
+    Assert.isTrue(handler.needsRebuild(target, config));
+    
+    auto imports = handler.analyzeImports([sourcePath]);
+    Assert.notNull(imports);
+    
+    writeln("\x1b[32m  ✓ Elixir handler basic functionality works\x1b[0m");
+}
+
+// ==================== CSS HANDLER TESTS ====================
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.handlers - CSS handler basic functionality");
+    
+    auto handler = new CSSHandler();
+    auto tempDir = scoped(new TempDir("css-test"));
+    
+    tempDir.createFile("styles.css", 
+        "body {\n    margin: 0;\n    padding: 0;\n    font-family: Arial, sans-serif;\n}\n");
+    auto sourcePath = buildPath(tempDir.getPath(), "styles.css");
+    
+    auto target = TargetBuilder.create("styles")
+        .withType(TargetType.Library)
+        .withLanguage("CSS")
+        .withSources([sourcePath])
+        .build();
+    
+    auto config = new WorkspaceConfig();
+    config.rootDir = tempDir.getPath();
+    
+    Assert.isTrue(handler.needsRebuild(target, config));
+    
+    auto imports = handler.analyzeImports([sourcePath]);
+    Assert.notNull(imports);
+    
+    writeln("\x1b[32m  ✓ CSS handler basic functionality works\x1b[0m");
+}
+
 // ==================== MULTI-FILE TESTS ====================
 
 unittest
@@ -605,7 +791,13 @@ unittest
         cast(LanguageHandler)new PHPHandler(),
         cast(LanguageHandler)new ZigHandler(),
         cast(LanguageHandler)new LuaHandler(),
-        cast(LanguageHandler)new RHandler()
+        cast(LanguageHandler)new RHandler(),
+        cast(LanguageHandler)new CppHandler(),
+        cast(LanguageHandler)new NimHandler(),
+        cast(LanguageHandler)new SwiftHandler(),
+        cast(LanguageHandler)new FSharpHandler(),
+        cast(LanguageHandler)new ElixirHandler(),
+        cast(LanguageHandler)new CSSHandler()
     ];
     
     foreach (handler; handlers)
@@ -613,7 +805,7 @@ unittest
         Assert.notNull(handler, "Handler should not be null");
     }
     
-    Assert.equal(handlers.length, 15, "Should have 15 language handlers");
+    Assert.equal(handlers.length, 21, "Should have 21 language handlers");
     
     writeln("\x1b[32m  ✓ All handlers implement base interface\x1b[0m");
 }

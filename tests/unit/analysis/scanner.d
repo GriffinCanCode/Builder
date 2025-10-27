@@ -3,7 +3,7 @@ module tests.unit.analysis.scanner;
 import std.stdio;
 import std.path;
 import std.regex;
-import analysis.scanner;
+import analysis.scanning.scanner;
 import tests.harness;
 import tests.fixtures;
 

@@ -94,7 +94,7 @@ class FatJARBuilder : JARBuilder
         string tempDir,
         const Target target,
         const WorkspaceConfig workspace,
-        JavaConfig config,
+        const JavaConfig config,
         ref JavaBuildResult result
     )
     {

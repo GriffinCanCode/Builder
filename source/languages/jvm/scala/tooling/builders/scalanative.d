@@ -31,7 +31,7 @@ class ScalaNativeBuilder : ScalaBuilder
         Logger.debug_("Building Scala Native target: " ~ target.name);
         
         // Detect build tool
-        auto buildTool = config.buildTool;
+        ScalaBuildTool buildTool = config.buildTool;
         if (buildTool == ScalaBuildTool.Auto)
             buildTool = ScalaToolDetection.detectBuildTool(workspace.root);
         
@@ -69,7 +69,7 @@ class ScalaNativeBuilder : ScalaBuilder
     
     private ScalaBuildResult buildWithSbt(
         const Target target,
-        ScalaConfig config,
+        const ScalaConfig config,
         const WorkspaceConfig workspace,
         ScalaBuildResult result
     )
@@ -124,7 +124,7 @@ class ScalaNativeBuilder : ScalaBuilder
     
     private ScalaBuildResult buildWithMill(
         const Target target,
-        ScalaConfig config,
+        const ScalaConfig config,
         const WorkspaceConfig workspace,
         ScalaBuildResult result
     )

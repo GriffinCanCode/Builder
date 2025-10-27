@@ -21,41 +21,42 @@ class CGoBuilder : StandardBuilder
     )
     {
         // Ensure CGO is enabled
-        if (!config.cgo.enabled)
+        GoConfig mutableConfig = cast(GoConfig)config;
+        if (!mutableConfig.cgo.enabled)
         {
             Logger.info("Enabling CGO for C interop build");
-            config.cgo.enabled = true;
+            mutableConfig.cgo.enabled = true;
         }
         
         // Validate C/C++ compiler availability if specified
-        if (!config.cgo.cc.empty)
+        if (!mutableConfig.cgo.cc.empty)
         {
-            if (!isCommandAvailable(config.cgo.cc))
+            if (!isCommandAvailable(mutableConfig.cgo.cc))
             {
                 GoBuildResult result;
-                result.error = "C compiler not found: " ~ config.cgo.cc;
+                result.error = "C compiler not found: " ~ mutableConfig.cgo.cc;
                 return result;
             }
         }
         
-        if (!config.cgo.cxx.empty)
+        if (!mutableConfig.cgo.cxx.empty)
         {
-            if (!isCommandAvailable(config.cgo.cxx))
+            if (!isCommandAvailable(mutableConfig.cgo.cxx))
             {
                 GoBuildResult result;
-                result.error = "C++ compiler not found: " ~ config.cgo.cxx;
+                result.error = "C++ compiler not found: " ~ mutableConfig.cgo.cxx;
                 return result;
             }
         }
         
         Logger.info("Building with CGO enabled");
-        if (!config.cgo.cflags.empty)
-            Logger.debug_("CGO_CFLAGS: " ~ config.cgo.cflags.join(" "));
-        if (!config.cgo.ldflags.empty)
-            Logger.debug_("CGO_LDFLAGS: " ~ config.cgo.ldflags.join(" "));
+        if (!mutableConfig.cgo.cflags.empty)
+            Logger.debug_("CGO_CFLAGS: " ~ mutableConfig.cgo.cflags.join(" "));
+        if (!mutableConfig.cgo.ldflags.empty)
+            Logger.debug_("CGO_LDFLAGS: " ~ mutableConfig.cgo.ldflags.join(" "));
         
         // Use standard builder with CGO configuration
-        return super.build(sources, config, target, workspace);
+        return super.build(sources, mutableConfig, target, workspace);
     }
     
     override string name() const

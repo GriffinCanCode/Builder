@@ -17,7 +17,7 @@ import utils.logging.logger;
 /// Luacheck linter - comprehensive static analyzer for Lua
 class LuacheckLinter : Checker
 {
-    override CheckResult check(string[] sources, LuaConfig config)
+    override CheckResult check(const string[] sources, LuaConfig config)
     {
         CheckResult result;
         

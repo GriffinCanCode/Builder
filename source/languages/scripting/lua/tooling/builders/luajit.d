@@ -66,10 +66,10 @@ class LuaJITBuilder : LuaBuilder
     }
     
     private BuildResult compileBytecode(
-        string[] sources,
-        LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const string[] sources,
+        const LuaConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
         string luajitCmd
     )
     {
@@ -145,10 +145,10 @@ class LuaJITBuilder : LuaBuilder
     }
     
     private BuildResult createJITWrapper(
-        string[] sources,
-        LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const string[] sources,
+        const LuaConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
         string luajitCmd
     )
     {
@@ -197,7 +197,7 @@ class LuaJITBuilder : LuaBuilder
         return result;
     }
     
-    private void createWrapper(string mainScript, string outputPath, LuaConfig config, string luajitCmd)
+    private void createWrapper(string mainScript, string outputPath, const LuaConfig config, string luajitCmd)
     {
         string wrapper = "#!/usr/bin/env " ~ luajitCmd ~ "\n";
         

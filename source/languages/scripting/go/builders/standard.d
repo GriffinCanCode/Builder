@@ -168,10 +168,10 @@ class StandardBuilder : GoBuilder
     }
     
     private GoBuildResult executeBuild(
-        string[] sources,
-        GoConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        const string[] sources,
+        const GoConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
         string workDir
     )
     {

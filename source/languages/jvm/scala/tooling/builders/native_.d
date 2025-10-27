@@ -94,7 +94,7 @@ class NativeImageBuilder : ScalaBuilder
     
     private string buildNativeImage(
         string jarPath,
-        ScalaConfig config,
+        const ScalaConfig config,
         const Target target,
         const WorkspaceConfig workspace,
         ref ScalaBuildResult result

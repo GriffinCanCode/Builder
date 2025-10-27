@@ -48,7 +48,7 @@ class ScriptBuilder : ElixirBuilder
         }
         
         result.success = true;
-        result.outputs = sources;
+        result.outputs = sources.dup;
         result.outputHash = FastHash.hashStrings(sources);
         
         return result;

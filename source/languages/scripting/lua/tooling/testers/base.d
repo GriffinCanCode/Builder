@@ -21,10 +21,10 @@ interface Tester
 {
     /// Run tests
     TestResult runTests(
-        string[] sources,
+        const string[] sources,
         LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     );
     
     /// Check if tester is available
@@ -75,10 +75,10 @@ class TesterFactory
 class NullTester : Tester
 {
     override TestResult runTests(
-        string[] sources,
+        const string[] sources,
         LuaConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         TestResult result;

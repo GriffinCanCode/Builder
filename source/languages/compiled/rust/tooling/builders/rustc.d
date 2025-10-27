@@ -161,7 +161,7 @@ class RustcBuilder : RustBuilder
         // Set environment variables
         string[string] env = null;
         if (!config.env.empty)
-            env = config.env.dup;
+            env = cast(string[string])config.env.dup;
         
         // Execute compilation
         auto res = execute(cmd, env);

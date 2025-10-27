@@ -97,7 +97,7 @@ class JARBuilder : JavaBuilder
     protected bool compileSources(
         const string[] sources,
         string outputDir,
-        JavaConfig config,
+        const JavaConfig config,
         const Target target,
         const WorkspaceConfig workspace,
         ref JavaBuildResult result
@@ -176,7 +176,7 @@ class JARBuilder : JavaBuilder
     protected bool createJAR(
         string classDir,
         string outputPath,
-        JavaConfig config,
+        const JavaConfig config,
         ref JavaBuildResult result
     )
     {
@@ -227,7 +227,7 @@ class JARBuilder : JavaBuilder
         return true;
     }
     
-    protected void createManifest(string manifestPath, JavaConfig config)
+    protected void createManifest(string manifestPath, const JavaConfig config)
     {
         auto f = File(manifestPath, "w");
         
@@ -242,7 +242,7 @@ class JARBuilder : JavaBuilder
         f.close();
     }
     
-    protected string buildClasspath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
+    protected string buildClasspath(const Target target, const WorkspaceConfig workspace, const JavaConfig config)
     {
         string[] paths;
         
@@ -276,7 +276,7 @@ class JARBuilder : JavaBuilder
             return ":";
     }
     
-    protected string getOutputPath(const Target target, const WorkspaceConfig workspace, JavaConfig config)
+    protected string getOutputPath(const Target target, const WorkspaceConfig workspace, const JavaConfig config)
     {
         if (!target.outputPath.empty)
             return buildPath(workspace.options.outputDir, target.outputPath);

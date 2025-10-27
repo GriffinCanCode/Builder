@@ -54,7 +54,7 @@ class ExecutableBuilder : FSharpBuilder
     {
         FSharpBuildResult result;
         
-        auto outputDir = workspaceConfig.options.outputDir;
+        string outputDir = workspaceConfig.options.outputDir;
         if (!config.dotnet.outputDir.empty)
             outputDir = config.dotnet.outputDir;
         

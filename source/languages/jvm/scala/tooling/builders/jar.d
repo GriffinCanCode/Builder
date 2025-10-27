@@ -91,7 +91,7 @@ class JARBuilder : ScalaBuilder
     private bool compileSources(
         const string[] sources,
         string outputDir,
-        ScalaConfig config,
+        const ScalaConfig config,
         const Target target,
         const WorkspaceConfig workspace,
         ref ScalaBuildResult result
@@ -142,7 +142,7 @@ class JARBuilder : ScalaBuilder
     private bool packageJAR(
         string classDir,
         string outputPath,
-        ScalaConfig config,
+        const ScalaConfig config,
         const Target target,
         ref ScalaBuildResult result
     )
@@ -189,7 +189,7 @@ class JARBuilder : ScalaBuilder
         return true;
     }
     
-    private string[] buildCompilerOptions(ScalaConfig config)
+    private string[] buildCompilerOptions(const ScalaConfig config)
     {
         string[] options;
         
@@ -282,7 +282,7 @@ class JARBuilder : ScalaBuilder
             return paths.join(":");
     }
     
-    private string detectMainClass(string classDir, ScalaConfig config)
+    private string detectMainClass(string classDir, const ScalaConfig config)
     {
         // TODO: Scan class files for main method
         // For now, return empty string

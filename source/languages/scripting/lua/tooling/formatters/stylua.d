@@ -17,7 +17,7 @@ import utils.logging.logger;
 /// StyLua formatter - modern, opinionated Lua formatter
 class StyLuaFormatter : Formatter
 {
-    override FormatResult format(string[] sources, LuaConfig config)
+    override FormatResult format(const string[] sources, LuaConfig config)
     {
         FormatResult result;
         

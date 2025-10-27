@@ -68,7 +68,7 @@ class ModularJARBuilder : JARBuilder
     override protected bool compileSources(
         const string[] sources,
         string outputDir,
-        JavaConfig config,
+        const JavaConfig config,
         const Target target,
         const WorkspaceConfig workspace,
         ref JavaBuildResult result
@@ -160,7 +160,7 @@ class ModularJARBuilder : JARBuilder
     override protected bool createJAR(
         string classDir,
         string outputPath,
-        JavaConfig config,
+        const JavaConfig config,
         ref JavaBuildResult result
     )
     {
