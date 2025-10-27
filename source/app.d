@@ -36,7 +36,7 @@ void main(string[] args)
     
     if (helpInfo.helpWanted || args.length < 2)
     {
-        printHelp();
+        HelpCommand.execute();
         return;
     }
     
@@ -75,9 +75,13 @@ void main(string[] args)
                 auto subcommand = args.length > 2 ? args[2] : "summary";
                 TelemetryCommand.execute(subcommand);
                 break;
+            case "help":
+                auto helpCommand = args.length > 2 ? args[2] : "";
+                HelpCommand.execute(helpCommand);
+                break;
             default:
                 Logger.error("Unknown command: " ~ command);
-                printHelp();
+                HelpCommand.execute();
         }
     }
     catch (Exception e)
@@ -86,36 +90,6 @@ void main(string[] args)
         import core.stdc.stdlib : exit;
         exit(1);
     }
-}
-
-void printHelp() @safe
-{
-    writeln("Builder - Build System for Mixed-Language Projects\n");
-    writeln("Usage:");
-    writeln("  builder <command> [options] [target]\n");
-    writeln("Commands:");
-    writeln("  build [target]    Build all targets or specific target (zero-config supported!)");
-    writeln("  resume            Resume failed build from checkpoint");
-    writeln("  clean             Clean build cache (includes checkpoints)");
-    writeln("  graph [target]    Show dependency graph");
-    writeln("  telemetry         Show build telemetry and analytics");
-    writeln("  init              Initialize a new Builderfile with auto-detection");
-    writeln("  infer             Show what targets would be auto-detected (dry-run)");
-    writeln("  install-extension Install Builder VS Code extension\n");
-    writeln("Options:");
-    writeln("  -v, --verbose     Enable verbose output");
-    writeln("  -g, --graph       Show dependency graph during build");
-    writeln("  -m, --mode MODE   CLI mode: auto, interactive, plain, verbose, quiet\n");
-    writeln("Zero-Config:");
-    writeln("  Builder can automatically detect project structure and build without");
-    writeln("  a Builderfile. Simply run 'builder build' in any supported project!\n");
-    writeln("Examples:");
-    writeln("  builder build                    # Build all targets (auto-detects if no Builderfile)");
-    writeln("  builder infer                    # Preview what would be auto-detected");
-    writeln("  builder init                     # Create Builderfile based on project structure");
-    writeln("  builder build //path/to:target   # Build specific target");
-    writeln("  builder graph //path/to:target   # Show dependencies");
-    writeln("  builder telemetry                # View build analytics and insights");
 }
 
 /// Build command handler (refactored to use dependency injection)
