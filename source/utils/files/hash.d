@@ -29,7 +29,23 @@ struct FastHash
     private enum size_t SAMPLE_SIZE = 16_384;      // 16 KB per sample
     
     /// Hash a file with intelligent size-tiered strategy
-    @trusted // File I/O operations and delegates to trusted helpers
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. exists() and getSize() are file system operations (unsafe I/O)
+    /// 2. Delegates to tier-specific @trusted hash functions
+    /// 3. No pointer arithmetic or unsafe memory operations
+    /// 4. Strategy selection is based on validated file size
+    /// 
+    /// Invariants:
+    /// - Returns empty string if file doesn't exist (safe default)
+    /// - File size determines which strategy is used
+    /// - All strategies are memory-safe
+    /// 
+    /// What could go wrong:
+    /// - File deleted between exists() and hash: returns empty or throws
+    /// - File size changes during hashing: hash reflects state at that moment
+    /// - Permission errors: propagate as exceptions (safe failure)
+    @trusted
     static string hashFile(in string path)
     {
         if (!exists(path))
@@ -54,7 +70,23 @@ struct FastHash
     }
     
     /// Direct hash for tiny files
-    @trusted // File read and cast for hashing
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. std.file.read() performs file I/O (inherently unsafe)
+    /// 2. Cast to ubyte[] is safe (data is owned by read())
+    /// 3. Blake3.hashHex() is trusted hash operation
+    /// 4. No manual memory management
+    /// 
+    /// Invariants:
+    /// - File must exist (caller's responsibility)
+    /// - File size <= TINY_THRESHOLD (4KB)
+    /// - Entire file loaded into memory
+    /// 
+    /// What could go wrong:
+    /// - File too large: memory allocation could fail (exception)
+    /// - File modified during read: hash reflects state at read time
+    /// - Read errors: exception propagates (safe failure)
+    @trusted
     private static string hashFileDirect(in string path)
     {
         auto data = cast(ubyte[])std.file.read(path);
@@ -62,7 +94,23 @@ struct FastHash
     }
     
     /// Chunked hash for small files (original approach)
-    @trusted // File I/O and raw buffer operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File.open() and rawRead() are file I/O operations
+    /// 2. Stack-allocated buffer (no heap allocation per chunk)
+    /// 3. rawRead() validates buffer bounds internally
+    /// 4. Blake3 hasher is incrementally fed (memory-safe)
+    /// 
+    /// Invariants:
+    /// - File is read in 4KB chunks
+    /// - Buffer is stack-allocated (automatic cleanup)
+    /// - Hash is finalized after all chunks
+    /// 
+    /// What could go wrong:
+    /// - File read errors: exception propagates (safe failure)
+    /// - File modified during read: hash reflects state at read time
+    /// - EOF handling: safe, loop exits naturally
+    @trusted
     private static string hashFileChunked(in string path)
     {
         auto file = File(path, "rb");
@@ -80,7 +128,24 @@ struct FastHash
     }
     
     /// Sampled hash for medium files (head + tail + middle samples)
-    @trusted // File I/O, seeking, and buffer operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File operations (open, seek, rawRead) are inherently unsafe I/O
+    /// 2. Buffer allocations are bounded by SAMPLE_* constants
+    /// 3. Seek positions are calculated and bounds-checked
+    /// 4. nativeToLittleEndian for size encoding is safe
+    /// 5. All buffer operations are validated by min() and bounds checks
+    /// 
+    /// Invariants:
+    /// - fileSize parameter matches actual file size (caller's responsibility)
+    /// - Samples don't overlap (calculated positions are correct)
+    /// - Total sampled data << actual file size (performance optimization)
+    /// 
+    /// What could go wrong:
+    /// - Seek beyond EOF: caught by File operations (exception)
+    /// - Buffer allocation fails: exception propagates (safe failure)
+    /// - File modified during sampling: hash reflects state at sample time
+    @trusted
     private static string hashFileSampled(in string path, in size_t fileSize)
     {
         auto hash = Blake3(0);
@@ -128,7 +193,27 @@ struct FastHash
     }
     
     /// Aggressive sampling for large files using memory mapping with SIMD
-    @trusted // Memory-mapped file access and pointer operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. MmFile provides memory-mapped file access (inherently unsafe)
+    /// 2. Cast to ubyte[] is safe (mmfile validates bounds internally)
+    /// 3. Array slicing is bounds-checked with min() calls
+    /// 4. SIMD operations via Blake3 are internally validated
+    /// 5. scope(exit) ensures cleanup even on exception
+    /// 6. Fallback to hashFileSampled() on failure
+    /// 
+    /// Invariants:
+    /// - fileSize is accurate (caller's responsibility)
+    /// - Sample positions are calculated to avoid overlap
+    /// - Memory mapping is read-only
+    /// - MmFile is destroyed via scope(exit)
+    /// 
+    /// What could go wrong:
+    /// - mmap fails: caught and falls back to sampled approach
+    /// - File too large for address space: mmap throws, caught
+    /// - Concurrent modification: undefined (acceptable for cache)
+    /// - Array slicing out of bounds: prevented by min() calculations
+    @trusted
     private static string hashFileLargeSampled(in string path, in size_t fileSize)
     {
         auto hash = Blake3(0);  // SIMD-accelerated
@@ -187,7 +272,21 @@ struct FastHash
     }
     
     /// Hash multiple strings together
-    @trusted // Safe cast for hashing
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Cast from string to ubyte[] is safe (identical memory layout)
+    /// 2. Blake3 hasher incrementally processes data (memory-safe)
+    /// 3. No pointer manipulation or unsafe operations
+    /// 
+    /// Invariants:
+    /// - Strings are hashed in order
+    /// - Cast preserves all string data exactly
+    /// - Order matters for deterministic hash
+    /// 
+    /// What could go wrong:
+    /// - Nothing: pure data hashing with no side effects
+    /// - Large strings: memory usage grows but is safe
+    @trusted
     static string hashStrings(const string[] strings)
     {
         auto hash = Blake3(0);
@@ -197,7 +296,25 @@ struct FastHash
     }
     
     /// Hash multiple files together with SIMD-aware parallel processing
-    @trusted // File operations and cast operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Delegates to trusted hashFile() for individual files
+    /// 2. SIMDParallel.mapSIMD() is trusted parallel execution
+    /// 3. Cast operations for combining hashes are memory-safe
+    /// 4. exists() check prevents errors on missing files
+    /// 5. Missing files are hashed by path (deterministic fallback)
+    /// 
+    /// Invariants:
+    /// - Files are processed in parallel when beneficial (>8 files)
+    /// - Sequential processing for small file counts (avoid overhead)
+    /// - Missing files contribute their path to hash (deterministic)
+    /// - Final hash combines all individual hashes
+    /// 
+    /// What could go wrong:
+    /// - File operations can fail: handled per-file (hash path instead)
+    /// - Parallel execution overhead: mitigated by threshold check
+    /// - Memory usage for many files: bounded by file count
+    @trusted
     static string hashFiles(string[] filePaths)
     {
         import std.file : exists;

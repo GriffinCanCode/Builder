@@ -67,7 +67,7 @@ abstract class BaseBuildError : BuildError
     }
     
     /// Add context to error chain
-    void addContext(ErrorContext ctx) @trusted
+    void addContext(ErrorContext ctx) @safe
     {
         _contexts ~= ctx;
     }
@@ -91,7 +91,7 @@ class BuildFailureError : BaseBuildError
     string targetId;
     string[] failedDeps;
     
-    this(string targetId, string message, ErrorCode code = ErrorCode.BuildFailed) @trusted
+    this(string targetId, string message, ErrorCode code = ErrorCode.BuildFailed) @safe
     {
         super(code, message);
         this.targetId = targetId;
@@ -216,7 +216,7 @@ class GraphError : BaseBuildError
 {
     string[] nodePath;
     
-    this(string message, ErrorCode code = ErrorCode.GraphInvalid)
+    this(string message, ErrorCode code = ErrorCode.GraphInvalid) @safe
     {
         super(code, message);
     }

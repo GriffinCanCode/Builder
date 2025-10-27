@@ -42,7 +42,21 @@ class IgnoreRegistry
     private static immutable string[] commonIgnores;
     private static immutable string[] vcsIgnores;
     
-    @trusted // Initializes immutable static data
+    /// Static constructor: Initialize immutable ignore patterns
+    /// 
+    /// Safety: This static constructor is @trusted because:
+    /// 1. Initializes immutable static data once at program start
+    /// 2. Array literal initialization is memory-safe
+    /// 3. Associative array initialization with enum keys is type-safe
+    /// 4. No unsafe operations, just data initialization
+    /// 
+    /// Invariants:
+    /// - Static data is immutable after initialization
+    /// - Executed once before any other code runs
+    /// 
+    /// What could go wrong:
+    /// - Nothing: pure data initialization with no side effects
+    @trusted
     shared static this()
     {
         // Version control system directories - ALWAYS ignore
@@ -561,7 +575,21 @@ class UserIgnorePatterns
     private string[] negatedPatterns;     // Negation patterns for files
     private string baseDir;
     
-    @trusted // File I/O operations
+    /// Constructor: Load ignore patterns from files
+    /// 
+    /// Safety: This constructor is @trusted because:
+    /// 1. Delegates to loadIgnoreFiles() which performs validated file I/O
+    /// 2. baseDir is stored as-is (no pointer manipulation)
+    /// 3. Array initialization is safe
+    /// 
+    /// Invariants:
+    /// - baseDir is valid string (caller's responsibility)
+    /// - Patterns are loaded but may be empty if no ignore files exist
+    /// 
+    /// What could go wrong:
+    /// - File I/O could fail: handled gracefully in loadIgnoreFiles()
+    /// - Invalid baseDir: will fail when trying to read files (safe failure)
+    @trusted
     this(string baseDir)
     {
         this.baseDir = baseDir;
@@ -569,7 +597,21 @@ class UserIgnorePatterns
     }
     
     /// Load ignore patterns from .builderignore and .gitignore
-    @trusted // File I/O operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. buildPath() is safe string concatenation
+    /// 2. exists() is file system query (read-only)
+    /// 3. parseIgnoreFile() is called with valid paths
+    /// 4. Exception handling prevents crashes
+    /// 
+    /// Invariants:
+    /// - baseDir is valid (set in constructor)
+    /// - Files may not exist (handled gracefully)
+    /// 
+    /// What could go wrong:
+    /// - File doesn't exist: checked with exists() before reading
+    /// - Permission errors: caught and ignored (safe default)
+    @trusted
     private void loadIgnoreFiles()
     {
         // Load .builderignore first (takes precedence)
@@ -593,7 +635,22 @@ class UserIgnorePatterns
     /// - Directory patterns (ending with /)
     /// - Glob patterns (*, ?, **)
     /// - Negation patterns (starting with !)
-    @trusted // File reading and string operations
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. readText() performs file I/O (inherently unsafe)
+    /// 2. String operations (strip, startsWith, endsWith) are memory-safe
+    /// 3. Array appending (~=) is memory-safe
+    /// 4. Exception handling ensures no crashes
+    /// 
+    /// Invariants:
+    /// - filePath must be valid and readable (caller's responsibility)
+    /// - Empty or malformed lines are skipped (robust parsing)
+    /// 
+    /// What could go wrong:
+    /// - File not readable: caught by exception handler (safe failure)
+    /// - Malformed patterns: skipped or handled gracefully
+    /// - Large files: memory allocation could fail (exception propagates)
+    @trusted
     private void parseIgnoreFile(string filePath)
     {
         try
@@ -822,7 +879,21 @@ class CombinedIgnoreChecker
     private TargetLanguage language;
     private string baseDir;
     
-    @trusted // Creates UserIgnorePatterns which does file I/O
+    /// Constructor: Create ignore filter with user patterns
+    /// 
+    /// Safety: This constructor is @trusted because:
+    /// 1. Creates UserIgnorePatterns which performs file I/O
+    /// 2. All parameters are stored by value (no pointer issues)
+    /// 3. Object creation is memory-safe
+    /// 
+    /// Invariants:
+    /// - baseDir and language are stored correctly
+    /// - UserIgnorePatterns is properly initialized
+    /// 
+    /// What could go wrong:
+    /// - UserIgnorePatterns constructor could fail: exception propagates
+    /// - Invalid baseDir: handled by UserIgnorePatterns (safe failure)
+    @trusted
     this(string baseDir, TargetLanguage language = TargetLanguage.Generic)
     {
         this.baseDir = baseDir;

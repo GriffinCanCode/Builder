@@ -121,6 +121,23 @@ struct SecureExecutor
     
     /// Execute command with full validation
     /// Returns: Result monad with ProcessResult or SecurityError
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Validates all arguments before execution (prevents injection)
+    /// 2. Uses std.process.execute with array form (no shell interpretation)
+    /// 3. SecurityValidator ensures no malicious paths or arguments
+    /// 4. Exception handling converts failures to Result type
+    /// 5. Audit logging for security monitoring
+    /// 
+    /// Invariants:
+    /// - All command arguments are validated before execution
+    /// - Array form prevents shell injection attacks
+    /// - Working directory is validated if specified
+    /// 
+    /// What could go wrong:
+    /// - Malicious arguments: caught by SecurityValidator (returns Err)
+    /// - Process execution fails: converted to SecurityError result
+    /// - Path traversal attempts: blocked by isPathSafe() validation
     auto run(scope const(string)[] cmd) @trusted
     {
         // Validation layer
@@ -181,6 +198,19 @@ struct SecureExecutor
     }
     
     /// Execute command and check success (throws on non-zero exit)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Delegates to trusted run() which validates all inputs
+    /// 2. Additional exit code checking for convenience
+    /// 3. Converts non-zero exits to errors
+    /// 
+    /// Invariants:
+    /// - run() performs all security validation
+    /// - Exit code check is performed after successful execution
+    /// 
+    /// What could go wrong:
+    /// - Command fails validation: returned as Err from run()
+    /// - Non-zero exit: converted to SecurityError (safe failure)
     auto runChecked(scope const(string)[] cmd) @trusted
     {
         auto result = run(cmd);

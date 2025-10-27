@@ -20,6 +20,23 @@ struct AtomicTempDir
     
     /// Create atomic temporary directory with random name
     /// Throws: Exception if creation fails after retries
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. tempDir() is file system operation (inherently unsafe I/O)
+    /// 2. buildPath() is safe string concatenation
+    /// 3. exists() and mkdir() are file system operations
+    /// 4. Retry loop prevents race conditions (TOCTOU mitigation)
+    /// 5. Random suffix generation ensures uniqueness
+    /// 
+    /// Invariants:
+    /// - Directory is created atomically via mkdir() (not mkdirRecurse)
+    /// - Unique random suffix prevents collisions
+    /// - Multiple retries handle race conditions
+    /// 
+    /// What could go wrong:
+    /// - All retries exhausted: throws exception (safe failure)
+    /// - Permission denied: caught and retried with new name
+    /// - Race condition: mitigated by atomic mkdir() and retries
     static AtomicTempDir create(string prefix = "builder-tmp") @trusted
     {
         AtomicTempDir tmp;
@@ -55,6 +72,21 @@ struct AtomicTempDir
     }
     
     /// Create in specific base directory
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File system operations (exists, mkdirRecurse, mkdir) are unsafe I/O
+    /// 2. Delegates to generateSecureRandomSuffix() for uniqueness
+    /// 3. Retry loop handles race conditions
+    /// 4. Exception handling ensures safe failure
+    /// 
+    /// Invariants:
+    /// - baseDir is created if it doesn't exist
+    /// - Directory creation is atomic via mkdir()
+    /// - Random suffixes ensure uniqueness
+    /// 
+    /// What could go wrong:
+    /// - baseDir creation fails: exception propagates (safe failure)
+    /// - All retries exhausted: throws exception with context
     static AtomicTempDir in_(string baseDir, string prefix = "builder-tmp") @trusted
     {
         AtomicTempDir tmp;
@@ -88,6 +120,21 @@ struct AtomicTempDir
     }
     
     /// Destructor: automatic cleanup
+    /// 
+    /// Safety: This destructor is @trusted because:
+    /// 1. File system operations (exists, rmdirRecurse) are unsafe I/O
+    /// 2. Exception handling ensures nothrow guarantee
+    /// 3. Best-effort cleanup (failures are logged but not thrown)
+    /// 4. Logger access in destructor is carefully handled
+    /// 
+    /// Invariants:
+    /// - Only removes directory if _exists flag is set
+    /// - Errors are logged but don't crash program
+    /// 
+    /// What could go wrong:
+    /// - Directory deletion fails: logged and ignored (acceptable in destructor)
+    /// - Logger may fail in destructor context: caught and ignored safely
+    /// - GC/finalizer context: handled by double exception catching
     ~this() @trusted nothrow
     {
         if (_exists && !path.empty)
@@ -120,6 +167,19 @@ struct AtomicTempDir
     }
     
     /// Check if directory still exists
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. std.file.exists() is file system query (read-only)
+    /// 2. Exception handling ensures nothrow guarantee
+    /// 3. Returns safe default (false) on error
+    /// 
+    /// Invariants:
+    /// - path is valid (set in create/in_ methods)
+    /// - Read-only operation with no side effects
+    /// 
+    /// What could go wrong:
+    /// - File system error: caught and returns false (safe default)
+    /// - path is empty: returns false safely
     bool exists() const @trusted nothrow
     {
         try
@@ -139,6 +199,19 @@ struct AtomicTempDir
     }
     
     /// Manual cleanup (directory won't be cleaned up in destructor after this)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File system operations (exists, rmdirRecurse) are unsafe I/O
+    /// 2. Clears _exists flag to prevent double-delete in destructor
+    /// 3. Checks existence before attempting removal
+    /// 
+    /// Invariants:
+    /// - After this call, destructor won't attempt removal
+    /// - Path validity is checked before removal
+    /// 
+    /// What could go wrong:
+    /// - Removal fails: exception propagates to caller
+    /// - Directory already removed: exists() check prevents error
     void remove() @trusted
     {
         if (_exists && !path.empty && std.file.exists(path))
@@ -156,6 +229,23 @@ struct AtomicTempDir
 }
 
 /// Generate secure random suffix for directory names
+/// 
+/// Safety: This function is @trusted because:
+/// 1. Clock.currTime() is system call (inherently unsafe)
+/// 2. uniform!ulong() generates random data (RNG state is unsafe)
+/// 3. getpid/GetCurrentProcessId are system calls
+/// 4. Pointer casting for serialization is bounds-checked
+/// 5. sha256Of is cryptographic hash (uses C bindings internally)
+/// 
+/// Invariants:
+/// - Combines timestamp, random data, and PID for uniqueness
+/// - All data sources are mixed via cryptographic hash
+/// - Output is deterministically 16 hex characters
+/// 
+/// What could go wrong:
+/// - RNG could fail: would throw exception (safe failure)
+/// - getpid could fail: caught by platform-specific code
+/// - Pointer casting is safe: uses sizeof for exact bounds
 private string generateSecureRandomSuffix() @trusted
 {
     import std.random : uniform;
@@ -195,6 +285,12 @@ private string generateSecureRandomSuffix() @trusted
         .join;
 }
 
+/// Unit tests for AtomicTempDir
+/// 
+/// Safety: Test code is @trusted because:
+/// 1. Tests file system operations
+/// 2. Validates cleanup behavior
+/// 3. Uses exists() and isDir() for verification
 @trusted unittest
 {
     import std.file : exists, isDir;
