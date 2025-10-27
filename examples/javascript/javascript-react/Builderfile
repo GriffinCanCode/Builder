@@ -16,6 +16,7 @@ target("app") {
         "target": "es2018",
         "jsx": true,
         "jsxFactory": "React.createElement",
-        "external": []
+        "external": [],
+        "installDeps": true
     };
 }

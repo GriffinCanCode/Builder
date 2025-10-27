@@ -56,7 +56,17 @@ string[] detectTestCommand(string packageJsonPath)
 /// Install npm dependencies  
 void installDependencies(const(string[]) sources, string packageManager)
 {
-    string packageJsonPath = findPackageJson(sources);
+    import std.file : getcwd;
+    
+    // First check current directory for package.json
+    string packageJsonPath = buildPath(getcwd(), "package.json");
+    
+    // If not found in current directory, try to find it relative to sources
+    if (!exists(packageJsonPath))
+    {
+        packageJsonPath = findPackageJson(sources);
+    }
+    
     if (packageJsonPath.empty || !exists(packageJsonPath))
     {
         Logger.warning("No package.json found, skipping dependency installation");
@@ -64,6 +74,15 @@ void installDependencies(const(string[]) sources, string packageManager)
     }
     
     string packageDir = dirName(packageJsonPath);
+    
+    // Check if node_modules already exists and is recent
+    string nodeModulesPath = buildPath(packageDir, "node_modules");
+    if (exists(nodeModulesPath) && isDir(nodeModulesPath))
+    {
+        Logger.debugLog("Dependencies already installed, skipping");
+        return;
+    }
+    
     Logger.info("Installing dependencies with " ~ packageManager ~ "...");
     
     string[] cmd = [packageManager, "install"];

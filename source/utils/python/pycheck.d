@@ -1,7 +1,8 @@
 module utils.python.pycheck;
 
 import std.stdio;
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.json;
 import std.array;
 import std.algorithm;

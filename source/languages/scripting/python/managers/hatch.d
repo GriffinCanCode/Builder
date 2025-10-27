@@ -1,6 +1,7 @@
 module languages.scripting.python.managers.hatch;
 
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.string;
 import std.conv;
 import languages.scripting.python.managers.base;

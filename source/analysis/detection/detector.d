@@ -10,6 +10,7 @@ import config.schema.schema;
 import utils.files.ignore;
 import utils.logging.logger;
 import utils.security.validation;
+import languages.registry;
 
 /// Language detection result
 struct LanguageInfo
@@ -564,35 +565,10 @@ class ProjectDetector
         }
     }
     
-    /// Map file extension to language
+    /// Map file extension to language - delegates to centralized registry
     private TargetLanguage extensionToLanguage(string ext) pure
     {
-        switch (ext)
-        {
-            case ".d": return TargetLanguage.D;
-            case ".py": return TargetLanguage.Python;
-            case ".js": case ".mjs": case ".cjs": return TargetLanguage.JavaScript;
-            case ".ts": case ".mts": case ".cts": return TargetLanguage.TypeScript;
-            case ".jsx": return TargetLanguage.JavaScript;
-            case ".tsx": return TargetLanguage.TypeScript;
-            case ".go": return TargetLanguage.Go;
-            case ".rs": return TargetLanguage.Rust;
-            case ".cpp": case ".cc": case ".cxx": case ".hpp": case ".h": return TargetLanguage.Cpp;
-            case ".c": return TargetLanguage.C;
-            case ".java": return TargetLanguage.Java;
-            case ".kt": case ".kts": return TargetLanguage.Kotlin;
-            case ".cs": return TargetLanguage.CSharp;
-            case ".zig": return TargetLanguage.Zig;
-            case ".swift": return TargetLanguage.Swift;
-            case ".rb": return TargetLanguage.Ruby;
-            case ".php": return TargetLanguage.PHP;
-            case ".scala": return TargetLanguage.Scala;
-            case ".ex": case ".exs": return TargetLanguage.Elixir;
-            case ".nim": return TargetLanguage.Nim;
-            case ".lua": return TargetLanguage.Lua;
-            case ".R": case ".r": return TargetLanguage.R;
-            default: return TargetLanguage.Generic;
-        }
+        return inferLanguageFromExtension(ext);
     }
     
     /// Detect if project is a monorepo
@@ -687,35 +663,10 @@ class LanguageDetector
         return extensionToLanguage(ext);
     }
     
-    /// Map file extension to language (duplicate of ProjectDetector method)
+    /// Map file extension to language - delegates to centralized registry
     private TargetLanguage extensionToLanguage(string ext) pure
     {
-        switch (ext)
-        {
-            case ".d": return TargetLanguage.D;
-            case ".py": return TargetLanguage.Python;
-            case ".js": case ".mjs": case ".cjs": return TargetLanguage.JavaScript;
-            case ".ts": case ".mts": case ".cts": return TargetLanguage.TypeScript;
-            case ".jsx": return TargetLanguage.JavaScript;
-            case ".tsx": return TargetLanguage.TypeScript;
-            case ".go": return TargetLanguage.Go;
-            case ".rs": return TargetLanguage.Rust;
-            case ".cpp": case ".cc": case ".cxx": case ".hpp": case ".h": return TargetLanguage.Cpp;
-            case ".c": return TargetLanguage.C;
-            case ".java": return TargetLanguage.Java;
-            case ".kt": case ".kts": return TargetLanguage.Kotlin;
-            case ".cs": return TargetLanguage.CSharp;
-            case ".zig": return TargetLanguage.Zig;
-            case ".swift": return TargetLanguage.Swift;
-            case ".rb": return TargetLanguage.Ruby;
-            case ".php": return TargetLanguage.PHP;
-            case ".scala": return TargetLanguage.Scala;
-            case ".ex": case ".exs": return TargetLanguage.Elixir;
-            case ".nim": return TargetLanguage.Nim;
-            case ".lua": return TargetLanguage.Lua;
-            case ".R": case ".r": return TargetLanguage.R;
-            default: return TargetLanguage.Generic;
-        }
+        return inferLanguageFromExtension(ext);
     }
 }
 

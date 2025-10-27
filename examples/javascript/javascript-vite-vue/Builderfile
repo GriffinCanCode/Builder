@@ -14,7 +14,7 @@ target("app") {
         "minify": true,
         "sourcemap": true,
         "target": "es2020",
-        "installDeps": false
+        "installDeps": true
     };
 }
 
@@ -34,7 +34,8 @@ target("lib") {
         "minify": false,
         "sourcemap": true,
         "target": "es2020",
-        "external": ["vue"]
+        "external": ["vue"],
+        "installDeps": true
     };
 }
 

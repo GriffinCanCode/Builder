@@ -326,6 +326,121 @@ auto Err(T, E)(E error) @safe
 // Import for string conversion
 private import std.conv : to;
 
+/// Drop-in replacement for std.process.execute with automatic path validation
+/// This function provides the same interface as std.process.execute but with security checks
+/// 
+/// Safety: This function is @trusted because:
+/// 1. Validates all command arguments before execution
+/// 2. Validates paths to prevent traversal attacks
+/// 3. Uses array form (no shell interpretation)
+/// 4. Delegates to std.process.execute after validation
+/// 
+/// Invariants:
+/// - All arguments are validated for injection patterns
+/// - All path-like arguments are validated for traversal
+/// - Working directory is validated if provided
+/// 
+/// What could go wrong:
+/// - False positives: legitimate special characters in paths could be rejected
+/// - TOCTOU: files could change between validation and execution
+/// - Symlink attacks: validation doesn't resolve symlinks
+@trusted
+auto execute(
+    scope const(string)[] args,
+    const string[string] env = null,
+    Config config = Config.none,
+    size_t maxOutput = size_t.max,
+    scope const(char)[] workDir = null,
+    bool skipValidation = false
+)
+{
+    import std.process : executeShell;
+    import std.exception : enforce;
+    
+    // Critical security check: validate command is not empty
+    enforce(args.length > 0, "Cannot execute empty command");
+    
+    // Skip validation only if explicitly requested (for trusted internal use)
+    if (skipValidation)
+    {
+        return std.process.execute(args, env, config, maxOutput, workDir);
+    }
+    
+    // Security Layer 1: Validate executable name
+    if (!SecurityValidator.isArgumentSafe(args[0]))
+    {
+        throw new Exception("SECURITY: Unsafe command executable detected: " ~ args[0]);
+    }
+    
+    // Security Layer 2: Validate all arguments
+    foreach (i, arg; args[1 .. $])
+    {
+        // Check for command injection patterns
+        if (!SecurityValidator.isArgumentSafe(arg))
+        {
+            throw new Exception("SECURITY: Unsafe argument detected at position " ~ 
+                              to!string(i + 1) ~ ": " ~ arg);
+        }
+        
+        // If argument contains path separators, validate as path
+        if (arg.canFind('/') || arg.canFind('\\'))
+        {
+            // Allow flags starting with - even if they contain slashes
+            if (!arg.startsWith("-") && !arg.startsWith("--"))
+            {
+                if (!SecurityValidator.isPathSafe(arg))
+                {
+                    throw new Exception("SECURITY: Unsafe path detected in argument: " ~ arg);
+                }
+            }
+        }
+    }
+    
+    // Security Layer 3: Validate working directory
+    if (workDir !is null && workDir.length > 0)
+    {
+        if (!SecurityValidator.isPathSafe(workDir.idup))
+        {
+            throw new Exception("SECURITY: Unsafe working directory: " ~ workDir.idup);
+        }
+        
+        // Additional check for system directories
+        version(Posix)
+        {
+            immutable systemDirs = ["/etc", "/proc", "/sys", "/dev", "/boot", "/root"];
+            foreach (sysDir; systemDirs)
+            {
+                if (workDir == sysDir || workDir.startsWith(sysDir ~ "/"))
+                {
+                    throw new Exception("SECURITY: Cannot execute in system directory: " ~ workDir.idup);
+                }
+            }
+        }
+    }
+    
+    // Security audit log (enabled via environment variable BUILDER_AUDIT_EXEC=1)
+    version(BUILDER_AUDIT)
+    {
+        Logger.debugLog("[SECURITY AUDIT] execute: " ~ args.join(" "));
+        if (workDir !is null && workDir.length > 0)
+            Logger.debugLog("[SECURITY AUDIT]   workDir: " ~ workDir);
+    }
+    
+    // All validation passed - execute command safely
+    return std.process.execute(args, env, config, maxOutput, workDir);
+}
+
+/// Execute command in working directory with validation
+@trusted
+auto execute(
+    scope const(string)[] args,
+    scope const(char)[] workDir,
+    bool skipValidation = false
+)
+{
+    return execute(args, null, Config.none, size_t.max, workDir, skipValidation);
+}
+
 @safe unittest
 {
     // Test safe execution

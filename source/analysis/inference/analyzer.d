@@ -15,6 +15,7 @@ import analysis.metadata.metagen;
 import analysis.scanning.scanner;
 import analysis.resolution.resolver;
 import utils.logging.logger;
+import languages.registry;
 import utils.files.hash;
 import errors;
 
@@ -652,20 +653,9 @@ class BuildInferenceAnalyzer
         return deps;
     }
     
+    /// Get file extensions for a language - delegates to centralized registry
     private string[] languageExtensions(TargetLanguage language)
     {
-        switch (language)
-        {
-            case TargetLanguage.Python: return [".py"];
-            case TargetLanguage.JavaScript: return [".js", ".mjs", ".cjs", ".jsx"];
-            case TargetLanguage.TypeScript: return [".ts", ".tsx"];
-            case TargetLanguage.Cpp: return [".cpp", ".cc", ".cxx", ".hpp", ".h"];
-            case TargetLanguage.C: return [".c", ".h"];
-            case TargetLanguage.Rust: return [".rs"];
-            case TargetLanguage.Go: return [".go"];
-            case TargetLanguage.Java: return [".java"];
-            case TargetLanguage.Ruby: return [".rb"];
-            default: return [];
-        }
+        return getLanguageExtensions(language);
     }
 }

@@ -1,7 +1,6 @@
 module languages.web.javascript.core.handler;
 
 import std.stdio;
-import std.process;
 import std.file;
 import std.path;
 import std.algorithm;
@@ -18,6 +17,9 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process.checker : isCommandAvailable;
+// SECURITY: Use secure execute with automatic path validation
+import utils.security : execute;
+import std.process : Config;
 
 /// JavaScript/TypeScript build handler with bundler support
 class JavaScriptHandler : BaseLanguageHandler
@@ -230,6 +232,12 @@ class JavaScriptHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
+        // Install dependencies first if requested (before checking bundler availability)
+        if (jsConfig.installDeps)
+        {
+            languages.web.shared_.utils.installDependencies(target.sources, jsConfig.packageManager);
+        }
+        
         // Create bundler
         auto bundler = BundlerFactory.create(jsConfig.bundler, jsConfig);
         
@@ -241,12 +249,6 @@ class JavaScriptHandler : BaseLanguageHandler
         }
         
         Logger.debugLog("Using bundler: " ~ bundler.name() ~ " (" ~ bundler.getVersion() ~ ")");
-        
-        // Install dependencies if requested
-        if (jsConfig.installDeps)
-        {
-            languages.web.shared_.utils.installDependencies(target.sources, jsConfig.packageManager);
-        }
         
         // Bundle
         auto bundleResult = bundler.bundle(target.sources, jsConfig, target, config);

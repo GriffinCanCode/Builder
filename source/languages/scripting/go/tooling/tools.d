@@ -1,6 +1,7 @@
 module languages.scripting.go.tooling.tools;
 
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.path;
 import std.algorithm;

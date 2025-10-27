@@ -1,6 +1,7 @@
 module languages.scripting.python.tooling.formatters;
 
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.algorithm;
 import std.array;
 import std.string;

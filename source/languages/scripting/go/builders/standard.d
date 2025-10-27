@@ -1,6 +1,7 @@
 module languages.scripting.go.builders.standard;
 
-import std.process;
+import std.process : Config, environment;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.path;
 import std.algorithm;

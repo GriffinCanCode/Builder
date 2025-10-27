@@ -1,7 +1,8 @@
 module languages.scripting.go.core.handler;
 
 import std.stdio;
-import std.process;
+import std.process : Config, environment;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.path;
 import std.algorithm;

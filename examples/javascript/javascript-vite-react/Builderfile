@@ -15,7 +15,7 @@ target("app") {
         "sourcemap": true,
         "target": "es2020",
         "jsx": true,
-        "installDeps": false
+        "installDeps": true
     };
 }
 
@@ -36,7 +36,8 @@ target("lib") {
         "sourcemap": true,
         "target": "es2020",
         "jsx": true,
-        "external": ["react", "react-dom"]
+        "external": ["react", "react-dom"],
+        "installDeps": true
     };
 }
 

@@ -261,6 +261,17 @@ shared static this()
         &detectRelativeImport
     );
     
+    // F#
+    specs[TargetLanguage.FSharp] = LanguageSpec(
+        TargetLanguage.FSharp,
+        "F#",
+        [
+            ImportPattern("open", `^\s*open\s+([\w.]+)`),
+            ImportPattern("module", `^\s*module\s+([\w.]+)`)
+        ],
+        &detectRelativeImport
+    );
+    
     // Zig
     specs[TargetLanguage.Zig] = LanguageSpec(
         TargetLanguage.Zig,
@@ -308,7 +319,8 @@ shared static this()
         TargetLanguage.Scala,
         "Scala",
         [
-            ImportPattern("import", `^\s*import\s+([\w.]+)`)
+            ImportPattern("import", `^\s*import\s+([\w.]+)`),
+            ImportPattern("package", `^\s*package\s+([\w.]+)`)
         ],
         &detectRelativeImport
     );
@@ -356,6 +368,16 @@ shared static this()
             ImportPattern("load", `^\s*load\s*\(\s*['"]([^'"]+)['"]\s*\)`)
         ],
         &detectRImportKind
+    );
+    
+    // CSS (no import patterns - typically no dependencies)
+    specs[TargetLanguage.CSS] = LanguageSpec(
+        TargetLanguage.CSS,
+        "CSS",
+        [
+            ImportPattern("import", `^\s*@import\s+(?:url\(['"])?([^'"()]+)['"]?\)?`)
+        ],
+        &detectRelativeImport
     );
     
     // Generic (no-op)

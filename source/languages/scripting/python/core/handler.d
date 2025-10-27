@@ -1,7 +1,6 @@
 module languages.scripting.python.core.handler;
 
 import std.stdio;
-import std.process;
 import std.file;
 import std.path;
 import std.algorithm;
@@ -19,6 +18,9 @@ import utils.files.hash;
 import utils.logging.logger;
 import utils.python.pycheck;
 import utils.python.pywrap;
+// SECURITY: Use secure execute with automatic path validation
+import utils.security : execute;
+import std.process : Config;
 
 /// Python build handler - comprehensive and modular
 class PythonHandler : BaseLanguageHandler

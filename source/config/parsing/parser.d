@@ -15,6 +15,7 @@ import analysis.detection.inference;
 import utils.logging.logger;
 import utils.files.glob;
 import errors;
+import languages.registry;
 
 /// Parse Builderfile files and workspace configuration
 class ConfigParser
@@ -302,71 +303,20 @@ class ConfigParser
         }
     }
     
-    /// Parse language from string
+    /// Parse language from string - delegates to centralized registry
     private static TargetLanguage parseLanguage(string lang)
     {
-        switch (lang.toLower)
-        {
-            case "d": return TargetLanguage.D;
-            case "python": case "py": return TargetLanguage.Python;
-            case "javascript": case "js": return TargetLanguage.JavaScript;
-            case "typescript": case "ts": return TargetLanguage.TypeScript;
-            case "go": return TargetLanguage.Go;
-            case "rust": case "rs": return TargetLanguage.Rust;
-            case "c++": case "cpp": return TargetLanguage.Cpp;
-            case "c": return TargetLanguage.C;
-            case "java": return TargetLanguage.Java;
-            case "kotlin": case "kt": return TargetLanguage.Kotlin;
-            case "csharp": case "cs": case "c#": return TargetLanguage.CSharp;
-            case "fsharp": case "fs": case "f#": return TargetLanguage.FSharp;
-            case "zig": return TargetLanguage.Zig;
-            case "swift": return TargetLanguage.Swift;
-            case "ruby": case "rb": return TargetLanguage.Ruby;
-            case "php": return TargetLanguage.PHP;
-            case "scala": return TargetLanguage.Scala;
-            case "elixir": case "ex": return TargetLanguage.Elixir;
-            case "nim": return TargetLanguage.Nim;
-            case "lua": return TargetLanguage.Lua;
-            case "r": return TargetLanguage.R;
-            case "css": return TargetLanguage.CSS;
-            default: return TargetLanguage.Generic;
-        }
+        return parseLanguageName(lang);
     }
     
-    /// Infer language from file extensions
+    /// Infer language from file extensions - delegates to centralized registry
     private static TargetLanguage inferLanguage(string[] sources)
     {
         if (sources.empty)
             return TargetLanguage.Generic;
         
         string ext = extension(sources[0]);
-        
-        switch (ext)
-        {
-            case ".d": return TargetLanguage.D;
-            case ".py": return TargetLanguage.Python;
-            case ".js": case ".jsx": case ".mjs": return TargetLanguage.JavaScript;
-            case ".ts": case ".tsx": return TargetLanguage.TypeScript;
-            case ".go": return TargetLanguage.Go;
-            case ".rs": return TargetLanguage.Rust;
-            case ".cpp": case ".cc": case ".cxx": case ".c++": case ".hpp": case ".hxx": return TargetLanguage.Cpp;
-            case ".c": case ".h": return TargetLanguage.C;
-            case ".java": return TargetLanguage.Java;
-            case ".kt": case ".kts": return TargetLanguage.Kotlin;
-            case ".cs": return TargetLanguage.CSharp;
-            case ".fs": case ".fsi": case ".fsx": return TargetLanguage.FSharp;
-            case ".zig": return TargetLanguage.Zig;
-            case ".swift": return TargetLanguage.Swift;
-            case ".rb": return TargetLanguage.Ruby;
-            case ".php": return TargetLanguage.PHP;
-            case ".scala": case ".sc": return TargetLanguage.Scala;
-            case ".ex": case ".exs": return TargetLanguage.Elixir;
-            case ".nim": return TargetLanguage.Nim;
-            case ".lua": return TargetLanguage.Lua;
-            case ".r": case ".R": return TargetLanguage.R;
-            case ".css": case ".scss": case ".sass": case ".less": return TargetLanguage.CSS;
-            default: return TargetLanguage.Generic;
-        }
+        return inferLanguageFromExtension(ext);
     }
     
     /// Expand glob patterns to actual files

@@ -60,7 +60,7 @@ class ViteBundler : Bundler
     {
         Logger.debugLog("Using Vite config: " ~ configFile);
         
-        string[] cmd = ["vite", "build", "--config", configFile];
+        string[] cmd = ["npx", "vite", "build", "--config", configFile];
         
         string configDir = dirName(absolutePath(configFile));
         auto res = execute(cmd, null, Config.none, size_t.max, configDir);
@@ -141,7 +141,7 @@ class ViteBundler : Bundler
         Logger.debugLog("Generated Vite config: " ~ tempConfig);
         
         // Run Vite build
-        string[] cmd = ["vite", "build", "--config", tempConfig];
+        string[] cmd = ["npx", "vite", "build", "--config", tempConfig];
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);
         
@@ -411,7 +411,8 @@ export default defineConfig({
     
     bool isAvailable()
     {
-        auto res = execute(["vite", "--version"]);
+        // Check if npx can find vite (works for both global and local installs)
+        auto res = execute(["npx", "vite", "--version"]);
         return res.status == 0;
     }
     
@@ -422,7 +423,7 @@ export default defineConfig({
     
     string getVersion()
     {
-        auto res = execute(["vite", "--version"]);
+        auto res = execute(["npx", "vite", "--version"]);
         if (res.status == 0)
         {
             // Vite version output is like "vite/5.0.0"

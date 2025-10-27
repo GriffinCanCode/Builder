@@ -1,6 +1,7 @@
 module utils.process.checker;
 
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.string;
 import std.algorithm;
 

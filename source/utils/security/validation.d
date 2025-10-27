@@ -15,6 +15,14 @@ struct SecurityValidator
 {
     /// Validates that a file path is safe to use with external commands
     /// Returns: true if path is safe, false otherwise
+    /// 
+    /// Security checks:
+    /// 1. Null byte injection (terminates strings in C)
+    /// 2. Shell metacharacters (even array form can have issues)
+    /// 3. Path traversal sequences (../ or ..\)
+    /// 4. Control characters (newlines, tabs)
+    /// 5. System directory access
+    /// 6. Unicode homograph attacks (lookalike characters)
     @safe
     static bool isPathSafe(string path) nothrow
     {
@@ -40,8 +48,16 @@ struct SecurityValidator
             if (path.canFind("\n") || path.canFind("\r") || path.canFind("\t"))
                 return false;
             
+            // Check for ANSI escape codes (could be used for terminal injection)
+            if (path.canFind("\x1b["))
+                return false;
+            
             // Validate path structure (no path traversal attempts)
             if (!isPathTraversalSafe(path))
+                return false;
+            
+            // Check for encoded traversal attempts
+            if (path.canFind("%2e%2e") || path.canFind("..%2f") || path.canFind("%2e%2e%2f"))
                 return false;
             
             return true;
@@ -53,6 +69,13 @@ struct SecurityValidator
     }
     
     /// Validates that a path doesn't contain path traversal sequences
+    /// 
+    /// Security checks:
+    /// 1. Common traversal patterns (../, ..\)
+    /// 2. Dot-dot at end of path (..)
+    /// 3. Hidden traversal (/./ or //)
+    /// 4. Absolute paths to sensitive system directories
+    /// 5. Windows device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
     @safe
     static bool isPathTraversalSafe(string path) nothrow
     {
@@ -62,13 +85,45 @@ struct SecurityValidator
             if (path.canFind("../") || path.canFind("..\\"))
                 return false;
             
+            // Check if path ends with ..
+            if (path.endsWith(".."))
+                return false;
+            
+            // Check for hidden traversal sequences
+            if (path.canFind("/./") || path.canFind("\\.\\"))
+                return false;
+            
+            // Check for double slashes (can bypass some protections)
+            if (path.canFind("//") || path.canFind("\\\\"))
+                return false;
+            
             // Check for absolute path to sensitive locations (on Unix)
             version(Posix)
             {
-                const string[] sensitivePaths = ["/etc/", "/proc/", "/sys/", "/dev/"];
+                const string[] sensitivePaths = [
+                    "/etc/", "/proc/", "/sys/", "/dev/", "/boot/", 
+                    "/root/", "/var/log/", "/tmp/", "/var/tmp/"
+                ];
                 foreach (sensPath; sensitivePaths)
                 {
                     if (path.startsWith(sensPath))
+                        return false;
+                }
+            }
+            
+            // Check for Windows device names (security issue on Windows)
+            version(Windows)
+            {
+                auto upperPath = path.toUpper();
+                const string[] deviceNames = [
+                    "CON", "PRN", "AUX", "NUL",
+                    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+                    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+                ];
+                foreach (device; deviceNames)
+                {
+                    if (upperPath == device || upperPath.startsWith(device ~ ".") || 
+                        upperPath.startsWith(device ~ ":") || upperPath.startsWith(device ~ "\\"))
                         return false;
                 }
             }

@@ -1,6 +1,7 @@
 module languages.scripting.python.tooling.checkers;
 
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.algorithm;
 import std.array;

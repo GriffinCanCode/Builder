@@ -1,6 +1,7 @@
 module languages.scripting.python.tooling.detection;
 
-import std.process;
+import std.process : Config;
+import utils.security : execute;  // SECURITY: Auto-migrated
 import std.string;
 import std.array;
 import utils.process : isCommandAvailable;

@@ -9,6 +9,7 @@ import config.parsing.lexer;
 import config.workspace.ast;
 import config.schema.schema;
 import errors;
+import languages.registry;
 
 /// Recursive descent parser for Builderfile DSL
 /// Uses parser combinator patterns for elegant composition
@@ -514,16 +515,17 @@ struct SemanticAnalyzer
         if (decl.hasField("config"))
         {
             auto configField = decl.getField("config");
+            if (configField.value.kind != ExpressionValue.Kind.Map)
+            {
+                return error!(Target)(decl, "Field 'config' must be a map");
+            }
+            
             try
             {
-                import std.json : parseJSON, toJSON;
-                // Convert map to JSON string for storage
-                auto configMap = configField.value.asMap();
-                JSONValue jsonConfig = parseJSON("{}");
-                foreach (key, value; configMap)
-                {
-                    jsonConfig[key] = value;
-                }
+                import std.json : JSONValue, toJSON;
+                // Convert ExpressionValue to JSONValue recursively
+                JSONValue jsonConfig = expressionValueToJSON(configField.value);
+                
                 // Store config keyed by language name for flexibility
                 string configKey = target.language == TargetLanguage.Generic ? 
                                    "config" : target.language.to!string.toLower;
@@ -531,11 +533,50 @@ struct SemanticAnalyzer
             }
             catch (Exception e)
             {
-                return error!(Target)(decl, "Field 'config' must be a map");
+                return error!(Target)(decl, "Failed to parse config: " ~ e.msg);
             }
         }
         
         return Ok!(Target, BuildError)(target);
+    }
+    
+    /// Convert ExpressionValue to JSONValue recursively
+    private JSONValue expressionValueToJSON(const ref ExpressionValue value) const
+    {
+        import std.json : JSONValue;
+        
+        final switch (value.kind)
+        {
+            case ExpressionValue.Kind.String:
+                return JSONValue(value.stringValue.value);
+            case ExpressionValue.Kind.Number:
+                return JSONValue(value.numberValue.value);
+            case ExpressionValue.Kind.Identifier:
+                // Treat identifiers as strings (for true/false/null we keep as strings)
+                string idName = value.identifierValue.name;
+                if (idName == "true")
+                    return JSONValue(true);
+                else if (idName == "false")
+                    return JSONValue(false);
+                else if (idName == "null")
+                    return JSONValue(null);
+                else
+                    return JSONValue(idName);
+            case ExpressionValue.Kind.Array:
+                JSONValue[] arr;
+                foreach (elem; value.arrayValue.elements)
+                {
+                    arr ~= expressionValueToJSON(elem);
+                }
+                return JSONValue(arr);
+            case ExpressionValue.Kind.Map:
+                JSONValue obj = parseJSON("{}");
+                foreach (key, val; value.mapValue.pairs)
+                {
+                    obj[key] = expressionValueToJSON(val);
+                }
+                return obj;
+        }
     }
     
     /// Parse target type from expression
@@ -555,41 +596,17 @@ struct SemanticAnalyzer
         }
     }
     
-    /// Parse language from expression
+    /// Parse language from expression - delegates to centralized registry
     private TargetLanguage parseLanguage(const ref ExpressionValue value) const
     {
         if (value.kind != ExpressionValue.Kind.Identifier)
             return TargetLanguage.Generic;
         
-        string langName = value.identifierValue.name.toLower;
-        
-        switch (langName)
-        {
-            case "d": return TargetLanguage.D;
-            case "python": case "py": return TargetLanguage.Python;
-            case "javascript": case "js": return TargetLanguage.JavaScript;
-            case "typescript": case "ts": return TargetLanguage.TypeScript;
-            case "go": return TargetLanguage.Go;
-            case "rust": case "rs": return TargetLanguage.Rust;
-            case "cpp": case "c++": return TargetLanguage.Cpp;
-            case "c": return TargetLanguage.C;
-            case "java": return TargetLanguage.Java;
-            case "kotlin": case "kt": return TargetLanguage.Kotlin;
-            case "csharp": case "cs": case "c#": return TargetLanguage.CSharp;
-            case "zig": return TargetLanguage.Zig;
-            case "swift": return TargetLanguage.Swift;
-            case "ruby": case "rb": return TargetLanguage.Ruby;
-            case "php": return TargetLanguage.PHP;
-            case "scala": return TargetLanguage.Scala;
-            case "elixir": case "ex": return TargetLanguage.Elixir;
-            case "nim": return TargetLanguage.Nim;
-            case "lua": return TargetLanguage.Lua;
-            case "r": return TargetLanguage.R;
-            default: return TargetLanguage.Generic;
-        }
+        string langName = value.identifierValue.name;
+        return parseLanguageName(langName);
     }
     
-    /// Infer language from source file extensions
+    /// Infer language from source file extensions - delegates to centralized registry
     private TargetLanguage inferLanguageFromSources(string[] sources)
     {
         import std.path : extension;
@@ -598,21 +615,7 @@ struct SemanticAnalyzer
             return TargetLanguage.Generic;
         
         string ext = extension(sources[0]);
-        
-        switch (ext)
-        {
-            case ".d": return TargetLanguage.D;
-            case ".py": return TargetLanguage.Python;
-            case ".js": return TargetLanguage.JavaScript;
-            case ".ts": return TargetLanguage.TypeScript;
-            case ".go": return TargetLanguage.Go;
-            case ".rs": return TargetLanguage.Rust;
-            case ".cpp": case ".cc": case ".cxx": return TargetLanguage.Cpp;
-            case ".c": return TargetLanguage.C;
-            case ".java": return TargetLanguage.Java;
-            case ".R": case ".r": return TargetLanguage.R;
-            default: return TargetLanguage.Generic;
-        }
+        return inferLanguageFromExtension(ext);
     }
     
     private Result!(T, BuildError) error(T)(ref TargetDecl decl, string message)
