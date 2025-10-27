@@ -625,7 +625,7 @@ struct CSharpConfig
 }
 
 /// Parse C# configuration from target
-CSharpConfig parseCSharpConfig(Target target)
+CSharpConfig parseCSharpConfig(in Target target)
 {
     CSharpConfig config;
     

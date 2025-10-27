@@ -13,7 +13,7 @@ import languages.compiled.swift.core.config;
 import languages.compiled.swift.analysis.manifest;
 import languages.compiled.swift.managers.spm;
 import languages.compiled.swift.managers.toolchain;
-import languages.compiled.swift.tooling.builders;
+import languages.compiled.swift.tooling;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;
@@ -42,7 +42,7 @@ class SwiftHandler : BaseLanguageHandler
         // Auto-detect Package.swift if present
         if (swiftConfig.manifest.manifestPath.empty || !exists(swiftConfig.manifest.manifestPath))
         {
-            auto manifestPath = PackageManifestParser.findManifest(target.sources);
+            auto manifestPath = PackageManifestParser.findManifest(target.sources.dup);
             if (!manifestPath.empty)
             {
                 Logger.debug_("Found Package.swift: " ~ manifestPath);
@@ -211,7 +211,7 @@ class SwiftHandler : BaseLanguageHandler
         return allImports;
     }
     
-    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, SwiftConfig swiftConfig)
+    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, SwiftConfig swiftConfig)
     {
         LanguageBuildResult result;
         
@@ -241,7 +241,7 @@ class SwiftHandler : BaseLanguageHandler
         return compileTarget(target, config, swiftConfig);
     }
     
-    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, SwiftConfig swiftConfig)
+    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, SwiftConfig swiftConfig)
     {
         LanguageBuildResult result;
         
@@ -256,7 +256,7 @@ class SwiftHandler : BaseLanguageHandler
         return compileTarget(target, config, swiftConfig);
     }
     
-    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, SwiftConfig swiftConfig)
+    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, SwiftConfig swiftConfig)
     {
         LanguageBuildResult result;
         
@@ -273,7 +273,7 @@ class SwiftHandler : BaseLanguageHandler
         return compileTarget(target, config, swiftConfig);
     }
     
-    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, SwiftConfig swiftConfig)
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, SwiftConfig swiftConfig)
     {
         LanguageBuildResult result;
         
@@ -282,7 +282,7 @@ class SwiftHandler : BaseLanguageHandler
         return compileTarget(target, config, swiftConfig);
     }
     
-    private LanguageBuildResult compileTarget(Target target, WorkspaceConfig config, SwiftConfig swiftConfig)
+    private LanguageBuildResult compileTarget(in Target target, in WorkspaceConfig config, SwiftConfig swiftConfig)
     {
         LanguageBuildResult result;
         
@@ -308,7 +308,7 @@ class SwiftHandler : BaseLanguageHandler
         }
         
         // Compile
-        auto compileResult = builder.build(target.sources, swiftConfig, target, config);
+        auto compileResult = builder.build(target.sources.dup, swiftConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         if (!compileResult.success)
         {
@@ -333,7 +333,7 @@ class SwiftHandler : BaseLanguageHandler
         return result;
     }
     
-    private SwiftConfig parseSwiftConfig(Target target)
+    private SwiftConfig parseSwiftConfig(in Target target)
     {
         SwiftConfig config;
         
@@ -360,7 +360,7 @@ class SwiftHandler : BaseLanguageHandler
         // Auto-detect Package.swift if not specified
         if (config.manifest.manifestPath.empty)
         {
-            config.manifest.manifestPath = PackageManifestParser.findManifest(target.sources);
+            config.manifest.manifestPath = PackageManifestParser.findManifest(target.sources.dup);
             if (!config.manifest.manifestPath.empty)
             {
                 config.packagePath = dirName(config.manifest.manifestPath);
@@ -410,7 +410,7 @@ class SwiftHandler : BaseLanguageHandler
         }
     }
     
-    private SwiftLintResult runSwiftLint(Target target, SwiftConfig config, WorkspaceConfig workspace)
+    private SwiftLintResult runSwiftLint(in Target target, SwiftConfig config, in WorkspaceConfig workspace)
     {
         SwiftLintResult result;
         
@@ -425,7 +425,7 @@ class SwiftHandler : BaseLanguageHandler
         
         auto runner = new SwiftLintRunner();
         auto res = runner.lint(
-            target.sources,
+            target.sources.dup,
             config.swiftlint.configFile,
             config.swiftlint.strict,
             config.swiftlint.enableRules,
@@ -455,7 +455,7 @@ class SwiftHandler : BaseLanguageHandler
         return result;
     }
     
-    private void runSwiftFormat(Target target, SwiftConfig config)
+    private void runSwiftFormat(in Target target, SwiftConfig config)
     {
         if (!SwiftFormatRunner.isAvailable())
         {
@@ -467,7 +467,7 @@ class SwiftHandler : BaseLanguageHandler
         
         auto runner = new SwiftFormatRunner();
         auto res = runner.format(
-            target.sources,
+            target.sources.dup,
             config.swiftformat.configFile,
             config.swiftformat.checkOnly,
             config.swiftformat.inPlace
@@ -483,7 +483,7 @@ class SwiftHandler : BaseLanguageHandler
         }
     }
     
-    private void generateDocumentation(Target target, SwiftConfig config, WorkspaceConfig workspace)
+    private void generateDocumentation(in Target target, SwiftConfig config, in WorkspaceConfig workspace)
     {
         if (!DocCRunner.isAvailable())
         {
@@ -510,7 +510,7 @@ class SwiftHandler : BaseLanguageHandler
         }
     }
     
-    private void generateXCFramework(Target target, SwiftConfig config, WorkspaceConfig workspace)
+    private void generateXCFramework(in Target target, SwiftConfig config, in WorkspaceConfig workspace)
     {
         Logger.info("Generating XCFramework...");
         

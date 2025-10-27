@@ -166,7 +166,8 @@ class SPMBuilder : SwiftBuilder
         // Run appropriate command based on mode
         auto runner = new SwiftBuildRunner(config.packagePath);
         
-        ProcessPipes res;
+        import std.typecons : Tuple;
+        Tuple!(int, "status", string, "output") res;
         final switch (config.mode)
         {
             case SPMBuildMode.Build:
@@ -298,9 +299,9 @@ class SPMBuilder : SwiftBuilder
         string[] outputs;
         
         // Get build path
-        string buildPath = config.buildPath;
-        if (buildPath.empty)
-            buildPath = ".build";
+        string buildPathDir = config.buildPath;
+        if (buildPathDir.empty)
+            buildPathDir = ".build";
         
         // Determine configuration directory
         string configDir;
@@ -317,7 +318,7 @@ class SPMBuilder : SwiftBuilder
                 break;
         }
         
-        string outputDir = buildPath(buildPath, configDir);
+        string outputDir = buildPath(buildPathDir, configDir);
         
         // Find built products
         if (exists(outputDir) && isDir(outputDir))

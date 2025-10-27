@@ -178,8 +178,8 @@ class CppHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CppConfig cppConfig
     )
     {
@@ -200,8 +200,8 @@ class CppHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CppConfig cppConfig
     )
     {
@@ -216,8 +216,8 @@ class CppHandler : BaseLanguageHandler
         {
             Logger.info("Header-only library detected");
             result.success = true;
-            result.outputs = target.sources;
-            result.outputHash = FastHash.hashStrings(target.sources);
+            result.outputs = target.sources.dup;
+            result.outputHash = FastHash.hashStrings(target.sources.dup);
             return result;
         }
         
@@ -239,8 +239,8 @@ class CppHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CppConfig cppConfig
     )
     {
@@ -281,20 +281,20 @@ class CppHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CppConfig cppConfig
     )
     {
         LanguageBuildResult result;
         result.success = true;
-        result.outputHash = FastHash.hashStrings(target.sources);
+        result.outputHash = FastHash.hashStrings(target.sources.dup);
         return result;
     }
     
     private CppCompileResult compileTarget(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CppConfig cppConfig
     )
     {
@@ -314,10 +314,10 @@ class CppHandler : BaseLanguageHandler
         // Optimize with precompiled headers if beneficial
         if (cppConfig.pch.strategy == PchStrategy.Auto && target.sources.length > 5)
         {
-            auto pchHeaders = PchOptimizer.suggestPchHeaders(target.sources, cppConfig.includeDirs);
+            auto pchHeaders = PchOptimizer.suggestPchHeaders(target.sources.dup, cppConfig.includeDirs);
             if (!pchHeaders.empty)
             {
-                double benefit = PchOptimizer.estimatePchBenefit(target.sources, pchHeaders);
+                double benefit = PchOptimizer.estimatePchBenefit(target.sources.dup, pchHeaders);
                 if (benefit > 30.0)
                 {
                     Logger.info("PCH would benefit ~" ~ benefit.to!string[0 .. min(5, $)] ~ "% of includes");
@@ -327,7 +327,7 @@ class CppHandler : BaseLanguageHandler
         }
         
         // Compile
-        auto compileResult = builder.build(target.sources, cppConfig, target, config);
+        auto compileResult = builder.build(target.sources.dup, cppConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         if (!compileResult.success)
         {
@@ -351,7 +351,7 @@ class CppHandler : BaseLanguageHandler
         return compileResult;
     }
     
-    private CppConfig parseCppConfig(Target target)
+    private CppConfig parseCppConfig(in Target target)
     {
         CppConfig config;
         
@@ -380,7 +380,7 @@ class CppHandler : BaseLanguageHandler
         // Apply target flags to compiler flags
         if (!target.flags.empty)
         {
-            config.compilerFlags ~= target.flags;
+            config.compilerFlags ~= target.flags.dup;
         }
         
         return config;
@@ -388,8 +388,8 @@ class CppHandler : BaseLanguageHandler
     
     private void enhanceConfigFromProject(
         ref CppConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)
@@ -434,16 +434,16 @@ class CppHandler : BaseLanguageHandler
         }
     }
     
-    private AnalysisResult runStaticAnalysis(Target target, CppConfig config)
+    private AnalysisResult runStaticAnalysis(in Target target, CppConfig config)
     {
         final switch (config.analyzer)
         {
             case StaticAnalyzer.None:
                 return AnalysisResult();
             case StaticAnalyzer.ClangTidy:
-                return ClangTidy.analyze(target.sources, config);
+                return ClangTidy.analyze(target.sources.dup, config);
             case StaticAnalyzer.CppCheck:
-                return CppCheck.analyze(target.sources, config);
+                return CppCheck.analyze(target.sources.dup, config);
             case StaticAnalyzer.PVSStudio:
             case StaticAnalyzer.Coverity:
                 Logger.warning("Analyzer not yet implemented: " ~ config.analyzer.to!string);
@@ -451,11 +451,11 @@ class CppHandler : BaseLanguageHandler
         }
     }
     
-    private void formatCode(string[] sources, CppConfig config)
+    private void formatCode(in string[] sources, CppConfig config)
     {
         if (ClangFormat.isAvailable())
         {
-            ClangFormat.format(sources, config.formatStyle, true);
+            ClangFormat.format(sources.dup, config.formatStyle, true);
         }
         else
         {

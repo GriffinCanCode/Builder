@@ -24,7 +24,7 @@ import utils.logging.logger;
 /// Advanced D build handler with dub, compiler detection, and tooling support
 class DHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -107,7 +107,7 @@ class DHandler : BaseLanguageHandler
         return outputs;
     }
     
-    override Import[] analyzeImports(string[] sources)
+    override Import[] analyzeImports(in string[] sources)
     {
         auto spec = getLanguageSpec(TargetLanguage.D);
         if (spec is null)
@@ -135,7 +135,7 @@ class DHandler : BaseLanguageHandler
         return allImports;
     }
     
-    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, DConfig dConfig)
+    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, DConfig dConfig)
     {
         LanguageBuildResult result;
         
@@ -165,7 +165,7 @@ class DHandler : BaseLanguageHandler
         return compileTarget(target, config, dConfig);
     }
     
-    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, DConfig dConfig)
+    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, DConfig dConfig)
     {
         LanguageBuildResult result;
         
@@ -195,7 +195,7 @@ class DHandler : BaseLanguageHandler
         return compileTarget(target, config, dConfig);
     }
     
-    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, DConfig dConfig)
+    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, DConfig dConfig)
     {
         LanguageBuildResult result;
         
@@ -212,7 +212,7 @@ class DHandler : BaseLanguageHandler
         return compileTarget(target, config, dConfig);
     }
     
-    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, DConfig dConfig)
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, DConfig dConfig)
     {
         LanguageBuildResult result;
         
@@ -221,7 +221,7 @@ class DHandler : BaseLanguageHandler
         return compileTarget(target, config, dConfig);
     }
     
-    private LanguageBuildResult compileTarget(Target target, WorkspaceConfig config, DConfig dConfig)
+    private LanguageBuildResult compileTarget(in Target target, in WorkspaceConfig config, DConfig dConfig)
     {
         LanguageBuildResult result;
         
@@ -238,7 +238,7 @@ class DHandler : BaseLanguageHandler
         Logger.debug_("Using D builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
-        auto compileResult = builder.build(target.sources, dConfig, target, config);
+        auto compileResult = builder.build(target.sources.dup, dConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         if (!compileResult.success)
         {
@@ -275,7 +275,7 @@ class DHandler : BaseLanguageHandler
         return result;
     }
     
-    private DConfig parseDConfig(Target target)
+    private DConfig parseDConfig(in Target target)
     {
         DConfig config;
         
@@ -302,7 +302,7 @@ class DHandler : BaseLanguageHandler
         // Auto-detect dub.json/dub.sdl if not specified
         if (config.dub.packagePath.empty)
         {
-            config.dub.packagePath = DubManifest.findManifest(target.sources);
+            config.dub.packagePath = DubManifest.findManifest(target.sources.dup);
             if (!config.dub.packagePath.empty)
             {
                 Logger.debug_("Found DUB package: " ~ config.dub.packagePath);
@@ -379,7 +379,7 @@ class DHandler : BaseLanguageHandler
         }
     }
     
-    private void runFormatter(Target target, DConfig config)
+    private void runFormatter(in Target target, DConfig config)
     {
         if (!DFormatter.isAvailable())
         {
@@ -405,7 +405,7 @@ class DHandler : BaseLanguageHandler
         }
     }
     
-    private DCompileResult runLinter(Target target, DConfig config)
+    private DCompileResult runLinter(in Target target, DConfig config)
     {
         DCompileResult result;
         result.success = true;

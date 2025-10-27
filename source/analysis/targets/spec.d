@@ -16,7 +16,7 @@ struct LanguageSpec
     ImportKindDetector kindDetector;
     
     /// Scan a file for imports
-    Import[] scanImports(string filePath, string content) const
+    Import[] scanImports(string filePath, string content) const @trusted
     {
         Import[] imports;
         size_t lineNumber = 1;
@@ -353,7 +353,7 @@ shared static this()
 }
 
 /// Get spec for a language
-const(LanguageSpec)* getLanguageSpec(TargetLanguage lang)
+const(LanguageSpec)* getLanguageSpec(TargetLanguage lang) @trusted
 {
     if (auto spec = lang in LanguageSpecs)
         return spec;

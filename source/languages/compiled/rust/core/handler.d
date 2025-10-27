@@ -137,7 +137,7 @@ class RustHandler : BaseLanguageHandler
         return allImports;
     }
     
-    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, RustConfig rustConfig)
+    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, RustConfig rustConfig)
     {
         LanguageBuildResult result;
         
@@ -155,7 +155,7 @@ class RustHandler : BaseLanguageHandler
         return compileTarget(target, config, rustConfig);
     }
     
-    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, RustConfig rustConfig)
+    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, RustConfig rustConfig)
     {
         LanguageBuildResult result;
         
@@ -184,7 +184,7 @@ class RustHandler : BaseLanguageHandler
         return compileTarget(target, config, rustConfig);
     }
     
-    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, RustConfig rustConfig)
+    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, RustConfig rustConfig)
     {
         LanguageBuildResult result;
         
@@ -198,7 +198,7 @@ class RustHandler : BaseLanguageHandler
         return compileTarget(target, config, rustConfig);
     }
     
-    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, RustConfig rustConfig)
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, RustConfig rustConfig)
     {
         LanguageBuildResult result;
         
@@ -207,7 +207,7 @@ class RustHandler : BaseLanguageHandler
         return compileTarget(target, config, rustConfig);
     }
     
-    private LanguageBuildResult compileTarget(Target target, WorkspaceConfig config, RustConfig rustConfig)
+    private LanguageBuildResult compileTarget(in Target target, in WorkspaceConfig config, RustConfig rustConfig)
     {
         LanguageBuildResult result;
         
@@ -224,7 +224,7 @@ class RustHandler : BaseLanguageHandler
         Logger.debug_("Using Rust builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
-        auto compileResult = builder.build(target.sources, rustConfig, target, config);
+        auto compileResult = builder.build(target.sources.dup, rustConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         if (!compileResult.success)
         {
@@ -249,7 +249,7 @@ class RustHandler : BaseLanguageHandler
         return result;
     }
     
-    private RustConfig parseRustConfig(Target target)
+    private RustConfig parseRustConfig(in Target target)
     {
         RustConfig config;
         
@@ -276,7 +276,7 @@ class RustHandler : BaseLanguageHandler
         // Auto-detect Cargo.toml if not specified
         if (config.manifest.empty)
         {
-            config.manifest = CargoParser.findManifest(target.sources);
+            config.manifest = CargoParser.findManifest(target.sources.dup);
             if (!config.manifest.empty)
             {
                 Logger.debug_("Found Cargo.toml: " ~ config.manifest);
@@ -344,7 +344,7 @@ class RustHandler : BaseLanguageHandler
         return Rustup.installTarget(target, toolchain);
     }
     
-    private RustCompileResult runClippy(Target target, RustConfig config, WorkspaceConfig workspace)
+    private RustCompileResult runClippy(in Target target, RustConfig config, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -358,7 +358,7 @@ class RustHandler : BaseLanguageHandler
         Logger.info("Running clippy...");
         
         string manifestPath = config.manifest.empty
-            ? CargoParser.findManifest(target.sources)
+            ? CargoParser.findManifest(target.sources.dup)
             : config.manifest;
         
         if (manifestPath.empty)
@@ -390,7 +390,7 @@ class RustHandler : BaseLanguageHandler
         return result;
     }
     
-    private void runRustfmt(Target target, RustConfig config)
+    private void runRustfmt(in Target target, RustConfig config)
     {
         if (!Rustfmt.isAvailable())
         {
@@ -401,7 +401,7 @@ class RustHandler : BaseLanguageHandler
         Logger.info("Running rustfmt...");
         
         string manifestPath = config.manifest.empty
-            ? CargoParser.findManifest(target.sources)
+            ? CargoParser.findManifest(target.sources.dup)
             : config.manifest;
         
         if (manifestPath.empty)

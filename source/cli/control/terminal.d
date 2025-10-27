@@ -207,7 +207,7 @@ struct ANSI
     static string clearToBottom() { return ESC ~ "J"; }
     
     /// Get reset sequence
-    static string reset() { return RESET; }
+    static string reset() @trusted { return RESET; }
 }
 
 /// Terminal writer with buffering for performance

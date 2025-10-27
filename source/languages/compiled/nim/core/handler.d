@@ -37,7 +37,7 @@ class NimHandler : BaseLanguageHandler
         // Run formatter if requested
         if (nimConfig.runFormat)
         {
-            auto fmtResult = formatCode(target.sources, nimConfig);
+            auto fmtResult = formatCode(target.sources.dup, nimConfig);
             if (fmtResult.hasIssues)
             {
                 Logger.info("Formatting issues found:");
@@ -51,7 +51,7 @@ class NimHandler : BaseLanguageHandler
         // Run check if requested
         if (nimConfig.runCheck)
         {
-            auto checkResult = NimTools.check(target.sources);
+            auto checkResult = NimTools.check(target.sources.dup);
             if (!checkResult.success)
             {
                 Logger.warning("Check found issues:");
@@ -148,8 +148,8 @@ class NimHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         NimConfig nimConfig
     )
     {
@@ -184,8 +184,8 @@ class NimHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         NimConfig nimConfig
     )
     {
@@ -228,8 +228,8 @@ class NimHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         NimConfig nimConfig
     )
     {
@@ -243,8 +243,8 @@ class NimHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         NimConfig nimConfig
     )
     {
@@ -256,8 +256,8 @@ class NimHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult compileTarget(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         NimConfig nimConfig
     )
     {
@@ -275,7 +275,7 @@ class NimHandler : BaseLanguageHandler
         Logger.debug_("Using Nim builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
-        auto compileResult = builder.build(target.sources, nimConfig, target, config);
+        auto compileResult = builder.build(target.sources.dup, nimConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         if (!compileResult.success)
         {
@@ -306,7 +306,7 @@ class NimHandler : BaseLanguageHandler
         return result;
     }
     
-    private NimConfig parseNimConfig(Target target)
+    private NimConfig parseNimConfig(in Target target)
     {
         NimConfig config;
         
@@ -341,8 +341,8 @@ class NimHandler : BaseLanguageHandler
     
     private void enhanceConfigFromProject(
         ref NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)
@@ -369,6 +369,7 @@ class NimHandler : BaseLanguageHandler
                     // Set backend from nimble file if specified
                     if (!nimbleData.backend.empty && config.backend == NimBackend.C)
                     {
+                        import std.uni : toLower;
                         switch (nimbleData.backend.toLower)
                         {
                             case "cpp": case "c++":
@@ -414,10 +415,10 @@ class NimHandler : BaseLanguageHandler
         }
     }
     
-    private FormatResult formatCode(string[] sources, NimConfig config)
+    private FormatResult formatCode(in string[] sources, NimConfig config)
     {
         return NimTools.format(
-            sources,
+            sources.dup,
             config.formatCheck,
             config.formatIndent,
             config.formatMaxLineLen
