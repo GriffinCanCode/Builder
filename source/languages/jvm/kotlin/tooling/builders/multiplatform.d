@@ -27,7 +27,7 @@ class MultiplatformBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        Logger.debug_("Building Kotlin Multiplatform project");
+        Logger.debugLog("Building Kotlin Multiplatform project");
         
         // Multiplatform builds require Gradle
         if (config.buildTool != KotlinBuildTool.Gradle)

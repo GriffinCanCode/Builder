@@ -39,7 +39,7 @@ class NinjaBuilder : BaseCppBuilder
             return result;
         }
         
-        Logger.debug_("Building with Ninja");
+        Logger.debugLog("Building with Ninja");
         
         // Find build.ninja
         string ninjaFile = findNinjaFile(sources);
@@ -135,7 +135,7 @@ class NinjaBuilder : BaseCppBuilder
         }
         
         Logger.info("Building with Ninja...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         // Execute in project directory
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);

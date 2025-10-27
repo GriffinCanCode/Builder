@@ -28,7 +28,7 @@ class NativeImageBuilder : ScalaBuilder
     {
         ScalaBuildResult result;
         
-        Logger.debug_("Building Scala native image: " ~ target.name);
+        Logger.debugLog("Building Scala native image: " ~ target.name);
         
         // Check if native-image is available
         if (!isNativeImageAvailable())
@@ -158,7 +158,7 @@ class NativeImageBuilder : ScalaBuilder
         cmd ~= ["-o", outputPath];
         
         Logger.info("Building native image (this may take several minutes)...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         // Execute native-image (this can be slow)
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);

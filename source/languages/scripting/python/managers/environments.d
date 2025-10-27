@@ -170,7 +170,7 @@ class VirtualEnv
         // Check if venv already exists
         if (isVenv(venvPath))
         {
-            Logger.debug_("Using existing virtual environment: " ~ venvPath);
+            Logger.debugLog("Using existing virtual environment: " ~ venvPath);
             return venvPath;
         }
         
@@ -210,7 +210,7 @@ class VirtualEnv
                     
                 case VirtualEnvConfig.Tool.Poetry:
                     // Poetry manages its own venvs
-                    Logger.debug_("Poetry manages its own virtual environments");
+                    Logger.debugLog("Poetry manages its own virtual environments");
                     return "";
                     
                 case VirtualEnvConfig.Tool.None:
@@ -305,7 +305,7 @@ class VirtualEnv
             }
             catch (Exception e)
             {
-                Logger.debug_("Failed to read pyproject.toml: " ~ e.msg);
+                Logger.debugLog("Failed to read pyproject.toml: " ~ e.msg);
             }
         }
         

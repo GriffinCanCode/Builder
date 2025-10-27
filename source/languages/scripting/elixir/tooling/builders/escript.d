@@ -25,7 +25,7 @@ class EscriptBuilder : MixProjectBuilder
     {
         ElixirBuildResult result;
         
-        Logger.debug_("Building escript");
+        Logger.debugLog("Building escript");
         
         string workDir = workspace.root;
         if (!sources.empty)

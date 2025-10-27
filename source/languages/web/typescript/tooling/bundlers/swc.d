@@ -133,7 +133,7 @@ class SWCBundler : TSBundler
             cmd ~= config.inlineSourceMap ? "inline" : "true";
         }
         
-        Logger.debug_("Compiling with SWC: " ~ cmd.join(" "));
+        Logger.debugLog("Compiling with SWC: " ~ cmd.join(" "));
         
         // Execute swc
         auto res = execute(cmd, null, Config.none, size_t.max, workspaceRoot);
@@ -245,7 +245,7 @@ class SWCBundler : TSBundler
         
         cmd ~= sources;
         
-        Logger.debug_("Generating declarations with tsc: " ~ cmd.join(" "));
+        Logger.debugLog("Generating declarations with tsc: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspaceRoot);
         

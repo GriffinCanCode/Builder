@@ -66,7 +66,7 @@ private EnvResult initRenv(string workDir, string rCmd, const ref RConfig config
     // Check if already initialized
     if (exists(renvDir) && isDir(renvDir))
     {
-        Logger.debug_("renv environment already exists at: " ~ renvDir);
+        Logger.debugLog("renv environment already exists at: " ~ renvDir);
         return EnvResult(true, "", renvDir);
     }
     
@@ -93,7 +93,7 @@ private EnvResult initPackrat(string workDir, string rCmd, const ref RConfig con
     // Check if already initialized
     if (exists(packratDir) && isDir(packratDir))
     {
-        Logger.debug_("packrat environment already exists at: " ~ packratDir);
+        Logger.debugLog("packrat environment already exists at: " ~ packratDir);
         return EnvResult(true, "", packratDir);
     }
     

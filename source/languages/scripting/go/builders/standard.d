@@ -195,17 +195,35 @@ class StandardBuilder : GoBuilder
             mkdirRecurse(outputDir);
         
         // Build go build command
-        string[] cmd = ["go", "build"];
+        string[] cmd;
         
-        // Build mode
-        if (config.mode != GoBuildMode.Executable)
+        // For library mode, just compile the package without output
+        bool isLibrary = config.mode == GoBuildMode.Library;
+        
+        string tempOutput;
+        if (isLibrary)
         {
-            cmd ~= "-buildmode";
-            cmd ~= buildModeToString(config.mode);
+            // For library mode, build to a temp location to validate compilation
+            import std.file : tempDir;
+            import std.random : uniform;
+            import std.format : format;
+            tempOutput = buildPath(tempDir(), format("go-lib-temp-%d", uniform(0, 1000000)));
+            cmd = ["go", "build", "-o", tempOutput];
         }
-        
-        // Output path
-        cmd ~= ["-o", outputPath];
+        else
+        {
+            cmd = ["go", "build"];
+            
+            // Build mode
+            if (config.mode != GoBuildMode.Executable)
+            {
+                cmd ~= "-buildmode";
+                cmd ~= buildModeToString(config.mode);
+            }
+            
+            // Output path
+            cmd ~= ["-o", outputPath];
+        }
         
         // Trimpath
         if (config.trimpath)
@@ -271,12 +289,22 @@ class StandardBuilder : GoBuilder
         cmd ~= target.flags;
         
         // Add sources or packages
-        if (sources.empty)
+        if (isLibrary)
+        {
+            // For libraries, compile the package directory instead of individual files
+            // This is necessary because Go requires all files in a package to be built together
             cmd ~= ".";
+        }
         else
-            cmd ~= sources;
+        {
+            // For executables, use the source files or package
+            if (sources.empty)
+                cmd ~= ".";
+            else
+                cmd ~= sources;
+        }
         
-        Logger.debug_("Building Go binary: " ~ cmd.join(" "));
+        Logger.debugLog("Building Go: " ~ cmd.join(" "));
         
         // Prepare environment
         string[string] env;
@@ -312,13 +340,34 @@ class StandardBuilder : GoBuilder
         }
         
         result.success = true;
-        result.outputs = [outputPath];
         
-        // Calculate hash
-        if (exists(outputPath))
-            result.outputHash = FastHash.hashFile(outputPath);
-        else
+        // For library mode, there's no output binary, just verify compilation
+        if (isLibrary)
+        {
+            // Clean up temp file
+            if (!tempOutput.empty && exists(tempOutput))
+            {
+                try {
+                    remove(tempOutput);
+                } catch (Exception e) {
+                    Logger.warning("Failed to remove temp file: " ~ tempOutput);
+                }
+            }
+            
+            result.outputs = [];
             result.outputHash = FastHash.hashStrings(sources);
+            Logger.info("Go library/package compiled successfully (no binary output)");
+        }
+        else
+        {
+            result.outputs = [outputPath];
+            
+            // Calculate hash
+            if (exists(outputPath))
+                result.outputHash = FastHash.hashFile(outputPath);
+            else
+                result.outputHash = FastHash.hashStrings(sources);
+        }
         
         return result;
     }

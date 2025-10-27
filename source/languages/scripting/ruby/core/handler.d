@@ -28,7 +28,7 @@ class RubyHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Ruby target: " ~ target.name);
+        Logger.debugLog("Building Ruby target: " ~ target.name);
         
         // Parse Ruby configuration
         RubyConfig rubyConfig = parseRubyConfig(target);
@@ -351,7 +351,7 @@ class RubyHandler : BaseLanguageHandler
             if (ProjectDetector.usesBundler(sourceDir))
             {
                 config.packageManager = RubyPackageManager.Bundler;
-                Logger.debug_("Detected Bundler from Gemfile");
+                Logger.debugLog("Detected Bundler from Gemfile");
             }
             else
             {
@@ -366,7 +366,7 @@ class RubyHandler : BaseLanguageHandler
             if (detectedMode != RubyBuildMode.Script)
             {
                 config.mode = detectedMode;
-                Logger.debug_("Detected project type: " ~ detectedMode.to!string);
+                Logger.debugLog("Detected project type: " ~ detectedMode.to!string);
             }
         }
         
@@ -376,12 +376,12 @@ class RubyHandler : BaseLanguageHandler
             if (ProjectDetector.usesRSpec(sourceDir))
             {
                 config.test.framework = RubyTestFramework.RSpec;
-                Logger.debug_("Detected RSpec from spec/ directory");
+                Logger.debugLog("Detected RSpec from spec/ directory");
             }
             else if (ProjectDetector.usesMinitest(sourceDir))
             {
                 config.test.framework = RubyTestFramework.Minitest;
-                Logger.debug_("Detected Minitest from test/ directory");
+                Logger.debugLog("Detected Minitest from test/ directory");
             }
         }
         
@@ -391,7 +391,7 @@ class RubyHandler : BaseLanguageHandler
             auto version_ = RubyVersionUtil.parseVersionFile(config.rubyVersion.versionFile);
             if (!version_.empty)
             {
-                Logger.debug_("Found Ruby version in .ruby-version: " ~ version_);
+                Logger.debugLog("Found Ruby version in .ruby-version: " ~ version_);
             }
         }
     }
@@ -426,7 +426,7 @@ class RubyHandler : BaseLanguageHandler
         }
         
         auto version_ = RubyVersionUtil.getRubyVersion(rubyCmd);
-        Logger.debug_("Using Ruby: " ~ rubyCmd ~ " (" ~ version_ ~ ")");
+        Logger.debugLog("Using Ruby: " ~ rubyCmd ~ " (" ~ version_ ~ ")");
         
         return rubyCmd;
     }

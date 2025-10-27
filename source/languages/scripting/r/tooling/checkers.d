@@ -64,7 +64,7 @@ LintResult lintFiles(
     
     if (config.linter == RLinter.None)
     {
-        Logger.debug_("Linting disabled");
+        Logger.debugLog("Linting disabled");
         return LintResult(true, "", [], 0, 0);
     }
     
@@ -348,7 +348,7 @@ FormatResult formatFiles(
     
     if (config.formatter == RFormatter.None)
     {
-        Logger.debug_("Formatting disabled");
+        Logger.debugLog("Formatting disabled");
         return FormatResult(true, "", [], 0);
     }
     
@@ -567,7 +567,7 @@ bool validateSyntax(const string[] files, string rCmd, string workDir)
     if (files.empty)
         return true;
     
-    Logger.debug_("Validating syntax for " ~ files.length.to!string ~ " R file(s)");
+    Logger.debugLog("Validating syntax for " ~ files.length.to!string ~ " R file(s)");
     
     // Create R script to validate all files
     string validateScript = `
@@ -611,7 +611,7 @@ if (length(errors) > 0) {
         return false;
     }
     
-    Logger.debug_("Syntax validation passed");
+    Logger.debugLog("Syntax validation passed");
     return true;
 }
 

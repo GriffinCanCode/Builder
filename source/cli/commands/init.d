@@ -63,7 +63,7 @@ struct InitCommand
                 {
                     foreach (manifest; langInfo.manifestFiles)
                     {
-                        Logger.debug_("    Found: " ~ baseName(manifest));
+                        Logger.debugLog("    Found: " ~ baseName(manifest));
                     }
                 }
             }

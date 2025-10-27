@@ -84,7 +84,7 @@ class NativeBuilder : FSharpBuilder
             result.outputHash = FastHash.hashFile(outputPath);
             
             Logger.info("Native AOT compilation successful");
-            Logger.debug_("Output: " ~ outputPath);
+            Logger.debugLog("Output: " ~ outputPath);
         }
         else
         {

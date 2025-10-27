@@ -74,7 +74,7 @@ class SCSSProcessor : CSSProcessor
         string entry = config.entry.empty ? sources[0] : config.entry;
         cmd ~= [entry, outputPath];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

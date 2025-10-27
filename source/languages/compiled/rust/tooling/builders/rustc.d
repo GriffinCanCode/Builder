@@ -32,7 +32,7 @@ class RustcBuilder : RustBuilder
             return result;
         }
         
-        Logger.debug_("Building Rust with rustc: " ~ sources.join(", "));
+        Logger.debugLog("Building Rust with rustc: " ~ sources.join(", "));
         
         // Build command based on mode
         final switch (config.mode)
@@ -156,7 +156,7 @@ class RustcBuilder : RustBuilder
         // Add rustc flags
         cmd ~= config.rustcFlags;
         
-        Logger.debug_("Rustc command: " ~ cmd.join(" "));
+        Logger.debugLog("Rustc command: " ~ cmd.join(" "));
         
         // Set environment variables
         string[string] env = null;
@@ -225,7 +225,7 @@ class RustcBuilder : RustBuilder
         
         cmd ~= config.rustcFlags;
         
-        Logger.debug_("Rustc check: " ~ cmd.join(" "));
+        Logger.debugLog("Rustc check: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -271,7 +271,7 @@ class RustcBuilder : RustBuilder
         
         cmd ~= config.rustcFlags;
         
-        Logger.debug_("Rustc test compile: " ~ cmd.join(" "));
+        Logger.debugLog("Rustc test compile: " ~ cmd.join(" "));
         
         auto compileRes = execute(cmd);
         
@@ -282,7 +282,7 @@ class RustcBuilder : RustBuilder
         }
         
         // Run test binary
-        Logger.debug_("Running tests: " ~ testBinary);
+        Logger.debugLog("Running tests: " ~ testBinary);
         
         string[] testCmd = [testBinary] ~ config.testFlags;
         auto testRes = execute(testCmd);

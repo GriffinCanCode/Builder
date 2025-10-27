@@ -214,7 +214,7 @@ class BuildToolFactory
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get module name: " ~ e.msg);
+            Logger.debugLog("Failed to get module name: " ~ e.msg);
         }
         
         return "";

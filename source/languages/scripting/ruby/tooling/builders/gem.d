@@ -40,7 +40,7 @@ class GemBuilder : Builder
                 return result;
             }
             gemspecFile = gemspecs[0];
-            Logger.debug_("Using gemspec: " ~ gemspecFile);
+            Logger.debugLog("Using gemspec: " ~ gemspecFile);
         }
         
         if (!exists(gemspecFile))

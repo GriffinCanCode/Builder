@@ -133,7 +133,7 @@ class DubBuilder : DBuilder
             cmd ~= sources;
         }
         
-        Logger.debug_("DUB command: " ~ cmd.join(" "));
+        Logger.debugLog("DUB command: " ~ cmd.join(" "));
         
         // Set environment variables
         string[string] env = environment.toAA();

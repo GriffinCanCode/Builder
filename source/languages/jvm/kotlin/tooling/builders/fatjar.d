@@ -26,7 +26,7 @@ class FatJARBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        Logger.debug_("Building Kotlin Fat JAR");
+        Logger.debugLog("Building Kotlin Fat JAR");
         
         // Fat JARs are best built with Gradle or Maven
         if (config.buildTool == KotlinBuildTool.Gradle)

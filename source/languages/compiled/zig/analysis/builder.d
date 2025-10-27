@@ -55,7 +55,7 @@ class BuildZigParser
             string buildZigPath = buildPath(currentPath, "build.zig");
             if (exists(buildZigPath))
             {
-                Logger.debug_("Found build.zig at: " ~ buildZigPath);
+                Logger.debugLog("Found build.zig at: " ~ buildZigPath);
                 return buildZigPath;
             }
             

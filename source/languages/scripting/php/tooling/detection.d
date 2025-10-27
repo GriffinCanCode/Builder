@@ -485,7 +485,7 @@ class PHPTools
         
         string[] cmd = [phpCmd, scriptPath] ~ args;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;

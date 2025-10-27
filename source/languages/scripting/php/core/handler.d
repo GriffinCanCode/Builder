@@ -30,7 +30,7 @@ class PHPHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building PHP target: " ~ target.name);
+        Logger.debugLog("Building PHP target: " ~ target.name);
         
         // Parse PHP configuration
         PHPConfig phpConfig = parsePHPConfig(target);
@@ -358,7 +358,7 @@ class PHPHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using packager: " ~ packager.name() ~ " (" ~ packager.getVersion() ~ ")");
+        Logger.debugLog("Using packager: " ~ packager.name() ~ " (" ~ packager.getVersion() ~ ")");
         
         // Package
         auto packageResult = packager.createPackage(target.sources, phpConfig.phar, config.root);
@@ -775,7 +775,7 @@ class PHPHandler : BaseLanguageHandler
             if (!composerPath.empty)
             {
                 config.composer.composerJson = composerPath;
-                Logger.debug_("Found composer.json: " ~ composerPath);
+                Logger.debugLog("Found composer.json: " ~ composerPath);
             }
         }
         
@@ -810,7 +810,7 @@ class PHPHandler : BaseLanguageHandler
             phpCmd = "php";
         }
         
-        Logger.debug_("Using PHP: " ~ phpCmd ~ " (" ~ PHPTools.getPHPVersion(phpCmd) ~ ")");
+        Logger.debugLog("Using PHP: " ~ phpCmd ~ " (" ~ PHPTools.getPHPVersion(phpCmd) ~ ")");
         
         return phpCmd;
     }

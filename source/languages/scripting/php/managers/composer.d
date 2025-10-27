@@ -360,7 +360,7 @@ class ComposerTool
     {
         string[] cmd = [composerPath, "validate", "--no-check-all"];
         
-        Logger.debug_("Validating composer.json");
+        Logger.debugLog("Validating composer.json");
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectRoot);
         

@@ -139,7 +139,7 @@ class MixRunner
     {
         string[] cmd = [mixCmd, task] ~ args;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, workDir);
     }

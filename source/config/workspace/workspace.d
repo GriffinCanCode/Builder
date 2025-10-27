@@ -599,7 +599,7 @@ class Workspace
             catch (Exception e)
             {
                 import utils.logging.logger;
-                Logger.debug_("Failed to parse Builderspace file at " ~ builderspacePath ~ ": " ~ e.msg);
+                Logger.debugLog("Failed to parse Builderspace file at " ~ builderspacePath ~ ": " ~ e.msg);
             }
         }
         
@@ -643,7 +643,7 @@ class Workspace
         catch (Exception ex)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to find Builderfiles in " ~ _rootPath ~ ": " ~ ex.msg);
+            Logger.debugLog("Failed to find Builderfiles in " ~ _rootPath ~ ": " ~ ex.msg);
             return [];
         }
     }

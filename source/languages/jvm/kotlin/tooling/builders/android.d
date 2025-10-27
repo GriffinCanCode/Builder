@@ -26,7 +26,7 @@ class AndroidBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        Logger.debug_("Building Android Kotlin project");
+        Logger.debugLog("Building Android Kotlin project");
         
         // Android builds require Gradle
         if (config.buildTool != KotlinBuildTool.Gradle)

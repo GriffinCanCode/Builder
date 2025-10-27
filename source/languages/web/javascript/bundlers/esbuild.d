@@ -126,7 +126,7 @@ class ESBuildBundler : Bundler
         // Additional flags from target
         cmd ~= target.flags;
         
-        Logger.debug_("Running esbuild: " ~ cmd.join(" "));
+        Logger.debugLog("Running esbuild: " ~ cmd.join(" "));
         
         // Execute esbuild
         auto res = execute(cmd);
@@ -137,7 +137,7 @@ class ESBuildBundler : Bundler
             return result;
         }
         
-        Logger.debug_("esbuild completed successfully");
+        Logger.debugLog("esbuild completed successfully");
         
         // Success
         result.success = true;

@@ -26,7 +26,7 @@ class RustHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Rust target: " ~ target.name);
+        Logger.debugLog("Building Rust target: " ~ target.name);
         
         // Parse Rust configuration
         RustConfig rustConfig = parseRustConfig(target);
@@ -221,7 +221,7 @@ class RustHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using Rust builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using Rust builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
         auto compileResult = builder.build(target.sources, rustConfig, target, config);
@@ -279,7 +279,7 @@ class RustHandler : BaseLanguageHandler
             config.manifest = CargoParser.findManifest(target.sources.dup);
             if (!config.manifest.empty)
             {
-                Logger.debug_("Found Cargo.toml: " ~ config.manifest);
+                Logger.debugLog("Found Cargo.toml: " ~ config.manifest);
             }
         }
         
@@ -312,7 +312,7 @@ class RustHandler : BaseLanguageHandler
         {
             if (tc.name == toolchain && tc.isInstalled)
             {
-                Logger.debug_("Toolchain already installed: " ~ toolchain);
+                Logger.debugLog("Toolchain already installed: " ~ toolchain);
                 return true;
             }
         }
@@ -335,7 +335,7 @@ class RustHandler : BaseLanguageHandler
         {
             if (t.name == target && t.isInstalled)
             {
-                Logger.debug_("Target already installed: " ~ target);
+                Logger.debugLog("Target already installed: " ~ target);
                 return true;
             }
         }

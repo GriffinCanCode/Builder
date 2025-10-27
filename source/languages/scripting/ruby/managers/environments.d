@@ -70,7 +70,7 @@ final class VersionManagerFactory
             auto rbenv = new RbenvManager(projectRoot);
             if (rbenv.isAvailable())
             {
-                Logger.debug_("Detected rbenv from .ruby-version");
+                Logger.debugLog("Detected rbenv from .ruby-version");
                 return rbenv;
             }
             
@@ -78,7 +78,7 @@ final class VersionManagerFactory
             auto chruby = new ChrubyManager(projectRoot);
             if (chruby.isAvailable())
             {
-                Logger.debug_("Detected chruby from .ruby-version");
+                Logger.debugLog("Detected chruby from .ruby-version");
                 return chruby;
             }
         }
@@ -91,7 +91,7 @@ final class VersionManagerFactory
             auto rvm = new RVMManager(projectRoot);
             if (rvm.isAvailable())
             {
-                Logger.debug_("Detected RVM from .rvmrc");
+                Logger.debugLog("Detected RVM from .rvmrc");
                 return rvm;
             }
         }
@@ -103,7 +103,7 @@ final class VersionManagerFactory
             auto asdf = new ASDFManager(projectRoot);
             if (asdf.isAvailable())
             {
-                Logger.debug_("Detected asdf from .tool-versions");
+                Logger.debugLog("Detected asdf from .tool-versions");
                 return asdf;
             }
         }
@@ -134,7 +134,7 @@ final class VersionManagerFactory
         }
         
         // Fallback to system Ruby
-        Logger.debug_("No Ruby version manager detected, using system Ruby");
+        Logger.debugLog("No Ruby version manager detected, using system Ruby");
         return new SystemRubyManager();
     }
 }

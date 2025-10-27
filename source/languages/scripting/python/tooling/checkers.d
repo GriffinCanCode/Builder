@@ -27,7 +27,7 @@ class PyCheckers
         
         string[] cmd = [pythonCmd, "-m", "mypy"] ~ extraArgs ~ sources;
         
-        Logger.debug_("Running mypy: " ~ cmd.join(" "));
+        Logger.debugLog("Running mypy: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -69,7 +69,7 @@ class PyCheckers
         
         string[] cmd = ["pyright"] ~ extraArgs ~ sources;
         
-        Logger.debug_("Running pyright: " ~ cmd.join(" "));
+        Logger.debugLog("Running pyright: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -137,19 +137,19 @@ class TypeChecker
         
         if (ToolDetection.isPyrightAvailable())
         {
-            Logger.debug_("Using pyright for type checking");
+            Logger.debugLog("Using pyright for type checking");
             return checkPyright(sources, config);
         }
         
         if (ToolDetection.isMypyAvailable(pythonCmd))
         {
-            Logger.debug_("Using mypy for type checking");
+            Logger.debugLog("Using mypy for type checking");
             return checkMypy(sources, config, pythonCmd);
         }
         
         if (ToolDetection.isPytypeAvailable(pythonCmd))
         {
-            Logger.debug_("Using pytype for type checking");
+            Logger.debugLog("Using pytype for type checking");
             return checkPytype(sources, config, pythonCmd);
         }
         

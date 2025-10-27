@@ -722,9 +722,10 @@ class UserIgnorePatterns
         }
         catch (Exception e)
         {
-            // Ignore file may not exist or may have permission issues
+            // Ignore file errors should be visible to users as they can cause
+            // unexpected behavior (files not being ignored, performance issues, etc.)
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to read ignore file " ~ filePath ~ ": " ~ e.msg);
+            Logger.warning("Failed to read ignore file " ~ filePath ~ ": " ~ e.msg);
         }
     }
     

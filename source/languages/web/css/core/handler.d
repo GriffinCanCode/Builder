@@ -22,7 +22,7 @@ class CSSHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building CSS target: " ~ target.name);
+        Logger.debugLog("Building CSS target: " ~ target.name);
         
         // Parse CSS configuration
         CSSConfig cssConfig = parseCSSConfig(target);
@@ -110,7 +110,7 @@ class CSSHandler : BaseLanguageHandler
             }
         }
         
-        Logger.debug_("Using CSS processor: " ~ processor.name());
+        Logger.debugLog("Using CSS processor: " ~ processor.name());
         
         // Compile
         auto compileResult = processor.compile(target.sources, cssConfig, target, config);

@@ -230,7 +230,7 @@ class ModuleAnalyzer
         
         if (!exists(goWorkPath))
         {
-            Logger.debug_("go.work not found: " ~ goWorkPath);
+            Logger.debugLog("go.work not found: " ~ goWorkPath);
             return workspace;
         }
         

@@ -26,7 +26,7 @@ class NativeBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        Logger.debug_("Building Kotlin/Native executable");
+        Logger.debugLog("Building Kotlin/Native executable");
         
         // Determine output path
         string outputPath;
@@ -96,7 +96,7 @@ class NativeBuilder : KotlinBuilder
         // Output
         cmd ~= ["-o", outputPath];
         
-        Logger.debug_("Executing: " ~ cmd.join(" "));
+        Logger.debugLog("Executing: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

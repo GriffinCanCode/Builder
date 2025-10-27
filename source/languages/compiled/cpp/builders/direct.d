@@ -42,7 +42,7 @@ class DirectBuilder : BaseCppBuilder
             return result;
         }
         
-        Logger.debug_("Direct compilation with " ~ compilerInfo.name);
+        Logger.debugLog("Direct compilation with " ~ compilerInfo.name);
         
         // Separate C and C++ files
         string[] cppFiles;
@@ -194,8 +194,8 @@ class DirectBuilder : BaseCppBuilder
             cmd ~= ["-c", source];
             cmd ~= ["-o", objFile];
             
-            Logger.debug_("Compiling: " ~ source);
-            Logger.debug_("  Command: " ~ cmd.join(" "));
+            Logger.debugLog("Compiling: " ~ source);
+            Logger.debugLog("  Command: " ~ cmd.join(" "));
             
             // Execute compilation
             auto res = execute(cmd);
@@ -247,8 +247,8 @@ class DirectBuilder : BaseCppBuilder
         // Linker flags
         cmd ~= buildLinkerFlags(config);
         
-        Logger.debug_("Linking: " ~ outputFile);
-        Logger.debug_("  Command: " ~ cmd.join(" "));
+        Logger.debugLog("Linking: " ~ outputFile);
+        Logger.debugLog("  Command: " ~ cmd.join(" "));
         
         // Execute linking
         auto res = execute(cmd);

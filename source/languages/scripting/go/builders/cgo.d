@@ -51,9 +51,9 @@ class CGoBuilder : StandardBuilder
         
         Logger.info("Building with CGO enabled");
         if (!mutableConfig.cgo.cflags.empty)
-            Logger.debug_("CGO_CFLAGS: " ~ mutableConfig.cgo.cflags.join(" "));
+            Logger.debugLog("CGO_CFLAGS: " ~ mutableConfig.cgo.cflags.join(" "));
         if (!mutableConfig.cgo.ldflags.empty)
-            Logger.debug_("CGO_LDFLAGS: " ~ mutableConfig.cgo.ldflags.join(" "));
+            Logger.debugLog("CGO_LDFLAGS: " ~ mutableConfig.cgo.ldflags.join(" "));
         
         // Use standard builder with CGO configuration
         return super.build(sources, mutableConfig, target, workspace);

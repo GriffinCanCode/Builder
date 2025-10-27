@@ -24,7 +24,7 @@ class PhoenixBuilder : MixProjectBuilder
     {
         ElixirBuildResult result;
         
-        Logger.debug_("Building Phoenix application");
+        Logger.debugLog("Building Phoenix application");
         
         string workDir = workspace.root;
         if (!sources.empty)

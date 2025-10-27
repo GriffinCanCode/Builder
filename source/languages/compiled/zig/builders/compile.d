@@ -219,9 +219,18 @@ class CompileBuilder : ZigBuilder
         cmd ~= config.cflags.map!(f => "-cflags " ~ f).array;
         
         // Add link mode
+        // Note: -static is not supported on macOS/Darwin when libc is used
         if (config.linkMode == LinkMode.Static)
         {
-            cmd ~= "-static";
+            version(OSX)
+            {
+                // Skip -static on macOS as it's not supported with system libc
+                Logger.debugLog("Skipping -static flag on macOS (not supported with libc)");
+            }
+            else
+            {
+                cmd ~= "-static";
+            }
         }
         
         // Add strip mode

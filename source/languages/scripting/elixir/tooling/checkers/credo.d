@@ -69,7 +69,7 @@ class CredoChecker
         if (!config.files.empty)
             cmd ~= config.files;
         
-        Logger.debug_("Running Credo: " ~ cmd.join(" "));
+        Logger.debugLog("Running Credo: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

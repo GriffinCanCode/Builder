@@ -25,7 +25,7 @@ class JavaScriptHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building JavaScript target: " ~ target.name);
+        Logger.debugLog("Building JavaScript target: " ~ target.name);
         
         // Parse JavaScript configuration
         JSConfig jsConfig = parseJSConfig(target);
@@ -34,14 +34,14 @@ class JavaScriptHandler : BaseLanguageHandler
         bool isTypeScript = target.sources.any!(s => s.endsWith(".ts") || s.endsWith(".tsx"));
         if (isTypeScript && target.language != TargetLanguage.TypeScript)
         {
-            Logger.debug_("Detected TypeScript sources");
+            Logger.debugLog("Detected TypeScript sources");
         }
         
         // Detect JSX/React
         bool hasJSX = target.sources.any!(s => s.endsWith(".jsx") || s.endsWith(".tsx"));
         if (hasJSX && !jsConfig.jsx)
         {
-            Logger.debug_("Detected JSX sources, enabling JSX support");
+            Logger.debugLog("Detected JSX sources, enabling JSX support");
             jsConfig.jsx = true;
         }
         
@@ -194,7 +194,7 @@ class JavaScriptHandler : BaseLanguageHandler
                 cmd = ["npm", "test"];
         }
         
-        Logger.debug_("Running tests: " ~ cmd.join(" "));
+        Logger.debugLog("Running tests: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -233,7 +233,7 @@ class JavaScriptHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using bundler: " ~ bundler.name() ~ " (" ~ bundler.getVersion() ~ ")");
+        Logger.debugLog("Using bundler: " ~ bundler.name() ~ " (" ~ bundler.getVersion() ~ ")");
         
         // Install dependencies if requested
         if (jsConfig.installDeps)

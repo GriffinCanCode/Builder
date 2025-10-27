@@ -39,7 +39,7 @@ class CMakeBuilder : BaseCppBuilder
             return result;
         }
         
-        Logger.debug_("Building with CMake");
+        Logger.debugLog("Building with CMake");
         
         // Find CMakeLists.txt
         string cmakeFile = findCMakeFile(sources);
@@ -195,7 +195,7 @@ class CMakeBuilder : BaseCppBuilder
         // Custom options
         cmd ~= config.cmakeOptions;
         
-        Logger.debug_("Configuring CMake: " ~ cmd.join(" "));
+        Logger.debugLog("Configuring CMake: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -228,7 +228,7 @@ class CMakeBuilder : BaseCppBuilder
         }
         
         Logger.info("Building with CMake...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

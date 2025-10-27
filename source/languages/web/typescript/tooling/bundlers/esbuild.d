@@ -180,7 +180,7 @@ class TSESBuildBundler : TSBundler
         // Resolve extensions
         cmd ~= "--resolve-extensions=.ts,.tsx,.js,.jsx,.json";
         
-        Logger.debug_("Bundling with esbuild: " ~ cmd.join(" "));
+        Logger.debugLog("Bundling with esbuild: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         
@@ -229,7 +229,7 @@ class TSESBuildBundler : TSBundler
             cmd ~= "--loader:.ts=ts";
             cmd ~= "--loader:.tsx=tsx";
             
-            Logger.debug_("Compiling with esbuild: " ~ cmd.join(" "));
+            Logger.debugLog("Compiling with esbuild: " ~ cmd.join(" "));
             
             auto res = execute(cmd, null, Config.none, size_t.max, workspaceRoot);
             
@@ -267,7 +267,7 @@ class TSESBuildBundler : TSBundler
         
         cmd ~= sources;
         
-        Logger.debug_("Generating declarations with tsc: " ~ cmd.join(" "));
+        Logger.debugLog("Generating declarations with tsc: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspaceRoot);
         

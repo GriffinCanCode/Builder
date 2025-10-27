@@ -56,7 +56,7 @@ class NativeImageBuilder : JARBuilder
             return result;
         }
         
-        Logger.debug_("Building Native Image: " ~ target.name);
+        Logger.debugLog("Building Native Image: " ~ target.name);
         
         // First, build a regular JAR
         string outputPath = getOutputPath(target, workspace, config);
@@ -172,7 +172,7 @@ class NativeImageBuilder : JARBuilder
         if (config.warnings)
             cmd ~= "--verbose";
         
-        Logger.debug_("Native image command: " ~ cmd.join(" "));
+        Logger.debugLog("Native image command: " ~ cmd.join(" "));
         Logger.info("Building native image (this may take several minutes)...");
         
         auto nativeRes = execute(cmd);

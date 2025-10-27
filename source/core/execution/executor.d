@@ -51,6 +51,14 @@ import core.execution.resume;
 /// - BuildCache: internally synchronized, safe for concurrent access from buildNode()
 final class BuildExecutor
 {
+    /// Configuration constants
+    private enum size_t LARGE_BUILD_THRESHOLD = 100;  // Target count for GC control
+    private enum size_t BYTES_PER_KB = 1024;          // Bytes in a kilobyte
+    private enum size_t KB_PER_MB = 1024;             // KB in a megabyte
+    private enum size_t MB_PER_GB = 1024;             // MB in a gigabyte
+    private enum size_t MAX_STAT_STRING_LENGTH = 4;   // Max chars for percentage display
+    private enum size_t MIN_STAT_STRING_LENGTH = 5;   // Max chars for savings estimate
+    
     private BuildGraph graph;
     private WorkspaceConfig config;
     private BuildCache cache;
@@ -177,7 +185,7 @@ final class BuildExecutor
                         plan.print();
                         
                         Logger.info("Resuming build (saving ~" ~ 
-                                   plan.estimatedSavings().to!string[0..min(5, plan.estimatedSavings().to!string.length)] ~ "% time)...");
+                                   plan.estimatedSavings().to!string[0..min(MIN_STAT_STRING_LENGTH, plan.estimatedSavings().to!string.length)] ~ "% time)...");
                     }
                 }
                 else
@@ -188,12 +196,12 @@ final class BuildExecutor
             }
         }
         
-        // For large builds (>100 targets), disable GC during execution to avoid pauses
-        immutable bool useGcControl = sorted.length > 100;
+        // For large builds, disable GC during execution to avoid pauses
+        immutable bool useGcControl = sorted.length > LARGE_BUILD_THRESHOLD;
         if (useGcControl)
         {
             GC.disable();
-            Logger.debug_("GC disabled for large build (" ~ sorted.length.to!string ~ " targets)");
+            Logger.debugLog("GC disabled for large build (" ~ sorted.length.to!string ~ " targets)");
         }
         
         // Ensure GC is re-enabled on exit
@@ -203,7 +211,7 @@ final class BuildExecutor
             {
                 GC.enable();
                 GC.collect(); // Cleanup after build
-                Logger.debug_("GC re-enabled and collected");
+                Logger.debugLog("GC re-enabled and collected");
             }
         }
         
@@ -251,11 +259,11 @@ final class BuildExecutor
                 // Status is updated atomically via property accessor
                 foreach (node; ready)
                 {
-                    Logger.debug_("Marking " ~ node.id ~ " as Building (was " ~ node.status.to!string ~ ")");
+                    Logger.debugLog("Marking " ~ node.id ~ " as Building (was " ~ node.status.to!string ~ ")");
                     node.status = BuildStatus.Building;
                 }
                 
-                Logger.debug_("Ready nodes: " ~ ready.map!(n => n.id).join(", "));
+                Logger.debugLog("Ready nodes: " ~ ready.map!(n => n.id).join(", "));
                 
                 atomicOp!"+="(activeTasks, ready.length);
             }
@@ -352,7 +360,7 @@ final class BuildExecutor
             Logger.info("Cache Performance:");
             Logger.info("  Total entries: " ~ cacheStats.totalEntries.to!string);
             Logger.info("  Cache size: " ~ formatSize(cacheStats.totalSize));
-            Logger.info("  Metadata hit rate: " ~ cacheStats.metadataHitRate.to!string[0..min(4, cacheStats.metadataHitRate.to!string.length)] ~ "%");
+            Logger.info("  Metadata hit rate: " ~ cacheStats.metadataHitRate.to!string[0..min(MAX_STAT_STRING_LENGTH, cacheStats.metadataHitRate.to!string.length)] ~ "%");
         }
         
         // No longer throw exception - let caller check failed count
@@ -364,14 +372,14 @@ final class BuildExecutor
     {
         import std.format : format;
         
-        if (bytes < 1024)
+        if (bytes < BYTES_PER_KB)
             return format("%d B", bytes);
-        else if (bytes < 1024 * 1024)
-            return format("%d KB", bytes / 1024);
-        else if (bytes < 1024 * 1024 * 1024)
-            return format("%d MB", bytes / (1024 * 1024));
+        else if (bytes < BYTES_PER_KB * KB_PER_MB)
+            return format("%d KB", bytes / BYTES_PER_KB);
+        else if (bytes < BYTES_PER_KB * KB_PER_MB * MB_PER_GB)
+            return format("%d MB", bytes / (BYTES_PER_KB * KB_PER_MB));
         else
-            return format("%d GB", bytes / (1024 * 1024 * 1024));
+            return format("%d GB", bytes / (BYTES_PER_KB * KB_PER_MB * MB_PER_GB));
     }
     
     /// Build a single node

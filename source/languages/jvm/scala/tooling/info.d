@@ -62,7 +62,7 @@ class ScalaInfoDetector
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+            Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
         return versionInfo;
@@ -94,7 +94,7 @@ class ScalaInfoDetector
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+            Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
         return "";
@@ -127,7 +127,7 @@ class ScalaInfoDetector
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+            Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
         return "scalac";
@@ -154,7 +154,7 @@ class ScalaInfoDetector
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+            Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
         return "scala";

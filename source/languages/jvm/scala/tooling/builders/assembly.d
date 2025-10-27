@@ -28,7 +28,7 @@ class AssemblyBuilder : ScalaBuilder
     {
         ScalaBuildResult result;
         
-        Logger.debug_("Building Scala assembly JAR: " ~ target.name);
+        Logger.debugLog("Building Scala assembly JAR: " ~ target.name);
         
         // Detect build tool
         ScalaBuildTool buildTool = config.buildTool;
@@ -87,7 +87,7 @@ class AssemblyBuilder : ScalaBuilder
         cmd ~= "assembly";
         
         Logger.info("Running sbt assembly...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         
@@ -136,7 +136,7 @@ class AssemblyBuilder : ScalaBuilder
         cmd ~= "assembly";
         
         Logger.info("Running Mill assembly...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         

@@ -169,11 +169,11 @@ struct SecureExecutor
         // Audit log if enabled
         if (auditLog)
         {
-            Logger.debug_("[AUDIT] Executing: " ~ cmd.join(" "));
+            Logger.debugLog("[AUDIT] Executing: " ~ cmd.join(" "));
             if (!workDir.empty)
-                Logger.debug_("[AUDIT]   WorkDir: " ~ workDir);
+                Logger.debugLog("[AUDIT]   WorkDir: " ~ workDir);
             if (environment.length > 0)
-                Logger.debug_("[AUDIT]   EnvVars: " ~ environment.keys.join(", "));
+                Logger.debugLog("[AUDIT]   EnvVars: " ~ environment.keys.join(", "));
         }
         
         // Execute with std.process.execute (safe array form)

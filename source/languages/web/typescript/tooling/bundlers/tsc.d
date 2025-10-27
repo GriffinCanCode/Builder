@@ -59,7 +59,7 @@ class TSCBundler : TSBundler
             cmd ~= sources;
         }
         
-        Logger.debug_("Compiling with tsc: " ~ cmd.join(" "));
+        Logger.debugLog("Compiling with tsc: " ~ cmd.join(" "));
         
         // Execute tsc
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
@@ -77,7 +77,7 @@ class TSCBundler : TSBundler
             return result;
         }
         
-        Logger.debug_("TypeScript compilation successful");
+        Logger.debugLog("TypeScript compilation successful");
         
         // Collect outputs
         result.outputs = collectOutputs(sources, config, outputDir);

@@ -27,7 +27,7 @@ class ZigHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Zig target: " ~ target.name);
+        Logger.debugLog("Building Zig target: " ~ target.name);
         
         // Parse Zig configuration
         ZigConfig zigConfig = parseZigConfig(target);
@@ -253,7 +253,7 @@ class ZigHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using Zig builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using Zig builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
         auto compileResult = builder.build(target.sources, zigConfig, target, config);
@@ -335,7 +335,7 @@ class ZigHandler : BaseLanguageHandler
             auto buildZigPath = BuildZigParser.findBuildZig(sourceDir);
             if (!buildZigPath.empty)
             {
-                Logger.debug_("Detected build.zig at: " ~ buildZigPath);
+                Logger.debugLog("Detected build.zig at: " ~ buildZigPath);
                 config.buildZig.path = buildZigPath.idup;
                 config.builder = ZigBuilderType.BuildZig;
                 
@@ -343,7 +343,7 @@ class ZigHandler : BaseLanguageHandler
                 auto project = BuildZigParser.parseBuildZig(buildZigPath);
                 if (!project.name.empty)
                 {
-                    Logger.debug_("Project: " ~ project.name ~ 
+                    Logger.debugLog("Project: " ~ project.name ~ 
                                  (project.version_.empty ? "" : " v" ~ project.version_));
                 }
             }

@@ -154,7 +154,7 @@ class ProjectDetector
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to scan directory: " ~ dir);
+            Logger.debugLog("Failed to scan directory: " ~ dir);
         }
     }
     
@@ -345,7 +345,7 @@ class ProjectDetector
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to parse package.json: " ~ e.msg);
+            Logger.debugLog("Failed to parse package.json: " ~ e.msg);
         }
     }
     

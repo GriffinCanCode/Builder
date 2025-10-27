@@ -115,7 +115,7 @@ class LuacheckLinter : Checker
         // Add source files
         cmd ~= sources;
         
-        Logger.debug_("Running Luacheck: " ~ cmd.join(" "));
+        Logger.debugLog("Running Luacheck: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -178,7 +178,7 @@ class LuacheckLinter : Checker
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Luacheck version: " ~ e.msg);
+            Logger.debugLog("Failed to get Luacheck version: " ~ e.msg);
         }
         
         return "unknown";

@@ -66,7 +66,7 @@ class DialyzerChecker
         if (!config.paths.empty)
             cmd ~= config.paths;
         
-        Logger.debug_("Running Dialyzer: " ~ cmd.join(" "));
+        Logger.debugLog("Running Dialyzer: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

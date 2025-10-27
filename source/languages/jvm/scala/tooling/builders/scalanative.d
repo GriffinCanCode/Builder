@@ -28,7 +28,7 @@ class ScalaNativeBuilder : ScalaBuilder
     {
         ScalaBuildResult result;
         
-        Logger.debug_("Building Scala Native target: " ~ target.name);
+        Logger.debugLog("Building Scala Native target: " ~ target.name);
         
         // Detect build tool
         ScalaBuildTool buildTool = config.buildTool;
@@ -80,7 +80,7 @@ class ScalaNativeBuilder : ScalaBuilder
         cmd ~= "nativeLink";
         
         Logger.info("Running sbt nativeLink...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         
@@ -135,7 +135,7 @@ class ScalaNativeBuilder : ScalaBuilder
         cmd ~= target.name ~ ".nativeLink";
         
         Logger.info("Running Mill nativeLink...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         

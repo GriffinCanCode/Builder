@@ -45,7 +45,7 @@ class NativePharPackager : Packager
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to cleanup script file: " ~ e.msg);
+            Logger.debugLog("Failed to cleanup script file: " ~ e.msg);
         }
         
         if (res.status == 0)

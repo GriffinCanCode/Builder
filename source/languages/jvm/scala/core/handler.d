@@ -30,7 +30,7 @@ class ScalaHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Scala target: " ~ target.name);
+        Logger.debugLog("Building Scala target: " ~ target.name);
         
         // Parse Scala configuration
         ScalaConfig scalaConfig = parseScalaConfig(target);
@@ -45,7 +45,7 @@ class ScalaHandler : BaseLanguageHandler
         if (scalaConfig.buildTool == ScalaBuildTool.Auto)
         {
             scalaConfig.buildTool = ScalaToolDetection.detectBuildTool(config.root);
-            Logger.debug_("Auto-detected build tool: " ~ scalaConfig.buildTool.to!string);
+            Logger.debugLog("Auto-detected build tool: " ~ scalaConfig.buildTool.to!string);
         }
         
         final switch (target.type)
@@ -124,7 +124,7 @@ class ScalaHandler : BaseLanguageHandler
         // Get appropriate builder
         auto builder = ScalaBuilderFactory.createAuto(scalaConfig, config.root);
         
-        Logger.debug_("Using builder: " ~ builder.name());
+        Logger.debugLog("Using builder: " ~ builder.name());
         
         // Build
         auto buildResult = builder.build(target.sources, scalaConfig, target, config);
@@ -267,7 +267,7 @@ class ScalaHandler : BaseLanguageHandler
         }
         else
         {
-            Logger.debug_("Formatted " ~ result.filesFormatted.to!string ~ " files");
+            Logger.debugLog("Formatted " ~ result.filesFormatted.to!string ~ " files");
         }
     }
     

@@ -24,7 +24,7 @@ class NervesBuilder : MixProjectBuilder
     {
         ElixirBuildResult result;
         
-        Logger.debug_("Building Nerves firmware");
+        Logger.debugLog("Building Nerves firmware");
         
         string workDir = workspace.root;
         if (!sources.empty)

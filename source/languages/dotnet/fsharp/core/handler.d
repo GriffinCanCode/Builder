@@ -23,7 +23,7 @@ class FSharpHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building F# target: " ~ target.name);
+        Logger.debugLog("Building F# target: " ~ target.name);
         
         // Parse F# configuration
         FSharpConfig fsConfig = parseFSharpConfig(target);

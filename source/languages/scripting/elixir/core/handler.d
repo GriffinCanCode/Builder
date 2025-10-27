@@ -26,7 +26,7 @@ class ElixirHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Elixir target: " ~ target.name);
+        Logger.debugLog("Building Elixir target: " ~ target.name);
         
         // Parse Elixir configuration
         ElixirConfig elixirConfig = parseElixirConfig(target);
@@ -189,7 +189,7 @@ class ElixirHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using builder: " ~ builder.name());
+        Logger.debugLog("Using builder: " ~ builder.name());
         
         auto buildResult = builder.build(target.sources, elixirConfig, target, config);
         
@@ -464,7 +464,7 @@ class ElixirHandler : BaseLanguageHandler
             if (detectedType != ElixirProjectType.MixProject)
             {
                 config.projectType = detectedType;
-                Logger.debug_("Detected project type: " ~ detectedType.to!string);
+                Logger.debugLog("Detected project type: " ~ detectedType.to!string);
             }
         }
         
@@ -483,19 +483,19 @@ class ElixirHandler : BaseLanguageHandler
             if (config.project.version_.empty && !mixInfo.version_.empty)
                 config.project.version_ = mixInfo.version_;
             
-            Logger.debug_("Parsed Mix project: " ~ mixInfo.app);
+            Logger.debugLog("Parsed Mix project: " ~ mixInfo.app);
         }
         
         // Check for Phoenix
         if (ProjectDetector.isPhoenixProject(sourceDir))
         {
             config.phoenix.enabled = true;
-            Logger.debug_("Detected Phoenix application");
+            Logger.debugLog("Detected Phoenix application");
             
             if (ProjectDetector.hasLiveView(sourceDir))
             {
                 config.phoenix.liveView = true;
-                Logger.debug_("Detected Phoenix LiveView");
+                Logger.debugLog("Detected Phoenix LiveView");
             }
         }
         
@@ -507,7 +507,7 @@ class ElixirHandler : BaseLanguageHandler
             if (!apps.empty)
             {
                 config.umbrella.apps = apps;
-                Logger.debug_("Detected umbrella apps: " ~ apps.join(", "));
+                Logger.debugLog("Detected umbrella apps: " ~ apps.join(", "));
             }
         }
         
@@ -515,7 +515,7 @@ class ElixirHandler : BaseLanguageHandler
         if (ProjectDetector.isNervesProject(sourceDir))
         {
             config.nerves.enabled = true;
-            Logger.debug_("Detected Nerves project");
+            Logger.debugLog("Detected Nerves project");
         }
         
         // Check for .tool-versions (asdf)
@@ -525,7 +525,7 @@ class ElixirHandler : BaseLanguageHandler
             auto versions = VersionManager.parseToolVersions(toolVersionsPath);
             if ("elixir" in versions)
             {
-                Logger.debug_("Found Elixir version in .tool-versions: " ~ versions["elixir"]);
+                Logger.debugLog("Found Elixir version in .tool-versions: " ~ versions["elixir"]);
             }
         }
     }
@@ -559,7 +559,7 @@ class ElixirHandler : BaseLanguageHandler
         }
         
         auto version_ = ElixirTools.getElixirVersion(elixirCmd);
-        Logger.debug_("Using Elixir: " ~ elixirCmd ~ " (" ~ version_ ~ ")");
+        Logger.debugLog("Using Elixir: " ~ elixirCmd ~ " (" ~ version_ ~ ")");
         
         return elixirCmd;
     }

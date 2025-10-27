@@ -48,13 +48,13 @@ class BuildZigBuilder : ZigBuilder
             workDir = dirName(buildZigPath);
         }
         
-        Logger.debug_("Using build.zig at: " ~ buildZigPath);
+        Logger.debugLog("Using build.zig at: " ~ buildZigPath);
         
         // Parse build.zig to get project info
         auto project = BuildZigParser.parseBuildZig(buildZigPath);
         if (!project.name.empty)
         {
-            Logger.debug_("Building project: " ~ project.name ~ 
+            Logger.debugLog("Building project: " ~ project.name ~ 
                          (project.version_.empty ? "" : " v" ~ project.version_));
         }
         

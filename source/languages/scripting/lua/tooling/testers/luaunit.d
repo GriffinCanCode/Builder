@@ -51,7 +51,7 @@ class LuaUnitTester : Tester
             // Add LuaUnit-specific arguments via environment or command line
             // Depending on how the test file is structured
             
-            Logger.debug_("Running LuaUnit test: " ~ cmd.join(" "));
+            Logger.debugLog("Running LuaUnit test: " ~ cmd.join(" "));
             
             auto res = execute(cmd);
             

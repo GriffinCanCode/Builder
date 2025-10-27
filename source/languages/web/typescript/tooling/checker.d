@@ -63,7 +63,7 @@ class TypeChecker
             cmd ~= sources;
         }
         
-        Logger.debug_("Type checking: " ~ cmd.join(" "));
+        Logger.debugLog("Type checking: " ~ cmd.join(" "));
         
         // Execute tsc
         auto res = execute(cmd, null, Config.none, size_t.max, workspaceRoot);
@@ -71,14 +71,14 @@ class TypeChecker
         if (res.status == 0)
         {
             result.success = true;
-            Logger.debug_("Type checking passed");
+            Logger.debugLog("Type checking passed");
         }
         else
         {
             result.success = false;
             // Parse TypeScript error output
             parseTypeScriptOutput(res.output, result);
-            Logger.debug_("Type checking failed with " ~ result.errors.length.to!string ~ " errors");
+            Logger.debugLog("Type checking failed with " ~ result.errors.length.to!string ~ " errors");
         }
         
         return result;

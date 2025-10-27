@@ -95,7 +95,7 @@ class PhanAnalyzer : Analyzer
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to cleanup file list: " ~ e.msg);
+                Logger.debugLog("Failed to cleanup file list: " ~ e.msg);
             }
         }
         

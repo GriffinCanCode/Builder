@@ -27,7 +27,7 @@ class CppHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building C++ target: " ~ target.name);
+        Logger.debugLog("Building C++ target: " ~ target.name);
         
         // Parse C++ configuration
         CppConfig cppConfig = parseCppConfig(target);
@@ -309,7 +309,7 @@ class CppHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using C++ builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using C++ builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Optimize with precompiled headers if beneficial
         if (cppConfig.pch.strategy == PchStrategy.Auto && target.sources.length > 5)
@@ -403,7 +403,7 @@ class CppHandler : BaseLanguageHandler
             auto detected = BuildSystemDetector.detect(sourceDir);
             if (detected != BuildSystem.None)
             {
-                Logger.debug_("Detected build system: " ~ detected.to!string);
+                Logger.debugLog("Detected build system: " ~ detected.to!string);
                 config.buildSystem = detected;
             }
         }
@@ -479,7 +479,7 @@ class CHandler : CppHandler
 {
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
-        Logger.debug_("Building C target: " ~ target.name);
+        Logger.debugLog("Building C target: " ~ target.name);
         return super.buildImpl(target, config);
     }
     

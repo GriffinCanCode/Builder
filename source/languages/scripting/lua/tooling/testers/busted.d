@@ -121,7 +121,7 @@ class BustedTester : Tester
             cmd ~= sources;
         }
         
-        Logger.debug_("Running Busted: " ~ cmd.join(" "));
+        Logger.debugLog("Running Busted: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -182,7 +182,7 @@ class BustedTester : Tester
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Busted version: " ~ e.msg);
+            Logger.debugLog("Failed to get Busted version: " ~ e.msg);
         }
         
         return "unknown";

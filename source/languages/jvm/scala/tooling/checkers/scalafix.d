@@ -24,7 +24,7 @@ class ScalafixChecker : Checker
             return result;
         }
         
-        Logger.debug_("Checking Scala sources with scalafix");
+        Logger.debugLog("Checking Scala sources with scalafix");
         
         // Build scalafix command
         string[] cmd = ["scalafix"];
@@ -49,7 +49,7 @@ class ScalafixChecker : Checker
         // Add sources
         cmd ~= sources;
         
-        Logger.debug_("Scalafix command: " ~ cmd.join(" "));
+        Logger.debugLog("Scalafix command: " ~ cmd.join(" "));
         
         // Execute scalafix
         auto res = execute(cmd, null, Config.none, size_t.max, workingDir);

@@ -84,7 +84,7 @@ class StyLuaFormatter : Formatter
         // Add source files
         cmd ~= sources;
         
-        Logger.debug_("Running StyLua: " ~ cmd.join(" "));
+        Logger.debugLog("Running StyLua: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -135,7 +135,7 @@ class StyLuaFormatter : Formatter
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get StyLua version: " ~ e.msg);
+            Logger.debugLog("Failed to get StyLua version: " ~ e.msg);
         }
         
         return "unknown";

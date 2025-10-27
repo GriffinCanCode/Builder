@@ -28,7 +28,7 @@ class DHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building D target: " ~ target.name);
+        Logger.debugLog("Building D target: " ~ target.name);
         
         // Parse D configuration
         DConfig dConfig = parseDConfig(target);
@@ -37,7 +37,7 @@ class DHandler : BaseLanguageHandler
         if (dConfig.compiler == DCompiler.Auto)
         {
             dConfig.compiler = detectBestCompiler();
-            Logger.debug_("Auto-detected compiler: " ~ compilerToString(dConfig.compiler));
+            Logger.debugLog("Auto-detected compiler: " ~ compilerToString(dConfig.compiler));
         }
         
         // Check compiler availability
@@ -235,7 +235,7 @@ class DHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using D builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using D builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
         auto compileResult = builder.build(target.sources, dConfig, target, config);
@@ -305,7 +305,7 @@ class DHandler : BaseLanguageHandler
             config.dub.packagePath = DubManifest.findManifest(target.sources.dup);
             if (!config.dub.packagePath.empty)
             {
-                Logger.debug_("Found DUB package: " ~ config.dub.packagePath);
+                Logger.debugLog("Found DUB package: " ~ config.dub.packagePath);
                 
                 // If dub package exists, prefer dub mode
                 if (config.mode == DBuildMode.Compile)

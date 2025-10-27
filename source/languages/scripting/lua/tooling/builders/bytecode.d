@@ -99,7 +99,7 @@ class BytecodeBuilder : LuaBuilder
         cmd ~= sources;
         
         // Compile bytecode
-        Logger.debug_("Compiling bytecode: " ~ cmd.join(" "));
+        Logger.debugLog("Compiling bytecode: " ~ cmd.join(" "));
         auto res = execute(cmd);
         
         if (res.status != 0)

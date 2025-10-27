@@ -48,7 +48,7 @@ class RollupBundler : Bundler
         BundleResult result
     )
     {
-        Logger.debug_("Using rollup config: " ~ configFile);
+        Logger.debugLog("Using rollup config: " ~ configFile);
         
         string[] cmd = ["rollup", "-c", configFile];
         auto res = execute(cmd);
@@ -124,7 +124,7 @@ class RollupBundler : Bundler
             Logger.warning("Rollup minification requires @rollup/plugin-terser plugin");
         }
         
-        Logger.debug_("Running rollup: " ~ cmd.join(" "));
+        Logger.debugLog("Running rollup: " ~ cmd.join(" "));
         
         // Execute rollup
         auto res = execute(cmd);
@@ -135,7 +135,7 @@ class RollupBundler : Bundler
             return result;
         }
         
-        Logger.debug_("rollup completed successfully");
+        Logger.debugLog("rollup completed successfully");
         
         result.success = true;
         result.outputs = [outputFile];

@@ -107,6 +107,8 @@ class Logger
     
     /// Log debug message (only if verbose mode enabled)
     /// 
+    /// Note: Named debugLog instead of debug because 'debug' is a reserved keyword in D.
+    /// 
     /// Safety: This function is @trusted because:
     /// 1. Checks verbose flag before any I/O (minimal side effects)
     /// 2. writeln() and stdout.flush() are I/O operations (inherently @system)
@@ -122,7 +124,7 @@ class Logger
     /// - Write fails: exception thrown (safe failure)
     /// - verbose flag race: acceptable (worst case is extra/missing debug line)
     @trusted
-    static void debug_(in string msg)
+    static void debugLog(in string msg)
     {
         if (verbose)
         {

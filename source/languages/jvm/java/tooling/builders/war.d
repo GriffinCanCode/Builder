@@ -38,7 +38,7 @@ class WARBuilder : JARBuilder
     {
         JavaBuildResult result;
         
-        Logger.debug_("Building WAR: " ~ target.name);
+        Logger.debugLog("Building WAR: " ~ target.name);
         
         // Determine output path
         string outputPath = getOutputPath(target, workspace, config);

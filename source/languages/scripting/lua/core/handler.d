@@ -48,7 +48,7 @@ class LuaHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Lua target: " ~ target.name);
+        Logger.debugLog("Building Lua target: " ~ target.name);
         
         // Parse Lua configuration
         LuaConfig luaConfig = parseLuaConfig(target);
@@ -57,7 +57,7 @@ class LuaHandler : BaseLanguageHandler
         if (luaConfig.runtime == LuaRuntime.Auto)
         {
             luaConfig.runtime = detectRuntime();
-            Logger.debug_("Auto-detected runtime: " ~ runtimeToString(luaConfig.runtime));
+            Logger.debugLog("Auto-detected runtime: " ~ runtimeToString(luaConfig.runtime));
         }
         
         // Validate configuration
@@ -313,7 +313,7 @@ class LuaHandler : BaseLanguageHandler
         if (luaConfig.test.framework == LuaTestFramework.Auto)
         {
             luaConfig.test.framework = detectTestFramework(target);
-            Logger.debug_("Auto-detected test framework: " ~ testFrameworkToString(luaConfig.test.framework));
+            Logger.debugLog("Auto-detected test framework: " ~ testFrameworkToString(luaConfig.test.framework));
         }
         
         // Select test runner
@@ -544,7 +544,7 @@ class LuaHandler : BaseLanguageHandler
         }
         else
         {
-            Logger.debug_("No rockspec file found and no rocks specified, skipping dependency installation");
+            Logger.debugLog("No rockspec file found and no rocks specified, skipping dependency installation");
         }
         
         result.success = true;
@@ -846,7 +846,7 @@ class LuaHandler : BaseLanguageHandler
                 catch (Exception e)
                 {
                     import utils.logging.logger : Logger;
-                    Logger.debug_("Failed to detect Lua test framework: " ~ e.msg);
+                    Logger.debugLog("Failed to detect Lua test framework: " ~ e.msg);
                 }
             }
         }

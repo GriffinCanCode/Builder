@@ -75,7 +75,7 @@ class RMarkdownBuilder : RBuilder
         string[] cmd = [rCmd] ~ rArgs;
         
         Logger.info("Rendering RMarkdown: " ~ rmdFile);
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto env = prepareEnvironment(rConfig);
         auto res = execute(cmd, env, Config.none, size_t.max, config.root);

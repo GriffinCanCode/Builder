@@ -27,7 +27,7 @@ class SwiftHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Swift target: " ~ target.name);
+        Logger.debugLog("Building Swift target: " ~ target.name);
         
         // Parse Swift configuration
         SwiftConfig swiftConfig = parseSwiftConfig(target);
@@ -45,7 +45,7 @@ class SwiftHandler : BaseLanguageHandler
             auto manifestPath = PackageManifestParser.findManifest(target.sources.dup);
             if (!manifestPath.empty)
             {
-                Logger.debug_("Found Package.swift: " ~ manifestPath);
+                Logger.debugLog("Found Package.swift: " ~ manifestPath);
                 swiftConfig.manifest.manifestPath = manifestPath;
                 swiftConfig.packagePath = dirName(manifestPath);
                 
@@ -296,7 +296,7 @@ class SwiftHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using Swift builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using Swift builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Resolve dependencies if using SPM
         if (!swiftConfig.manifest.manifestPath.empty && !swiftConfig.skipUpdate)
@@ -364,7 +364,7 @@ class SwiftHandler : BaseLanguageHandler
             if (!config.manifest.manifestPath.empty)
             {
                 config.packagePath = dirName(config.manifest.manifestPath);
-                Logger.debug_("Found Package.swift: " ~ config.manifest.manifestPath);
+                Logger.debugLog("Found Package.swift: " ~ config.manifest.manifestPath);
             }
         }
         

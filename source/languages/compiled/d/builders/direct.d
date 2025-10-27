@@ -49,7 +49,7 @@ class DirectCompilerBuilder : DBuilder
         // Build command based on compiler
         string[] cmd = buildCompilerCommand(sources, outputPath, config);
         
-        Logger.debug_("Compiler command: " ~ cmd.join(" "));
+        Logger.debugLog("Compiler command: " ~ cmd.join(" "));
         
         // Set environment variables
         string[string] env = environment.toAA();

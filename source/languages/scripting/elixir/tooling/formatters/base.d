@@ -51,7 +51,7 @@ class Formatter
             cmd ~= files;
         }
         
-        Logger.debug_("Running formatter: " ~ cmd.join(" "));
+        Logger.debugLog("Running formatter: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

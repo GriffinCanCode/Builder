@@ -27,7 +27,7 @@ class ScalaJSBuilder : ScalaBuilder
     {
         ScalaBuildResult result;
         
-        Logger.debug_("Building Scala.js target: " ~ target.name);
+        Logger.debugLog("Building Scala.js target: " ~ target.name);
         
         // Detect build tool
         ScalaBuildTool buildTool = config.buildTool;
@@ -85,7 +85,7 @@ class ScalaJSBuilder : ScalaBuilder
         cmd ~= task;
         
         Logger.info("Running sbt " ~ task ~ "...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         
@@ -143,7 +143,7 @@ class ScalaJSBuilder : ScalaBuilder
         cmd ~= target.name ~ "." ~ task;
         
         Logger.info("Running Mill " ~ task ~ "...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         

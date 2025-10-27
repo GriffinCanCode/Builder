@@ -53,7 +53,7 @@ class SwiftFormatRunner
         // Add files/directories
         cmd ~= files;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -105,7 +105,7 @@ class AppleSwiftFormatRunner
         // Add files
         cmd ~= files;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }

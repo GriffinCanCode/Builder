@@ -130,32 +130,32 @@ class KotlinDetection
         if (hasKotlinNative())
             Logger.info("  kotlin-native: available");
         else
-            Logger.debug_("  kotlin-native: not found");
+            Logger.debugLog("  kotlin-native: not found");
         
         if (hasKotlinJS())
             Logger.info("  kotlin-js: available");
         else
-            Logger.debug_("  kotlin-js: not found");
+            Logger.debugLog("  kotlin-js: not found");
         
         if (hasGradle())
             Logger.info("  Gradle: " ~ getGradleVersion());
         else
-            Logger.debug_("  Gradle: not found");
+            Logger.debugLog("  Gradle: not found");
         
         if (hasMaven())
             Logger.info("  Maven: " ~ getMavenVersion());
         else
-            Logger.debug_("  Maven: not found");
+            Logger.debugLog("  Maven: not found");
         
         if (hasKtLint())
             Logger.info("  ktlint: available");
         else
-            Logger.debug_("  ktlint: not found");
+            Logger.debugLog("  ktlint: not found");
         
         if (hasDetekt())
             Logger.info("  detekt: available");
         else
-            Logger.debug_("  detekt: not found");
+            Logger.debugLog("  detekt: not found");
         
         Logger.info("  Java: " ~ getJavaVersion());
     }

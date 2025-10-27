@@ -27,7 +27,7 @@ class GoHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Go target: " ~ target.name);
+        Logger.debugLog("Building Go target: " ~ target.name);
         
         // Parse Go configuration
         GoConfig goConfig = parseGoConfig(target);
@@ -107,7 +107,7 @@ class GoHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Build
         auto buildResult = builder.build(target.sources, goConfig, target, config);
@@ -148,7 +148,7 @@ class GoHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Building Go library/package");
+        Logger.debugLog("Building Go library/package");
         
         // For libraries, we typically just want to ensure compilation
         // The actual package will be used by other Go code
@@ -306,14 +306,14 @@ class GoHandler : BaseLanguageHandler
         if (!goModPath.empty && config.modMode == GoModMode.Auto)
         {
             config.modMode = GoModMode.On;
-            Logger.debug_("Detected go.mod at: " ~ goModPath);
+            Logger.debugLog("Detected go.mod at: " ~ goModPath);
             
             // Parse module information
             auto mod = ModuleAnalyzer.parseGoMod(goModPath);
             if (mod.isValid())
             {
-                Logger.debug_("Module path: " ~ mod.path);
-                Logger.debug_("Go version: " ~ mod.goVersion);
+                Logger.debugLog("Module path: " ~ mod.path);
+                Logger.debugLog("Go version: " ~ mod.goVersion);
                 
                 if (config.modPath.empty)
                     config.modPath = mod.path;
@@ -324,12 +324,12 @@ class GoHandler : BaseLanguageHandler
         auto goWorkPath = ModuleAnalyzer.findGoWork(sourceDir);
         if (!goWorkPath.empty)
         {
-            Logger.debug_("Detected go.work at: " ~ goWorkPath);
+            Logger.debugLog("Detected go.work at: " ~ goWorkPath);
             
             auto ws = ModuleAnalyzer.parseGoWork(goWorkPath);
             if (ws.isValid())
             {
-                Logger.debug_("Workspace modules: " ~ ws.use.join(", "));
+                Logger.debugLog("Workspace modules: " ~ ws.use.join(", "));
             }
         }
         
@@ -340,7 +340,7 @@ class GoHandler : BaseLanguageHandler
             {
                 if (exists(source) && hasCGoCode(source))
                 {
-                    Logger.debug_("Detected CGO code in: " ~ source);
+                    Logger.debugLog("Detected CGO code in: " ~ source);
                     config.cgo.enabled = true;
                     break;
                 }

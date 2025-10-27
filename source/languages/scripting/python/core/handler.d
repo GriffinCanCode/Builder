@@ -27,7 +27,7 @@ class PythonHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Python target: " ~ target.name);
+        Logger.debugLog("Building Python target: " ~ target.name);
         
         // Parse Python configuration
         PyConfig pyConfig = parsePyConfig(target);
@@ -351,7 +351,7 @@ class PythonHandler : BaseLanguageHandler
         if (config.packageManager == PyPackageManager.Auto)
         {
             config.packageManager = PackageManagerFactory.detectFromProject(sourceDir);
-            Logger.debug_("Detected package manager: " ~ config.packageManager.to!string);
+            Logger.debugLog("Detected package manager: " ~ config.packageManager.to!string);
         }
         
         // Auto-detect virtual environment tool
@@ -366,7 +366,7 @@ class PythonHandler : BaseLanguageHandler
             auto depFiles = DependencyAnalyzer.findDependencyFiles(sourceDir);
             if (!depFiles.empty)
             {
-                Logger.debug_("Found dependency files: " ~ depFiles.join(", "));
+                Logger.debugLog("Found dependency files: " ~ depFiles.join(", "));
                 config.requirementsFiles = depFiles;
             }
         }
@@ -403,7 +403,7 @@ class PythonHandler : BaseLanguageHandler
             pythonCmd = "python3";
         }
         
-        Logger.debug_("Using Python: " ~ pythonCmd ~ " (" ~ PyTools.getPythonVersion(pythonCmd) ~ ")");
+        Logger.debugLog("Using Python: " ~ pythonCmd ~ " (" ~ PyTools.getPythonVersion(pythonCmd) ~ ")");
         
         return pythonCmd;
     }

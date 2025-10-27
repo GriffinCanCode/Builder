@@ -36,7 +36,7 @@ class PackageManagerFactory
             auto bundler = new BundlerManager(projectRoot);
             if (bundler.isAvailable())
             {
-                Logger.debug_("Detected Bundler from Gemfile");
+                Logger.debugLog("Detected Bundler from Gemfile");
                 return bundler;
             }
         }
@@ -48,7 +48,7 @@ class PackageManagerFactory
             auto files = dirEntries(projectRoot, "*.gemspec", SpanMode.shallow);
             if (!files.empty)
             {
-                Logger.debug_("Detected gemspec file, using RubyGems");
+                Logger.debugLog("Detected gemspec file, using RubyGems");
                 return new RubyGemsManager(projectRoot);
             }
         }

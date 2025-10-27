@@ -49,7 +49,7 @@ class WebpackBundler : Bundler
         BundleResult result
     )
     {
-        Logger.debug_("Using webpack config: " ~ configFile);
+        Logger.debugLog("Using webpack config: " ~ configFile);
         
         string[] cmd = ["webpack", "--config", configFile];
         auto res = execute(cmd);
@@ -111,7 +111,7 @@ class WebpackBundler : Bundler
                 remove(tempConfig);
         }
         
-        Logger.debug_("Generated webpack config: " ~ tempConfig);
+        Logger.debugLog("Generated webpack config: " ~ tempConfig);
         
         // Run webpack
         string[] cmd = ["webpack", "--config", tempConfig];

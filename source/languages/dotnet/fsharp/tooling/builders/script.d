@@ -72,7 +72,7 @@ class ScriptBuilder : FSharpBuilder
         result.outputHash = FastHash.hashStrings(sources);
         
         Logger.info("Script executed successfully");
-        Logger.debug_("Output: " ~ res.output);
+        Logger.debugLog("Output: " ~ res.output);
         
         return result;
     }

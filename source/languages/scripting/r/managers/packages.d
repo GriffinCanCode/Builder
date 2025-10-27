@@ -117,7 +117,7 @@ private PackageInstallResult installWithInstallPackages(
         string[] pkgNames = cranPackages.map!(p => `"` ~ p.name ~ `"`).array;
         string installCode = `install.packages(c(` ~ pkgNames.join(",") ~ `), repos=` ~ reposStr ~ `, dependencies=TRUE, quiet=FALSE)`;
         
-        Logger.debug_("Installing CRAN packages: " ~ installCode);
+        Logger.debugLog("Installing CRAN packages: " ~ installCode);
         
         auto env = prepareEnvironment(config);
         auto res = execute([rCmd, "-e", installCode], env, Config.none, size_t.max, workDir);
@@ -151,7 +151,7 @@ private PackageInstallResult installWithInstallPackages(
         string[] pkgNames = biocPackages.map!(p => `"` ~ p.name ~ `"`).array;
         string installCode = `BiocManager::install(c(` ~ pkgNames.join(",") ~ `))`;
         
-        Logger.debug_("Installing Bioconductor packages: " ~ installCode);
+        Logger.debugLog("Installing Bioconductor packages: " ~ installCode);
         
         res = execute([rCmd, "-e", installCode], env, Config.none, size_t.max, workDir);
         
@@ -194,7 +194,7 @@ private PackageInstallResult installWithInstallPackages(
                 installCmd = `remotes::install_gitlab("` ~ pkg.customUrl ~ `")`;
             }
             
-            Logger.debug_("Installing from Git: " ~ installCmd);
+            Logger.debugLog("Installing from Git: " ~ installCmd);
             
             res = execute([rCmd, "-e", installCmd], env, Config.none, size_t.max, workDir);
             
@@ -465,7 +465,7 @@ private PackageInstallResult installWithRemotes(
                 break;
         }
         
-        Logger.debug_("Installing with remotes: " ~ installCmd);
+        Logger.debugLog("Installing with remotes: " ~ installCmd);
         
         auto res = execute([rCmd, "-e", installCmd], env, Config.none, size_t.max, workDir);
         
@@ -516,7 +516,7 @@ PackageInstallResult installFromDESCRIPTION(
     {
         string installCode = `devtools::install_deps("` ~ dirName(descPath) ~ `", dependencies=TRUE)`;
         
-        Logger.debug_("Installing with devtools: " ~ installCode);
+        Logger.debugLog("Installing with devtools: " ~ installCode);
         
         auto env = prepareEnvironment(config);
         auto res = execute([rCmd, "-e", installCode], env, Config.none, size_t.max, workDir);

@@ -60,7 +60,7 @@ class SwiftLintRunner
         cmd ~= ["--path"];
         cmd ~= paths;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -86,7 +86,7 @@ class SwiftLintRunner
         cmd ~= ["--path"];
         cmd ~= paths;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -107,7 +107,7 @@ class SwiftLintRunner
         cmd ~= ["--path"];
         cmd ~= paths;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -156,7 +156,7 @@ class DocCRunner
         if (!hostingBasePath.empty)
             cmd ~= ["--hosting-base-path", hostingBasePath];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, null, Config.none, size_t.max, packagePath);
     }
@@ -166,7 +166,7 @@ class DocCRunner
     {
         string[] cmd = ["swift", "package", "preview-documentation"];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, null, Config.none, size_t.max, packagePath);
     }
@@ -215,7 +215,7 @@ class XCFrameworkBuilder
             // Output
             cmd ~= ["-output", outputPath];
             
-            Logger.debug_("Running: " ~ cmd.join(" "));
+            Logger.debugLog("Running: " ~ cmd.join(" "));
             
             return execute(cmd);
         }

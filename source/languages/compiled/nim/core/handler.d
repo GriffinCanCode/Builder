@@ -26,7 +26,7 @@ class NimHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Nim target: " ~ target.name);
+        Logger.debugLog("Building Nim target: " ~ target.name);
         
         // Parse Nim configuration
         NimConfig nimConfig = parseNimConfig(target);
@@ -272,7 +272,7 @@ class NimHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using Nim builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
+        Logger.debugLog("Using Nim builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
         auto compileResult = builder.build(target.sources, nimConfig, target, config);
@@ -356,14 +356,14 @@ class NimHandler : BaseLanguageHandler
             string nimbleFile = NimbleParser.findNimbleFile(sourceDir);
             if (!nimbleFile.empty)
             {
-                Logger.debug_("Detected nimble file: " ~ nimbleFile);
+                Logger.debugLog("Detected nimble file: " ~ nimbleFile);
                 config.nimble.nimbleFile = nimbleFile;
                 
                 // Parse nimble file for project info
                 auto nimbleData = NimbleParser.parseNimbleFile(nimbleFile);
                 if (!nimbleData.name.empty)
                 {
-                    Logger.debug_("Package: " ~ nimbleData.name ~ 
+                    Logger.debugLog("Package: " ~ nimbleData.name ~ 
                                  (nimbleData.version_.empty ? "" : " v" ~ nimbleData.version_));
                     
                     // Set backend from nimble file if specified

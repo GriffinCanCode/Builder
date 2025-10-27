@@ -26,7 +26,7 @@ class JARBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        Logger.debug_("Building standard Kotlin JAR");
+        Logger.debugLog("Building standard Kotlin JAR");
         
         // Determine output path
         string outputPath;
@@ -271,7 +271,7 @@ class JARBuilder : KotlinBuilder
         // Specify output
         cmd ~= ["-d", outputPath];
         
-        Logger.debug_("Executing: " ~ cmd.join(" "));
+        Logger.debugLog("Executing: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

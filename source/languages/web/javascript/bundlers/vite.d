@@ -44,7 +44,7 @@ class ViteBundler : Bundler
         string autoConfig = detectViteConfig(sources);
         if (!autoConfig.empty)
         {
-            Logger.debug_("Detected Vite config: " ~ autoConfig);
+            Logger.debugLog("Detected Vite config: " ~ autoConfig);
             return bundleWithConfigFile(autoConfig, workspace, result);
         }
         
@@ -58,7 +58,7 @@ class ViteBundler : Bundler
         BundleResult result
     )
     {
-        Logger.debug_("Using Vite config: " ~ configFile);
+        Logger.debugLog("Using Vite config: " ~ configFile);
         
         string[] cmd = ["vite", "build", "--config", configFile];
         
@@ -138,7 +138,7 @@ class ViteBundler : Bundler
                 remove(tempConfig);
         }
         
-        Logger.debug_("Generated Vite config: " ~ tempConfig);
+        Logger.debugLog("Generated Vite config: " ~ tempConfig);
         
         // Run Vite build
         string[] cmd = ["vite", "build", "--config", tempConfig];
@@ -151,7 +151,7 @@ class ViteBundler : Bundler
             return result;
         }
         
-        Logger.debug_("Vite build completed successfully");
+        Logger.debugLog("Vite build completed successfully");
         
         result.success = true;
         

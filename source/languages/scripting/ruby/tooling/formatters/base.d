@@ -85,7 +85,7 @@ class FormatterFactory
         auto standard = new StandardFormatter();
         if (standard.isAvailable())
         {
-            Logger.debug_("Detected StandardRB for formatting");
+            Logger.debugLog("Detected StandardRB for formatting");
             return standard;
         }
         
@@ -93,18 +93,18 @@ class FormatterFactory
         auto rubocop = new RuboCopFormatter();
         if (rubocop.isAvailable())
         {
-            Logger.debug_("Detected RuboCop for formatting");
+            Logger.debugLog("Detected RuboCop for formatting");
             return rubocop;
         }
         
         auto reek = new ReekFormatter();
         if (reek.isAvailable())
         {
-            Logger.debug_("Detected Reek for code smell detection");
+            Logger.debugLog("Detected Reek for code smell detection");
             return reek;
         }
         
-        Logger.debug_("No Ruby formatter available");
+        Logger.debugLog("No Ruby formatter available");
         return new NullFormatter();
     }
 }

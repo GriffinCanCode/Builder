@@ -39,11 +39,11 @@ class CargoBuilder : RustBuilder
         }
         
         string projectDir = dirName(manifestPath);
-        Logger.debug_("Building Rust project in: " ~ projectDir);
+        Logger.debugLog("Building Rust project in: " ~ projectDir);
         
         // Parse manifest for metadata
         auto manifest = CargoParser.parse(manifestPath);
-        Logger.debug_("Package: " ~ manifest.package_.name ~ " v" ~ manifest.package_.version_);
+        Logger.debugLog("Package: " ~ manifest.package_.name ~ " v" ~ manifest.package_.version_);
         
         // Build command based on mode
         final switch (config.mode)
@@ -160,7 +160,7 @@ class CargoBuilder : RustBuilder
         // Add additional cargo flags
         cmd ~= config.cargoFlags;
         
-        Logger.debug_("Cargo command: " ~ cmd.join(" "));
+        Logger.debugLog("Cargo command: " ~ cmd.join(" "));
         
         // Set environment variables
         string[string] env = null;
@@ -237,7 +237,7 @@ class CargoBuilder : RustBuilder
         // Similar flags as build but no output generation
         addCommonFlags(cmd, config);
         
-        Logger.debug_("Cargo check: " ~ cmd.join(" "));
+        Logger.debugLog("Cargo check: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);
         
@@ -269,7 +269,7 @@ class CargoBuilder : RustBuilder
         
         cmd ~= config.testFlags;
         
-        Logger.debug_("Cargo test: " ~ cmd.join(" "));
+        Logger.debugLog("Cargo test: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);
         
@@ -299,7 +299,7 @@ class CargoBuilder : RustBuilder
         if (config.docOpen)
             cmd ~= ["--open"];
         
-        Logger.debug_("Cargo doc: " ~ cmd.join(" "));
+        Logger.debugLog("Cargo doc: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);
         
@@ -333,7 +333,7 @@ class CargoBuilder : RustBuilder
         
         cmd ~= config.benchFlags;
         
-        Logger.debug_("Cargo bench: " ~ cmd.join(" "));
+        Logger.debugLog("Cargo bench: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);
         
@@ -364,7 +364,7 @@ class CargoBuilder : RustBuilder
         cmd ~= ["--example", config.example];
         addCommonFlags(cmd, config);
         
-        Logger.debug_("Cargo example: " ~ cmd.join(" "));
+        Logger.debugLog("Cargo example: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);
         

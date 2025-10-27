@@ -29,7 +29,7 @@ class PyFormatters
             cmd ~= "--check";
         cmd ~= sources;
         
-        Logger.debug_("Running ruff format: " ~ cmd.join(" "));
+        Logger.debugLog("Running ruff format: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -74,7 +74,7 @@ class PyFormatters
             cmd ~= "--check";
         cmd ~= sources;
         
-        Logger.debug_("Running black: " ~ cmd.join(" "));
+        Logger.debugLog("Running black: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -143,13 +143,13 @@ class Formatter
         
         if (ToolDetection.isRuffAvailable())
         {
-            Logger.debug_("Using ruff for formatting");
+            Logger.debugLog("Using ruff for formatting");
             return formatRuff(sources, check);
         }
         
         if (ToolDetection.isBlackAvailable(pythonCmd))
         {
-            Logger.debug_("Using black for formatting");
+            Logger.debugLog("Using black for formatting");
             return formatBlack(sources, pythonCmd, check);
         }
         

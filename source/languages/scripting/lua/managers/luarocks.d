@@ -78,7 +78,7 @@ class LuaRocksManager
         // Add rockspec file
         cmd ~= rockspecFile;
         
-        Logger.debug_("Installing LuaRocks dependencies: " ~ cmd.join(" "));
+        Logger.debugLog("Installing LuaRocks dependencies: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -129,7 +129,7 @@ class LuaRocksManager
         // Add rock name
         cmd ~= rockName;
         
-        Logger.debug_("Installing rock: " ~ cmd.join(" "));
+        Logger.debugLog("Installing rock: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -176,7 +176,7 @@ class LuaRocksManager
             cmd ~= rockspecFile;
         }
         
-        Logger.debug_("Building rock: " ~ cmd.join(" "));
+        Logger.debugLog("Building rock: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -204,7 +204,7 @@ class LuaRocksManager
         
         string[] cmd = ["luarocks", "pack", rockspecFile];
         
-        Logger.debug_("Packing rock: " ~ cmd.join(" "));
+        Logger.debugLog("Packing rock: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -299,7 +299,7 @@ class LuaRocksManager
             cmd ~= config.tree;
         }
         
-        Logger.debug_("Removing rock: " ~ cmd.join(" "));
+        Logger.debugLog("Removing rock: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -399,7 +399,7 @@ string getLuaRocksVersion()
     catch (Exception e)
     {
         import utils.logging.logger : Logger;
-        Logger.debug_("Failed to get LuaRocks version: " ~ e.msg);
+        Logger.debugLog("Failed to get LuaRocks version: " ~ e.msg);
     }
     
     return "unknown";

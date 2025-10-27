@@ -212,7 +212,7 @@ class SwiftcBuilder : SwiftBuilder
         cmd ~= sources;
         
         // Run compiler
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         auto res = execute(cmd, config.env);
         

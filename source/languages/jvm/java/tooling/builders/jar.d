@@ -28,7 +28,7 @@ class JARBuilder : JavaBuilder
     {
         JavaBuildResult result;
         
-        Logger.debug_("Building JAR: " ~ target.name);
+        Logger.debugLog("Building JAR: " ~ target.name);
         
         // Determine output path
         string outputPath = getOutputPath(target, workspace, config);
@@ -156,7 +156,7 @@ class JARBuilder : JavaBuilder
         // Add sources
         cmd ~= sources;
         
-        Logger.debug_("Compile command: " ~ cmd.join(" "));
+        Logger.debugLog("Compile command: " ~ cmd.join(" "));
         
         auto compileRes = execute(cmd);
         
@@ -193,7 +193,7 @@ class JARBuilder : JavaBuilder
             mainClass = detectMainClass(classDir);
             if (!mainClass.empty)
             {
-                Logger.debug_("Auto-detected main class: " ~ mainClass);
+                Logger.debugLog("Auto-detected main class: " ~ mainClass);
             }
         }
         
@@ -228,7 +228,7 @@ class JARBuilder : JavaBuilder
         // Add classes
         cmd ~= ["-C", classDir, "."];
         
-        Logger.debug_("JAR command: " ~ cmd.join(" "));
+        Logger.debugLog("JAR command: " ~ cmd.join(" "));
         
         auto jarRes = execute(cmd);
         
@@ -241,7 +241,7 @@ class JARBuilder : JavaBuilder
         // Add index if requested (must be done after JAR creation)
         if (config.packaging.createIndex)
         {
-            Logger.debug_("Adding index to JAR");
+            Logger.debugLog("Adding index to JAR");
             string[] indexCmd = [jarCmd, "i", outputPath];
             auto indexRes = execute(indexCmd);
             

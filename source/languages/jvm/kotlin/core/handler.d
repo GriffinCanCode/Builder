@@ -23,7 +23,7 @@ class KotlinHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Kotlin target: " ~ target.name);
+        Logger.debugLog("Building Kotlin target: " ~ target.name);
         
         // Parse Kotlin configuration
         KotlinConfig ktConfig = parseKotlinConfig(target);

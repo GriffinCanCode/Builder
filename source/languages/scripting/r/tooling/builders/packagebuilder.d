@@ -90,7 +90,7 @@ class RPackageBuilder : RBuilder
                 return result;
         }
         
-        Logger.debug_("Running: " ~ cmdArgs.join(" "));
+        Logger.debugLog("Running: " ~ cmdArgs.join(" "));
         
         try
         {

@@ -74,25 +74,25 @@ class TypeCheckerFactory
         auto sorbet = new SorbetChecker();
         if (sorbet.isAvailable())
         {
-            Logger.debug_("Detected Sorbet for type checking");
+            Logger.debugLog("Detected Sorbet for type checking");
             return sorbet;
         }
         
         auto steep = new SteepChecker();
         if (steep.isAvailable())
         {
-            Logger.debug_("Detected Steep for type checking");
+            Logger.debugLog("Detected Steep for type checking");
             return steep;
         }
         
         auto rbs = new RBSChecker();
         if (rbs.isAvailable())
         {
-            Logger.debug_("Detected RBS for type checking");
+            Logger.debugLog("Detected RBS for type checking");
             return rbs;
         }
         
-        Logger.debug_("No type checker available");
+        Logger.debugLog("No type checker available");
         return new NullTypeChecker();
     }
 }
@@ -313,7 +313,7 @@ class RBSChecker : TypeChecker
                 try
                 {
                     std.file.write(rbsFile, res.output);
-                    Logger.debug_("Generated " ~ rbsFile);
+                    Logger.debugLog("Generated " ~ rbsFile);
                 }
                 catch (Exception e)
                 {

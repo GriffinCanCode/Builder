@@ -26,7 +26,7 @@ class JSBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        Logger.debug_("Building Kotlin/JS");
+        Logger.debugLog("Building Kotlin/JS");
         
         // Determine output path
         string outputPath;
@@ -73,7 +73,7 @@ class JSBuilder : KotlinBuilder
         // Output
         cmd ~= ["-output", outputPath];
         
-        Logger.debug_("Executing: " ~ cmd.join(" "));
+        Logger.debugLog("Executing: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

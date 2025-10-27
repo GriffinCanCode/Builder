@@ -27,7 +27,7 @@ class MixProjectBuilder : ElixirBuilder
     {
         ElixirBuildResult result;
         
-        Logger.debug_("Building Mix project");
+        Logger.debugLog("Building Mix project");
         
         string workDir = workspace.root;
         if (!sources.empty)

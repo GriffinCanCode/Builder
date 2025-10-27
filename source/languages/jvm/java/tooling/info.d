@@ -130,7 +130,7 @@ class JavaInfo
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Java info: " ~ e.msg);
+            Logger.debugLog("Failed to get Java info: " ~ e.msg);
         }
         
         return "Unknown";
@@ -229,7 +229,7 @@ class JavaInfo
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Java info: " ~ e.msg);
+            Logger.debugLog("Failed to get Java info: " ~ e.msg);
         }
         
         return "";
@@ -251,7 +251,7 @@ class JavaInfo
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Java info: " ~ e.msg);
+            Logger.debugLog("Failed to get Java info: " ~ e.msg);
         }
         
         return "";
@@ -325,7 +325,7 @@ class JavaInfo
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get Java info: " ~ e.msg);
+            Logger.debugLog("Failed to get Java info: " ~ e.msg);
         }
         
         return "Unknown";

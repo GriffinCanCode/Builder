@@ -100,7 +100,7 @@ class GoTools
         else
             cmd ~= packages;
         
-        Logger.debug_("Running go vet: " ~ cmd.join(" "));
+        Logger.debugLog("Running go vet: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workDir);
         
@@ -139,7 +139,7 @@ class GoTools
         
         string[] cmd = ["golangci-lint", "run", "./..."] ~ extraArgs;
         
-        Logger.debug_("Running golangci-lint: " ~ cmd.join(" "));
+        Logger.debugLog("Running golangci-lint: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workDir);
         
@@ -175,7 +175,7 @@ class GoTools
         
         string[] cmd = ["staticcheck", "./..."];
         
-        Logger.debug_("Running staticcheck: " ~ cmd.join(" "));
+        Logger.debugLog("Running staticcheck: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workDir);
         
@@ -214,7 +214,7 @@ class GoTools
         else
             cmd ~= packages;
         
-        Logger.debug_("Running golint: " ~ cmd.join(" "));
+        Logger.debugLog("Running golint: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workDir);
         

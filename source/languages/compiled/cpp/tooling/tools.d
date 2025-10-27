@@ -98,7 +98,7 @@ class ClangTidy
             // Add standard
             cmd ~= ["--", "-std=c++17"]; // TODO: Use config.cppStandard
             
-            Logger.debug_("Analyzing: " ~ source);
+            Logger.debugLog("Analyzing: " ~ source);
             
             auto res = execute(cmd);
             
@@ -267,7 +267,7 @@ class ClangFormat
             
             cmd ~= source;
             
-            Logger.debug_("Formatting: " ~ source);
+            Logger.debugLog("Formatting: " ~ source);
             
             auto res = execute(cmd);
             

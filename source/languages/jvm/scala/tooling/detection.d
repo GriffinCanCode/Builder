@@ -199,7 +199,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -213,7 +213,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -253,7 +253,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -270,7 +270,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -292,7 +292,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -350,7 +350,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -365,7 +365,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -395,7 +395,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -410,7 +410,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -431,7 +431,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         return false;
@@ -451,7 +451,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         return false;
@@ -488,7 +488,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -509,7 +509,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -534,7 +534,7 @@ class ScalaToolDetection
             catch (Exception e)
             {
                 import utils.logging.logger : Logger;
-                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+                Logger.debugLog("Failed to detect Scala project info: " ~ e.msg);
             }
         }
         
@@ -606,7 +606,7 @@ class ScalaToolDetection
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get version info: " ~ e.msg);
+            Logger.debugLog("Failed to get version info: " ~ e.msg);
         }
         
         return "";
@@ -628,7 +628,7 @@ class ScalaToolDetection
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get version info: " ~ e.msg);
+            Logger.debugLog("Failed to get version info: " ~ e.msg);
         }
         
         return "";
@@ -650,7 +650,7 @@ class ScalaToolDetection
         catch (Exception e)
         {
             import utils.logging.logger : Logger;
-            Logger.debug_("Failed to get version info: " ~ e.msg);
+            Logger.debugLog("Failed to get version info: " ~ e.msg);
         }
         
         return "";

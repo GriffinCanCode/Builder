@@ -30,7 +30,7 @@ RPackageDep[] parseDESCRIPTION(string descPath)
     deps ~= parseDependencySection(content, "Suggests", RRepository.CRAN);
     deps ~= parseDependencySection(content, "LinkingTo", RRepository.CRAN);
     
-    Logger.debug_("Parsed " ~ deps.length.to!string ~ " dependencies from DESCRIPTION");
+    Logger.debugLog("Parsed " ~ deps.length.to!string ~ " dependencies from DESCRIPTION");
     return deps;
 }
 
@@ -154,7 +154,7 @@ RPackageDep[] parseRenvLock(string lockPath)
             }
         }
         
-        Logger.debug_("Parsed " ~ deps.length.to!string ~ " dependencies from renv.lock");
+        Logger.debugLog("Parsed " ~ deps.length.to!string ~ " dependencies from renv.lock");
     }
     catch (Exception e)
     {
@@ -236,7 +236,7 @@ RPackageDep[] parsePackratLock(string lockPath)
             }
         }
         
-        Logger.debug_("Parsed " ~ deps.length.to!string ~ " dependencies from packrat.lock");
+        Logger.debugLog("Parsed " ~ deps.length.to!string ~ " dependencies from packrat.lock");
     }
     catch (Exception e)
     {
@@ -249,13 +249,13 @@ RPackageDep[] parsePackratLock(string lockPath)
 /// Detect and parse dependencies from project
 RPackageDep[] detectDependencies(string projectDir)
 {
-    Logger.debug_("Detecting dependencies in: " ~ projectDir);
+    Logger.debugLog("Detecting dependencies in: " ~ projectDir);
     
     // Try renv.lock first (most specific)
     string renvLock = buildPath(projectDir, "renv.lock");
     if (exists(renvLock))
     {
-        Logger.debug_("Found renv.lock, parsing...");
+        Logger.debugLog("Found renv.lock, parsing...");
         return parseRenvLock(renvLock);
     }
     
@@ -263,7 +263,7 @@ RPackageDep[] detectDependencies(string projectDir)
     string packratLock = buildPath(projectDir, "packrat", "packrat.lock");
     if (exists(packratLock))
     {
-        Logger.debug_("Found packrat.lock, parsing...");
+        Logger.debugLog("Found packrat.lock, parsing...");
         return parsePackratLock(packratLock);
     }
     
@@ -271,12 +271,12 @@ RPackageDep[] detectDependencies(string projectDir)
     string descPath = buildPath(projectDir, "DESCRIPTION");
     if (exists(descPath))
     {
-        Logger.debug_("Found DESCRIPTION, parsing...");
+        Logger.debugLog("Found DESCRIPTION, parsing...");
         return parseDESCRIPTION(descPath);
     }
     
     // Scan R files for library() calls
-    Logger.debug_("No lock files or DESCRIPTION found, scanning R files...");
+    Logger.debugLog("No lock files or DESCRIPTION found, scanning R files...");
     return scanRFilesForDependencies(projectDir);
 }
 
@@ -312,7 +312,7 @@ RPackageDep[] scanRFilesForDependencies(string projectDir)
     }
     
     auto deps = depsMap.values;
-    Logger.debug_("Scanned R files, found " ~ deps.length.to!string ~ " unique dependencies");
+    Logger.debugLog("Scanned R files, found " ~ deps.length.to!string ~ " unique dependencies");
     return deps;
 }
 
@@ -531,7 +531,7 @@ PackageMetadata getPackageMetadata(string descPath)
         metadata.suggests = parseDependencySection(content, "Suggests", RRepository.CRAN);
         metadata.linkingTo = parseDependencySection(content, "LinkingTo", RRepository.CRAN);
         
-        Logger.debug_("Parsed package metadata: " ~ metadata.name ~ " " ~ metadata.version_);
+        Logger.debugLog("Parsed package metadata: " ~ metadata.name ~ " " ~ metadata.version_);
     }
     catch (Exception e)
     {

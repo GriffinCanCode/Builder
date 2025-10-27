@@ -30,7 +30,7 @@ class RHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building R target: " ~ target.name);
+        Logger.debugLog("Building R target: " ~ target.name);
         
         // Parse R configuration
         RConfig rConfig = parseRConfig(target);
@@ -45,7 +45,7 @@ class RHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using R: " ~ getRVersion(rConfig.rCommand));
+        Logger.debugLog("Using R: " ~ getRVersion(rConfig.rCommand));
         
         // Setup environment if configured
         if (rConfig.env.enabled)
@@ -275,7 +275,7 @@ class RHandler : BaseLanguageHandler
             if (config.mode == RBuildMode.Script)
             {
                 config.mode = RBuildMode.Package;
-                Logger.debug_("Detected R package structure");
+                Logger.debugLog("Detected R package structure");
             }
         }
         
@@ -286,7 +286,7 @@ class RHandler : BaseLanguageHandler
             if (config.mode == RBuildMode.Script)
             {
                 config.mode = RBuildMode.Shiny;
-                Logger.debug_("Detected Shiny app");
+                Logger.debugLog("Detected Shiny app");
             }
         }
         
@@ -296,7 +296,7 @@ class RHandler : BaseLanguageHandler
             if (config.mode == RBuildMode.Script)
             {
                 config.mode = RBuildMode.RMarkdown;
-                Logger.debug_("Detected RMarkdown document");
+                Logger.debugLog("Detected RMarkdown document");
             }
         }
         
@@ -307,13 +307,13 @@ class RHandler : BaseLanguageHandler
             {
                 config.env.manager = REnvManager.Renv;
                 config.env.enabled = true;
-                Logger.debug_("Detected renv environment");
+                Logger.debugLog("Detected renv environment");
             }
             else if (usesPackrat(sourceDir))
             {
                 config.env.manager = REnvManager.Packrat;
                 config.env.enabled = true;
-                Logger.debug_("Detected packrat environment");
+                Logger.debugLog("Detected packrat environment");
             }
         }
     }
@@ -374,7 +374,7 @@ class RHandler : BaseLanguageHandler
         
         if (deps.empty)
         {
-            Logger.debug_("No dependencies detected");
+            Logger.debugLog("No dependencies detected");
             return true;
         }
         

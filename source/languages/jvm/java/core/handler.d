@@ -28,7 +28,7 @@ class JavaHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building Java target: " ~ target.name);
+        Logger.debugLog("Building Java target: " ~ target.name);
         
         // Parse Java configuration
         JavaConfig javaConfig = parseJavaConfig(target);

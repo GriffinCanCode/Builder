@@ -39,7 +39,7 @@ class MakeBuilder : BaseCppBuilder
             return result;
         }
         
-        Logger.debug_("Building with Make");
+        Logger.debugLog("Building with Make");
         
         // Find Makefile
         string makefile = findMakefile(sources);
@@ -140,7 +140,7 @@ class MakeBuilder : BaseCppBuilder
         // cmd ~= targetName;
         
         Logger.info("Building with Make...");
-        Logger.debug_("Command: " ~ cmd.join(" "));
+        Logger.debugLog("Command: " ~ cmd.join(" "));
         
         // Execute in project directory
         auto res = execute(cmd, null, Config.none, size_t.max, projectDir);

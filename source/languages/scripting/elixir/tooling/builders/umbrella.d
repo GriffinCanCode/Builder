@@ -24,7 +24,7 @@ class UmbrellaBuilder : MixProjectBuilder
     {
         ElixirBuildResult result;
         
-        Logger.debug_("Building Umbrella project");
+        Logger.debugLog("Building Umbrella project");
         
         string workDir = workspace.root;
         if (!sources.empty)
@@ -47,7 +47,7 @@ class UmbrellaBuilder : MixProjectBuilder
             {
                 if (config.umbrella.excludeApps.canFind(app))
                 {
-                    Logger.debug_("Skipping excluded app: " ~ app);
+                    Logger.debugLog("Skipping excluded app: " ~ app);
                     continue;
                 }
                 

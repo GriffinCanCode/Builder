@@ -24,7 +24,7 @@ class ScalafmtFormatter : Formatter
             return result;
         }
         
-        Logger.debug_("Formatting Scala sources with scalafmt");
+        Logger.debugLog("Formatting Scala sources with scalafmt");
         
         // Build scalafmt command
         string[] cmd = ["scalafmt"];
@@ -47,7 +47,7 @@ class ScalafmtFormatter : Formatter
         // Add sources
         cmd ~= sources;
         
-        Logger.debug_("Scalafmt command: " ~ cmd.join(" "));
+        Logger.debugLog("Scalafmt command: " ~ cmd.join(" "));
         
         // Execute scalafmt
         auto res = execute(cmd, null, Config.none, size_t.max, workingDir);

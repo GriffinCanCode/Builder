@@ -25,7 +25,7 @@ class ScriptBuilder : ElixirBuilder
     {
         ElixirBuildResult result;
         
-        Logger.debug_("Building Elixir script");
+        Logger.debugLog("Building Elixir script");
         
         // For scripts, we just validate syntax
         foreach (source; sources)

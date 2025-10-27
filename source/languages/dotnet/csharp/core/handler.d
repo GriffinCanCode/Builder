@@ -29,7 +29,7 @@ class CSharpHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building C# target: " ~ target.name);
+        Logger.debugLog("Building C# target: " ~ target.name);
         
         // Parse C# configuration
         CSharpConfig csConfig = parseCSharpConfig(target);

@@ -27,7 +27,7 @@ class TypeScriptHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        Logger.debug_("Building TypeScript target: " ~ target.name);
+        Logger.debugLog("Building TypeScript target: " ~ target.name);
         
         // Parse TypeScript configuration
         TSConfig tsConfig = parseTSConfig(target);
@@ -36,7 +36,7 @@ class TypeScriptHandler : BaseLanguageHandler
         bool hasTSX = target.sources.any!(s => s.endsWith(".tsx"));
         if (hasTSX && tsConfig.jsx == TSXMode.React)
         {
-            Logger.debug_("Detected TSX sources");
+            Logger.debugLog("Detected TSX sources");
         }
         
         final switch (target.type)
@@ -171,7 +171,7 @@ class TypeScriptHandler : BaseLanguageHandler
                 cmd = ["npm", "test"];
         }
         
-        Logger.debug_("Running tests: " ~ cmd.join(" "));
+        Logger.debugLog("Running tests: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         
@@ -210,7 +210,7 @@ class TypeScriptHandler : BaseLanguageHandler
             return result;
         }
         
-        Logger.debug_("Using TypeScript compiler: " ~ bundler.name() ~ " (" ~ bundler.getVersion() ~ ")");
+        Logger.debugLog("Using TypeScript compiler: " ~ bundler.name() ~ " (" ~ bundler.getVersion() ~ ")");
         
         // Compile
         auto compileResult = bundler.compile(target.sources, tsConfig, target, config);

@@ -26,7 +26,7 @@ class PyLinters
         
         string[] cmd = ["ruff", "check"] ~ sources;
         
-        Logger.debug_("Running ruff check: " ~ cmd.join(" "));
+        Logger.debugLog("Running ruff check: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -61,7 +61,7 @@ class PyLinters
         
         string[] cmd = [pythonCmd, "-m", "pylint"] ~ sources;
         
-        Logger.debug_("Running pylint: " ~ cmd.join(" "));
+        Logger.debugLog("Running pylint: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -95,7 +95,7 @@ class PyLinters
         
         string[] cmd = [pythonCmd, "-m", "flake8"] ~ sources;
         
-        Logger.debug_("Running flake8: " ~ cmd.join(" "));
+        Logger.debugLog("Running flake8: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         result.output = res.output;
@@ -157,19 +157,19 @@ class Linter
         
         if (ToolDetection.isRuffAvailable())
         {
-            Logger.debug_("Using ruff for linting");
+            Logger.debugLog("Using ruff for linting");
             return PyLinters.lintRuff(sources);
         }
         
         if (ToolDetection.isPylintAvailable(pythonCmd))
         {
-            Logger.debug_("Using pylint for linting");
+            Logger.debugLog("Using pylint for linting");
             return PyLinters.lintPylint(sources, pythonCmd);
         }
         
         if (ToolDetection.isFlake8Available(pythonCmd))
         {
-            Logger.debug_("Using flake8 for linting");
+            Logger.debugLog("Using flake8 for linting");
             return PyLinters.lintFlake8(sources, pythonCmd);
         }
         

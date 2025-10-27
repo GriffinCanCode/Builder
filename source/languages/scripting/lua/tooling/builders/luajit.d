@@ -128,7 +128,7 @@ class LuaJITBuilder : LuaBuilder
         cmd ~= outputPath;
         
         // Compile bytecode
-        Logger.debug_("Compiling LuaJIT bytecode: " ~ cmd.join(" "));
+        Logger.debugLog("Compiling LuaJIT bytecode: " ~ cmd.join(" "));
         auto res = execute(cmd);
         
         if (res.status != 0)

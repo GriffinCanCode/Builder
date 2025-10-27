@@ -176,7 +176,7 @@ class ZigTools
         // Add steps to execute
         cmd ~= steps;
         
-        Logger.debug_("Running zig build: " ~ cmd.join(" "));
+        Logger.debugLog("Running zig build: " ~ cmd.join(" "));
         
         auto res = execute(cmd, null, Config.none, size_t.max, workDir);
         

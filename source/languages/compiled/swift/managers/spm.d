@@ -55,7 +55,7 @@ class SPMRunner
     {
         string[] cmd = [swiftCmd, "package"] ~ args;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, packagePath);
     }
@@ -198,7 +198,7 @@ class SwiftBuildRunner
     {
         string[] cmd = [swiftCmd, "build"] ~ args;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, packagePath);
     }
@@ -263,7 +263,7 @@ class SwiftRunRunner
             cmd ~= productArgs;
         }
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, packagePath);
     }
@@ -273,7 +273,7 @@ class SwiftRunRunner
     {
         string[] cmd = [swiftCmd, "repl"] ~ args;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, packagePath);
     }
@@ -323,7 +323,7 @@ class SwiftTestRunner
         if (numWorkers > 0)
             cmd ~= ["--num-workers", numWorkers.to!string];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, packagePath);
     }
@@ -333,7 +333,7 @@ class SwiftTestRunner
     {
         string[] cmd = [swiftCmd, "test", "list"];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env, Config.none, size_t.max, packagePath);
     }
@@ -377,7 +377,7 @@ class SwiftCompilerRunner
         cmd ~= additionalFlags;
         cmd ~= sources;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd, env);
     }
@@ -387,7 +387,7 @@ class SwiftCompilerRunner
     {
         string[] cmd = [swiftcCmd, "-emit-ir", source, "-o", output];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -397,7 +397,7 @@ class SwiftCompilerRunner
     {
         string[] cmd = [swiftcCmd, "-emit-assembly", source, "-o", output];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -407,7 +407,7 @@ class SwiftCompilerRunner
     {
         string[] cmd = [swiftcCmd, "-emit-sil", source, "-o", output];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -417,7 +417,7 @@ class SwiftCompilerRunner
     {
         string[] cmd = [swiftcCmd, "-dump-ast", source];
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }
@@ -428,7 +428,7 @@ class SwiftCompilerRunner
         string[] cmd = [swiftcCmd, "-typecheck"];
         cmd ~= sources;
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         return execute(cmd);
     }

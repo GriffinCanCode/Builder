@@ -98,7 +98,7 @@ class DependencyAnalyzer
                 }
             }
             
-            Logger.debug_("  " ~ target.name ~ ": " ~ 
+            Logger.debugLog("  " ~ target.name ~ ": " ~ 
                          analysis.dependencies.length.to!string ~ " dependencies");
         }
         
@@ -312,7 +312,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to infer dependencies from " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to infer dependencies from " ~ basePath ~ ": " ~ e.msg);
         }
         
         return dependencies;
@@ -350,7 +350,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to infer compiler flags from " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to infer compiler flags from " ~ basePath ~ ": " ~ e.msg);
         }
         
         return flags;
@@ -398,7 +398,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to infer include directories from " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to infer include directories from " ~ basePath ~ ": " ~ e.msg);
         }
         
         return includes;
@@ -453,7 +453,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to check for main function in " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to check for main function in " ~ basePath ~ ": " ~ e.msg);
         }
         
         return false;
@@ -491,7 +491,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to check for test patterns in " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to check for test patterns in " ~ basePath ~ ": " ~ e.msg);
         }
         
         return false;
@@ -516,7 +516,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to check for library patterns in " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to check for library patterns in " ~ basePath ~ ": " ~ e.msg);
         }
         
         return false;
@@ -539,7 +539,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to check for manifest files in " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to check for manifest files in " ~ basePath ~ ": " ~ e.msg);
         }
         
         return false;
@@ -568,7 +568,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to get source files from " ~ basePath ~ ": " ~ e.msg);
+            Logger.debugLog("Failed to get source files from " ~ basePath ~ ": " ~ e.msg);
         }
         
         return files;
@@ -607,7 +607,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to extract dependencies from content: " ~ e.msg);
+            Logger.debugLog("Failed to extract dependencies from content: " ~ e.msg);
         }
         
         return deps;
@@ -646,7 +646,7 @@ class BuildInferenceAnalyzer
         }
         catch (Exception e)
         {
-            Logger.debug_("Failed to parse package.json dependencies: " ~ e.msg);
+            Logger.debugLog("Failed to parse package.json dependencies: " ~ e.msg);
         }
         
         return deps;

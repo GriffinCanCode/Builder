@@ -40,7 +40,7 @@ class NimbleBuilder : NimBuilder
             }
         }
         
-        Logger.debug_("Using nimble file: " ~ nimbleFile);
+        Logger.debugLog("Using nimble file: " ~ nimbleFile);
         
         // Parse nimble file
         auto nimbleData = NimbleParser.parseNimbleFile(nimbleFile);
@@ -50,7 +50,7 @@ class NimbleBuilder : NimBuilder
         }
         else
         {
-            Logger.debug_("Package: " ~ nimbleData.name ~ 
+            Logger.debugLog("Package: " ~ nimbleData.name ~ 
                         (nimbleData.version_.empty ? "" : " v" ~ nimbleData.version_));
         }
         

@@ -122,7 +122,7 @@ class MultiplatformHelper
     {
         // This would require parsing Kotlin source files to find expect/actual pairs
         // For now, return true (validation happens during compilation)
-        Logger.debug_("Expect/actual validation delegated to compiler");
+        Logger.debugLog("Expect/actual validation delegated to compiler");
         return true;
     }
 }

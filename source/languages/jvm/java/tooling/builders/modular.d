@@ -51,7 +51,7 @@ class ModularJARBuilder : JARBuilder
             return result;
         }
         
-        Logger.debug_("Building Modular JAR: " ~ target.name);
+        Logger.debugLog("Building Modular JAR: " ~ target.name);
         
         // Verify module-info.java exists
         bool hasModuleInfo = sources.any!(s => s.endsWith("module-info.java"));
@@ -141,7 +141,7 @@ class ModularJARBuilder : JARBuilder
         // Add sources
         cmd ~= sources;
         
-        Logger.debug_("Compile command: " ~ cmd.join(" "));
+        Logger.debugLog("Compile command: " ~ cmd.join(" "));
         
         auto compileRes = execute(cmd);
         
@@ -182,7 +182,7 @@ class ModularJARBuilder : JARBuilder
             mainClass = detectMainClass(classDir);
             if (!mainClass.empty)
             {
-                Logger.debug_("Auto-detected main class: " ~ mainClass);
+                Logger.debugLog("Auto-detected main class: " ~ mainClass);
             }
         }
         
@@ -204,7 +204,7 @@ class ModularJARBuilder : JARBuilder
         // Add classes
         cmd ~= ["-C", classDir, "."];
         
-        Logger.debug_("JAR command: " ~ cmd.join(" "));
+        Logger.debugLog("JAR command: " ~ cmd.join(" "));
         
         auto jarRes = execute(cmd);
         

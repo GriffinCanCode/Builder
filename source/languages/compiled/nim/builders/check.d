@@ -136,7 +136,7 @@ class CheckBuilder : NimBuilder
         
         if (config.verbose)
         {
-            Logger.debug_("Check command: " ~ cmd.join(" "));
+            Logger.debugLog("Check command: " ~ cmd.join(" "));
         }
         
         // Execute check

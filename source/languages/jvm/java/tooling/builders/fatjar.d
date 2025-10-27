@@ -38,7 +38,7 @@ class FatJARBuilder : JARBuilder
     {
         JavaBuildResult result;
         
-        Logger.debug_("Building Fat JAR: " ~ target.name);
+        Logger.debugLog("Building Fat JAR: " ~ target.name);
         
         // Determine output path
         string outputPath = getOutputPath(target, workspace, config);

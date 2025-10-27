@@ -87,7 +87,7 @@ class ConfigParser
         }
         else
         {
-            Logger.debug_("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
+            Logger.debugLog("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
             
             // Parse each Builderfile with error aggregation
             auto aggregated = aggregateFlatMap(
@@ -115,7 +115,7 @@ class ConfigParser
             if (aggregated.hasSuccesses)
             {
                 config.targets = aggregated.successes;
-                Logger.debug_(
+                Logger.debugLog(
                     "Successfully parsed " ~ aggregated.successes.length.to!string ~
                     " target(s) from " ~ buildFiles.length.to!string ~ " Builderfile file(s)"
                 );
@@ -285,7 +285,7 @@ class ConfigParser
                 return result;
             }
             
-            Logger.debug_("Parsed Builderspace configuration successfully");
+            Logger.debugLog("Parsed Builderspace configuration successfully");
             return Result!BuildError.ok();
         }
         catch (FileException e)

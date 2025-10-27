@@ -28,7 +28,7 @@ class JARBuilder : ScalaBuilder
     {
         ScalaBuildResult result;
         
-        Logger.debug_("Building Scala JAR: " ~ target.name);
+        Logger.debugLog("Building Scala JAR: " ~ target.name);
         
         // Determine output path
         string outputPath = getOutputPath(target, workspace);
@@ -117,7 +117,7 @@ class JARBuilder : ScalaBuilder
         // Add sources
         cmd ~= sources;
         
-        Logger.debug_("Scalac command: " ~ cmd.join(" "));
+        Logger.debugLog("Scalac command: " ~ cmd.join(" "));
         
         // Execute compilation
         auto compileRes = execute(cmd);
@@ -175,7 +175,7 @@ class JARBuilder : ScalaBuilder
         // Add class files
         cmd ~= ["-C", classDir, "."];
         
-        Logger.debug_("JAR command: " ~ cmd.join(" "));
+        Logger.debugLog("JAR command: " ~ cmd.join(" "));
         
         // Execute jar packaging
         auto jarRes = execute(cmd);

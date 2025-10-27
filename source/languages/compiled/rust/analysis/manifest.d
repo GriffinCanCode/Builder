@@ -140,7 +140,7 @@ class CargoParser
             auto content = readText(manifestPath);
             manifest = parseTOML(content);
             
-            Logger.debug_("Parsed Cargo.toml: " ~ manifest.package_.name);
+            Logger.debugLog("Parsed Cargo.toml: " ~ manifest.package_.name);
         }
         catch (Exception e)
         {
@@ -432,7 +432,7 @@ class CargoLockParser
         {
             auto content = readText(lockPath);
             // Simplified parsing - in production use proper TOML parser
-            Logger.debug_("Parsed Cargo.lock");
+            Logger.debugLog("Parsed Cargo.lock");
         }
         catch (Exception e)
         {

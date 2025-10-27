@@ -57,7 +57,7 @@ class PostCSSProcessor : CSSProcessor
             cmd ~= ["--map"];
         }
         
-        Logger.debug_("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Running: " ~ cmd.join(" "));
         
         auto res = execute(cmd);
         

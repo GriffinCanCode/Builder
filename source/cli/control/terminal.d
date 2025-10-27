@@ -155,7 +155,7 @@ struct Capabilities
             {
                 // Invalid number format - will use default below
                 import utils.logging.logger : Logger;
-                Logger.debug_("Invalid COLUMNS environment variable: " ~ e.msg);
+                Logger.debugLog("Invalid COLUMNS environment variable: " ~ e.msg);
             }
         }
         
@@ -202,7 +202,7 @@ struct Capabilities
             {
                 // Invalid number format - will use default below
                 import utils.logging.logger : Logger;
-                Logger.debug_("Invalid LINES environment variable: " ~ e.msg);
+                Logger.debugLog("Invalid LINES environment variable: " ~ e.msg);
             }
         }
         
