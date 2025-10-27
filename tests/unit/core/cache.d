@@ -540,3 +540,99 @@ unittest
     }
 }
 
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.cache - Integrity validation on load");
+    
+    auto tempDir = scoped(new TempDir("cache-test"));
+    auto cacheDir = buildPath(tempDir.getPath(), ".cache");
+    
+    tempDir.createFile("source.d", "void main() {}");
+    auto sourcePath = buildPath(tempDir.getPath(), "source.d");
+    
+    // Create and flush cache with integrity signature
+    {
+        auto cache1 = new BuildCache(cacheDir);
+        cache1.update("target", [sourcePath], [], "hash1");
+        cache1.flush();
+    }
+    
+    // Verify cache file exists and has signature
+    auto cacheFile = buildPath(cacheDir, "cache.bin");
+    Assert.isTrue(exists(cacheFile), "Cache file should exist");
+    
+    // Load cache - should verify signature
+    {
+        auto cache2 = new BuildCache(cacheDir);
+        Assert.isTrue(cache2.isCached("target", [sourcePath], []),
+                     "Cache should load with valid signature");
+    }
+    
+    // Tamper with cache file
+    {
+        auto data = cast(ubyte[])std.file.read(cacheFile);
+        // Corrupt a byte in the middle (likely in the data section)
+        if (data.length > 100)
+            data[100] = cast(ubyte)(data[100] ^ 0xFF);
+        std.file.write(cacheFile, data);
+    }
+    
+    // Try to load tampered cache - should detect and reject
+    {
+        auto cache3 = new BuildCache(cacheDir);
+        // Cache should be empty due to failed verification
+        auto stats = cache3.getStats();
+        Assert.equal(stats.totalEntries, 0, 
+                    "Tampered cache should be rejected");
+    }
+    
+    writeln("\x1b[32m  ✓ Integrity validation prevents cache tampering\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m core.cache - Cache expiration");
+    
+    auto tempDir = scoped(new TempDir("cache-test"));
+    auto cacheDir = buildPath(tempDir.getPath(), ".cache");
+    
+    tempDir.createFile("source.d", "void main() {}");
+    auto sourcePath = buildPath(tempDir.getPath(), "source.d");
+    
+    // Create cache entry
+    {
+        auto cache1 = new BuildCache(cacheDir);
+        cache1.update("target", [sourcePath], [], "hash1");
+        cache1.flush();
+    }
+    
+    // Manually create an expired signed cache
+    // (Note: This test validates the expiration logic exists,
+    //  but can't easily test it without mocking time)
+    {
+        import utils.security.integrity;
+        auto validator = IntegrityValidator.create();
+        
+        // Create signed data with old timestamp
+        SignedData expired;
+        expired.version_ = 1;
+        expired.timestamp = 0; // Very old timestamp (1970)
+        expired.data = [1, 2, 3]; // Dummy data
+        
+        // Sign it properly
+        import std.bitmanip : nativeToBigEndian;
+        ubyte[] payload;
+        payload ~= nativeToBigEndian(expired.version_)[];
+        payload ~= nativeToBigEndian(expired.timestamp)[];
+        payload ~= expired.data;
+        expired.signature = validator.sign(payload);
+        
+        // Verify expiration check works
+        import core.time : days;
+        Assert.isTrue(IntegrityValidator.isExpired(expired, 1.days),
+                     "Old timestamp should be detected as expired");
+    }
+    
+    writeln("\x1b[32m  ✓ Cache expiration logic works\x1b[0m");
+}
+

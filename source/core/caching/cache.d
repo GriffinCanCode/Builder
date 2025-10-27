@@ -22,6 +22,12 @@ import errors;
 /// - All public methods are synchronized via internal mutex
 /// - Safe for concurrent access from multiple build threads
 /// 
+/// Security:
+/// - BLAKE3-based HMAC signatures prevent cache tampering
+/// - Workspace-specific keys for isolation
+/// - Automatic expiration (30 days default)
+/// - Constant-time signature verification
+/// 
 /// Optimizations:
 /// - Binary format: 5-10x faster than JSON
 /// - Lazy writes: Write once per build instead of per target

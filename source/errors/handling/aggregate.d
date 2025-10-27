@@ -243,8 +243,8 @@ AggregatedResult!R aggregateFlatMap(T, R)(
 
 unittest
 {
-    import errors.types : parseError;
-    import errors.codes : ErrorCode;
+    import errors.types.types : parseError;
+    import errors.handling.codes : ErrorCode;
     
     // Test successful aggregation
     {
