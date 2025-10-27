@@ -43,6 +43,7 @@ target("csharp-app-aot") {
 
 target("clean") {
     type: custom;
+    sources: [];
     command: "rm -rf bin/ obj/";
 }
 

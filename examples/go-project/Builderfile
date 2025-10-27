@@ -6,12 +6,12 @@ target("go-app") {
     sources: ["main.go", "greeter.go"];
     
     go: {
-        mode: "executable",
-        trimpath: true,
-        ldflags: ["-s", "-w"],
-        modMode: "on",
-        runFmt: true,
-        runVet: true
+        "mode": "executable",
+        "trimpath": "true",
+        "ldflags": ["-s", "-w"],
+        "modMode": "on",
+        "runFmt": "true",
+        "runVet": "true"
     };
 }
 
@@ -22,18 +22,18 @@ target("go-app-optimized") {
     output: "go-app-opt";
     
     go: {
-        mode: "executable",
-        trimpath: true,
-        ldflags: [
+        "mode": "executable",
+        "trimpath": "true",
+        "ldflags": [
             "-s",
             "-w",
             "-X", "main.version=1.0.0"
         ],
-        modMode: "on",
-        runFmt: true,
-        runVet: true,
-        runLint: true,
-        linter: "golangci-lint"
+        "modMode": "on",
+        "runFmt": "true",
+        "runVet": "true",
+        "runLint": "true",
+        "linter": "golangci-lint"
     };
 }
 
@@ -45,14 +45,14 @@ target("go-app-linux-amd64") {
     output: "go-app-linux-amd64";
     
     go: {
-        mode: "executable",
-        cross: {
-            goos: "linux",
-            goarch: "amd64"
+        "mode": "executable",
+        "cross": {
+            "goos": "linux",
+            "goarch": "amd64"
         },
-        trimpath: true,
-        ldflags: ["-s", "-w"],
-        modMode: "on"
+        "trimpath": "true",
+        "ldflags": ["-s", "-w"],
+        "modMode": "on"
     };
 }
 
@@ -63,10 +63,10 @@ target("greeter-lib") {
     sources: ["greeter.go"];
     
     go: {
-        mode: "library",
-        modMode: "on",
-        runFmt: true,
-        runVet: true
+        "mode": "library",
+        "modMode": "on",
+        "runFmt": "true",
+        "runVet": "true"
     };
 }
 
@@ -78,10 +78,10 @@ target("go-test") {
     deps: [":greeter-lib"];
     
     go: {
-        test: {
-            verbose: true,
-            coverage: true,
-            coverProfile: "coverage.out"
+        "test": {
+            "verbose": "true",
+            "coverage": "true",
+            "coverProfile": "coverage.out"
         }
     };
 }
