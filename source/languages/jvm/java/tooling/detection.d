@@ -115,7 +115,10 @@ class JavaToolDetection
             foreach (entry; dirEntries(projectDir, "module-info.java", SpanMode.depth))
                 return true;
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            // Directory may not exist or not be accessible
+        }
         
         return false;
     }
@@ -132,7 +135,10 @@ class JavaToolDetection
                 if (content.canFind("junit-jupiter") || content.canFind("junit"))
                     return true;
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // File may not be readable
+            }
         }
         
         // Check Gradle dependencies
@@ -148,7 +154,10 @@ class JavaToolDetection
                 if (content.canFind("junit"))
                     return true;
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // File may not be readable
+            }
         }
         
         return false;
@@ -164,7 +173,10 @@ class JavaToolDetection
                 auto content = readText(buildPath(projectDir, "pom.xml"));
                 return content.canFind("testng");
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // File may not be readable
+            }
         }
         
         if (hasBuildGradle(projectDir))
@@ -178,7 +190,10 @@ class JavaToolDetection
                 auto content = readText(buildFile);
                 return content.canFind("testng");
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // File may not be readable
+            }
         }
         
         return false;
@@ -309,7 +324,11 @@ class JavaToolDetection
                 auto content = readText(buildPath(projectDir, "pom.xml"));
                 return content.canFind("lombok");
             }
-            catch (Exception) {}
+            catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to detect Java project info: " ~ e.msg);
+        }
         }
         
         if (hasBuildGradle(projectDir))
@@ -323,7 +342,11 @@ class JavaToolDetection
                 auto content = readText(buildFile);
                 return content.canFind("lombok");
             }
-            catch (Exception) {}
+            catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to detect Java project info: " ~ e.msg);
+        }
         }
         
         return false;
@@ -339,7 +362,11 @@ class JavaToolDetection
                 auto content = readText(buildPath(projectDir, "pom.xml"));
                 return content.canFind("spring-boot-starter");
             }
-            catch (Exception) {}
+            catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to detect Java project info: " ~ e.msg);
+        }
         }
         
         if (hasBuildGradle(projectDir))
@@ -353,7 +380,11 @@ class JavaToolDetection
                 auto content = readText(buildFile);
                 return content.canFind("spring-boot");
             }
-            catch (Exception) {}
+            catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to detect Java project info: " ~ e.msg);
+        }
         }
         
         return false;

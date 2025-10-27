@@ -86,7 +86,11 @@ class PackageManagerFactory
                 if (content.canFind("[tool.hatch]"))
                     return PyPackageManager.Hatch;
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Python package manager: " ~ e.msg);
+            }
         }
         
         // Check for Pipfile

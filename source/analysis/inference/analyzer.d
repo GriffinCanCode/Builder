@@ -81,16 +81,12 @@ class DependencyAnalyzer
             {
                 if (dep.targetName in graph.nodes)
                 {
-                    try
+                    auto addResult = graph.addDependency(target.name, dep.targetName);
+                    if (addResult.isErr)
                     {
-                        graph.addDependency(target.name, dep.targetName);
-                    }
-                    catch (Exception e)
-                    {
-                        auto error = new AnalysisError(target.name, e.msg, ErrorCode.MissingDependency);
-                        error.addContext(ErrorContext("adding dependency to graph", dep.targetName));
-                        Logger.error(format(error));
-                        throw e;
+                        auto error = addResult.unwrapErr();
+                        Logger.error("Failed to add dependency: " ~ format(error));
+                        // Continue processing other dependencies
                     }
                 }
             }
@@ -273,6 +269,23 @@ class BuildInferenceAnalyzer
         
         try
         {
+            // For JavaScript/TypeScript, also check package.json
+            if (language == TargetLanguage.JavaScript || language == TargetLanguage.TypeScript)
+            {
+                auto packageJsonPath = buildPath(basePath, "package.json");
+                if (exists(packageJsonPath) && isFile(packageJsonPath))
+                {
+                    auto packageJson = readText(packageJsonPath);
+                    auto packageDeps = extractPackageJsonDependencies(packageJson);
+                    
+                    foreach (dep; packageDeps)
+                    {
+                        if (!dependencies.canFind(dep))
+                            dependencies ~= dep;
+                    }
+                }
+            }
+            
             auto files = getSourceFiles(basePath, language);
             
             foreach (file; files)
@@ -290,7 +303,10 @@ class BuildInferenceAnalyzer
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to infer dependencies from " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return dependencies;
     }
@@ -325,7 +341,10 @@ class BuildInferenceAnalyzer
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to infer compiler flags from " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return flags;
     }
@@ -370,7 +389,10 @@ class BuildInferenceAnalyzer
                     includes ~= entry.name;
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to infer include directories from " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return includes;
     }
@@ -422,7 +444,10 @@ class BuildInferenceAnalyzer
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to check for main function in " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return false;
     }
@@ -457,7 +482,10 @@ class BuildInferenceAnalyzer
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to check for test patterns in " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return false;
     }
@@ -479,7 +507,10 @@ class BuildInferenceAnalyzer
                     return true;
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to check for library patterns in " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return false;
     }
@@ -499,7 +530,10 @@ class BuildInferenceAnalyzer
                     return true;
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to check for manifest files in " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return false;
     }
@@ -525,7 +559,10 @@ class BuildInferenceAnalyzer
                     files ~= entry.name;
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to get source files from " ~ basePath ~ ": " ~ e.msg);
+        }
         
         return files;
     }
@@ -561,7 +598,49 @@ class BuildInferenceAnalyzer
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to extract dependencies from content: " ~ e.msg);
+        }
+        
+        return deps;
+    }
+    
+    private string[] extractPackageJsonDependencies(string packageJsonContent)
+    {
+        import std.regex;
+        import std.json;
+        
+        string[] deps;
+        
+        try
+        {
+            auto json = parseJSON(packageJsonContent);
+            
+            // Extract from dependencies
+            if ("dependencies" in json)
+            {
+                foreach (string key, value; json["dependencies"].object)
+                {
+                    if (!deps.canFind(key))
+                        deps ~= key;
+                }
+            }
+            
+            // Extract from devDependencies
+            if ("devDependencies" in json)
+            {
+                foreach (string key, value; json["devDependencies"].object)
+                {
+                    if (!deps.canFind(key))
+                        deps ~= key;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.debug_("Failed to parse package.json dependencies: " ~ e.msg);
+        }
         
         return deps;
     }

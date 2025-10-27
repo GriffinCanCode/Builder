@@ -596,7 +596,11 @@ class Workspace
                     }
                 }
             }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                import utils.logging.logger;
+                Logger.debug_("Failed to parse Builderspace file at " ~ builderspacePath ~ ": " ~ e.msg);
+            }
         }
         
         return workspace;
@@ -620,17 +624,26 @@ class Workspace
         import std.file : dirEntries, SpanMode, isFile;
         import std.algorithm : filter, map;
         import std.array : array;
-        import std.path : baseName;
+        import std.path : baseName, relativePath;
+        import utils.files.ignore : IgnoreRegistry;
         
         try
         {
             return dirEntries(_rootPath, SpanMode.depth)
-                .filter!(e => e.isFile && e.name.baseName == "Builderfile")
+                .filter!((e) {
+                    // Check if any part of the path should be ignored
+                    auto relPath = relativePath(e.name, _rootPath);
+                    if (IgnoreRegistry.shouldIgnorePathAny(relPath))
+                        return false;
+                    return e.isFile && e.name.baseName == "Builderfile";
+                })
                 .map!(e => e.name)
                 .array;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to find Builderfiles in " ~ _rootPath ~ ": " ~ ex.msg);
             return [];
         }
     }

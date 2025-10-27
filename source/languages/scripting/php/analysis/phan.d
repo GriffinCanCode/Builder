@@ -88,7 +88,15 @@ class PhanAnalyzer : Analyzer
         string fileListPath = buildPath(projectRoot, ".phan_files.txt");
         if (exists(fileListPath))
         {
-            try { remove(fileListPath); } catch (Exception) {}
+            try
+            {
+                remove(fileListPath);
+            }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to cleanup file list: " ~ e.msg);
+            }
         }
         
         // Phan returns non-zero if issues found

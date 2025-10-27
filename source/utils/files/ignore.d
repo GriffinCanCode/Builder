@@ -269,6 +269,12 @@ class IgnoreRegistry
         if (lang in languageIgnores)
         {
             auto patterns = languageIgnores[lang];
+            
+            // First check if the full name/path matches (for patterns like "vendor/bundle")
+            if (patterns.directories.canFind(name))
+                return true;
+            
+            // Then check basename for simple patterns
             if (patterns.directories.canFind(baseName))
                 return true;
             
@@ -344,6 +350,11 @@ class IgnoreRegistry
         // Check against all language patterns
         foreach (patterns; languageIgnores)
         {
+            // Check full path for patterns like "vendor/bundle"
+            if (patterns.directories.canFind(dirName))
+                return true;
+            
+            // Check basename
             if (patterns.directories.canFind(baseName))
                 return true;
             
@@ -354,6 +365,20 @@ class IgnoreRegistry
             }
         }
         
+        return false;
+    }
+    
+    /// Check if a path should be ignored (checks all languages)
+    /// Use this when language is unknown or for general scanning
+    static bool shouldIgnorePathAny(string path)
+    {
+        // Check each component of the path
+        import std.path : pathSplitter;
+        foreach (component; path.pathSplitter)
+        {
+            if (shouldIgnoreDirectoryAny(component))
+                return true;
+        }
         return false;
     }
     
@@ -640,7 +665,9 @@ class UserIgnorePatterns
         }
         catch (Exception e)
         {
-            // Ignore read errors
+            // Ignore file may not exist or may have permission issues
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to read ignore file " ~ filePath ~ ": " ~ e.msg);
         }
     }
     

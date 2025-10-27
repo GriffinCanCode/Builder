@@ -59,7 +59,11 @@ class ScalaInfoDetector
                 }
             }
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+        }
         
         return versionInfo;
     }
@@ -87,7 +91,11 @@ class ScalaInfoDetector
             if (!match.empty)
                 return match[1];
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+        }
         
         return "";
     }
@@ -116,7 +124,11 @@ class ScalaInfoDetector
                     return result.output.strip;
             }
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+        }
         
         return "scalac";
     }
@@ -139,7 +151,11 @@ class ScalaInfoDetector
                     return result.output.strip;
             }
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Scala version: " ~ e.msg);
+        }
         
         return "scala";
     }

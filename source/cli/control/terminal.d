@@ -132,7 +132,12 @@ struct Capabilities
         if (cols.length > 0)
         {
             try { return cols.to!ushort; }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // Invalid number format - will use default below
+                import utils.logging.logger : Logger;
+                Logger.debug_("Invalid COLUMNS environment variable: " ~ e.msg);
+            }
         }
         
         return 80; // Standard default
@@ -155,7 +160,12 @@ struct Capabilities
         if (lines.length > 0)
         {
             try { return lines.to!ushort; }
-            catch (Exception) {}
+            catch (Exception e)
+            {
+                // Invalid number format - will use default below
+                import utils.logging.logger : Logger;
+                Logger.debug_("Invalid LINES environment variable: " ~ e.msg);
+            }
         }
         
         return 24; // Standard default

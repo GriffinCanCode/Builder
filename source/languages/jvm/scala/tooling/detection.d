@@ -196,7 +196,11 @@ class ScalaToolDetection
                 auto content = readText(gradlePath);
                 return content.canFind("scala") || content.canFind("org.scala-lang");
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         if (exists(gradleKtsPath))
@@ -206,7 +210,11 @@ class ScalaToolDetection
                 auto content = readText(gradleKtsPath);
                 return content.canFind("scala") || content.canFind("org.scala-lang");
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         return false;
@@ -242,7 +250,11 @@ class ScalaToolDetection
                 if (!match.empty)
                     return ScalaVersionInfo.parse(match[1]);
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         // Try build.sc (Mill)
@@ -255,7 +267,11 @@ class ScalaToolDetection
                 if (!match.empty)
                     return ScalaVersionInfo.parse(match[1]);
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         // Try pom.xml
@@ -273,7 +289,11 @@ class ScalaToolDetection
                 if (!match.empty)
                     return ScalaVersionInfo.parse(match[1]);
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         return versionInfo;
@@ -327,7 +347,11 @@ class ScalaToolDetection
                         return true;
                 }
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         if (hasBuildSc(projectDir))
@@ -338,7 +362,11 @@ class ScalaToolDetection
                 if (content.canFind("ScalaJSModule") || content.canFind("scalajs"))
                     return true;
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         return false;
@@ -364,7 +392,11 @@ class ScalaToolDetection
                         return true;
                 }
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         if (hasBuildSc(projectDir))
@@ -375,7 +407,11 @@ class ScalaToolDetection
                 if (content.canFind("ScalaNativeModule") || content.canFind("scalanative"))
                     return true;
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         return false;
@@ -392,7 +428,11 @@ class ScalaToolDetection
                 auto content = readText(pluginsPath);
                 return content.canFind("sbt-assembly");
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         return false;
     }
@@ -408,7 +448,11 @@ class ScalaToolDetection
                 auto content = readText(pluginsPath);
                 return content.canFind("sbt-native-packager");
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         return false;
     }
@@ -441,7 +485,11 @@ class ScalaToolDetection
                 if (content.canFind("zio-test"))
                     return ScalaTestFramework.ZIOTest;
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         if (hasBuildSc(projectDir))
@@ -458,7 +506,11 @@ class ScalaToolDetection
                 if (content.canFind("utest"))
                     return ScalaTestFramework.UTest;
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         // Check for test source files
@@ -479,7 +531,11 @@ class ScalaToolDetection
                         return ScalaTestFramework.MUnit;
                 }
             }
-            catch (Exception) { }
+            catch (Exception e)
+            {
+                import utils.logging.logger : Logger;
+                Logger.debug_("Failed to detect Scala project info: " ~ e.msg);
+            }
         }
         
         return ScalaTestFramework.Auto;
@@ -547,7 +603,11 @@ class ScalaToolDetection
                     return match[1];
             }
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get version info: " ~ e.msg);
+        }
         
         return "";
     }
@@ -565,7 +625,11 @@ class ScalaToolDetection
                     return match[1];
             }
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get version info: " ~ e.msg);
+        }
         
         return "";
     }
@@ -583,7 +647,11 @@ class ScalaToolDetection
                     return match[1];
             }
         }
-        catch (Exception) { }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get version info: " ~ e.msg);
+        }
         
         return "";
     }

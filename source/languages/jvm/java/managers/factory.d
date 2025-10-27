@@ -211,7 +211,11 @@ class BuildToolFactory
                     return match[1];
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get module name: " ~ e.msg);
+        }
         
         return "";
     }

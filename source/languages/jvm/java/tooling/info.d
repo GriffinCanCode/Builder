@@ -127,7 +127,11 @@ class JavaInfo
             if (output.canFind("SAP"))
                 return "SAP Machine";
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Java info: " ~ e.msg);
+        }
         
         return "Unknown";
     }
@@ -222,7 +226,11 @@ class JavaInfo
                     return match[1];
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Java info: " ~ e.msg);
+        }
         
         return "";
     }
@@ -240,7 +248,11 @@ class JavaInfo
                     return match[1];
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Java info: " ~ e.msg);
+        }
         
         return "";
     }
@@ -310,7 +322,11 @@ class JavaInfo
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Java info: " ~ e.msg);
+        }
         
         return "Unknown";
     }

@@ -605,7 +605,11 @@ class LuaHandler : BaseLanguageHandler
                         return LuaTestFramework.LuaUnit;
                     }
                 }
-                catch (Exception) {}
+                catch (Exception e)
+                {
+                    import utils.logging.logger : Logger;
+                    Logger.debug_("Failed to detect Lua test framework: " ~ e.msg);
+                }
             }
         }
         

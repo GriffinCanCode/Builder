@@ -38,7 +38,15 @@ class NativePharPackager : Packager
         result.output = res.output;
         
         // Clean up script
-        try { remove(scriptPath); } catch (Exception) {}
+        try
+        {
+            remove(scriptPath);
+        }
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to cleanup script file: " ~ e.msg);
+        }
         
         if (res.status == 0)
         {

@@ -396,7 +396,11 @@ string getLuaRocksVersion()
             }
         }
     }
-    catch (Exception) {}
+    catch (Exception e)
+    {
+        import utils.logging.logger : Logger;
+        Logger.debug_("Failed to get LuaRocks version: " ~ e.msg);
+    }
     
     return "unknown";
 }

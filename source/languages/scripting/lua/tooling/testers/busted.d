@@ -179,7 +179,11 @@ class BustedTester : Tester
                 }
             }
         }
-        catch (Exception) {}
+        catch (Exception e)
+        {
+            import utils.logging.logger : Logger;
+            Logger.debug_("Failed to get Busted version: " ~ e.msg);
+        }
         
         return "unknown";
     }
