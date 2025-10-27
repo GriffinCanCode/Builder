@@ -6,7 +6,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.conv;
-import config.schema;
+import config.schema.schema;
 
 /// Base fixture interface
 interface Fixture
