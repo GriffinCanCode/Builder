@@ -15,7 +15,7 @@ import utils.logging.logger;
 /// RuboCop formatter/linter
 class RuboCopFormatter : Formatter
 {
-    override FormatResult format(string[] sources, FormatConfig config, bool autoCorrect = false)
+    override FormatResult format(const(string[]) sources, FormatConfig config, bool autoCorrect = false)
     {
         FormatResult result;
         

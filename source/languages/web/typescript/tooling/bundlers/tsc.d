@@ -18,10 +18,10 @@ import utils.logging.logger;
 class TSCBundler : TSBundler
 {
     TSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         TSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         TSCompileResult result;
@@ -203,7 +203,7 @@ class TSCBundler : TSBundler
         return args;
     }
     
-    private string[] collectOutputs(string[] sources, TSConfig config, string outputDir)
+    private string[] collectOutputs(const(string[]) sources, TSConfig config, string outputDir)
     {
         string[] outputs;
         
@@ -225,7 +225,7 @@ class TSCBundler : TSBundler
         return outputs;
     }
     
-    private string[] collectDeclarations(string[] sources, TSConfig config, string outputDir)
+    private string[] collectDeclarations(const(string[]) sources, TSConfig config, string outputDir)
     {
         string[] declarations;
         

@@ -18,10 +18,10 @@ import utils.logging.logger;
 class WebpackBundler : Bundler
 {
     BundleResult bundle(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BundleResult result;
@@ -45,7 +45,7 @@ class WebpackBundler : Bundler
     
     private BundleResult bundleWithConfigFile(
         string configFile,
-        WorkspaceConfig workspace,
+        in WorkspaceConfig workspace,
         BundleResult result
     )
     {
@@ -79,10 +79,10 @@ class WebpackBundler : Bundler
     }
     
     private BundleResult bundleWithGeneratedConfig(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        in Target target,
+        in WorkspaceConfig workspace,
         BundleResult result
     )
     {

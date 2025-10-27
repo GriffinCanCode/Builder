@@ -14,7 +14,7 @@ import utils.logging.logger;
 /// StandardRB formatter (opinionated, zero-config)
 class StandardFormatter : Formatter
 {
-    override FormatResult format(string[] sources, FormatConfig config, bool autoCorrect = false)
+    override FormatResult format(const(string[]) sources, FormatConfig config, bool autoCorrect = false)
     {
         FormatResult result;
         

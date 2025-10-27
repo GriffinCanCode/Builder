@@ -41,7 +41,7 @@ struct FormatResult
 interface Formatter
 {
     /// Format/lint source files
-    FormatResult format(string[] sources, FormatConfig config, bool autoCorrect = false);
+    FormatResult format(const(string[]) sources, FormatConfig config, bool autoCorrect = false);
     
     /// Check if formatter is available
     bool isAvailable();
@@ -112,7 +112,7 @@ class FormatterFactory
 /// Reek code smell detector
 class ReekFormatter : Formatter
 {
-    override FormatResult format(string[] sources, FormatConfig config, bool autoCorrect = false)
+    override FormatResult format(const(string[]) sources, FormatConfig config, bool autoCorrect = false)
     {
         FormatResult result;
         
@@ -181,7 +181,7 @@ class ReekFormatter : Formatter
 /// Null formatter (no-op)
 class NullFormatter : Formatter
 {
-    override FormatResult format(string[] sources, FormatConfig config, bool autoCorrect = false)
+    override FormatResult format(const(string[]) sources, FormatConfig config, bool autoCorrect = false)
     {
         FormatResult result;
         result.success = true;

@@ -9,10 +9,10 @@ interface TSBundler
 {
     /// Compile/bundle TypeScript files
     TSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         TSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if bundler is available on system
@@ -90,10 +90,10 @@ class TSBundlerFactory
 class NullTSBundler : TSBundler
 {
     TSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         TSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         import languages.web.typescript.tooling.checker;
@@ -113,7 +113,7 @@ class NullTSBundler : TSBundler
         }
         
         result.success = true;
-        result.outputs = sources;
+        result.outputs = sources.dup;
         result.outputHash = FastHash.hashStrings(sources);
         
         return result;

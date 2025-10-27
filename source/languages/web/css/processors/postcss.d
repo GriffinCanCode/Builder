@@ -15,10 +15,10 @@ import utils.logging.logger;
 class PostCSSProcessor : CSSProcessor
 {
     CSSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         CSSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         CSSCompileResult result;
@@ -102,10 +102,10 @@ class PostCSSProcessor : CSSProcessor
 class LessProcessor : CSSProcessor
 {
     CSSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         CSSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         CSSCompileResult result;
@@ -122,10 +122,10 @@ class LessProcessor : CSSProcessor
 class StylusProcessor : CSSProcessor
 {
     CSSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         CSSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         CSSCompileResult result;

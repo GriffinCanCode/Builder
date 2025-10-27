@@ -19,10 +19,10 @@ import utils.logging.logger;
 class ViteBundler : Bundler
 {
     BundleResult bundle(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BundleResult result;
@@ -54,7 +54,7 @@ class ViteBundler : Bundler
     
     private BundleResult bundleWithConfigFile(
         string configFile,
-        WorkspaceConfig workspace,
+        in WorkspaceConfig workspace,
         BundleResult result
     )
     {
@@ -101,10 +101,10 @@ class ViteBundler : Bundler
     }
     
     private BundleResult bundleWithGeneratedConfig(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        in Target target,
+        in WorkspaceConfig workspace,
         BundleResult result
     )
     {
@@ -174,7 +174,7 @@ class ViteBundler : Bundler
     }
     
     /// Detect Vite config in project
-    private string detectViteConfig(string[] sources)
+    private string detectViteConfig(const(string[]) sources)
     {
         if (sources.empty)
             return "";
@@ -200,7 +200,7 @@ class ViteBundler : Bundler
     }
     
     /// Detect framework from sources and dependencies
-    private Framework detectFramework(string[] sources)
+    private Framework detectFramework(const(string[]) sources)
     {
         // Check file extensions first
         if (sources.any!(s => s.endsWith(".vue")))
@@ -237,7 +237,7 @@ class ViteBundler : Bundler
     }
     
     /// Find package.json in source tree
-    private string findPackageJson(string[] sources)
+    private string findPackageJson(const(string[]) sources)
     {
         if (sources.empty)
             return "";
@@ -263,7 +263,7 @@ class ViteBundler : Bundler
         string outputFile,
         JSConfig config,
         Framework framework,
-        Target target
+        in Target target
     )
     {
         string pluginsSection = generatePlugins(framework, config);

@@ -77,8 +77,8 @@ class RubyHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RubyConfig rubyConfig,
         string rubyCmd
     )
@@ -168,8 +168,8 @@ class RubyHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RubyConfig rubyConfig,
         string rubyCmd
     )
@@ -228,8 +228,8 @@ class RubyHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RubyConfig rubyConfig,
         string rubyCmd
     )
@@ -276,8 +276,8 @@ class RubyHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RubyConfig rubyConfig,
         string rubyCmd
     )
@@ -306,7 +306,7 @@ class RubyHandler : BaseLanguageHandler
     }
     
     /// Parse Ruby configuration from target
-    private RubyConfig parseRubyConfig(Target target)
+    private RubyConfig parseRubyConfig(const Target target)
     {
         RubyConfig config;
         
@@ -336,8 +336,8 @@ class RubyHandler : BaseLanguageHandler
     /// Enhance configuration based on project structure
     private void enhanceConfigFromProject(
         ref RubyConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)
@@ -492,7 +492,7 @@ class RubyHandler : BaseLanguageHandler
     }
     
     /// Run tests with RSpec
-    private LanguageBuildResult runRSpec(Target target, RubyConfig config, string projectRoot)
+    private LanguageBuildResult runRSpec(const Target target, RubyConfig config, string projectRoot)
     {
         LanguageBuildResult result;
         
@@ -556,7 +556,7 @@ class RubyHandler : BaseLanguageHandler
     }
     
     /// Run tests with Minitest
-    private LanguageBuildResult runMinitest(Target target, RubyConfig config, string projectRoot)
+    private LanguageBuildResult runMinitest(const Target target, RubyConfig config, string projectRoot)
     {
         LanguageBuildResult result;
         
@@ -591,7 +591,7 @@ class RubyHandler : BaseLanguageHandler
     }
     
     /// Run tests with Test::Unit
-    private LanguageBuildResult runTestUnit(Target target, RubyConfig config, string projectRoot)
+    private LanguageBuildResult runTestUnit(const Target target, RubyConfig config, string projectRoot)
     {
         LanguageBuildResult result;
         
@@ -619,7 +619,7 @@ class RubyHandler : BaseLanguageHandler
     }
     
     /// Run tests with Cucumber
-    private LanguageBuildResult runCucumber(Target target, RubyConfig config, string projectRoot)
+    private LanguageBuildResult runCucumber(const Target target, RubyConfig config, string projectRoot)
     {
         LanguageBuildResult result;
         

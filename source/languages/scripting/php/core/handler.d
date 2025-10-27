@@ -468,13 +468,24 @@ class PHPHandler : BaseLanguageHandler
             // Create temporary directory for build
             import std.uuid : randomUUID;
             string tempBuildDir = buildPath(tempDir(), "frankenphp-build-" ~ randomUUID().toString());
-            scope(exit)
+            bool shouldCleanup = true;
+            
+            void cleanup()
             {
-                if (exists(tempBuildDir))
+                if (shouldCleanup && exists(tempBuildDir))
                 {
-                    try { rmdirRecurse(tempBuildDir); } catch (Exception) {}
+                    try
+                    {
+                        rmdirRecurse(tempBuildDir);
+                    }
+                    catch (Exception e)
+                    {
+                        // Ignore cleanup errors
+                    }
                 }
             }
+            
+            scope(exit) cleanup();
             
             mkdirRecurse(tempBuildDir);
             

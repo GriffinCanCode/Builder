@@ -17,10 +17,10 @@ import utils.logging.logger;
 class RollupBundler : Bundler
 {
     BundleResult bundle(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BundleResult result;
@@ -44,7 +44,7 @@ class RollupBundler : Bundler
     
     private BundleResult bundleWithConfigFile(
         string configFile,
-        WorkspaceConfig workspace,
+        in WorkspaceConfig workspace,
         BundleResult result
     )
     {
@@ -78,10 +78,10 @@ class RollupBundler : Bundler
     }
     
     private BundleResult bundleWithCLI(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        in Target target,
+        in WorkspaceConfig workspace,
         BundleResult result
     )
     {

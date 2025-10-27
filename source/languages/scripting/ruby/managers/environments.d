@@ -67,7 +67,7 @@ final class VersionManagerFactory
         if (exists(versionFile))
         {
             // Try rbenv first (most common with .ruby-version)
-            scope rbenv = new RbenvManager(projectRoot);
+            auto rbenv = new RbenvManager(projectRoot);
             if (rbenv.isAvailable())
             {
                 Logger.debug_("Detected rbenv from .ruby-version");
@@ -75,7 +75,7 @@ final class VersionManagerFactory
             }
             
             // Try chruby
-            scope chruby = new ChrubyManager(projectRoot);
+            auto chruby = new ChrubyManager(projectRoot);
             if (chruby.isAvailable())
             {
                 Logger.debug_("Detected chruby from .ruby-version");
@@ -88,7 +88,7 @@ final class VersionManagerFactory
         immutable gemset = buildPath(projectRoot, ".ruby-gemset");
         if (exists(rvmrc) || exists(gemset))
         {
-            scope rvm = new RVMManager(projectRoot);
+            auto rvm = new RVMManager(projectRoot);
             if (rvm.isAvailable())
             {
                 Logger.debug_("Detected RVM from .rvmrc");
@@ -100,7 +100,7 @@ final class VersionManagerFactory
         immutable toolVersions = buildPath(projectRoot, ".tool-versions");
         if (exists(toolVersions))
         {
-            scope asdf = new ASDFManager(projectRoot);
+            auto asdf = new ASDFManager(projectRoot);
             if (asdf.isAvailable())
             {
                 Logger.debug_("Detected asdf from .tool-versions");
@@ -110,25 +110,25 @@ final class VersionManagerFactory
         
         // Try detecting by availability
         {
-            scope rbenv = new RbenvManager(projectRoot);
+            auto rbenv = new RbenvManager(projectRoot);
             if (rbenv.isAvailable())
                 return rbenv;
         }
         
         {
-            scope chruby = new ChrubyManager(projectRoot);
+            auto chruby = new ChrubyManager(projectRoot);
             if (chruby.isAvailable())
                 return chruby;
         }
         
         {
-            scope rvm = new RVMManager(projectRoot);
+            auto rvm = new RVMManager(projectRoot);
             if (rvm.isAvailable())
                 return rvm;
         }
         
         {
-            scope asdf = new ASDFManager(projectRoot);
+            auto asdf = new ASDFManager(projectRoot);
             if (asdf.isAvailable())
                 return asdf;
         }
@@ -214,7 +214,7 @@ final class RbenvManager : VersionManager
         return "";
     }
     
-    override bool isAvailable()
+    override bool isAvailable() @trusted
     {
         try
         {
@@ -349,7 +349,7 @@ final class RVMManager : VersionManager
         return "";
     }
     
-    override bool isAvailable()
+    override bool isAvailable() @trusted
     {
         try
         {
@@ -510,7 +510,7 @@ final class ChrubyManager : VersionManager
         return "";
     }
     
-    override bool isAvailable()
+    override bool isAvailable() @trusted
     {
         // chruby is just a shell function, check if script exists
         return exists("/usr/local/share/chruby/chruby.sh") ||
@@ -595,7 +595,7 @@ final class ASDFManager : VersionManager
         return "";
     }
     
-    override bool isAvailable()
+    override bool isAvailable() @trusted
     {
         try
         {

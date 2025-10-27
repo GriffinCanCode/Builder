@@ -17,10 +17,10 @@ import utils.logging.logger;
 class ESBuildBundler : Bundler
 {
     BundleResult bundle(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         BundleResult result;

@@ -194,7 +194,7 @@ class RakeTool
 class DocGenerator
 {
     /// Generate YARD documentation
-    static bool generateYARD(string[] sources, DocConfig config)
+    static bool generateYARD(const(string[]) sources, DocConfig config)
     {
         if (!RubyTools.isYARDAvailable())
         {
@@ -255,7 +255,7 @@ class DocGenerator
     }
     
     /// Generate RDoc documentation
-    static bool generateRDoc(string[] sources, DocConfig config)
+    static bool generateRDoc(const(string[]) sources, DocConfig config)
     {
         if (!RubyTools.isRDocAvailable())
         {
@@ -292,7 +292,7 @@ class DocGenerator
     }
     
     /// Generate documentation based on configuration
-    static bool generate(string[] sources, DocConfig config)
+    static bool generate(const(string[]) sources, DocConfig config)
     {
         bool success = true;
         
@@ -353,7 +353,7 @@ class IRBTool
 class SyntaxChecker
 {
     /// Check Ruby syntax
-    static bool check(string[] sources, out string[] errors)
+    static bool check(const(string[]) sources, out string[] errors)
     {
         bool allValid = true;
         

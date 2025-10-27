@@ -15,10 +15,10 @@ import utils.logging.logger;
 class SCSSProcessor : CSSProcessor
 {
     CSSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         CSSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         CSSCompileResult result;

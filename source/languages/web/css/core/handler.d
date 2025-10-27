@@ -79,7 +79,7 @@ class CSSHandler : BaseLanguageHandler
         return outputs;
     }
     
-    private LanguageBuildResult compileCSS(Target target, WorkspaceConfig config, CSSConfig cssConfig)
+    private LanguageBuildResult compileCSS(in Target target, in WorkspaceConfig config, CSSConfig cssConfig)
     {
         LanguageBuildResult result;
         
@@ -120,7 +120,7 @@ class CSSHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult validateCSS(Target target, WorkspaceConfig config, CSSConfig cssConfig)
+    private LanguageBuildResult validateCSS(in Target target, in WorkspaceConfig config, CSSConfig cssConfig)
     {
         LanguageBuildResult result;
         
@@ -145,14 +145,14 @@ class CSSHandler : BaseLanguageHandler
         }
         
         result.success = true;
-        result.outputs = target.sources;
+        result.outputs = target.sources.dup;
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
     /// Parse CSS configuration from target
-    private CSSConfig parseCSSConfig(Target target)
+    private CSSConfig parseCSSConfig(in Target target)
     {
         CSSConfig config;
         
@@ -186,7 +186,7 @@ class CSSHandler : BaseLanguageHandler
     }
     
     /// Detect processor from file extensions
-    private CSSProcessorType detectProcessor(string[] sources)
+    private CSSProcessorType detectProcessor(const(string[]) sources)
     {
         foreach (source; sources)
         {

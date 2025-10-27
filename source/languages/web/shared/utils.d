@@ -9,7 +9,7 @@ import utils.logging.logger;
 import utils.process : isCommandAvailable;
 
 /// Find package.json in source tree
-string findPackageJson(string[] sources)
+string findPackageJson(const(string[]) sources)
 {
     if (sources.empty)
         return "";
@@ -54,7 +54,7 @@ string[] detectTestCommand(string packageJsonPath)
 }
 
 /// Install npm dependencies  
-void installDependencies(string[] sources, string packageManager)
+void installDependencies(const(string[]) sources, string packageManager)
 {
     string packageJsonPath = findPackageJson(sources);
     if (packageJsonPath.empty || !exists(packageJsonPath))

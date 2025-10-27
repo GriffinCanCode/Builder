@@ -18,6 +18,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.process.checker : isCommandAvailable;
 
 /// TypeScript build handler - separate from JavaScript with type-first approach
 class TypeScriptHandler : BaseLanguageHandler
@@ -238,7 +239,7 @@ class TypeScriptHandler : BaseLanguageHandler
     }
     
     /// Type check without compilation
-    private LanguageBuildResult typeCheckOnly(Target target, WorkspaceConfig config, TSConfig tsConfig)
+    private LanguageBuildResult typeCheckOnly(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
     {
         LanguageBuildResult result;
         
@@ -260,14 +261,14 @@ class TypeScriptHandler : BaseLanguageHandler
         }
         
         result.success = true;
-        result.outputs = target.sources;
+        result.outputs = target.sources.dup;
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
     /// Parse TypeScript configuration from target
-    private TSConfig parseTSConfig(Target target)
+    private TSConfig parseTSConfig(in Target target)
     {
         TSConfig config;
         
@@ -340,7 +341,7 @@ class TypeScriptHandler : BaseLanguageHandler
     }
     
     /// Find tsconfig.json in source tree
-    private string findTSConfig(string[] sources)
+    private string findTSConfig(const(string[]) sources)
     {
         if (sources.empty)
             return "";

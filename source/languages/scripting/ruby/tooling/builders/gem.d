@@ -120,7 +120,7 @@ class GemBuilder : Builder
         return "Ruby Gem Builder";
     }
     
-    private string buildGem(string gemspecFile, GemBuildConfig config, string workDir)
+    private string buildGem(string gemspecFile, const GemBuildConfig config, string workDir)
     {
         string[] cmd = ["gem", "build", gemspecFile];
         

@@ -19,10 +19,10 @@ import utils.logging.logger;
 class SWCBundler : TSBundler
 {
     TSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         TSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         TSCompileResult result;
@@ -224,7 +224,7 @@ class SWCBundler : TSBundler
         return swcConfig;
     }
     
-    private string[] generateDeclarationsWithTSC(string[] sources, TSConfig config, string outputDir, string workspaceRoot)
+    private string[] generateDeclarationsWithTSC(const(string[]) sources, TSConfig config, string outputDir, string workspaceRoot)
     {
         if (!TypeChecker.isTSCAvailable())
         {

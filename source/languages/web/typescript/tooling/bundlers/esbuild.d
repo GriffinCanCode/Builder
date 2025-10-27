@@ -18,10 +18,10 @@ import utils.logging.logger;
 class TSESBuildBundler : TSBundler
 {
     TSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         TSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         TSCompileResult result;
@@ -127,7 +127,7 @@ class TSESBuildBundler : TSBundler
         return false; // esbuild is transpile-only
     }
     
-    private bool bundle(string entry, string output, TSConfig config, WorkspaceConfig workspace)
+    private bool bundle(string entry, string output, TSConfig config, in WorkspaceConfig workspace)
     {
         string[] cmd = ["esbuild", entry, "--bundle"];
         
@@ -193,7 +193,7 @@ class TSESBuildBundler : TSBundler
         return true;
     }
     
-    private string[] compileMultiple(string[] sources, TSConfig config, string outputDir, string workspaceRoot)
+    private string[] compileMultiple(const(string[]) sources, TSConfig config, string outputDir, string workspaceRoot)
     {
         string[] outputs;
         
@@ -247,7 +247,7 @@ class TSESBuildBundler : TSBundler
         return outputs;
     }
     
-    private string[] generateDeclarationsWithTSC(string[] sources, TSConfig config, string outputDir, string workspaceRoot)
+    private string[] generateDeclarationsWithTSC(const(string[]) sources, TSConfig config, string outputDir, string workspaceRoot)
     {
         if (!TypeChecker.isTSCAvailable())
         {

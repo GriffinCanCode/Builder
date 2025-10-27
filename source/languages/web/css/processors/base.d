@@ -8,10 +8,10 @@ interface CSSProcessor
 {
     /// Compile CSS files
     CSSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         CSSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if processor is available

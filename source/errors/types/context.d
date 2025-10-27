@@ -12,7 +12,7 @@ struct ErrorContext
     SysTime timestamp;    // When the error occurred
     string location;      // Source location (file:line)
     
-    this(string operation, string details = "", string location = "")
+    this(string operation, string details = "", string location = "") @trusted
     {
         this.operation = operation;
         this.details = details;

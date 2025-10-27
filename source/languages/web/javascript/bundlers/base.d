@@ -8,10 +8,10 @@ interface Bundler
 {
     /// Bundle JavaScript files
     BundleResult bundle(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if bundler is available on system
@@ -103,10 +103,10 @@ class BundlerFactory
 class NullBundler : Bundler
 {
     BundleResult bundle(
-        string[] sources,
+        const(string[]) sources,
         JSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         import std.process : execute;
@@ -132,7 +132,7 @@ class NullBundler : Bundler
         result.outputHash = FastHash.hashStrings(sources);
         
         // Sources are outputs in this case
-        result.outputs = sources;
+        result.outputs = sources.dup;
         
         return result;
     }

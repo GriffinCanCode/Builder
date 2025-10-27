@@ -70,7 +70,7 @@ class ScriptBuilder : Builder
         return "Ruby Script Builder";
     }
     
-    private string getOutputPath(Target target, WorkspaceConfig workspace)
+    private string getOutputPath(in Target target, in WorkspaceConfig workspace)
     {
         if (!target.outputPath.empty)
         {
@@ -86,7 +86,7 @@ class ScriptBuilder : Builder
     private bool createWrapper(
         string mainFile,
         string outputPath,
-        RubyConfig config,
+        const RubyConfig config,
         string projectRoot
     )
     {

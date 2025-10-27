@@ -4,6 +4,8 @@ import std.process;
 import std.file;
 import std.path;
 import std.algorithm;
+import std.array;
+import std.string;
 import languages.web.css.core.config;
 import languages.web.css.processors.base;
 import config.schema.schema;
@@ -14,10 +16,10 @@ import utils.logging.logger;
 class NoneProcessor : CSSProcessor
 {
     CSSCompileResult compile(
-        string[] sources,
+        const(string[]) sources,
         CSSConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         CSSCompileResult result;

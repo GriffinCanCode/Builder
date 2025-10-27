@@ -16,6 +16,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import utils.process.checker : isCommandAvailable;
 
 /// JavaScript/TypeScript build handler with bundler support
 class JavaScriptHandler : BaseLanguageHandler
@@ -231,7 +232,7 @@ class JavaScriptHandler : BaseLanguageHandler
     }
     
     /// Validate JavaScript syntax without bundling
-    private LanguageBuildResult validateOnly(Target target, WorkspaceConfig config)
+    private LanguageBuildResult validateOnly(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -271,14 +272,14 @@ class JavaScriptHandler : BaseLanguageHandler
         }
         
         result.success = true;
-        result.outputs = target.sources;
+        result.outputs = target.sources.dup;
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
     /// Parse JavaScript configuration from target
-    private JSConfig parseJSConfig(Target target)
+    private JSConfig parseJSConfig(in Target target)
     {
         JSConfig config;
         

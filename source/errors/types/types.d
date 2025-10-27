@@ -67,7 +67,7 @@ abstract class BaseBuildError : BuildError
     }
     
     /// Add context to error chain
-    void addContext(ErrorContext ctx)
+    void addContext(ErrorContext ctx) @trusted
     {
         _contexts ~= ctx;
     }
@@ -91,7 +91,7 @@ class BuildFailureError : BaseBuildError
     string targetId;
     string[] failedDeps;
     
-    this(string targetId, string message, ErrorCode code = ErrorCode.BuildFailed)
+    this(string targetId, string message, ErrorCode code = ErrorCode.BuildFailed) @trusted
     {
         super(code, message);
         this.targetId = targetId;

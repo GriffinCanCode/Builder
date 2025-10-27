@@ -33,7 +33,7 @@ struct TypeCheckResult
 interface TypeChecker
 {
     /// Check types in source files
-    TypeCheckResult check(string[] sources, TypeCheckConfig config);
+    TypeCheckResult check(const(string[]) sources, TypeCheckConfig config);
     
     /// Check if type checker is available
     bool isAvailable();
@@ -100,7 +100,7 @@ class TypeCheckerFactory
 /// Sorbet type checker (Stripe, gradual typing)
 class SorbetChecker : TypeChecker
 {
-    override TypeCheckResult check(string[] sources, TypeCheckConfig config)
+    override TypeCheckResult check(const(string[]) sources, TypeCheckConfig config)
     {
         TypeCheckResult result;
         
@@ -240,7 +240,7 @@ class SorbetChecker : TypeChecker
 /// RBS type checker (Ruby 3.0+ built-in type signatures)
 class RBSChecker : TypeChecker
 {
-    override TypeCheckResult check(string[] sources, TypeCheckConfig config)
+    override TypeCheckResult check(const(string[]) sources, TypeCheckConfig config)
     {
         TypeCheckResult result;
         
@@ -344,7 +344,7 @@ class RBSChecker : TypeChecker
 /// Steep type checker (RBS-based type checking)
 class SteepChecker : TypeChecker
 {
-    override TypeCheckResult check(string[] sources, TypeCheckConfig config)
+    override TypeCheckResult check(const(string[]) sources, TypeCheckConfig config)
     {
         TypeCheckResult result;
         
@@ -456,7 +456,7 @@ end
 /// Null type checker (no-op)
 class NullTypeChecker : TypeChecker
 {
-    override TypeCheckResult check(string[] sources, TypeCheckConfig config)
+    override TypeCheckResult check(const(string[]) sources, TypeCheckConfig config)
     {
         TypeCheckResult result;
         result.success = true;

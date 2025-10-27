@@ -35,7 +35,7 @@ struct TypeCheckResult
 class TypeChecker
 {
     /// Type check TypeScript files using tsc --noEmit
-    static TypeCheckResult check(string[] sources, TSConfig config, string workspaceRoot)
+    static TypeCheckResult check(const(string[]) sources, TSConfig config, string workspaceRoot)
     {
         TypeCheckResult result;
         
