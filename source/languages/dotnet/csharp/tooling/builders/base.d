@@ -28,8 +28,8 @@ interface CSharpBuilder
     BuildResult build(
         string[] sources,
         CSharpConfig config,
-        Target target,
-        WorkspaceConfig workspaceConfig
+        const Target target,
+        const WorkspaceConfig workspaceConfig
     );
     
     /// Check if builder is available

@@ -52,7 +52,7 @@ class ZigHandler : BaseLanguageHandler
         // Run ast-check if requested
         if (zigConfig.runCheck)
         {
-            auto checkResult = ZigTools.astCheck(target.sources);
+            auto checkResult = ZigTools.astCheck(target.sources.dup);
             if (!checkResult.success)
             {
                 Logger.warning("AST check found issues:");
@@ -143,8 +143,8 @@ class ZigHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         ZigConfig zigConfig
     )
     {
@@ -176,8 +176,8 @@ class ZigHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         ZigConfig zigConfig
     )
     {
@@ -210,8 +210,8 @@ class ZigHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         ZigConfig zigConfig
     )
     {
@@ -224,8 +224,8 @@ class ZigHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         ZigConfig zigConfig
     )
     {
@@ -237,8 +237,8 @@ class ZigHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult compileTarget(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         ZigConfig zigConfig
     )
     {
@@ -285,7 +285,7 @@ class ZigHandler : BaseLanguageHandler
         return result;
     }
     
-    private ZigConfig parseZigConfig(Target target)
+    private ZigConfig parseZigConfig(in Target target)
     {
         ZigConfig config;
         
@@ -320,8 +320,8 @@ class ZigHandler : BaseLanguageHandler
     
     private void enhanceConfigFromProject(
         ref ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)
@@ -336,7 +336,7 @@ class ZigHandler : BaseLanguageHandler
             if (!buildZigPath.empty)
             {
                 Logger.debug_("Detected build.zig at: " ~ buildZigPath);
-                config.buildZig.path = buildZigPath;
+                config.buildZig.path = buildZigPath.idup;
                 config.builder = ZigBuilderType.BuildZig;
                 
                 // Parse build.zig for project info
@@ -364,24 +364,24 @@ class ZigHandler : BaseLanguageHandler
                     basename == "lib.zig" || 
                     basename == "root.zig")
                 {
-                    config.entry = source;
+                    config.entry = source.idup;
                     break;
                 }
             }
             
             // Fallback to first source
             if (config.entry.empty)
-                config.entry = target.sources[0];
+                config.entry = target.sources[0].idup;
         }
         
         // Initialize target manager
         TargetManager.initialize();
     }
     
-    private ToolResult formatCode(string[] sources, ZigConfig config)
+    private ToolResult formatCode(in string[] sources, ZigConfig config)
     {
         return ZigTools.format(
-            sources,
+            sources.dup,
             config.fmtCheck,  // check only
             !config.fmtCheck, // write in place
             config.fmtExclude // exclude pattern

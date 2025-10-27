@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.regex;
+import std.conv;
 import languages.dotnet.csharp.tooling.analyzers.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.core.config;

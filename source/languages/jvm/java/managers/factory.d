@@ -2,6 +2,7 @@ module languages.jvm.java.managers.factory;
 
 import std.file;
 import std.path;
+import std.range;
 import languages.jvm.java.core.config;
 import languages.jvm.java.tooling.detection;
 import languages.jvm.java.managers.maven;

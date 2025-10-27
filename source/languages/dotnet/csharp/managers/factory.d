@@ -3,6 +3,7 @@ module languages.dotnet.csharp.managers.factory;
 import std.file;
 import std.path;
 import std.algorithm;
+import std.range;
 import languages.dotnet.csharp.core.config;
 import languages.dotnet.csharp.managers.dotnet;
 import languages.dotnet.csharp.managers.msbuild;

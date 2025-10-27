@@ -24,7 +24,7 @@ import utils.logging.logger;
 /// Java build handler - comprehensive and modular
 class JavaHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(Target target, WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
@@ -106,8 +106,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {
@@ -204,8 +204,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {
@@ -223,8 +223,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {
@@ -266,8 +266,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {

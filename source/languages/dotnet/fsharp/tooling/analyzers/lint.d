@@ -7,6 +7,8 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.json;
+import std.regex;
+import std.conv;
 import languages.dotnet.fsharp.tooling.analyzers.base;
 import languages.dotnet.fsharp.core.config;
 import utils.logging.logger;

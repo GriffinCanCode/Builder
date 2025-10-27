@@ -21,10 +21,10 @@ import utils.logging.logger;
 class BuildZigBuilder : ZigBuilder
 {
     ZigCompileResult build(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ZigCompileResult result;
@@ -225,7 +225,7 @@ class BuildZigBuilder : ZigBuilder
     }
     
     /// Collect outputs from build directory
-    private string[] collectOutputs(string outputDir, Target target)
+    private string[] collectOutputs(string outputDir, const Target target)
     {
         string[] outputs;
         
@@ -265,7 +265,7 @@ class BuildZigBuilder : ZigBuilder
     }
     
     /// Find default output locations
-    private string[] findDefaultOutputs(string workDir, ZigConfig config, Target target)
+    private string[] findDefaultOutputs(string workDir, ZigConfig config, const Target target)
     {
         string[] outputs;
         

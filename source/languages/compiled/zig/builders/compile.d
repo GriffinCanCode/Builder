@@ -20,10 +20,10 @@ import utils.logging.logger;
 class CompileBuilder : ZigBuilder
 {
     ZigCompileResult build(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ZigCompileResult result;
@@ -104,10 +104,10 @@ class CompileBuilder : ZigBuilder
     
     /// Compile target directly
     private ZigCompileResult compileTarget(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ZigCompileResult result;
@@ -350,10 +350,10 @@ class CompileBuilder : ZigBuilder
     
     /// Run tests
     private ZigCompileResult runTests(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         ZigCompileResult result;
@@ -420,10 +420,10 @@ class CompileBuilder : ZigBuilder
     
     /// Build and run
     private ZigCompileResult buildAndRun(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         // First compile
@@ -449,7 +449,7 @@ class CompileBuilder : ZigBuilder
     }
     
     /// Check only (no code generation)
-    private ZigCompileResult checkOnly(string[] sources, ZigConfig config)
+    private ZigCompileResult checkOnly(const string[] sources, ZigConfig config)
     {
         ZigCompileResult result;
         
@@ -476,7 +476,7 @@ class CompileBuilder : ZigBuilder
     }
     
     /// Get output path
-    private string getOutputPath(ZigConfig config, Target target, WorkspaceConfig workspace)
+    private string getOutputPath(ZigConfig config, const Target target, const WorkspaceConfig workspace)
     {
         if (!config.outputName.empty)
         {

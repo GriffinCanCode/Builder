@@ -7,6 +7,8 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
+import std.uni;
 import languages.dotnet.csharp.core.config;
 import utils.logging.logger;
 
@@ -281,7 +283,8 @@ struct MSBuildToolDetection
                         auto parts = line.split();
                         foreach (part; parts)
                         {
-                            if (part.canFind(".") && part[0].isDigit)
+                            import std.ascii : isDigit;
+                            if (part.canFind(".") && part.length > 0 && isDigit(part[0]))
                                 return part;
                         }
                     }

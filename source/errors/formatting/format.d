@@ -44,7 +44,7 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
     if (opts.showCategory)
     {
         if (opts.colors)
-            result.put(Color.Bold ~ Color.Red);
+            result.put(cast(string)(Color.Bold ~ Color.Red));
         
         result.put("[");
         result.put(error.category().to!string);
@@ -58,17 +58,17 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
         result.put("]");
         
         if (opts.colors)
-            result.put(Color.Reset);
+            result.put(cast(string)Color.Reset);
         
         result.put(" ");
     }
     
     // Main message
     if (opts.colors)
-        result.put(Color.Red);
+        result.put(cast(string)Color.Red);
     result.put(error.message());
     if (opts.colors)
-        result.put(Color.Reset);
+        result.put(cast(string)Color.Reset);
     
     result.put("\n");
     
@@ -78,12 +78,12 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
         foreach (ctx; error.contexts())
         {
             if (opts.colors)
-                result.put(Color.Gray);
+                result.put(cast(string)Color.Gray);
             result.put("  → ");
             result.put(ctx.toString());
             result.put("\n");
             if (opts.colors)
-                result.put(Color.Reset);
+                result.put(cast(string)Color.Reset);
         }
     }
     
@@ -106,7 +106,7 @@ private string formatSpecific(const BuildError error, FormatOptions opts)
     if (auto buildErr = cast(const BuildFailureError)error)
     {
         if (opts.colors)
-            result.put(Color.Gray);
+            result.put(cast(string)Color.Gray);
         result.put("  Target: ");
         result.put(buildErr.targetId);
         result.put("\n");
@@ -123,12 +123,12 @@ private string formatSpecific(const BuildError error, FormatOptions opts)
         }
         
         if (opts.colors)
-            result.put(Color.Reset);
+            result.put(cast(string)Color.Reset);
     }
     else if (auto parseErr = cast(const ParseError)error)
     {
         if (opts.colors)
-            result.put(Color.Gray);
+            result.put(cast(string)Color.Gray);
         
         if (!parseErr.filePath.empty)
         {
@@ -155,12 +155,12 @@ private string formatSpecific(const BuildError error, FormatOptions opts)
         }
         
         if (opts.colors)
-            result.put(Color.Reset);
+            result.put(cast(string)Color.Reset);
     }
     else if (auto analysisErr = cast(const AnalysisError)error)
     {
         if (opts.colors)
-            result.put(Color.Gray);
+            result.put(cast(string)Color.Gray);
         
         result.put("  Target: ");
         result.put(analysisErr.targetName);
@@ -185,12 +185,12 @@ private string formatSpecific(const BuildError error, FormatOptions opts)
         }
         
         if (opts.colors)
-            result.put(Color.Reset);
+            result.put(cast(string)Color.Reset);
     }
     else if (auto langErr = cast(const LanguageError)error)
     {
         if (opts.colors)
-            result.put(Color.Gray);
+            result.put(cast(string)Color.Gray);
         
         result.put("  Language: ");
         result.put(langErr.language);
@@ -216,7 +216,7 @@ private string formatSpecific(const BuildError error, FormatOptions opts)
         }
         
         if (opts.colors)
-            result.put(Color.Reset);
+            result.put(cast(string)Color.Reset);
     }
     
     return result.data;
@@ -235,17 +235,17 @@ private string formatCodeSnippet(string code, size_t errorLine, FormatOptions op
         size_t lineNum = errorLine + i;
         
         if (opts.colors)
-            result.put(Color.Gray);
+            result.put(cast(string)Color.Gray);
         
         result.put(sformat("%4d | ", lineNum));
         
         if (opts.colors && i == 0)
-            result.put(Color.Red);
+            result.put(cast(string)Color.Red);
         
         result.put(line);
         
         if (opts.colors)
-            result.put(Color.Reset);
+            result.put(cast(string)Color.Reset);
         
         result.put("\n");
     }

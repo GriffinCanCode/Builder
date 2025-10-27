@@ -1,5 +1,8 @@
 module languages.jvm.java.analysis.base;
 
+import std.range;
+import std.conv;
+import std.algorithm;
 import languages.jvm.java.core.config;
 
 /// Analysis issue

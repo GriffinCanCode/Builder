@@ -3,6 +3,8 @@ module languages.dotnet.csharp.tooling.builders.publish;
 import std.stdio;
 import std.file;
 import std.path;
+import std.range;
+import std.algorithm;
 import languages.dotnet.csharp.tooling.builders.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.managers.dotnet;
@@ -18,8 +20,8 @@ class PublishBuilder : CSharpBuilder
     override BuildResult build(
         string[] sources,
         CSharpConfig config,
-        Target target,
-        WorkspaceConfig workspaceConfig
+        const Target target,
+        const WorkspaceConfig workspaceConfig
     )
     {
         BuildResult result;

@@ -531,7 +531,7 @@ struct JavaConfig
 }
 
 /// Parse Java configuration from target
-JavaConfig parseJavaConfig(Target target)
+JavaConfig parseJavaConfig(const Target target)
 {
     JavaConfig config;
     

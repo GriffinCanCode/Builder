@@ -140,7 +140,7 @@ class FSharpHandler : BaseLanguageHandler
         return allImports;
     }
     
-    private LanguageBuildResult buildExecutable(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, FSharpConfig fsConfig)
     {
         // Ensure mode is set to executable
         fsConfig.mode = FSharpBuildMode.Executable;
@@ -149,7 +149,7 @@ class FSharpHandler : BaseLanguageHandler
         return buildWithTool(target, config, fsConfig);
     }
     
-    private LanguageBuildResult buildLibrary(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, FSharpConfig fsConfig)
     {
         // Ensure mode is set to library
         fsConfig.mode = FSharpBuildMode.Library;
@@ -157,7 +157,7 @@ class FSharpHandler : BaseLanguageHandler
         return buildWithTool(target, config, fsConfig);
     }
     
-    private LanguageBuildResult buildWithTool(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildWithTool(in Target target, in WorkspaceConfig config, FSharpConfig fsConfig)
     {
         LanguageBuildResult result;
         
@@ -188,7 +188,7 @@ class FSharpHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildWithDotnet(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildWithDotnet(const Target target, const WorkspaceConfig config, FSharpConfig fsConfig)
     {
         LanguageBuildResult result;
         
@@ -295,12 +295,12 @@ class FSharpHandler : BaseLanguageHandler
         if (exists(outputPath))
             result.outputHash = FastHash.hashFile(outputPath);
         else
-            result.outputHash = FastHash.hashStrings(target.sources);
+            result.outputHash = FastHash.hashStrings(target.sources.dup);
         
         return result;
     }
     
-    private LanguageBuildResult buildWithFAKE(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildWithFAKE(const Target target, const WorkspaceConfig config, FSharpConfig fsConfig)
     {
         LanguageBuildResult result;
         
@@ -347,7 +347,7 @@ class FSharpHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildWithFSC(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildWithFSC(const Target target, const WorkspaceConfig config, FSharpConfig fsConfig)
     {
         LanguageBuildResult result;
         
@@ -463,7 +463,7 @@ class FSharpHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult runTests(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, FSharpConfig fsConfig)
     {
         LanguageBuildResult result;
         
@@ -518,7 +518,7 @@ class FSharpHandler : BaseLanguageHandler
             }
             
             result.success = true;
-            result.outputHash = FastHash.hashStrings(target.sources);
+            result.outputHash = FastHash.hashStrings(target.sources.dup);
         }
         else
         {
@@ -549,26 +549,27 @@ class FSharpHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildCustom(Target target, WorkspaceConfig config, FSharpConfig fsConfig)
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, FSharpConfig fsConfig)
     {
         LanguageBuildResult result;
         
-        if (!target.commands.empty)
-        {
-            foreach (cmd; target.commands)
-            {
-                auto res = executeShell(cmd);
-                if (res.status != 0)
-                {
-                    result.error = "Command failed: " ~ cmd ~ "\n" ~ res.output;
-                    return result;
-                }
-            }
-        }
+        // TODO: Custom build commands not currently supported in target schema
+        // if (!target.commands.empty)
+        // {
+        //     foreach (cmd; target.commands)
+        //     {
+        //         auto res = executeShell(cmd);
+        //         if (res.status != 0)
+        //         {
+        //             result.error = "Command failed: " ~ cmd ~ "\n" ~ res.output;
+        //             return result;
+        //         }
+        //     }
+        // }
         
         result.success = true;
         result.outputs = getOutputs(target, config);
-        result.outputHash = FastHash.hashStrings(target.sources);
+        result.outputHash = FastHash.hashStrings(target.sources.dup);
         
         return result;
     }

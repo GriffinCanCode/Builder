@@ -11,10 +11,10 @@ interface ZigBuilder
 {
     /// Build Zig project
     ZigCompileResult build(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system
@@ -100,10 +100,10 @@ class ZigBuilderFactory
 class NullZigBuilder : ZigBuilder
 {
     ZigCompileResult build(
-        string[] sources,
+        const string[] sources,
         ZigConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         import std.process : execute;
@@ -126,7 +126,7 @@ class NullZigBuilder : ZigBuilder
         
         result.success = true;
         result.outputHash = FastHash.hashStrings(sources);
-        result.outputs = sources;
+        result.outputs = sources.dup;
         
         return result;
     }

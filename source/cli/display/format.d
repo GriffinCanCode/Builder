@@ -7,6 +7,7 @@ import std.string : leftJustify, rightJustify, center;
 import std.algorithm : min, max;
 import std.conv : to;
 import std.datetime : Duration;
+import std.array : appender;
 
 /// Message formatter with styling
 /// Formats build events into styled terminal output

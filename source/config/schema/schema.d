@@ -74,7 +74,7 @@ struct WorkspaceConfig
     BuildOptions options;
     
     /// Find a target by name
-    Target* findTarget(string name)
+    const(Target)* findTarget(string name) const
     {
         foreach (ref target; targets)
         {

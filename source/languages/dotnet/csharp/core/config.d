@@ -37,6 +37,8 @@ enum CSharpBuildTool
     /// MSBuild directly
     MSBuild,
     /// Direct csc compiler (legacy)
+    Direct,
+    /// No build tool (legacy)
     CSC,
     /// None - manual control
     None

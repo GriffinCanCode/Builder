@@ -10,6 +10,8 @@ import std.conv;
 import std.mmfile;
 import std.bitmanip;
 
+@safe:
+
 /// Fast hashing utilities with intelligent size-tiered strategy
 /// Uses SIMD-accelerated BLAKE3 for 3-5x speedup over SHA-256
 /// Automatically selects optimal SIMD path (AVX-512/AVX2/NEON/SSE)
@@ -27,7 +29,8 @@ struct FastHash
     private enum size_t SAMPLE_SIZE = 16_384;      // 16 KB per sample
     
     /// Hash a file with intelligent size-tiered strategy
-    static string hashFile(in string path) @trusted
+    @trusted // File I/O operations and delegates to trusted helpers
+    static string hashFile(in string path)
     {
         if (!exists(path))
             return "";
@@ -51,14 +54,16 @@ struct FastHash
     }
     
     /// Direct hash for tiny files
-    private static string hashFileDirect(in string path) @trusted
+    @trusted // File read and cast for hashing
+    private static string hashFileDirect(in string path)
     {
         immutable data = cast(ubyte[])std.file.read(path);
         return Blake3.hashHex(data);
     }
     
     /// Chunked hash for small files (original approach)
-    private static string hashFileChunked(in string path) @trusted
+    @trusted // File I/O and raw buffer operations
+    private static string hashFileChunked(in string path)
     {
         auto file = File(path, "rb");
         auto hash = Blake3(0);
@@ -75,7 +80,8 @@ struct FastHash
     }
     
     /// Sampled hash for medium files (head + tail + middle samples)
-    private static string hashFileSampled(in string path, in size_t fileSize) @trusted
+    @trusted // File I/O, seeking, and buffer operations
+    private static string hashFileSampled(in string path, in size_t fileSize)
     {
         auto hash = Blake3(0);
         
@@ -122,7 +128,8 @@ struct FastHash
     }
     
     /// Aggressive sampling for large files using memory mapping with SIMD
-    private static string hashFileLargeSampled(in string path, in size_t fileSize) @trusted
+    @trusted // Memory-mapped file access and pointer operations
+    private static string hashFileLargeSampled(in string path, in size_t fileSize)
     {
         auto hash = Blake3(0);  // SIMD-accelerated
         
@@ -180,7 +187,7 @@ struct FastHash
     }
     
     /// Hash multiple strings together
-    static string hashStrings(string[] strings)
+    static string hashStrings(const string[] strings)
     {
         auto hash = Blake3(0);
         foreach (s; strings)
@@ -189,6 +196,7 @@ struct FastHash
     }
     
     /// Hash multiple files together with SIMD-aware parallel processing
+    @trusted // File operations and cast operations
     static string hashFiles(string[] filePaths)
     {
         import std.file : exists;

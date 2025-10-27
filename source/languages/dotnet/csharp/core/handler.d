@@ -114,8 +114,8 @@ class CSharpHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CSharpConfig csConfig
     )
     {
@@ -141,7 +141,7 @@ class CSharpHandler : BaseLanguageHandler
         {
             Logger.info("Auto-formatting code");
             auto formatter = CSharpFormatterFactory.create(csConfig.formatter.formatter, config.root);
-            auto formatResult = formatter.format(target.sources, csConfig.formatter, config.root, csConfig.formatter.checkOnly);
+            auto formatResult = formatter.format(target.sources.dup, csConfig.formatter, config.root, csConfig.formatter.checkOnly);
             
             if (!formatResult.success)
             {
@@ -159,7 +159,7 @@ class CSharpHandler : BaseLanguageHandler
         {
             Logger.info("Running static analysis");
             auto analyzer = CSharpAnalyzerFactory.create(csConfig.analysis.analyzer, config.root);
-            auto analysisResult = analyzer.analyze(target.sources, csConfig.analysis, config.root);
+            auto analysisResult = analyzer.analyze(target.sources.dup, csConfig.analysis, config.root);
             
             if (analysisResult.hasErrors() && csConfig.analysis.failOnErrors)
             {
@@ -192,7 +192,7 @@ class CSharpHandler : BaseLanguageHandler
             return result;
         }
         
-        auto buildResult = builder.build(target.sources, csConfig, target, config);
+        auto buildResult = builder.build(target.sources.dup, csConfig, target, config);
         
         if (!buildResult.success)
         {
@@ -208,8 +208,8 @@ class CSharpHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CSharpConfig csConfig
     )
     {
@@ -226,8 +226,8 @@ class CSharpHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CSharpConfig csConfig
     )
     {
@@ -261,26 +261,26 @@ class CSharpHandler : BaseLanguageHandler
         }
         
         result.success = true;
-        result.outputHash = FastHash.hashStrings(target.sources);
+        result.outputHash = FastHash.hashStrings(target.sources.dup);
         
         return result;
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         CSharpConfig csConfig
     )
     {
         LanguageBuildResult result;
         result.success = true;
-        result.outputHash = FastHash.hashStrings(target.sources);
+        result.outputHash = FastHash.hashStrings(target.sources.dup);
         return result;
     }
     
     private LanguageBuildResult buildWithBuildTool(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         CSharpConfig csConfig
     )
     {
@@ -303,6 +303,11 @@ class CSharpHandler : BaseLanguageHandler
                     return result;
                 }
                 break;
+            
+            case CSharpBuildTool.Direct:
+                // Direct CSC compilation
+                result.error = "Direct CSC compilation not yet supported";
+                return result;
             
             case CSharpBuildTool.Auto:
             case CSharpBuildTool.CSC:
@@ -329,8 +334,8 @@ class CSharpHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTestsDirect(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         CSharpConfig csConfig
     )
     {
