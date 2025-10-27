@@ -47,11 +47,10 @@ class FatJARBuilder : JARBuilder
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
         
-        // Create temporary build directory
-        string tempDir = buildPath(outputDir, ".java-fatjar-" ~ target.name.split(":")[$ - 1]);
-        if (exists(tempDir))
-            rmdirRecurse(tempDir);
-        mkdirRecurse(tempDir);
+        // Create atomic temporary directory (prevents TOCTOU attacks)
+        import utils.security.tempdir : AtomicTempDir;
+        auto atomicTemp = AtomicTempDir.in_(outputDir, ".java-fatjar-" ~ target.name.split(":")[$ - 1].replace(":", "-"));
+        string tempDir = atomicTemp.get();
         
         scope(failure)
         {

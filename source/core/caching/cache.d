@@ -13,6 +13,7 @@ import utils.files.hash;
 import utils.simd.ops;
 import core.caching.storage;
 import core.caching.eviction;
+import utils.security.integrity;
 import errors;
 
 /// High-performance build cache with lazy writes and LRU eviction
@@ -38,6 +39,7 @@ final class BuildCache
     private size_t contentHashCount;  // Stats: how many content hashes performed
     private size_t metadataHitCount;  // Stats: how many metadata hits
     private Mutex cacheMutex;  // Protects all mutable state
+    private IntegrityValidator validator;  // HMAC validation for tampering detection
     
     this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @trusted
     {
@@ -47,6 +49,10 @@ final class BuildCache
         this.dirty = false;
         this.eviction = EvictionPolicy(config.maxSize, config.maxEntries, config.maxAge);
         this.cacheMutex = new Mutex();
+        
+        // Initialize integrity validator with workspace-specific key
+        import std.file : getcwd;
+        this.validator = IntegrityValidator.fromEnvironment(getcwd());
         
         if (!exists(cacheDir))
             mkdirRecurse(cacheDir);
@@ -365,11 +371,35 @@ final class BuildCache
         try
         {
             // Read file data - ubyte[] is automatically allocated by read()
-            auto data = cast(ubyte[])std.file.read(cacheFilePath);
+            auto fileData = cast(ubyte[])std.file.read(cacheFilePath);
             
-            // Deserialize - uses zero-copy string slicing from data
-            // Keep data alive until entries are populated
-            entries = BinaryStorage.deserialize!CacheEntry(data);
+            // Deserialize signed data
+            auto signed = SignedData.deserialize(fileData);
+            
+            // Verify integrity signature
+            if (!validator.verifyWithMetadata(signed))
+            {
+                writeln("Warning: Cache signature verification failed, starting fresh");
+                entries.clear();
+                
+                auto error = new CacheError("Cache signature verification failed", ErrorCode.CacheCorrupted);
+                error.addContext(ErrorContext("verifying cache integrity", cacheFilePath));
+                error.cachePath = cacheFilePath;
+                return;
+            }
+            
+            // Check if cache is expired (30 days max age)
+            import core.time : days;
+            if (IntegrityValidator.isExpired(signed, 30.days))
+            {
+                writeln("Cache expired, starting fresh");
+                entries.clear();
+                return;
+            }
+            
+            // Deserialize cache entries from verified data
+            // Uses zero-copy string slicing from data
+            entries = BinaryStorage.deserialize!CacheEntry(signed.data);
             
             // Note: data is now referenced by strings in entries
             // GC will keep it alive as long as entries exist
@@ -391,8 +421,15 @@ final class BuildCache
     {
         try
         {
+            // Serialize cache entries
             auto data = BinaryStorage.serialize(entries);
-            std.file.write(cacheFilePath, data);
+            
+            // Sign the data with integrity validator
+            auto signed = validator.signWithMetadata(data);
+            
+            // Serialize and write signed data
+            auto serialized = signed.serialize();
+            std.file.write(cacheFilePath, serialized);
         }
         catch (Exception e)
         {

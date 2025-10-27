@@ -2,25 +2,35 @@ module utils.security;
 
 /// Security utilities package
 /// 
-/// Provides security validation and sanitization for:
-/// - File paths (command injection prevention)
-/// - Command arguments (shell metacharacter detection)
-/// - Path traversal attack prevention
+/// Comprehensive security framework for Builder:
+/// - Command execution with injection prevention (SecureExecutor)
+/// - Cache integrity validation with BLAKE3 HMAC (IntegrityValidator)
+/// - TOCTOU-resistant temporary directories (AtomicTempDir)
+/// - Path and argument validation (SecurityValidator)
 ///
-/// Usage:
+/// Quick Start:
 ///   import utils.security;
 ///   
-///   // Validate a path before using with external commands
-///   if (SecurityValidator.isPathSafe(path))
-///   {
-///       auto result = execute(["chmod", "+x", path]);
+///   // Safe command execution
+///   auto result = SecureExecutor.create()
+///       .in_("/workspace")
+///       .audit()
+///       .runChecked(["ruby", "--version"]);
+///   
+///   // Atomic temp directory
+///   auto tmp = AtomicTempDir.create("build-tmp");
+///   
+///   // Path validation
+///   if (SecurityValidator.isPathSafe(userInput)) {
+///       // Safe to use
 ///   }
 ///   
-///   // Validate multiple paths
-///   if (SecurityValidator.arePathsSafe(sources))
-///   {
-///       // Safe to proceed
-///   }
+///   // Cache integrity
+///   auto validator = IntegrityValidator.create();
+///   auto signature = validator.sign(data);
 
 public import utils.security.validation;
+public import utils.security.executor;
+public import utils.security.integrity;
+public import utils.security.tempdir;
 

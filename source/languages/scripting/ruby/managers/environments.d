@@ -269,14 +269,23 @@ final class RVMManager : VersionManager
     
     override string getRubyPath(string version_ = "")
     {
-        // RVM uses shell functions, so we need to source it first
-        string cmd;
-        if (!version_.empty)
-            cmd = "source ~/.rvm/scripts/rvm && rvm use " ~ version_ ~ " && which ruby";
-        else
-            cmd = "source ~/.rvm/scripts/rvm && which ruby";
+        import utils.security.validation : SecurityValidator;
         
-        auto res = executeShell(cmd, null, Config.none, size_t.max, projectRoot);
+        // Validate version string to prevent injection
+        if (!version_.empty && !SecurityValidator.isArgumentSafe(version_))
+        {
+            Logger.error("Invalid Ruby version: " ~ version_);
+            return "ruby";
+        }
+        
+        // RVM uses shell functions, use safe bash -c with validated arguments
+        string script;
+        if (!version_.empty)
+            script = "source ~/.rvm/scripts/rvm && rvm use '" ~ version_ ~ "' && which ruby";
+        else
+            script = "source ~/.rvm/scripts/rvm && which ruby";
+        
+        auto res = execute(["bash", "-c", script], null, Config.none, size_t.max, projectRoot);
         if (res.status == 0)
             return res.output.strip;
         
@@ -285,8 +294,14 @@ final class RVMManager : VersionManager
     
     override bool isVersionInstalled(string version_)
     {
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm list strings";
-        auto res = executeShell(cmd);
+        import utils.security.validation : SecurityValidator;
+        
+        // Validate version before using
+        if (!SecurityValidator.isArgumentSafe(version_))
+            return false;
+        
+        auto script = "source ~/.rvm/scripts/rvm && rvm list strings";
+        auto res = execute(["bash", "-c", script]);
         
         if (res.status != 0)
             return false;
@@ -301,10 +316,19 @@ final class RVMManager : VersionManager
     
     override bool installVersion(string version_)
     {
+        import utils.security.validation : SecurityValidator;
+        
+        // Validate version to prevent injection
+        if (!SecurityValidator.isArgumentSafe(version_))
+        {
+            Logger.error("Invalid Ruby version: " ~ version_);
+            return false;
+        }
+        
         Logger.info("Installing Ruby " ~ version_ ~ " with RVM");
         
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm install " ~ version_;
-        auto res = executeShell(cmd);
+        auto script = "source ~/.rvm/scripts/rvm && rvm install '" ~ version_ ~ "'";
+        auto res = execute(["bash", "-c", script]);
         
         if (res.status != 0)
         {
@@ -317,8 +341,8 @@ final class RVMManager : VersionManager
     
     override string getCurrentVersion()
     {
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm current";
-        auto res = executeShell(cmd, null, Config.none, size_t.max, projectRoot);
+        auto script = "source ~/.rvm/scripts/rvm && rvm current";
+        auto res = execute(["bash", "-c", script], null, Config.none, size_t.max, projectRoot);
         
         if (res.status == 0)
             return res.output.strip;
@@ -329,8 +353,8 @@ final class RVMManager : VersionManager
     {
         try
         {
-            auto cmd = "source ~/.rvm/scripts/rvm && rvm --version";
-            auto res = executeShell(cmd);
+            auto script = "source ~/.rvm/scripts/rvm && rvm --version";
+            auto res = execute(["bash", "-c", script]);
             return res.status == 0;
         }
         catch (Exception e)
@@ -347,24 +371,51 @@ final class RVMManager : VersionManager
     /// Use specific Ruby version
     bool useVersion(string version_)
     {
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm use " ~ version_;
-        auto res = executeShell(cmd, null, Config.none, size_t.max, projectRoot);
+        import utils.security.validation : SecurityValidator;
+        
+        // Validate version
+        if (!SecurityValidator.isArgumentSafe(version_))
+        {
+            Logger.error("Invalid Ruby version: " ~ version_);
+            return false;
+        }
+        
+        auto script = "source ~/.rvm/scripts/rvm && rvm use '" ~ version_ ~ "'";
+        auto res = execute(["bash", "-c", script], null, Config.none, size_t.max, projectRoot);
         return res.status == 0;
     }
     
     /// Create gemset
     bool createGemset(string name)
     {
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm gemset create " ~ name;
-        auto res = executeShell(cmd, null, Config.none, size_t.max, projectRoot);
+        import utils.security.validation : SecurityValidator;
+        
+        // Validate gemset name
+        if (!SecurityValidator.isArgumentSafe(name))
+        {
+            Logger.error("Invalid gemset name: " ~ name);
+            return false;
+        }
+        
+        auto script = "source ~/.rvm/scripts/rvm && rvm gemset create '" ~ name ~ "'";
+        auto res = execute(["bash", "-c", script], null, Config.none, size_t.max, projectRoot);
         return res.status == 0;
     }
     
     /// Use gemset
     bool useGemset(string name)
     {
-        auto cmd = "source ~/.rvm/scripts/rvm && rvm gemset use " ~ name;
-        auto res = executeShell(cmd, null, Config.none, size_t.max, projectRoot);
+        import utils.security.validation : SecurityValidator;
+        
+        // Validate gemset name
+        if (!SecurityValidator.isArgumentSafe(name))
+        {
+            Logger.error("Invalid gemset name: " ~ name);
+            return false;
+        }
+        
+        auto script = "source ~/.rvm/scripts/rvm && rvm gemset use '" ~ name ~ "'";
+        auto res = execute(["bash", "-c", script], null, Config.none, size_t.max, projectRoot);
         return res.status == 0;
     }
 }
@@ -381,14 +432,23 @@ final class ChrubyManager : VersionManager
     
     override string getRubyPath(string version_ = "")
     {
-        // chruby modifies PATH, so we source it and get ruby path
-        string cmd;
-        if (!version_.empty)
-            cmd = "source /usr/local/share/chruby/chruby.sh && chruby " ~ version_ ~ " && which ruby";
-        else
-            cmd = "source /usr/local/share/chruby/chruby.sh && which ruby";
+        import utils.security.validation : SecurityValidator;
         
-        auto res = executeShell(cmd, null, Config.none, size_t.max, projectRoot);
+        // Validate version to prevent injection
+        if (!version_.empty && !SecurityValidator.isArgumentSafe(version_))
+        {
+            Logger.error("Invalid Ruby version: " ~ version_);
+            return "ruby";
+        }
+        
+        // chruby modifies PATH, use safe bash -c with validated arguments
+        string script;
+        if (!version_.empty)
+            script = "source /usr/local/share/chruby/chruby.sh && chruby '" ~ version_ ~ "' && which ruby";
+        else
+            script = "source /usr/local/share/chruby/chruby.sh && which ruby";
+        
+        auto res = execute(["bash", "-c", script], null, Config.none, size_t.max, projectRoot);
         if (res.status == 0)
             return res.output.strip;
         
