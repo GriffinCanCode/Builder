@@ -73,6 +73,27 @@ fmt:
 	@echo "Formatting code..."
 	@find source tests -name "*.d" -exec dfmt -i {} \;
 
+# Generate documentation
+docs:
+	@./tools/generate-docs.sh
+
+# Open documentation in browser
+docs-open: docs
+	@echo "Opening documentation in browser..."
+	@open docs/api/index.html || xdg-open docs/api/index.html || sensible-browser docs/api/index.html
+
+# Serve documentation on local web server
+docs-serve:
+	@echo "Starting documentation server on http://localhost:8000..."
+	@echo "Press Ctrl+C to stop"
+	@python3 -m http.server --directory docs/api 8000
+
+# Clean documentation
+docs-clean:
+	@echo "Cleaning documentation..."
+	@rm -rf docs/api
+	@echo "Documentation cleaned"
+
 # Show help
 help:
 	@echo "Builder Makefile"
@@ -90,5 +111,9 @@ help:
 	@echo "  make install        - Install to /usr/local/bin"
 	@echo "  make uninstall      - Uninstall from system"
 	@echo "  make fmt            - Format code"
+	@echo "  make docs           - Generate DDoc documentation"
+	@echo "  make docs-open      - Generate and open documentation"
+	@echo "  make docs-serve     - Serve documentation on localhost:8000"
+	@echo "  make docs-clean     - Clean documentation"
 	@echo "  make help           - Show this help"
 

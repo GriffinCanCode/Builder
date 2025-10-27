@@ -230,7 +230,26 @@ dub test
 ./run-tests.sh --verbose
 ```
 
-## Documentation
+## 📚 Documentation
+
+### API Documentation
+
+Auto-generated API documentation is available:
+
+```bash
+# Generate and view documentation
+make docs-open
+
+# Or generate and serve on localhost:8000
+make docs-serve
+```
+
+View online: [API Documentation](docs/api/index.html)
+
+- **517 modules** documented
+- **83.6% coverage** with DDoc comments
+- Organized by package with search-friendly structure
+- Includes safety documentation for all `@trusted` blocks
 
 ### Architecture & Design
 - [Architecture Guide](docs/architecture/ARCHITECTURE.md) - System design and internals

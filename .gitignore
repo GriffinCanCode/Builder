@@ -26,6 +26,10 @@ test_glob/
 *.test
 coverage/
 
+# Generated documentation
+docs/api/
+*.html
+
 # Python
 __pycache__/
 *.pyc

@@ -55,6 +55,10 @@
             "buildOptions": ["debugMode", "debugInfo"],
             "dflags-ldc": ["-fsanitize=thread"],
             "lflags-ldc": ["-fsanitize=thread"]
+        },
+        "ddoc": {
+            "buildOptions": ["syntaxOnly"],
+            "dflags": ["-Dddocs", "-Xfdocs/builder.json"]
         }
     }
 }
