@@ -28,12 +28,13 @@ class AOTBuilder : CSharpBuilder
         
         Logger.info("Building with Native AOT builder");
         
-        // Ensure AOT is enabled in config
-        config.aot.enabled = true;
-        config.publish.nativeAot = true;
+        // Enable AOT in config
+        auto mutableConfig = cast(CSharpConfig)config;
+        mutableConfig.aot.enabled = true;
+        mutableConfig.publish.nativeAot = true;
         
         // Use dotnet publish with AOT
-        if (!DotNetOps.publish(workspaceConfig.root, config))
+        if (!DotNetOps.publish(workspaceConfig.root, mutableConfig))
         {
             result.error = "Native AOT build failed";
             return result;

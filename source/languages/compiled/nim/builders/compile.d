@@ -20,10 +20,10 @@ import utils.logging.logger;
 class CompileBuilder : NimBuilder
 {
     NimCompileResult build(
-        string[] sources,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         NimCompileResult result;
@@ -122,9 +122,9 @@ class CompileBuilder : NimBuilder
     
     private string determineOutputPath(
         string entryPoint,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         // Use explicit output if specified
@@ -173,7 +173,7 @@ class CompileBuilder : NimBuilder
         return buildPath(outputDir, baseName ~ extension);
     }
     
-    private string[] buildCompileCommand(string entryPoint, string outputPath, NimConfig config)
+    private string[] buildCompileCommand(string entryPoint, string outputPath, in NimConfig config)
     {
         string[] cmd = ["nim"];
         
@@ -402,7 +402,7 @@ class CompileBuilder : NimBuilder
         }
     }
     
-    private void collectArtifacts(NimConfig config, ref NimCompileResult result)
+    private void collectArtifacts(in NimConfig config, ref NimCompileResult result)
     {
         // Add nimcache directory as artifact (contains generated C code)
         if (!config.nimCache.empty && exists(config.nimCache))

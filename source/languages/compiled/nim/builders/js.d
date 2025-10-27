@@ -20,10 +20,10 @@ import utils.logging.logger;
 class JsBuilder : NimBuilder
 {
     NimCompileResult build(
-        string[] sources,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         NimCompileResult result;
@@ -37,7 +37,8 @@ class JsBuilder : NimBuilder
         string entryPoint = config.entry.empty ? sources[0] : config.entry;
         
         // Ensure backend is set to JS
-        NimConfig jsConfig = config;
+        import std.conv : to;
+        NimConfig jsConfig = cast(NimConfig)config;
         jsConfig.backend = NimBackend.Js;
         
         // Determine output path
@@ -110,9 +111,9 @@ class JsBuilder : NimBuilder
     
     private string determineJsOutputPath(
         string entryPoint,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         // Use explicit output if specified
@@ -145,7 +146,7 @@ class JsBuilder : NimBuilder
         return buildPath(outputDir, baseName ~ ".js");
     }
     
-    private string[] buildJsCommand(string entryPoint, string outputPath, NimConfig config)
+    private string[] buildJsCommand(string entryPoint, string outputPath, in NimConfig config)
     {
         string[] cmd = ["nim", "js"];
         

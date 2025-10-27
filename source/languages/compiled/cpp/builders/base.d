@@ -168,7 +168,7 @@ abstract class BaseCppBuilder : CppBuilder
     }
     
     /// Build compiler flags from config
-    protected string[] buildCompilerFlags(CppConfig config, bool isCpp)
+    protected string[] buildCompilerFlags(in CppConfig config, bool isCpp)
     {
         import std.conv : to;
         
@@ -267,7 +267,7 @@ abstract class BaseCppBuilder : CppBuilder
     }
     
     /// Build linker flags from config
-    protected string[] buildLinkerFlags(CppConfig config)
+    protected string[] buildLinkerFlags(in CppConfig config)
     {
         string[] flags;
         

@@ -16,7 +16,7 @@ import utils.security.validation;
 struct DotNetOps
 {
     /// Build project with dotnet CLI
-    static bool build(string projectRoot, CSharpConfig config)
+    static bool build(string projectRoot, in CSharpConfig config)
     {
         Logger.info("Building with dotnet CLI");
         
@@ -85,7 +85,7 @@ struct DotNetOps
     }
     
     /// Publish project with dotnet CLI
-    static bool publish(string projectRoot, CSharpConfig config)
+    static bool publish(string projectRoot, in CSharpConfig config)
     {
         Logger.info("Publishing with dotnet CLI");
         

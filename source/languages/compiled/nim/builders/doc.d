@@ -19,10 +19,10 @@ import utils.logging.logger;
 class DocBuilder : NimBuilder
 {
     NimCompileResult build(
-        string[] sources,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         NimCompileResult result;
@@ -34,7 +34,7 @@ class DocBuilder : NimBuilder
         }
         
         // Generate documentation for all sources
-        string[] filesToDoc = config.entry.empty ? sources : [config.entry];
+        string[] filesToDoc = config.entry.empty ? sources.dup : cast(string[])[config.entry];
         string[] outputFiles;
         
         foreach (source; filesToDoc)
@@ -96,7 +96,7 @@ class DocBuilder : NimBuilder
         return feature == "doc" || feature == "documentation";
     }
     
-    private NimCompileResult generateDocs(string source, NimConfig config)
+    private NimCompileResult generateDocs(string source, in NimConfig config)
     {
         NimCompileResult result;
         
@@ -174,7 +174,7 @@ class DocBuilder : NimBuilder
         return result;
     }
     
-    private void generateIndex(string[] docFiles, NimConfig config)
+    private void generateIndex(string[] docFiles, in NimConfig config)
     {
         // Generate theindex.html using nim buildIndex
         string[] cmd = ["nim", "buildIndex"];

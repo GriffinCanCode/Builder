@@ -19,10 +19,10 @@ import utils.logging.logger;
 class CheckBuilder : NimBuilder
 {
     NimCompileResult build(
-        string[] sources,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         NimCompileResult result;
@@ -34,7 +34,7 @@ class CheckBuilder : NimBuilder
         }
         
         // Check each source file
-        string[] filesToCheck = config.entry.empty ? sources : [config.entry];
+        string[] filesToCheck = config.entry.empty ? sources.dup : cast(string[])[config.entry];
         
         foreach (source; filesToCheck)
         {
@@ -86,7 +86,7 @@ class CheckBuilder : NimBuilder
         return feature == "check" || feature == "syntax-check";
     }
     
-    private NimCompileResult checkFile(string source, NimConfig config)
+    private NimCompileResult checkFile(string source, in NimConfig config)
     {
         NimCompileResult result;
         

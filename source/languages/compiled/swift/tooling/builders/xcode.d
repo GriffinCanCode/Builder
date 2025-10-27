@@ -20,10 +20,10 @@ version(OSX)
     class XcodeBuilder : SwiftBuilder
     {
         SwiftBuildResult build(
-            string[] sources,
-            SwiftConfig config,
-            Target target,
-            WorkspaceConfig workspace
+            in string[] sources,
+            in SwiftConfig config,
+            in Target target,
+            in WorkspaceConfig workspace
         )
         {
             SwiftBuildResult result;
@@ -138,10 +138,10 @@ else
     class XcodeBuilder : SwiftBuilder
     {
         SwiftBuildResult build(
-            string[] sources,
-            SwiftConfig config,
-            Target target,
-            WorkspaceConfig workspace
+            in string[] sources,
+            in SwiftConfig config,
+            in Target target,
+            in WorkspaceConfig workspace
         )
         {
             SwiftBuildResult result;

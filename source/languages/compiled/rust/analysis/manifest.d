@@ -150,7 +150,7 @@ class CargoParser
     }
     
     /// Find Cargo.toml in directory tree
-    static string findManifest(string[] sources)
+    static string findManifest(in string[] sources)
     {
         if (sources.empty)
             return "";

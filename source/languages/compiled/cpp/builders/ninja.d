@@ -96,7 +96,7 @@ class NinjaBuilder : BaseCppBuilder
         return "unknown";
     }
     
-    private string findNinjaFile(string[] sources)
+    private string findNinjaFile(in string[] sources)
     {
         if (sources.empty)
             return "";
@@ -116,7 +116,7 @@ class NinjaBuilder : BaseCppBuilder
         return "";
     }
     
-    private CppCompileResult buildNinja(string projectDir, CppConfig config, Target target)
+    private CppCompileResult buildNinja(string projectDir, in CppConfig config, in Target target)
     {
         CppCompileResult result;
         
@@ -160,7 +160,7 @@ class NinjaBuilder : BaseCppBuilder
         return result;
     }
     
-    private string findNinjaOutput(string projectDir, Target target, WorkspaceConfig workspace)
+    private string findNinjaOutput(string projectDir, in Target target, in WorkspaceConfig workspace)
     {
         string[] searchDirs = [
             projectDir,

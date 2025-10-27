@@ -136,7 +136,7 @@ class CMakeBuilder : BaseCppBuilder
         }
     }
     
-    private string findCMakeFile(string[] sources)
+    private string findCMakeFile(in string[] sources)
     {
         if (sources.empty)
             return "";
@@ -156,7 +156,7 @@ class CMakeBuilder : BaseCppBuilder
         return "";
     }
     
-    private CppCompileResult configureCMake(string projectDir, string buildDir, CppConfig config)
+    private CppCompileResult configureCMake(string projectDir, string buildDir, in CppConfig config)
     {
         CppCompileResult result;
         
@@ -209,7 +209,7 @@ class CMakeBuilder : BaseCppBuilder
         return result;
     }
     
-    private CppCompileResult buildCMake(string buildDir, CppConfig config)
+    private CppCompileResult buildCMake(string buildDir, in CppConfig config)
     {
         CppCompileResult result;
         
@@ -252,7 +252,7 @@ class CMakeBuilder : BaseCppBuilder
         return result;
     }
     
-    private string findCMakeOutput(string buildDir, Target target, WorkspaceConfig workspace)
+    private string findCMakeOutput(string buildDir, in Target target, in WorkspaceConfig workspace)
     {
         // CMake typically outputs to build/ or build/Release/ or build/Debug/
         string[] searchDirs = [

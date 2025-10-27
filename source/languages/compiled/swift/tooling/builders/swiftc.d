@@ -20,10 +20,10 @@ import utils.logging.logger;
 class SwiftcBuilder : SwiftBuilder
 {
     SwiftBuildResult build(
-        string[] sources,
-        SwiftConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in SwiftConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         SwiftBuildResult result;
@@ -260,7 +260,7 @@ class SwiftcBuilder : SwiftBuilder
         }
     }
     
-    private string[] getOutputPath(SwiftConfig config, Target target, WorkspaceConfig workspace)
+    private string[] getOutputPath(in SwiftConfig config, in Target target, in WorkspaceConfig workspace)
     {
         string[] outputs;
         

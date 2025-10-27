@@ -19,10 +19,10 @@ import utils.logging.logger;
 class CargoBuilder : RustBuilder
 {
     RustCompileResult build(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         RustCompileResult result;
@@ -86,7 +86,7 @@ class CargoBuilder : RustBuilder
         return true;
     }
     
-    private RustCompileResult buildTarget(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult buildTarget(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -165,7 +165,7 @@ class CargoBuilder : RustBuilder
         // Set environment variables
         string[string] env = null;
         if (!config.env.empty)
-            env = config.env.dup;
+            env = cast(string[string])config.env.dup;
         
         // Add RUSTFLAGS
         if (!config.rustcFlags.empty)
@@ -228,7 +228,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private RustCompileResult checkTarget(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult checkTarget(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -255,7 +255,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private RustCompileResult testTarget(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult testTarget(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -285,7 +285,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private RustCompileResult buildDoc(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult buildDoc(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -320,7 +320,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private RustCompileResult benchTarget(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult benchTarget(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -349,7 +349,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private RustCompileResult buildExample(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult buildExample(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         
@@ -380,7 +380,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private RustCompileResult buildCustom(RustConfig config, string projectDir, WorkspaceConfig workspace)
+    private RustCompileResult buildCustom(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
         result.success = true;
@@ -388,7 +388,7 @@ class CargoBuilder : RustBuilder
         return result;
     }
     
-    private void addCommonFlags(ref string[] cmd, RustConfig config)
+    private void addCommonFlags(ref string[] cmd, in RustConfig config)
     {
         if (config.release || config.profile == RustProfile.Release)
             cmd ~= ["--release"];

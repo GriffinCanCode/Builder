@@ -18,7 +18,7 @@ import utils.logging.logger;
 /// Builder for native AOT executables
 class NativeBuilder : FSharpBuilder
 {
-    FSharpBuildResult build(string[] sources, FSharpConfig config, Target target, WorkspaceConfig workspaceConfig)
+    FSharpBuildResult build(in string[] sources, in FSharpConfig config, in Target target, in WorkspaceConfig workspaceConfig)
     {
         FSharpBuildResult result;
         auto sw = StopWatch(AutoStart.yes);

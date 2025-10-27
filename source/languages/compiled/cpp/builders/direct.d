@@ -169,7 +169,7 @@ class DirectBuilder : BaseCppBuilder
     /// Compile source files to object files
     private CppCompileResult compileFiles(
         string[] sources,
-        CppConfig config,
+        in CppConfig config,
         string objDir,
         bool isCpp
     )
@@ -224,7 +224,7 @@ class DirectBuilder : BaseCppBuilder
     private CppCompileResult linkObjects(
         string[] objects,
         string outputFile,
-        CppConfig config,
+        in CppConfig config,
         bool isCpp
     )
     {

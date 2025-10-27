@@ -18,7 +18,7 @@ import utils.logging.logger;
 /// Builder for F# executables
 class ExecutableBuilder : FSharpBuilder
 {
-    FSharpBuildResult build(string[] sources, FSharpConfig config, Target target, WorkspaceConfig workspaceConfig)
+    FSharpBuildResult build(in string[] sources, in FSharpConfig config, in Target target, in WorkspaceConfig workspaceConfig)
     {
         FSharpBuildResult result;
         auto sw = StopWatch(AutoStart.yes);
@@ -50,7 +50,7 @@ class ExecutableBuilder : FSharpBuilder
         return DotnetOps.isAvailable();
     }
     
-    private FSharpBuildResult buildWithDotnet(string projectFile, FSharpConfig config, Target target, WorkspaceConfig workspaceConfig)
+    private FSharpBuildResult buildWithDotnet(string projectFile, in FSharpConfig config, in Target target, in WorkspaceConfig workspaceConfig)
     {
         FSharpBuildResult result;
         
@@ -102,7 +102,7 @@ class ExecutableBuilder : FSharpBuilder
         return result;
     }
     
-    private FSharpBuildResult buildWithFSC(string[] sources, FSharpConfig config, Target target, WorkspaceConfig workspaceConfig)
+    private FSharpBuildResult buildWithFSC(in string[] sources, in FSharpConfig config, in Target target, in WorkspaceConfig workspaceConfig)
     {
         FSharpBuildResult result;
         

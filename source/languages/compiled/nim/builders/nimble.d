@@ -20,10 +20,10 @@ import utils.logging.logger;
 class NimbleBuilder : NimBuilder
 {
     NimCompileResult build(
-        string[] sources,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         NimCompileResult result;
@@ -141,7 +141,7 @@ class NimbleBuilder : NimBuilder
         }
     }
     
-    private bool installDependencies(string nimbleFile, NimConfig config)
+    private bool installDependencies(string nimbleFile, in NimConfig config)
     {
         Logger.info("Installing nimble dependencies...");
         
@@ -167,7 +167,7 @@ class NimbleBuilder : NimBuilder
         return true;
     }
     
-    private string[] buildNimbleCommand(string nimbleFile, NimConfig config, Target target)
+    private string[] buildNimbleCommand(string nimbleFile, in NimConfig config, in Target target)
     {
         string[] cmd = ["nimble"];
         
@@ -218,8 +218,8 @@ class NimbleBuilder : NimBuilder
     
     private string findNimbleOutput(
         NimbleData nimbleData,
-        NimConfig config,
-        WorkspaceConfig workspace
+        in NimConfig config,
+        in WorkspaceConfig workspace
     )
     {
         // Default nimble output locations
@@ -248,8 +248,8 @@ class NimbleBuilder : NimBuilder
     
     private string findAlternativeOutput(
         NimbleData nimbleData,
-        NimConfig config,
-        WorkspaceConfig workspace
+        in NimConfig config,
+        in WorkspaceConfig workspace
     )
     {
         // Check workspace output directory

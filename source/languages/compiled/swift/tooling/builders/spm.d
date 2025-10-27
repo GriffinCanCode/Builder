@@ -19,10 +19,10 @@ import utils.logging.logger;
 class SPMBuilder : SwiftBuilder
 {
     SwiftBuildResult build(
-        string[] sources,
-        SwiftConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in SwiftConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         SwiftBuildResult result;
@@ -171,11 +171,11 @@ class SPMBuilder : SwiftBuilder
         final switch (config.mode)
         {
             case SPMBuildMode.Build:
-                res = runner.runBuild(args, config.env);
+                res = runner.runBuild(args, cast(string[string])config.env);
                 break;
             case SPMBuildMode.Run:
                 // Build first, then run
-                res = runner.runBuild(args, config.env);
+                res = runner.runBuild(args, cast(string[string])config.env);
                 if (res.status == 0)
                 {
                     auto runRunner = new SwiftRunRunner(config.packagePath);
@@ -183,7 +183,7 @@ class SPMBuilder : SwiftBuilder
                         config.product,
                         [],
                         config.buildConfig == SwiftBuildConfig.Debug ? "debug" : "release",
-                        config.env
+                        cast(string[string])config.env
                     );
                     result.success = runRes.status == 0;
                     if (runRes.status != 0)
@@ -193,12 +193,12 @@ class SPMBuilder : SwiftBuilder
             case SPMBuildMode.Test:
                 auto testRunner = new SwiftTestRunner(config.packagePath);
                 res = testRunner.test(
-                    config.testing.filter,
-                    config.testing.skip,
+                    cast(string[])config.testing.filter.dup,
+                    cast(string[])config.testing.skip.dup,
                     config.testing.parallel,
                     config.testing.enableCodeCoverage,
                     config.testing.numWorkers,
-                    config.env
+                    cast(string[string])config.env
                 );
                 
                 // Parse test results
@@ -207,7 +207,7 @@ class SPMBuilder : SwiftBuilder
             case SPMBuildMode.Check:
                 // Type check only
                 args ~= ["--build-tests"];
-                res = runner.runBuild(args, config.env);
+                res = runner.runBuild(args, cast(string[string])config.env);
                 break;
             case SPMBuildMode.Clean:
                 auto spmRunner = new SPMRunner(config.packagePath);
@@ -232,7 +232,7 @@ class SPMBuilder : SwiftBuilder
                     return result;
                 }
             case SPMBuildMode.Custom:
-                res = runner.runBuild(args, config.env);
+                res = runner.runBuild(args, cast(string[string])config.env);
                 break;
         }
         
@@ -294,7 +294,7 @@ class SPMBuilder : SwiftBuilder
         }
     }
     
-    private string[] getBuildOutputs(SwiftConfig config, WorkspaceConfig workspace)
+    private string[] getBuildOutputs(in SwiftConfig config, in WorkspaceConfig workspace)
     {
         string[] outputs;
         

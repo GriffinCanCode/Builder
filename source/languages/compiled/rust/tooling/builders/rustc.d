@@ -18,10 +18,10 @@ import utils.logging.logger;
 class RustcBuilder : RustBuilder
 {
     RustCompileResult build(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         RustCompileResult result;
@@ -78,10 +78,10 @@ class RustcBuilder : RustBuilder
     }
     
     private RustCompileResult compileTarget(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         RustCompileResult result;
@@ -187,10 +187,10 @@ class RustcBuilder : RustBuilder
     }
     
     private RustCompileResult checkTarget(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         RustCompileResult result;
@@ -244,10 +244,10 @@ class RustcBuilder : RustBuilder
     }
     
     private RustCompileResult testTarget(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         RustCompileResult result;
@@ -304,10 +304,10 @@ class RustcBuilder : RustBuilder
     }
     
     private RustCompileResult compileCustom(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         RustCompileResult result;

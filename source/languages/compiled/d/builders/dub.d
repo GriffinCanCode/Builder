@@ -27,10 +27,10 @@ class DubBuilder : DBuilder
     }
     
     DCompileResult build(
-        string[] sources,
-        DConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in DConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         DCompileResult result;
@@ -278,9 +278,9 @@ class DubBuilder : DBuilder
     }
     
     private string[] determineOutputs(
-        DConfig config,
-        Target target,
-        WorkspaceConfig workspace,
+        in DConfig config,
+        in Target target,
+        in WorkspaceConfig workspace,
         string projectDir
     )
     {

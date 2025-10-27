@@ -98,7 +98,7 @@ class MakeBuilder : BaseCppBuilder
         return "unknown";
     }
     
-    private string findMakefile(string[] sources)
+    private string findMakefile(in string[] sources)
     {
         if (sources.empty)
             return "";
@@ -122,7 +122,7 @@ class MakeBuilder : BaseCppBuilder
         return "";
     }
     
-    private CppCompileResult buildMake(string projectDir, CppConfig config, Target target)
+    private CppCompileResult buildMake(string projectDir, in CppConfig config, in Target target)
     {
         CppCompileResult result;
         
@@ -165,7 +165,7 @@ class MakeBuilder : BaseCppBuilder
         return result;
     }
     
-    private string findMakeOutput(string projectDir, Target target, WorkspaceConfig workspace)
+    private string findMakeOutput(string projectDir, in Target target, in WorkspaceConfig workspace)
     {
         string[] searchDirs = [
             projectDir,

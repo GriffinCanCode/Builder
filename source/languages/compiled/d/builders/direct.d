@@ -28,10 +28,10 @@ class DirectCompilerBuilder : DBuilder
     }
     
     DCompileResult build(
-        string[] sources,
-        DConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in DConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         DCompileResult result;
@@ -157,7 +157,7 @@ class DirectCompilerBuilder : DBuilder
         }
     }
     
-    private string getOutputPath(DConfig config, Target target, WorkspaceConfig workspace)
+    private string getOutputPath(in DConfig config, in Target target, in WorkspaceConfig workspace)
     {
         if (!target.outputPath.empty)
         {
@@ -173,7 +173,7 @@ class DirectCompilerBuilder : DBuilder
         return buildPath(workspace.options.outputDir, name);
     }
     
-    private string[] buildCompilerCommand(string[] sources, string outputPath, DConfig config)
+    private string[] buildCompilerCommand(in string[] sources, string outputPath, in DConfig config)
     {
         string[] cmd = [compilerCmd];
         
@@ -496,7 +496,7 @@ class DirectCompilerBuilder : DBuilder
         }
     }
     
-    private void generateDocumentation(string[] sources, DConfig config, ref DCompileResult result)
+    private void generateDocumentation(in string[] sources, in DConfig config, ref DCompileResult result)
     {
         string[] cmd = [compilerCmd];
         cmd ~= "-D";
@@ -522,7 +522,7 @@ class DirectCompilerBuilder : DBuilder
         }
     }
     
-    private void generateJSON(string[] sources, DConfig config, ref DCompileResult result)
+    private void generateJSON(in string[] sources, in DConfig config, ref DCompileResult result)
     {
         string[] cmd = [compilerCmd];
         cmd ~= "-X";

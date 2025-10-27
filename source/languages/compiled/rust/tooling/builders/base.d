@@ -112,7 +112,7 @@ class NullRustBuilder : RustBuilder
         
         result.success = true;
         result.outputHash = FastHash.hashStrings(sources);
-        result.outputs = sources;
+        result.outputs = sources.dup;
         
         return result;
     }
