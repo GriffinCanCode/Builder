@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import languages.scripting.lua.tooling.builders.base;
-import languages.scripting.lua.tooling.detection;
+import languages.scripting.lua.tooling.detection : isAvailable, getRuntimeCommand;
 import languages.scripting.lua.core.config;
 import config.schema.schema;
 import analysis.targets.spec;
@@ -100,9 +100,9 @@ class ScriptBuilder : LuaBuilder
     override bool isAvailable()
     {
         // Check if any Lua interpreter is available
-        return isAvailable("lua") || isAvailable("luajit") ||
-               isAvailable("lua5.4") || isAvailable("lua5.3") ||
-               isAvailable("lua5.2") || isAvailable("lua5.1");
+        return .isAvailable("lua") || .isAvailable("luajit") ||
+               .isAvailable("lua5.4") || .isAvailable("lua5.3") ||
+               .isAvailable("lua5.2") || .isAvailable("lua5.1");
     }
     
     override string name() const

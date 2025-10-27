@@ -8,8 +8,9 @@ import std.algorithm;
 import std.array;
 import std.regex;
 import std.conv;
+import std.string : strip;
 import languages.scripting.lua.tooling.testers.base;
-import languages.scripting.lua.tooling.detection;
+import languages.scripting.lua.tooling.detection : isAvailable, getRuntimeCommand;
 import languages.scripting.lua.core.config;
 import config.schema.schema;
 import analysis.targets.spec;
@@ -31,7 +32,7 @@ class LuaUnitTester : Tester
         // Get Lua interpreter
         string luaCmd = getRuntimeCommand(config.runtime);
         
-        if (!isAvailable(luaCmd))
+        if (!.isAvailable(luaCmd))
         {
             result.error = "Lua interpreter not found: " ~ luaCmd;
             return result;

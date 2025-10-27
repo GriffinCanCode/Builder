@@ -470,7 +470,7 @@ class PHPHandler : BaseLanguageHandler
     }
     
     /// Parse PHP configuration from target
-    private PHPConfig parsePHPConfig(Target target)
+    private PHPConfig parsePHPConfig(const Target target)
     {
         PHPConfig config;
         
@@ -500,8 +500,8 @@ class PHPHandler : BaseLanguageHandler
     /// Enhance configuration based on project structure
     private void enhanceConfigFromProject(
         ref PHPConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        const Target target,
+        const WorkspaceConfig workspace
     )
     {
         if (target.sources.empty)

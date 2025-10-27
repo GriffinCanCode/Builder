@@ -21,7 +21,7 @@ import utils.logging.logger;
 /// Go build handler - modular and extensible
 class GoHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
     {
         LanguageBuildResult result;
         
@@ -53,7 +53,7 @@ class GoHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(in Target target, in WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config) @trusted
     {
         string[] outputs;
         
@@ -79,10 +79,10 @@ class GoHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         GoConfig goConfig
-    )
+    ) @trusted
     {
         LanguageBuildResult result;
         
@@ -98,7 +98,7 @@ class GoHandler : BaseLanguageHandler
         Logger.debug_("Using builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Build
-        auto buildResult = builder.build(target.sources, goConfig, target, config);
+        auto buildResult = builder.build(cast(string[])target.sources, goConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -119,10 +119,10 @@ class GoHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         GoConfig goConfig
-    )
+    ) @trusted
     {
         // Libraries in Go are just packages - build them to ensure compilation
         goConfig.mode = GoBuildMode.Library;
@@ -140,7 +140,7 @@ class GoHandler : BaseLanguageHandler
         
         // For libraries, we typically just want to ensure compilation
         // The actual package will be used by other Go code
-        auto buildResult = builder.build(target.sources, goConfig, target, config);
+        auto buildResult = builder.build(cast(string[])target.sources, goConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         LanguageBuildResult result;
         result.success = buildResult.success;
@@ -152,10 +152,10 @@ class GoHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         GoConfig goConfig
-    )
+    ) @trusted
     {
         LanguageBuildResult result;
         
@@ -238,10 +238,10 @@ class GoHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         GoConfig goConfig
-    )
+    ) @safe
     {
         LanguageBuildResult result;
         result.success = true;
@@ -250,7 +250,7 @@ class GoHandler : BaseLanguageHandler
     }
     
     /// Parse Go configuration from target
-    private GoConfig parseGoConfig(Target target)
+    private GoConfig parseGoConfig(const Target target) @trusted
     {
         GoConfig config;
         
@@ -280,9 +280,9 @@ class GoHandler : BaseLanguageHandler
     /// Enhance configuration based on project structure
     private void enhanceConfigFromProject(
         ref GoConfig config,
-        Target target,
-        WorkspaceConfig workspace
-    )
+        const Target target,
+        const WorkspaceConfig workspace
+    ) @trusted
     {
         if (target.sources.empty)
             return;
@@ -337,7 +337,7 @@ class GoHandler : BaseLanguageHandler
     }
     
     /// Check if source file contains CGO code
-    private bool hasCGoCode(string filePath)
+    private bool hasCGoCode(string filePath) @trusted
     {
         try
         {
@@ -359,7 +359,7 @@ class GoHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(in string[] sources)
+    override Import[] analyzeImports(in string[] sources) @trusted
     {
         auto spec = getLanguageSpec(TargetLanguage.Go);
         if (spec is null)

@@ -22,7 +22,7 @@ import utils.logging.logger;
 /// Elixir build handler - comprehensive and modular
 class ElixirHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
     {
         LanguageBuildResult result;
         
@@ -58,7 +58,7 @@ class ElixirHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(in Target target, in WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config) @trusted
     {
         string[] outputs;
         
@@ -86,17 +86,17 @@ class ElixirHandler : BaseLanguageHandler
                 case ElixirProjectType.PhoenixLiveView:
                 case ElixirProjectType.Library:
                     // BEAM files in _build directory
-                    string buildPath = elixirConfig.project.buildPath;
+                    string buildDir = elixirConfig.project.buildPath;
                     string envDir = envToString(elixirConfig.env);
-                    outputs ~= buildPath(buildPath, envDir, "lib");
+                    outputs ~= buildPath(buildDir, envDir, "lib");
                     break;
                 case ElixirProjectType.Umbrella:
                     // Each app in umbrella
-                    string buildPath = elixirConfig.project.buildPath;
+                    string buildDir = elixirConfig.project.buildPath;
                     string envDir = envToString(elixirConfig.env);
                     foreach (app; elixirConfig.umbrella.apps)
                     {
-                        outputs ~= buildPath(buildPath, envDir, "lib", app);
+                        outputs ~= buildPath(buildDir, envDir, "lib", app);
                     }
                     break;
                 case ElixirProjectType.Nerves:
@@ -121,7 +121,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    )
+    ) @trusted
     {
         LanguageBuildResult result;
         
@@ -138,7 +138,7 @@ class ElixirHandler : BaseLanguageHandler
             Logger.info("Auto-formatting code");
             auto formatResult = Formatter.format(
                 elixirConfig.format,
-                target.sources,
+                cast(string[])target.sources,
                 mixCmd,
                 elixirConfig.format.checkFormatted
             );
@@ -191,7 +191,7 @@ class ElixirHandler : BaseLanguageHandler
         
         Logger.debug_("Using builder: " ~ builder.name());
         
-        auto buildResult = builder.build(target.sources, elixirConfig, target, config);
+        auto buildResult = builder.build(cast(string[])target.sources, elixirConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -223,7 +223,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    )
+    ) @trusted
     {
         LanguageBuildResult result;
         
@@ -245,7 +245,7 @@ class ElixirHandler : BaseLanguageHandler
         {
             auto formatResult = Formatter.format(
                 elixirConfig.format,
-                target.sources,
+                cast(string[])target.sources,
                 mixCmd,
                 elixirConfig.format.checkFormatted
             );
@@ -281,7 +281,7 @@ class ElixirHandler : BaseLanguageHandler
         
         // Build
         auto builder = BuilderFactory.create(elixirConfig.projectType, elixirConfig);
-        auto buildResult = builder.build(target.sources, elixirConfig, target, config);
+        auto buildResult = builder.build(cast(string[])target.sources, elixirConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -311,7 +311,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    )
+    ) @trusted
     {
         LanguageBuildResult result;
         
@@ -404,12 +404,12 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildCustom(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    )
+    ) @safe
     {
         LanguageBuildResult result;
         result.success = true;
@@ -418,7 +418,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Parse Elixir configuration from target
-    private ElixirConfig parseElixirConfig(const Target target)
+    private ElixirConfig parseElixirConfig(const Target target) @trusted
     {
         ElixirConfig config;
         
@@ -449,8 +449,8 @@ class ElixirHandler : BaseLanguageHandler
     private void enhanceConfigFromProject(
         ref ElixirConfig config,
         const Target target,
-        WorkspaceConfig workspace
-    )
+        const WorkspaceConfig workspace
+    ) @trusted
     {
         if (target.sources.empty)
             return;
@@ -531,7 +531,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Setup Elixir environment and return Elixir command to use
-    private string setupElixirEnvironment(ElixirConfig config, string projectRoot)
+    private string setupElixirEnvironment(ElixirConfig config, string projectRoot) @trusted
     {
         string elixirCmd = "elixir";
         
@@ -565,7 +565,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Setup Mix command
-    private string setupMixCommand(ElixirConfig config, string projectRoot)
+    private string setupMixCommand(ElixirConfig config, string projectRoot) @trusted
     {
         string mixCmd = "mix";
         
@@ -585,7 +585,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Pre-build steps (dependencies, compilation)
-    private bool preBuildSteps(ElixirConfig config, string projectRoot, string mixCmd)
+    private bool preBuildSteps(ElixirConfig config, string projectRoot, string mixCmd) @trusted
     {
         // Clean if requested
         if (config.clean)
@@ -642,7 +642,7 @@ class ElixirHandler : BaseLanguageHandler
         string projectRoot,
         string mixCmd,
         ElixirBuildResult buildResult
-    )
+    ) @trusted
     {
         // Run Dialyzer if configured (post-build for type checking)
         if (config.dialyzer.enabled)
@@ -679,7 +679,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Convert MixEnv to string
-    private string envToString(MixEnv env)
+    private string envToString(MixEnv env) @safe pure nothrow
     {
         final switch (env)
         {
@@ -690,7 +690,7 @@ class ElixirHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(in string[] sources)
+    override Import[] analyzeImports(in string[] sources) @trusted
     {
         auto spec = getLanguageSpec(TargetLanguage.Elixir);
         if (spec is null)

@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import languages.scripting.lua.tooling.builders.base;
-import languages.scripting.lua.tooling.detection;
+import languages.scripting.lua.tooling.detection : isAvailable, getCompilerCommand;
 import languages.scripting.lua.core.config;
 import config.schema.schema;
 import analysis.targets.spec;
@@ -35,7 +35,7 @@ class BytecodeBuilder : LuaBuilder
         // Get Lua compiler
         string luacCmd = getCompilerCommand(config.runtime);
         
-        if (!isAvailable(luacCmd))
+        if (!.isAvailable(luacCmd))
         {
             result.error = "Lua compiler not found: " ~ luacCmd;
             return result;
@@ -117,9 +117,9 @@ class BytecodeBuilder : LuaBuilder
     
     override bool isAvailable()
     {
-        return isAvailable("luac") || isAvailable("luac5.4") ||
-               isAvailable("luac5.3") || isAvailable("luac5.2") ||
-               isAvailable("luac5.1");
+        return .isAvailable("luac") || .isAvailable("luac5.4") ||
+               .isAvailable("luac5.3") || .isAvailable("luac5.2") ||
+               .isAvailable("luac5.1");
     }
     
     override string name() const

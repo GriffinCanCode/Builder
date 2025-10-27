@@ -138,30 +138,45 @@ final class DependencyAnalyzer
     }
     
     /// Get dependencies for specific environment
-    static DependencyInfo[] getDepsForEnv(scope const(DependencyInfo)[] deps, string env) @safe pure
+    static DependencyInfo[] getDepsForEnv(scope const(DependencyInfo)[] deps, string env) @trusted pure
     {
-        return deps
-            .filter!(d => d.environments.empty || d.environments.canFind(env))
-            .array;
+        DependencyInfo[] result;
+        foreach (dep; deps)
+        {
+            if (dep.environments.empty || dep.environments.canFind(env))
+                result ~= cast(DependencyInfo)dep;
+        }
+        return result;
     }
     
     /// Get runtime dependencies only
-    static DependencyInfo[] getRuntimeDeps(scope const(DependencyInfo)[] deps) @safe pure nothrow
+    static DependencyInfo[] getRuntimeDeps(scope const(DependencyInfo)[] deps) @trusted pure nothrow
     {
-        return deps.filter!(d => d.runtime).array;
+        DependencyInfo[] result;
+        foreach (dep; deps)
+        {
+            if (dep.runtime)
+                result ~= cast(DependencyInfo)dep;
+        }
+        return result;
     }
     
     /// Get optional dependencies
-    static DependencyInfo[] getOptionalDeps(scope const(DependencyInfo)[] deps) @safe pure nothrow
+    static DependencyInfo[] getOptionalDeps(scope const(DependencyInfo)[] deps) @trusted pure nothrow
     {
-        return deps.filter!(d => d.optional).array;
+        DependencyInfo[] result;
+        foreach (dep; deps)
+        {
+            if (dep.optional)
+                result ~= cast(DependencyInfo)dep;
+        }
+        return result;
     }
     
     /// Build dependency graph (simple version)
     static string[string] buildDependencyGraph(scope const(DependencyInfo)[] deps) @safe pure
     {
         string[string] graph;
-        graph.reserve(deps.length);
         
         foreach (ref dep; deps)
         {

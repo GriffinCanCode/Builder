@@ -8,7 +8,8 @@ import std.algorithm;
 import std.array;
 import std.format;
 import languages.scripting.lua.tooling.builders.base;
-import languages.scripting.lua.tooling.detection;
+import languages.scripting.lua.tooling.detection : isAvailable;
+import std.conv : to;
 import languages.scripting.lua.core.config;
 import config.schema.schema;
 import analysis.targets.spec;
@@ -36,7 +37,7 @@ class LuaJITBuilder : LuaBuilder
         // Get LuaJIT path
         string luajitCmd = config.luajit.jitPath;
         
-        if (!isAvailable(luajitCmd))
+        if (!.isAvailable(luajitCmd))
         {
             result.error = "LuaJIT not found: " ~ luajitCmd;
             return result;
@@ -56,7 +57,7 @@ class LuaJITBuilder : LuaBuilder
     
     override bool isAvailable()
     {
-        return isAvailable("luajit");
+        return .isAvailable("luajit");
     }
     
     override string name() const

@@ -23,7 +23,7 @@ class MixProjectBuilder : ElixirBuilder
         ElixirConfig config,
         Target target,
         WorkspaceConfig workspace
-    )
+    ) @trusted
     {
         ElixirBuildResult result;
         
@@ -94,8 +94,8 @@ class MixProjectBuilder : ElixirBuilder
         result.warnings = parseCompilerWarnings(res.output);
         
         // Determine output paths
-        string buildPath = config.project.buildPath;
-        string outputDir = buildPath(buildPath, mixEnv, "lib");
+        string buildDir = config.project.buildPath;
+        string outputDir = buildPath(buildDir, mixEnv, "lib");
         
         if (exists(outputDir))
         {
@@ -121,19 +121,19 @@ class MixProjectBuilder : ElixirBuilder
         return result;
     }
     
-    override bool isAvailable()
+    override bool isAvailable() @trusted
     {
         auto res = execute(["mix", "--version"]);
         return res.status == 0;
     }
     
-    override string name() const
+    override string name() const @safe pure nothrow
     {
         return "Mix Project";
     }
     
     /// Parse compiler warnings from output
-    private string[] parseCompilerWarnings(string output)
+    private string[] parseCompilerWarnings(string output) @trusted
     {
         string[] warnings;
         
@@ -154,7 +154,7 @@ class MixProjectBuilder : ElixirBuilder
     }
     
     /// Convert MixEnv to string
-    private string envToString(MixEnv env)
+    private string envToString(MixEnv env) @safe pure nothrow
     {
         final switch (env)
         {

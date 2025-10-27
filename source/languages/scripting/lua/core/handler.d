@@ -7,11 +7,13 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv;
 import languages.base.base;
 import languages.scripting.lua.core.config;
 import languages.scripting.lua.tooling.detection;
 import languages.scripting.lua.tooling.builders;
 import languages.scripting.lua.managers.luarocks;
+import languages.scripting.lua.tooling.detection : isLuaRocksAvailable;
 import languages.scripting.lua.tooling.formatters;
 import languages.scripting.lua.tooling.checkers;
 import languages.scripting.lua.tooling.testers;
@@ -24,7 +26,7 @@ import utils.logging.logger;
 /// Lua language build handler - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
     {
         LanguageBuildResult result;
         
@@ -67,7 +69,7 @@ class LuaHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(in Target target, in WorkspaceConfig config)
+    override string[] getOutputs(in Target target, in WorkspaceConfig config) @trusted
     {
         LuaConfig luaConfig = parseLuaConfig(target);
         string[] outputs;
@@ -108,7 +110,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build executable target
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @trusted
     {
         LanguageBuildResult result;
         
@@ -150,7 +152,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Select and run appropriate builder
         auto builder = selectBuilder(luaConfig);
-        auto buildResult = builder.build(target.sources, luaConfig, target, config);
+        auto buildResult = builder.build(cast(string[])target.sources, luaConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         if (!buildResult.success)
         {
@@ -166,7 +168,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build library target
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @trusted
     {
         LanguageBuildResult result;
         
@@ -206,7 +208,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Build library
         auto builder = selectBuilder(luaConfig);
-        auto buildResult = builder.build(target.sources, luaConfig, target, config);
+        auto buildResult = builder.build(cast(string[])target.sources, luaConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -217,7 +219,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Run tests
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @trusted
     {
         LanguageBuildResult result;
         
@@ -239,7 +241,7 @@ class LuaHandler : BaseLanguageHandler
         }
         
         // Run tests
-        auto testResult = tester.runTests(target.sources, luaConfig, target, config);
+        auto testResult = tester.runTests(cast(string[])target.sources, luaConfig, cast(Target)target, cast(WorkspaceConfig)config);
         
         result.success = testResult.success;
         result.error = testResult.error;
@@ -249,7 +251,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build custom target
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, LuaConfig luaConfig)
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @safe
     {
         LanguageBuildResult result;
         result.success = true;
@@ -258,7 +260,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Parse Lua configuration from target
-    private LuaConfig parseLuaConfig(in Target target)
+    private LuaConfig parseLuaConfig(in Target target) @trusted
     {
         LuaConfig config;
         
@@ -292,7 +294,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Validate configuration
-    private string validateConfig(LuaConfig config, Target target)
+    private string validateConfig(LuaConfig config, const Target target) @trusted
     {
         import std.format : format;
         
@@ -351,7 +353,7 @@ class LuaHandler : BaseLanguageHandler
         string error;
     }
     
-    private DependencyResult installDependencies(Target target, LuaConfig config)
+    private DependencyResult installDependencies(const Target target, LuaConfig config) @trusted
     {
         DependencyResult result;
         
@@ -361,15 +363,62 @@ class LuaHandler : BaseLanguageHandler
             return result;
         }
         
-        // TODO: Implement LuaRocks manager integration
-        Logger.warning("LuaRocks dependency management not yet implemented");
-        result.success = true;
+        // Check if LuaRocks is available
+        if (!isLuaRocksAvailable())
+        {
+            result.error = "LuaRocks is not installed or not in PATH";
+            return result;
+        }
         
+        // Create LuaRocks manager
+        auto manager = new LuaRocksManager(config.luarocks);
+        
+        // Find rockspec file
+        string rockspecFile = findRockspec(target);
+        
+        if (!rockspecFile.empty)
+        {
+            // Install dependencies from rockspec
+            Logger.info("Installing dependencies from rockspec: " ~ rockspecFile);
+            auto rockResult = manager.installDependencies(rockspecFile);
+            
+            if (!rockResult.success)
+            {
+                result.error = rockResult.error;
+                return result;
+            }
+            
+            Logger.info("Successfully installed dependencies from rockspec");
+        }
+        else if (!config.luarocks.dependencies.empty)
+        {
+            // Install specified rocks
+            Logger.info("Installing " ~ config.luarocks.dependencies.length.to!string ~ " rocks");
+            
+            foreach (rock; config.luarocks.dependencies)
+            {
+                auto rockResult = manager.installRock(rock);
+                
+                if (!rockResult.success)
+                {
+                    result.error = "Failed to install rock '" ~ rock ~ "': " ~ rockResult.error;
+                    return result;
+                }
+                
+                Logger.info("Installed rock: " ~ rock);
+            }
+        }
+        else
+        {
+            Logger.debug_("No rockspec file found and no rocks specified, skipping dependency installation");
+        }
+        
+        result.success = true;
         return result;
     }
     
     /// Find rockspec file in project
-    private string findRockspec(Target target)
+    private string findRockspec(const Target target) @trusted
     {
         if (target.sources.empty)
             return "";
@@ -401,7 +450,7 @@ class LuaHandler : BaseLanguageHandler
         string error;
     }
     
-    private FormatResult runFormatter(Target target, LuaConfig config)
+    private FormatResult runFormatter(const Target target, LuaConfig config) @trusted
     {
         FormatResult result;
         
@@ -414,7 +463,7 @@ class LuaHandler : BaseLanguageHandler
             return result;
         }
         
-        auto fmtResult = formatter.format(target.sources, config);
+        auto fmtResult = formatter.format(cast(string[])target.sources, config);
         result.success = fmtResult.success;
         result.error = fmtResult.error;
         
@@ -428,7 +477,7 @@ class LuaHandler : BaseLanguageHandler
         string error;
     }
     
-    private LintResult runLinter(Target target, LuaConfig config)
+    private LintResult runLinter(const Target target, LuaConfig config) @trusted
     {
         LintResult result;
         
@@ -441,7 +490,7 @@ class LuaHandler : BaseLanguageHandler
             return result;
         }
         
-        auto checkResult = checker.check(target.sources, config);
+        auto checkResult = checker.check(cast(string[])target.sources, config);
         result.success = checkResult.success;
         result.error = checkResult.error;
         
@@ -455,7 +504,7 @@ class LuaHandler : BaseLanguageHandler
         string error;
     }
     
-    private SyntaxResult validateSyntax(string source, LuaConfig config)
+    private SyntaxResult validateSyntax(string source, LuaConfig config) @trusted
     {
         SyntaxResult result;
         
@@ -485,7 +534,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Get Lua compiler path
-    private string getLuaCompiler(LuaConfig config)
+    private string getLuaCompiler(LuaConfig config) @trusted
     {
         // Try LuaJIT first if enabled
         if (config.luajit.enabled && isCommandAvailable("luajit"))
@@ -528,13 +577,13 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Select appropriate builder based on config
-    private LuaBuilder selectBuilder(LuaConfig config)
+    private LuaBuilder selectBuilder(LuaConfig config) @safe
     {
         return BuilderFactory.create(config.mode, config);
     }
     
     /// Auto-detect test framework
-    private LuaTestFramework detectTestFramework(Target target)
+    private LuaTestFramework detectTestFramework(const Target target) @trusted
     {
         // Check if busted is available
         if (isCommandAvailable("busted"))
@@ -564,7 +613,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Check if command is available
-    private bool isCommandAvailable(string command)
+    private bool isCommandAvailable(string command) @trusted
     {
         version(Windows)
         {
@@ -579,7 +628,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Convert runtime enum to string
-    private string runtimeToString(LuaRuntime runtime)
+    private string runtimeToString(LuaRuntime runtime) @safe pure nothrow
     {
         final switch (runtime)
         {
@@ -594,7 +643,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Convert test framework enum to string
-    private string testFrameworkToString(LuaTestFramework framework)
+    private string testFrameworkToString(LuaTestFramework framework) @safe pure nothrow
     {
         final switch (framework)
         {
@@ -607,7 +656,7 @@ class LuaHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(in string[] sources)
+    override Import[] analyzeImports(in string[] sources) @trusted
     {
         auto spec = getLanguageSpec(TargetLanguage.Lua);
         if (spec is null)

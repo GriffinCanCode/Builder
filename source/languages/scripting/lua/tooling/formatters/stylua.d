@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.regex;
 import std.conv;
+import std.string : strip;
 import languages.scripting.lua.tooling.formatters.base;
 import languages.scripting.lua.tooling.detection;
 import languages.scripting.lua.core.config;
