@@ -35,7 +35,9 @@ class FileScanner
         }
         catch (Exception e)
         {
-            // File read error, skip
+            // File read error, log for debugging
+            import utils.logging.logger : Logger;
+            Logger.debugLog("Failed to scan file for imports: " ~ path ~ ": " ~ e.msg);
         }
         
         return imports;
