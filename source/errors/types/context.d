@@ -12,6 +12,22 @@ struct ErrorContext
     SysTime timestamp;    // When the error occurred
     string location;      // Source location (file:line)
     
+    /// Constructor: Create error context with current timestamp
+    /// 
+    /// Safety: This constructor is @trusted because:
+    /// 1. Clock.currTime() is system call (reads system clock)
+    /// 2. All other operations are simple field assignments
+    /// 3. String parameters are safely copied by value
+    /// 4. SysTime is a safe D type with no pointers
+    /// 
+    /// Invariants:
+    /// - timestamp is set to current system time at creation
+    /// - All string fields are immutable after construction
+    /// - No dynamic memory management beyond D's GC
+    /// 
+    /// What could go wrong:
+    /// - Clock read fails: would throw exception (safe failure)
+    /// - Timestamp precision varies by OS: acceptable variance
     this(string operation, string details = "", string location = "") @trusted
     {
         this.operation = operation;

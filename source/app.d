@@ -5,6 +5,7 @@ import std.array;
 import std.conv;
 import core.graph.graph;
 import core.execution.executor;
+import core.services;
 import core.telemetry;
 import config.parsing.parser;
 import analysis.inference.analyzer;
@@ -15,21 +16,9 @@ import cli;
 import cli.commands;
 import tools;
 
-/// Initialize SIMD acceleration system
-void initializeSIMD() @trusted
-{
-    SIMDDispatch.initialize();
-    
-    version(Verbose) {
-        Logger.debug_("SIMD initialized: " ~ CPU.simdLevelName());
-    }
-}
-
 void main(string[] args)
 {
-    // Initialize SIMD dispatch system
-    initializeSIMD();
-    
+    // SIMD now auto-initializes on first use (see utils.simd.dispatch)
     Logger.initialize();
     
     string command = "build";
@@ -129,6 +118,7 @@ void printHelp() @safe
     writeln("  builder telemetry                # View build analytics and insights");
 }
 
+/// Build command handler (refactored to use dependency injection)
 void buildCommand(in string target, in bool showGraph, in string modeStr) @trusted
 {
     Logger.info("Starting build...");
@@ -147,9 +137,16 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @trust
     auto config = configResult.unwrap();
     Logger.info("Found " ~ config.targets.length.to!string ~ " targets");
     
+    // Create services with dependency injection
+    auto services = new BuildServices(config, config.options);
+    
+    // Set render mode
+    immutable renderMode = parseRenderMode(modeStr);
+    services.setRenderMode(renderMode);
+    auto renderer = services.getRenderer();
+    
     // Analyze dependencies
-    auto analyzer = new DependencyAnalyzer(config);
-    auto graph = analyzer.analyze(target);
+    auto graph = services.analyzer.analyze(target);
     
     if (showGraph)
     {
@@ -157,51 +154,13 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @trust
         graph.print();
     }
     
-    // Determine render mode
-    immutable renderMode = parseRenderMode(modeStr);
-    
-    // Create event publisher and renderer
-    auto publisher = new SimpleEventPublisher();
-    auto renderer = RendererFactory.createWithPublisher(publisher, renderMode);
-    
-    // Initialize telemetry system
-    auto telemetryConfig = TelemetryConfig.fromEnvironment();
-    auto telemetryCollector = new TelemetryCollector();
-    auto telemetryStorage = new TelemetryStorage(".builder-telemetry", telemetryConfig);
-    
-    if (telemetryConfig.enabled)
-    {
-        publisher.subscribe(telemetryCollector);
-        Logger.debug_("Telemetry collection enabled");
-    }
-    
     // Execute build with event publishing
-    auto executor = new BuildExecutor(graph, config, 0, publisher);
+    auto executor = services.createExecutor(graph);
     executor.execute();
     executor.shutdown();
     
-    // Persist telemetry data
-    if (telemetryConfig.enabled)
-    {
-        auto sessionResult = telemetryCollector.getSession();
-        if (sessionResult.isOk)
-        {
-            auto session = sessionResult.unwrap();
-            auto appendResult = telemetryStorage.append(session);
-            
-            if (appendResult.isErr)
-            {
-                Logger.warning("Failed to persist telemetry: " ~ appendResult.unwrapErr().toString());
-            }
-            else
-            {
-                Logger.debug_("Telemetry data persisted successfully");
-            }
-        }
-    }
-    
-    // Flush any remaining output
-    renderer.flush();
+    // Cleanup and persist telemetry
+    services.shutdown();
     
     Logger.success("Build completed successfully!");
 }
@@ -225,6 +184,23 @@ RenderMode parseRenderMode(in string mode) @safe pure
         return RenderMode.Auto; // Default fallback
 }
 
+/// Clean command handler - removes build artifacts and cache
+/// 
+/// Safety: This function is @trusted because:
+/// 1. exists() and rmdirRecurse() are file system operations (inherently @system)
+/// 2. Hardcoded directory names prevent path traversal
+/// 3. Checks existence before attempting deletion
+/// 4. rmdirRecurse is safe for non-existent paths
+/// 
+/// Invariants:
+/// - Only removes .builder-cache and bin directories
+/// - No user-provided paths (prevents injection)
+/// - Existence checked before deletion
+/// 
+/// What could go wrong:
+/// - Permission denied: exception thrown (safe failure)
+/// - Directory in use: exception thrown (safe failure)
+/// - Hardcoded paths ensure no accidental deletion of user data
 void cleanCommand() @trusted
 {
     Logger.info("Cleaning build cache...");
@@ -240,6 +216,7 @@ void cleanCommand() @trusted
     Logger.success("Clean completed!");
 }
 
+/// Graph command handler - visualizes dependency graph (refactored with DI)
 void graphCommand(in string target) @trusted
 {
     Logger.info("Analyzing dependency graph...");
@@ -256,12 +233,15 @@ void graphCommand(in string target) @trusted
     }
     
     auto config = configResult.unwrap();
-    auto analyzer = new DependencyAnalyzer(config);
-    auto graph = analyzer.analyze(target);
+    
+    // Create services (lightweight for analysis-only operation)
+    auto services = new BuildServices(config, config.options);
+    auto graph = services.analyzer.analyze(target);
     
     graph.print();
 }
 
+/// Resume command handler - continues build from checkpoint (refactored with DI)
 void resumeCommand(in string modeStr) @trusted
 {
     import core.execution.checkpoint : CheckpointManager;
@@ -314,9 +294,16 @@ void resumeCommand(in string modeStr) @trusted
     
     auto config = configResult.unwrap();
     
+    // Create services with dependency injection
+    auto services = new BuildServices(config, config.options);
+    
+    // Set render mode
+    immutable renderMode = parseRenderMode(modeStr);
+    services.setRenderMode(renderMode);
+    auto renderer = services.getRenderer();
+    
     // Rebuild graph
-    auto analyzer = new DependencyAnalyzer(config);
-    auto graph = analyzer.analyze("");
+    auto graph = services.analyzer.analyze("");
     
     // Validate checkpoint
     if (!checkpoint.isValid(graph))
@@ -328,44 +315,34 @@ void resumeCommand(in string modeStr) @trusted
     
     Logger.info("Resuming build...");
     
-    // Determine render mode
-    immutable renderMode = parseRenderMode(modeStr);
-    
-    // Create event publisher and renderer
-    auto publisher = new SimpleEventPublisher();
-    auto renderer = RendererFactory.createWithPublisher(publisher, renderMode);
-    
-    // Initialize telemetry system
-    auto telemetryConfig = TelemetryConfig.fromEnvironment();
-    auto telemetryCollector = new TelemetryCollector();
-    auto telemetryStorage = new TelemetryStorage(".builder-telemetry", telemetryConfig);
-    
-    if (telemetryConfig.enabled)
-    {
-        publisher.subscribe(telemetryCollector);
-    }
-    
     // Execute build with checkpoint resume
-    auto executor = new BuildExecutor(graph, config, 0, publisher);
+    auto executor = services.createExecutor(graph);
     executor.execute();
     executor.shutdown();
     
-    // Persist telemetry data
-    if (telemetryConfig.enabled)
-    {
-        auto sessionResult = telemetryCollector.getSession();
-        if (sessionResult.isOk)
-        {
-            telemetryStorage.append(sessionResult.unwrap());
-        }
-    }
-    
-    // Flush any remaining output
-    renderer.flush();
+    // Cleanup and persist telemetry
+    services.shutdown();
     
     Logger.success("Build resumed and completed successfully!");
 }
 
+/// Install VS Code extension command
+/// 
+/// Safety: This function is @trusted because:
+/// 1. VSCodeExtension.install() performs validated file I/O
+/// 2. Extension installation uses verified paths
+/// 3. Process execution for VS Code CLI is validated
+/// 4. Installation is handled atomically by VSCodeExtension
+/// 
+/// Invariants:
+/// - Extension files are verified before installation
+/// - VS Code presence is detected before attempting install
+/// - Installation errors are reported via exceptions
+/// 
+/// What could go wrong:
+/// - VS Code not installed: detected by VSCodeExtension
+/// - Permission denied: exception thrown and caught
+/// - Extension files missing: validated before install
 void installExtensionCommand() @trusted
 {
     VSCodeExtension.install();

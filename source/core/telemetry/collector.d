@@ -20,6 +20,22 @@ final class TelemetryCollector : EventSubscriber
     }
     
     /// Event handler - thread-safe
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. synchronized block is @system but manually verified memory-safe
+    /// 2. Mutex protects shared state (currentSession, sessionActive)
+    /// 3. All operations inside synchronized are @safe
+    /// 4. No pointer manipulation or unsafe casts
+    /// 
+    /// Invariants:
+    /// - collectorMutex is always non-null (initialized in constructor)
+    /// - Access to currentSession is serialized by mutex
+    /// - Event type is validated by final switch (exhaustive)
+    /// 
+    /// What could go wrong:
+    /// - Mutex is null: prevented by constructor initialization
+    /// - Race condition: prevented by synchronized block
+    /// - Invalid event type: caught by final switch (compile-time safety)
     void onEvent(BuildEvent event) @trusted
     {
         synchronized (collectorMutex)
@@ -67,6 +83,22 @@ final class TelemetryCollector : EventSubscriber
     }
     
     /// Get current session - thread-safe
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. synchronized block is @system but memory-safe
+    /// 2. Returns copy of currentSession (no references to protected data escape)
+    /// 3. sessionActive flag is safely checked under lock
+    /// 4. Result type ensures type-safe error handling
+    /// 
+    /// Invariants:
+    /// - Access to currentSession and sessionActive is protected by mutex
+    /// - Session is only returned if sessionActive is true
+    /// - Return value is independent copy (no aliasing issues)
+    /// 
+    /// What could go wrong:
+    /// - Returning reference to internal data: prevented by value return
+    /// - Race condition: prevented by synchronized block
+    /// - Reading invalid session: checked with sessionActive flag
     Result!(BuildSession, TelemetryError) getSession() @trusted
     {
         synchronized (collectorMutex)
@@ -81,6 +113,21 @@ final class TelemetryCollector : EventSubscriber
     }
     
     /// Reset collector state
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. synchronized block is @system but memory-safe
+    /// 2. Assigns .init value which is always valid
+    /// 3. No memory is leaked (D handles struct cleanup)
+    /// 4. Simple field assignments under lock protection
+    /// 
+    /// Invariants:
+    /// - currentSession reset to valid .init state
+    /// - sessionActive set to false atomically with session clear
+    /// - No partial state visible to other threads
+    /// 
+    /// What could go wrong:
+    /// - Partial reset visible: prevented by synchronized block
+    /// - Memory leak from old session: D's GC handles cleanup
     void reset() @trusted
     {
         synchronized (collectorMutex)

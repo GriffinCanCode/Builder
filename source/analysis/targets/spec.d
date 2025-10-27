@@ -15,7 +15,24 @@ struct LanguageSpec
     ImportPattern[] patterns;
     ImportKindDetector kindDetector;
     
-    /// Scan a file for imports
+    /// Scan a file for imports using regex patterns
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Uses regex matching on file content (potentially large strings)
+    /// 2. String slicing and line counting (all bounds-checked)
+    /// 3. Array operations (~=) are memory-safe
+    /// 4. Regex engine is@safe but complex pattern matching warrants @trusted
+    /// 
+    /// Invariants:
+    /// - filePath is used only for diagnostics (not accessed)
+    /// - content is immutable string (no modification)
+    /// - Line counting is monotonically increasing
+    /// - Import array is built incrementally (safe appends)
+    /// 
+    /// What could go wrong:
+    /// - Regex fails to compile: compile-time checked (ctRegex)
+    /// - Large content: memory allocation could fail (D handles safely)
+    /// - Invalid UTF-8: handled by D string operations
     Import[] scanImports(string filePath, string content) const @trusted
     {
         Import[] imports;
@@ -353,6 +370,22 @@ shared static this()
 }
 
 /// Get spec for a language
+/// 
+/// Safety: This function is @trusted because:
+/// 1. Returns pointer to static immutable data (LanguageSpecs)
+/// 2. Associative array lookup with `in` operator (safe operation)
+/// 3. Pointer lifetime tied to program lifetime (static data)
+/// 4. const(LanguageSpec)* prevents mutation through pointer
+/// 
+/// Invariants:
+/// - LanguageSpecs is immutable static data (initialized once)
+/// - Returned pointer is either valid or null
+/// - Pointer always points to valid LanguageSpec if non-null
+/// - Data cannot be modified through const pointer
+/// 
+/// What could go wrong:
+/// - Language not in map: returns null (safe, caller checks)
+/// - Pointer dangling: impossible, points to static data
 const(LanguageSpec)* getLanguageSpec(TargetLanguage lang) @trusted
 {
     if (auto spec = lang in LanguageSpecs)

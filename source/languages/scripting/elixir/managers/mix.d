@@ -26,7 +26,25 @@ struct MixProjectInfo
 class MixProjectParser
 {
     /// Parse mix.exs file
-    static MixProjectInfo parse(string mixExsPath)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File I/O (exists, isFile, readText) is inherently @system
+    /// 2. Regex matching is memory-safe (std.regex is @safe)
+    /// 3. Exception handling converts failures to invalid result
+    /// 4. Path validation via exists() and isFile()
+    /// 
+    /// Invariants:
+    /// - File existence and type are checked before reading
+    /// - Invalid or missing file returns default (invalid) info
+    /// - Parsing failures are caught, logged, return invalid info
+    /// - All string operations are memory-safe
+    /// 
+    /// What could go wrong:
+    /// - File doesn't exist: checked with exists()
+    /// - Not a regular file: checked with isFile()
+    /// - Read fails: caught by exception handler
+    /// - Malformed mix.exs: regex won't match, returns partial/invalid info (safe)
+    static MixProjectInfo parse(string mixExsPath) @trusted
     {
         MixProjectInfo info;
         
@@ -99,7 +117,25 @@ class MixRunner
     }
     
     /// Run mix task
-    auto runTask(string task, string[] args = [], string[string] env = null)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. execute() runs external processes (inherently @system)
+    /// 2. Command arguments are validated by Mix tool itself
+    /// 3. Uses array form of execute (no shell interpretation)
+    /// 4. workDir and mixCmd are set in constructor (validated at creation)
+    /// 
+    /// Invariants:
+    /// - mixCmd and workDir are set in constructor
+    /// - Command is built from validated components
+    /// - execute() uses array form (no shell injection)
+    /// - Environment vars are optional, validated by execute()
+    /// 
+    /// What could go wrong:
+    /// - Mix not installed: execute() fails, returns non-zero status
+    /// - Invalid task: Mix reports error, returns non-zero status
+    /// - Invalid workDir: execute() fails with exception
+    /// - Command execution fails: reflected in return status (safe)
+    auto runTask(string task, string[] args = [], string[string] env = null) @trusted
     {
         string[] cmd = [mixCmd, task] ~ args;
         

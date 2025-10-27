@@ -115,7 +115,26 @@ struct Capabilities
         return caps;
     }
     
-    private static ushort detectWidth()
+    /// Detect terminal width using ioctl or environment variable
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. ioctl() is system call (inherently @system)
+    /// 2. Takes pointer to stack-allocated winsize struct (safe)
+    /// 3. TIOCGWINSZ is read-only query (no side effects)
+    /// 4. winsize struct is properly initialized before ioctl call
+    /// 5. Fallback to environment variable is safe
+    /// 
+    /// Invariants:
+    /// - winsize struct is stack-allocated (automatic cleanup)
+    /// - ioctl return value is checked before accessing ws.ws_col
+    /// - Environment variable parsing is exception-safe
+    /// - Returns sensible default (80) if detection fails
+    /// 
+    /// What could go wrong:
+    /// - ioctl fails: returns -1, we use fallback (safe)
+    /// - Not a terminal: ioctl fails, we use fallback
+    /// - Invalid COLUMNS env var: caught by exception, uses default
+    private static ushort detectWidth() @trusted
     {
         version(Posix)
         {
@@ -143,7 +162,26 @@ struct Capabilities
         return 80; // Standard default
     }
     
-    private static ushort detectHeight()
+    /// Detect terminal height using ioctl or environment variable
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. ioctl() is system call (inherently @system)
+    /// 2. Takes pointer to stack-allocated winsize struct (safe)
+    /// 3. TIOCGWINSZ is read-only query (no side effects)
+    /// 4. winsize struct is properly initialized before ioctl call
+    /// 5. Fallback to environment variable is safe
+    /// 
+    /// Invariants:
+    /// - winsize struct is stack-allocated (automatic cleanup)
+    /// - ioctl return value is checked before accessing ws.ws_row
+    /// - Environment variable parsing is exception-safe
+    /// - Returns sensible default (24) if detection fails
+    /// 
+    /// What could go wrong:
+    /// - ioctl fails: returns -1, we use fallback (safe)
+    /// - Not a terminal: ioctl fails, we use fallback
+    /// - Invalid LINES env var: caught by exception, uses default
+    private static ushort detectHeight() @trusted
     {
         version(Posix)
         {

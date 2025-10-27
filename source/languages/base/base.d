@@ -31,13 +31,31 @@ abstract class BaseLanguageHandler : LanguageHandler
     /// 
     /// Safety: Calls buildImpl() and getOutputs() through @trusted wrappers because
     /// language handlers may perform file I/O, process execution, and other
-    /// operations that are inherently @system but have been validated for safety
+    /// operations that are inherently @system but have been validated for safety.
+    /// 
+    /// The @trusted lambda wrapper pattern:
+    /// - Delegates responsibility to concrete language handlers
+    /// - Each handler marks buildImpl() as @trusted with justification
+    /// - This function remains @safe by wrapping the call
+    /// - Exceptions are caught and converted to Result types
+    /// 
+    /// Invariants:
+    /// - buildImpl() is overridden in each language handler
+    /// - All file I/O and process execution is validated by handlers
+    /// - Result type ensures type-safe error propagation
+    /// - No unsafe operations leak to caller
+    /// 
+    /// What could go wrong:
+    /// - Handler buildImpl() has memory safety bug: contained within handler
+    /// - Exception thrown: caught and converted to BuildError Result
+    /// - Invalid target: handler validates and returns error Result
     Result!(string, BuildError) build(Target target, WorkspaceConfig config) @safe
     {
         try
         {
-            // Safety: buildImpl() may perform file I/O and process execution
-            // Each language handler validates its operations for memory safety
+            // Safety: buildImpl() performs I/O and process execution
+            // Marked @trusted in each language handler with specific justification
+            // This lambda wrapper keeps build() @safe while allowing @system ops
             auto result = () @trusted { return buildImpl(target, config); }();
             
             if (result.success)
@@ -73,11 +91,30 @@ abstract class BaseLanguageHandler : LanguageHandler
         }
     }
     
+    /// Check if target needs rebuild based on output file existence
+    /// 
+    /// Safety: This function is @safe and calls getOutputs() through @trusted wrapper
+    /// because handlers may perform path operations (inherently @system).
+    /// 
+    /// The @trusted lambda wrapper pattern:
+    /// - getOutputs() is marked @trusted in each language handler
+    /// - Path operations are validated by handlers
+    /// - exists() check is read-only file system query
+    /// 
+    /// Invariants:
+    /// - getOutputs() returns validated output paths
+    /// - exists() is safe read-only operation
+    /// - Returns true if any output missing (conservative rebuild)
+    /// 
+    /// What could go wrong:
+    /// - Handler returns invalid paths: contained within handler
+    /// - exists() throws: would propagate (safe failure)
     bool needsRebuild(in Target target, in WorkspaceConfig config) @safe
     {
         import std.file : exists;
         
-        // Safety: getOutputs() performs path operations which are memory-safe
+        // Safety: getOutputs() performs path operations
+        // Marked @trusted in each handler with specific justification
         auto outputs = () @trusted { return getOutputs(target, config); }();
         
         // Rebuild if any output is missing
@@ -90,11 +127,34 @@ abstract class BaseLanguageHandler : LanguageHandler
         return false;
     }
     
+    /// Clean build artifacts by removing output files
+    /// 
+    /// Safety: This function is @safe and calls getOutputs() through @trusted wrapper.
+    /// File deletion operations (remove) are inherently @system but safe here because:
+    /// - Only deletes files returned by handler's getOutputs()
+    /// - Checks existence before attempting removal
+    /// - Handler validates output paths
+    /// 
+    /// The @trusted lambda wrapper pattern:
+    /// - getOutputs() provides validated file list
+    /// - Deletion is confined to handler-specified outputs
+    /// - No arbitrary file deletion possible
+    /// 
+    /// Invariants:
+    /// - Only removes files listed by getOutputs()
+    /// - Checks exists() before remove()
+    /// - Handler ensures output paths are within project
+    /// 
+    /// What could go wrong:
+    /// - Permission denied: remove() throws (safe failure)
+    /// - File in use: remove() throws (safe failure)
+    /// - Handler returns invalid paths: contained within handler
     void clean(in Target target, in WorkspaceConfig config) @safe
     {
         import std.file : remove, exists;
         
-        // Safety: getOutputs() performs path operations which are memory-safe
+        // Safety: getOutputs() returns validated output file paths
+        // Marked @trusted in each handler with specific justification
         auto outputs = () @trusted { return getOutputs(target, config); }();
         
         foreach (output; outputs)

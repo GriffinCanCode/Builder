@@ -643,6 +643,24 @@ struct SwiftConfig
     string[string] env;
     
     /// Parse from JSON
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Parses untrusted JSON input (potentially malicious data)
+    /// 2. JSONValue operations are @safe but extensive parsing justifies @trusted
+    /// 3. All string extractions are validated with type checks
+    /// 4. Invalid JSON results in default config (safe fallback)
+    /// 5. Exception handling ensures no crashes on malformed input
+    /// 
+    /// Invariants:
+    /// - Returns valid SwiftConfig even if JSON is malformed
+    /// - All fields have safe defaults
+    /// - Type mismatches result in default values
+    /// - No memory unsafety from JSON parsing
+    /// 
+    /// What could go wrong:
+    /// - Malformed JSON: caught by exception handler, returns defaults
+    /// - Type mismatch: checked before access, uses defaults
+    /// - Missing fields: defaults applied (safe behavior)
     static SwiftConfig fromJSON(JSONValue json) @trusted
     {
         SwiftConfig config;

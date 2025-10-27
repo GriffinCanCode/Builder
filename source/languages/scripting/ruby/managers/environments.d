@@ -214,6 +214,22 @@ final class RbenvManager : VersionManager
         return "";
     }
     
+    /// Check if rbenv is available
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Executes external command (rbenv --version)
+    /// 2. Uses array form of execute (no shell injection)
+    /// 3. Read-only operation (just checks availability)
+    /// 4. Exception handling ensures nothrow behavior
+    /// 
+    /// Invariants:
+    /// - Returns true only if rbenv is installed and executable
+    /// - Exception results in false (safe default)
+    /// - No state modification (pure detection)
+    /// 
+    /// What could go wrong:
+    /// - rbenv not in PATH: execute throws, caught, returns false
+    /// - Permission denied: caught, returns false
     override bool isAvailable() @trusted
     {
         try
@@ -349,6 +365,9 @@ final class RVMManager : VersionManager
         return "";
     }
     
+    /// Check if RVM is available
+    /// 
+    /// Safety: @trusted because: Executes bash with source command (requires shell), uses exception handling for safe default
     override bool isAvailable() @trusted
     {
         try
@@ -510,6 +529,9 @@ final class ChrubyManager : VersionManager
         return "";
     }
     
+    /// Check if chruby is available
+    /// 
+    /// Safety: @trusted because: Checks file existence in known paths (file I/O), expandTilde() is system call
     override bool isAvailable() @trusted
     {
         // chruby is just a shell function, check if script exists
@@ -595,6 +617,9 @@ final class ASDFManager : VersionManager
         return "";
     }
     
+    /// Check if ASDF is available
+    /// 
+    /// Safety: @trusted because: Executes asdf command (process execution), exception handling provides safe default
     override bool isAvailable() @trusted
     {
         try

@@ -25,6 +25,25 @@ class ConfigParser
     /// By default, uses CollectAll policy to gather all parsing errors
     /// while still loading valid Builderfile files. This maximizes information
     /// available to the caller.
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File I/O (findBuildFiles, readText) is inherently @system
+    /// 2. absolutePath() performs path normalization (system call)
+    /// 3. SecurityValidator.isPathWithinBase() validates paths in findBuildFiles
+    /// 4. All exceptions are caught and converted to Result types
+    /// 5. Zero-config inference delegates to validated TargetInference
+    /// 
+    /// Invariants:
+    /// - root path is converted to absolute path for consistency
+    /// - All file paths are validated against workspace root in findBuildFiles
+    /// - Parsing errors are accumulated via AggregationPolicy
+    /// - Invalid files are skipped, valid ones are processed
+    /// 
+    /// What could go wrong:
+    /// - Path traversal: prevented by validation in findBuildFiles
+    /// - File read fails: exception caught, converted to BuildError
+    /// - Malicious Builderfile: parser validates syntax, rejects invalid
+    /// - Zero-config inference fails: caught and returned as error Result
     static Result!(WorkspaceConfig, BuildError) parseWorkspace(
         in string root,
         in AggregationPolicy policy = AggregationPolicy.CollectAll) @trusted
