@@ -213,3 +213,85 @@ void simd_parallel_hash(
     }
 }
 
+/* Constant-time comparison using SIMD
+ * Critical: Never short-circuits - always processes ALL bytes
+ * Prevents timing attacks on cryptographic hashes/MACs
+ */
+int simd_constant_time_equals(const void* s1, const void* s2, size_t n) {
+    const uint8_t* p1 = (const uint8_t*)s1;
+    const uint8_t* p2 = (const uint8_t*)s2;
+    uint8_t diff = 0;
+    
+    if (n == 0) return 0;
+    
+    simd_level_t level = cpu_get_simd_level();
+    
+#if defined(__AVX2__)
+    if (level >= SIMD_LEVEL_AVX2 && n >= 32) {
+        #include <immintrin.h>
+        size_t i = 0;
+        
+        /* Process 32 bytes at a time - accumulate differences */
+        __m256i acc = _mm256_setzero_si256();
+        for (; i + 32 <= n; i += 32) {
+            __m256i v1 = _mm256_loadu_si256((__m256i*)(p1 + i));
+            __m256i v2 = _mm256_loadu_si256((__m256i*)(p2 + i));
+            __m256i xor = _mm256_xor_si256(v1, v2);
+            /* Accumulate XOR results without branching */
+            acc = _mm256_or_si256(acc, xor);
+        }
+        
+        /* Reduce 256-bit accumulator to scalar */
+        uint8_t temp[32];
+        _mm256_storeu_si256((__m256i*)temp, acc);
+        for (size_t j = 0; j < 32; j++) {
+            diff |= temp[j];
+        }
+        
+        /* Process remaining bytes */
+        for (; i < n; i++) {
+            diff |= p1[i] ^ p2[i];
+        }
+        
+        return diff;
+    }
+#endif
+    
+#if defined(__ARM_NEON) || defined(__aarch64__)
+    if (level >= SIMD_LEVEL_NEON && n >= 16) {
+        #include <arm_neon.h>
+        size_t i = 0;
+        
+        /* Process 16 bytes at a time */
+        uint8x16_t acc = vdupq_n_u8(0);
+        for (; i + 16 <= n; i += 16) {
+            uint8x16_t v1 = vld1q_u8(p1 + i);
+            uint8x16_t v2 = vld1q_u8(p2 + i);
+            uint8x16_t xor = veorq_u8(v1, v2);
+            acc = vorrq_u8(acc, xor);
+        }
+        
+        /* Reduce 128-bit accumulator */
+        uint8_t temp[16];
+        vst1q_u8(temp, acc);
+        for (size_t j = 0; j < 16; j++) {
+            diff |= temp[j];
+        }
+        
+        /* Process remaining */
+        for (; i < n; i++) {
+            diff |= p1[i] ^ p2[i];
+        }
+        
+        return diff;
+    }
+#endif
+    
+    /* Portable constant-time fallback */
+    for (size_t i = 0; i < n; i++) {
+        diff |= p1[i] ^ p2[i];
+    }
+    
+    return diff;
+}
+

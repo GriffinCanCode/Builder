@@ -10,7 +10,7 @@ import std.datetime;
 import std.typecons : tuple;
 import core.sync.mutex;
 import utils.files.hash;
-import utils.simd.ops;
+import utils.simd.hash;
 import core.caching.storage;
 import core.caching.eviction;
 import utils.security.integrity;
@@ -201,7 +201,7 @@ final class BuildCache
                     
                     immutable oldContentHash = entryPtr.sourceHashes.get(source, "");
                     // Use SIMD-accelerated comparison for hash strings
-                    if (!fastHashEquals(hashResult.contentHash, oldContentHash))
+                    if (!SIMDHash.equals(hashResult.contentHash, oldContentHash))
                         return false;
                 }
                 else
@@ -218,7 +218,7 @@ final class BuildCache
                     return false;
                 
                 // SIMD-accelerated hash comparison
-                if (!fastHashEquals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
+                if (!SIMDHash.equals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
                     return false;
             }
             
@@ -596,19 +596,6 @@ final class BuildCache
         }
     }
     
-    /// Fast hash comparison using SIMD when beneficial
-    private bool fastHashEquals(string a, string b) const @trusted
-    {
-        if (a.length != b.length) return false;
-        if (a.length == 0) return true;
-        
-        // For hash strings (typically 64 chars), SIMD provides benefit
-        if (a.length >= SIMD_HASH_THRESHOLD) {
-            return SIMDOps.equals(cast(void[])a, cast(void[])b);
-        }
-        
-        return a == b;  // Scalar for short strings
-    }
 }
 
 /// Cache entry with LRU tracking and metadata

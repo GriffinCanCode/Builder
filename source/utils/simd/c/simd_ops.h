@@ -42,6 +42,11 @@ void simd_parallel_hash(
     uint8_t* outputs  /* num_inputs * 32 bytes */
 );
 
+/* Constant-time memory comparison (returns 0 if equal)
+ * Prevents timing side-channel attacks by processing all bytes
+ * Uses SIMD but never short-circuits on differences */
+int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
+
 #ifdef __cplusplus
 }
 #endif

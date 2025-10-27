@@ -36,6 +36,9 @@ void simd_parallel_hash(
     ubyte* outputs  /* numInputs * 32 bytes */
 );
 
+/// Constant-time memory comparison (returns 0 if equal)
+int simd_constant_time_equals(const void* s1, const void* s2, size_t n);
+
 /// D-friendly SIMD operations wrapper
 struct SIMDOps
 {
@@ -138,6 +141,24 @@ struct SIMDOps
     {
         if (data.length == 0) return 0;
         return simd_rolling_hash(data.ptr, data.length, windowSize);
+    }
+    
+    /// Constant-time comparison using SIMD (no early exit)
+    /// Prevents timing side-channel attacks for security-sensitive comparisons
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Length validation ensures equal-sized buffers
+    /// 2. Calls extern(C) simd_constant_time_equals with validated parameters
+    /// 3. Read-only operation with no memory mutation
+    /// 
+    /// Security: Always processes all bytes regardless of where differences
+    /// occur, making timing attacks infeasible. Use for cryptographic hashes,
+    /// MACs, tokens, and other security-sensitive data.
+    @trusted
+    static bool constantTimeEquals(const void[] a, const void[] b)
+    {
+        if (a.length != b.length) return false;
+        return simd_constant_time_equals(a.ptr, b.ptr, a.length) == 0;
     }
 }
 
