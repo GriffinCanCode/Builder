@@ -12,6 +12,7 @@ import {
     Result,
     QueryOptions,
     DomainEvent,
+    isErr,
 } from './types';
 import { Repository, BaseRepository } from './repository';
 import { ValidationBuilder } from './validation';
@@ -30,8 +31,8 @@ export class UserRepository extends BaseRepository<User, UserId> {
                 filters: { email },
             });
 
-            if (!result.ok) {
-                return result;
+            if (isErr(result)) {
+                return { ok: false, error: result.error };
             }
 
             const user = result.value[0];
@@ -81,11 +82,12 @@ export class UserService {
             .minLength(profile.lastName, 1);
 
         const validationResult = validator.build({ name, email, profile });
-        if (!validationResult.ok) {
+        if (isErr(validationResult)) {
+            const errors = validationResult.error;
             return {
                 ok: false,
                 error: new Error(
-                    `Validation failed: ${validationResult.error.map(e => e.message).join(', ')}`
+                    `Validation failed: ${errors.map(e => e.message).join(', ')}`
                 ),
             };
         }

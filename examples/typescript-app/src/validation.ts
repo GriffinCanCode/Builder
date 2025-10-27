@@ -2,7 +2,7 @@
  * Type-safe validation framework
  */
 
-import { Result, ValidationError, Validator } from './types';
+import { Result, ValidationError, Validator, isErr } from './types';
 
 export class ValidationErrorImpl implements ValidationError {
     constructor(
@@ -138,7 +138,7 @@ export function compose<T>(...validators: Validator<T>[]): Validator<T> {
 
         for (const validator of validators) {
             const result = validator(value);
-            if (!result.ok) {
+            if (isErr(result)) {
                 errors.push(...result.error);
             } else {
                 lastValidValue = result.value;

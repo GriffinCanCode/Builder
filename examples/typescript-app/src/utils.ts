@@ -2,7 +2,7 @@
  * Utility functions for formatting and display
  */
 
-import { User, Result } from './types';
+import { User, Result, isErr } from './types';
 
 export function formatUser(user: User): string {
     return `${user.name} <${user.email}> [${user.role}]`;
@@ -13,10 +13,10 @@ export function formatError(error: Error): string {
 }
 
 export function formatResult<T>(result: Result<T, Error>, formatter?: (value: T) => string): string {
-    if (result.ok) {
-        return formatter ? formatter(result.value) : String(result.value);
-    } else {
+    if (isErr(result)) {
         return formatError(result.error);
+    } else {
+        return formatter ? formatter(result.value) : String(result.value);
     }
 }
 

@@ -3,7 +3,7 @@
  * Demonstrates advanced TypeScript features and patterns
  */
 
-import { UserId, Email, UserRole } from './types';
+import { UserId, Email, UserRole, Result, User, isErr } from './types';
 import { createUserService } from './service';
 import { formatResult, formatUser, formatError } from './utils';
 
@@ -16,7 +16,7 @@ async function main(): Promise<void> {
     try {
         // Create users
         console.log('📝 Creating users...');
-        const alice = await userService.createUser(
+        const alice: Result<User, Error> = await userService.createUser(
             'Alice Johnson',
             'alice@example.com',
             {
@@ -27,14 +27,14 @@ async function main(): Promise<void> {
             }
         );
 
-        if (!alice.ok) {
+        if (isErr(alice)) {
             console.error('Failed to create Alice:', formatError(alice.error));
             return;
         }
 
         console.log('✓ Created:', formatUser(alice.value));
 
-        const bob = await userService.createUser(
+        const bob: Result<User, Error> = await userService.createUser(
             'Bob Smith',
             'bob@example.com',
             {
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
             }
         );
 
-        if (!bob.ok) {
+        if (isErr(bob)) {
             console.error('Failed to create Bob:', formatError(bob.error));
             return;
         }
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
 
         // Try to create duplicate user (should fail)
         console.log('\n🔄 Attempting to create duplicate user...');
-        const duplicate = await userService.createUser(
+        const duplicate: Result<User, Error> = await userService.createUser(
             'Alice Clone',
             'alice@example.com',
             {
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
             }
         );
 
-        if (!duplicate.ok) {
+        if (isErr(duplicate)) {
             console.log('✓ Correctly rejected duplicate:', formatError(duplicate.error));
         }
 
@@ -134,7 +134,7 @@ async function main(): Promise<void> {
 
         // Validation error demonstration
         console.log('\n❌ Testing validation errors...');
-        const invalid = await userService.createUser(
+        const invalid: Result<User, Error> = await userService.createUser(
             'X', // Too short
             'not-an-email', // Invalid email
             {
@@ -143,7 +143,7 @@ async function main(): Promise<void> {
             }
         );
 
-        if (!invalid.ok) {
+        if (isErr(invalid)) {
             console.log('✓ Correctly rejected invalid input:', formatError(invalid.error));
         }
 
