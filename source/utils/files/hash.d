@@ -44,6 +44,18 @@ struct FastHash
     
     /// Hash a file with intelligent size-tiered strategy
     /// 
+    /// WARNING: Uses sampling for large files (>100MB) - NOT suitable for
+    /// cryptographic integrity validation or security-critical applications.
+    /// For security-critical use cases, use hashFileComplete() instead.
+    /// 
+    /// Sampling strategy:
+    /// - Files >100MB: Samples head (256KB) + tail (256KB) + 8 middle samples (16KB each)
+    /// - Files >100MB (large): Samples head (512KB) + tail (512KB) + 16 middle samples (32KB each)
+    /// - An attacker could modify bytes between samples without detection
+    /// 
+    /// This is acceptable for build system caching (eventual consistency) but
+    /// NOT suitable for security validation, signature verification, or tamper detection.
+    /// 
     /// Safety: This function is @trusted because:
     /// 1. exists() and getSize() are file system operations (unsafe I/O)
     /// 2. Delegates to tier-specific @trusted hash functions
@@ -143,6 +155,11 @@ struct FastHash
     
     /// Sampled hash for medium files (head + tail + middle samples)
     /// 
+    /// WARNING: Samples only portions of the file (head + tail + middle samples).
+    /// NOT suitable for cryptographic integrity validation. An attacker could
+    /// modify bytes between sample points without detection.
+    /// Use hashFileComplete() for security-critical applications.
+    /// 
     /// Safety: This function is @trusted because:
     /// 1. File operations (open, seek, rawRead) are inherently unsafe I/O
     /// 2. Buffer allocations are bounded by SAMPLE_* constants
@@ -207,6 +224,11 @@ struct FastHash
     }
     
     /// Aggressive sampling for large files using memory mapping with SIMD
+    /// 
+    /// WARNING: Samples only portions of the file (head + tail + middle samples).
+    /// NOT suitable for cryptographic integrity validation. An attacker could
+    /// modify bytes between sample points without detection.
+    /// Use hashFileComplete() for security-critical applications.
     /// 
     /// Safety: This function is @trusted because:
     /// 1. MmFile provides memory-mapped file access (inherently unsafe)
@@ -277,6 +299,60 @@ struct FastHash
         }
         
         return hash.finishHex();
+    }
+    
+    /// Hash entire file content (no sampling) for security-critical use cases
+    /// 
+    /// Use this function when you need cryptographic integrity validation,
+    /// signature verification, or tamper detection. Unlike hashFile(), this
+    /// function always hashes the entire file content regardless of size.
+    /// 
+    /// Performance: This may be slow for very large files (>1GB) as it reads
+    /// and hashes every single byte. For build system caching where eventual
+    /// consistency is acceptable, use hashFile() instead.
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. File operations are inherently unsafe I/O
+    /// 2. Memory-mapped file access is validated by MmFile
+    /// 3. Fallback to chunked reading on mmap failure
+    /// 4. All memory operations are bounds-checked
+    /// 
+    /// Invariants:
+    /// - Returns empty string if file doesn't exist
+    /// - Always hashes entire file content
+    /// - Memory-safe regardless of file size
+    /// 
+    /// What could go wrong:
+    /// - Very large files may exhaust memory: handled by chunked fallback
+    /// - File modified during read: hash reflects state at read time
+    /// - Permission errors: propagate as exceptions (safe failure)
+    @trusted
+    static string hashFileComplete(in string path)
+    {
+        if (!exists(path))
+            return "";
+        
+        immutable size = getSize(path);
+        
+        // For small files, use existing optimized path
+        if (size <= SMALL_THRESHOLD)
+            return hashFile(path);
+        
+        // For larger files, try memory mapping for performance
+        try
+        {
+            // Use memory-mapped file for efficient full-file hashing
+            auto mmfile = new MmFile(path, MmFile.Mode.read, 0, null);
+            scope(exit) destroy(mmfile);
+            
+            auto data = cast(ubyte[])mmfile[];
+            return Blake3.hashHex(data);
+        }
+        catch (Exception e)
+        {
+            // Fallback to chunked reading if mmap fails
+            return hashFileChunked(path);
+        }
     }
     
     /// Hash a string

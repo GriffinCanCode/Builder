@@ -86,3 +86,76 @@ unittest
     writeln("\x1b[32m  ✓ Empty file produces valid hash\x1b[0m");
 }
 
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m utils.hash - hashFileComplete() matches hashFile() for small files");
+    
+    auto tempDir = scoped(new TempDir("hash-test"));
+    
+    // Create a small file (< 1MB)
+    auto filePath = buildPath(tempDir.getPath(), "small.txt");
+    std.file.write(filePath, "Small test content");
+    
+    auto hashStandard = FastHash.hashFile(filePath);
+    auto hashComplete = FastHash.hashFileComplete(filePath);
+    
+    Assert.equal(hashStandard, hashComplete);
+    
+    writeln("\x1b[32m  ✓ hashFileComplete() matches hashFile() for small files\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m utils.hash - hashFileComplete() detects changes anywhere in file");
+    
+    auto tempDir = scoped(new TempDir("hash-test"));
+    
+    // Create a file with repeating pattern
+    auto filePath = buildPath(tempDir.getPath(), "pattern.txt");
+    auto content = "A".replicate(1000);
+    std.file.write(filePath, content);
+    
+    auto originalHash = FastHash.hashFileComplete(filePath);
+    
+    // Modify middle byte
+    auto modifiedContent = content.dup;
+    modifiedContent[500] = 'B';
+    std.file.write(filePath, modifiedContent);
+    
+    auto modifiedHash = FastHash.hashFileComplete(filePath);
+    
+    Assert.notEqual(originalHash, modifiedHash);
+    
+    writeln("\x1b[32m  ✓ hashFileComplete() detects changes anywhere in file\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m utils.hash - hashFileComplete() consistency");
+    
+    auto tempDir = scoped(new TempDir("hash-test"));
+    
+    // Create file with substantial content
+    auto filePath = buildPath(tempDir.getPath(), "consistent.txt");
+    auto content = "Test content for consistency check\n".replicate(100);
+    std.file.write(filePath, content);
+    
+    auto hash1 = FastHash.hashFileComplete(filePath);
+    auto hash2 = FastHash.hashFileComplete(filePath);
+    
+    Assert.equal(hash1, hash2);
+    Assert.notEmpty([hash1]);
+    
+    writeln("\x1b[32m  ✓ hashFileComplete() produces consistent hashes\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m utils.hash - hashFileComplete() handles non-existent files");
+    
+    auto hash = FastHash.hashFileComplete("/path/to/nonexistent/file.txt");
+    Assert.equal(hash, "");
+    
+    writeln("\x1b[32m  ✓ hashFileComplete() returns empty string for non-existent files\x1b[0m");
+}
+
