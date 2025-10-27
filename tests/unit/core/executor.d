@@ -246,7 +246,9 @@ unittest
     graph.addDependency("app", "lib6");
     
     // Topological sort should complete without deadlock
-    auto sorted = graph.topologicalSort();
+    auto sortedResult = graph.topologicalSort();
+    Assert.isTrue(sortedResult.isOk);
+    auto sorted = sortedResult.unwrap();
     Assert.equal(sorted.length, 7);
     
     writeln("\x1b[32m  ✓ No deadlock with complex dependencies\x1b[0m");
@@ -571,7 +573,9 @@ unittest
             graph.addTarget(target);
         }
         
-        auto sorted = graph.topologicalSort();
+        auto sortedResult = graph.topologicalSort();
+        Assert.isTrue(sortedResult.isOk);
+        auto sorted = sortedResult.unwrap();
         Assert.equal(sorted.length, 20);
     }
     

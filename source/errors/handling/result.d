@@ -57,7 +57,14 @@ struct Result(T, E)
     }
     
     /// Unwrap value (throws if error)
-    T unwrap()
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Union field access is controlled by _isOk discriminant flag
+    /// 2. We only access _value when _isOk is true, _error when false
+    /// 3. Throwing exceptions is a safe operation in D
+    /// 4. toString() is called on the error type which may be @system, but
+    ///    the exception throwing mechanism itself is safe
+    T unwrap() @trusted
     {
         if (!_isOk)
         {
@@ -70,7 +77,12 @@ struct Result(T, E)
     }
     
     /// Unwrap or return default value
-    T unwrapOr(T defaultValue)
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Union field access is controlled by _isOk discriminant flag
+    /// 2. We only access _value when _isOk is true
+    /// 3. No exception throwing or unsafe operations
+    T unwrapOr(T defaultValue) @trusted
     {
         return _isOk ? _value : defaultValue;
     }

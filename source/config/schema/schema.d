@@ -175,11 +175,17 @@ struct TargetId
     /// Parse or create - never fails, falls back to simple name
     static TargetId parseOrSimple(string str) nothrow @safe
     {
-        auto result = parse(str);
-        if (result.isOk)
-            return result.unwrap();
-        // Fallback to simple name if parsing fails
-        return TargetId(str);
+        try
+        {
+            auto result = parse(str);
+            // Use unwrapOr to avoid throwing - falls back to simple name if parsing fails
+            return result.unwrapOr(TargetId(str));
+        }
+        catch (Exception e)
+        {
+            // Fallback to simple name if parsing throws
+            return TargetId(str);
+        }
     }
 }
 
@@ -248,7 +254,12 @@ struct Target
     private bool _idCached = false;
     
     /// Get target as TargetId (cached for performance)
-    @property TargetId id() const
+    /// 
+    /// Safety: This property is @trusted because:
+    /// 1. The const-cast is safe as we only mutate cache fields (_id, _idCached)
+    /// 2. The caching is logically const (doesn't change observable behavior)
+    /// 3. Result unwrap operations are safe (properly handles union access)
+    @property TargetId id() const @trusted
     {
         // Need to cast away const for caching, but logically const
         auto self = cast(Target*)&this;

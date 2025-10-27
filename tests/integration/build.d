@@ -85,7 +85,9 @@ unittest
     }
     
     // Verify topological order
-    auto sorted = graph.topologicalSort();
+    auto sortedResult = graph.topologicalSort();
+    Assert.isTrue(sortedResult.isOk);
+    auto sorted = sortedResult.unwrap();
     Assert.equal(sorted.length, 2);
     
     // lib should come before app
@@ -197,7 +199,9 @@ unittest
     Assert.isTrue(stats.maxDepth >= 3);
     
     // Verify topological order respects dependencies
-    auto sorted = graph.topologicalSort();
+    auto sortedResult = graph.topologicalSort();
+    Assert.isTrue(sortedResult.isOk);
+    auto sorted = sortedResult.unwrap();
     Assert.equal(sorted.length, 5);
     
     // util should come before lib2
