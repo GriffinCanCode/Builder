@@ -16,6 +16,8 @@ import cli;
 import cli.commands;
 import tools;
 
+enum VERSION = "1.0.0";
+
 void main(string[] args)
 {
     // SIMD now auto-initializes on first use (see utils.simd.dispatch)
@@ -25,14 +27,23 @@ void main(string[] args)
     string target = "";
     bool verbose = false;
     bool showGraph = false;
+    bool showVersion = false;
     string mode = "auto"; // CLI render mode
     
     auto helpInfo = getopt(
         args,
         "verbose|v", "Enable verbose output", &verbose,
         "graph|g", "Show dependency graph", &showGraph,
-        "mode|m", "CLI mode: auto, interactive, plain, verbose, quiet", &mode
+        "mode|m", "CLI mode: auto, interactive, plain, verbose, quiet", &mode,
+        "version", "Show version information", &showVersion
     );
+    
+    if (showVersion)
+    {
+        writeln("Builder version ", VERSION);
+        writeln("High-performance build system for mixed-language monorepos");
+        return;
+    }
     
     if (helpInfo.helpWanted || args.length < 2)
     {
@@ -78,6 +89,10 @@ void main(string[] args)
             case "help":
                 auto helpCommand = args.length > 2 ? args[2] : "";
                 HelpCommand.execute(helpCommand);
+                break;
+            case "version":
+                writeln("Builder version ", VERSION);
+                writeln("High-performance build system for mixed-language monorepos");
                 break;
             default:
                 Logger.error("Unknown command: " ~ command);
