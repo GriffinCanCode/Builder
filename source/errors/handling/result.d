@@ -76,6 +76,30 @@ struct Result(T, E)
         return _value;
     }
     
+    /// Unwrap value with contextual error message (Rust-style expect)
+    /// Provides better debugging information than plain unwrap()
+    /// 
+    /// Example:
+    ///   auto config = loadConfig().expect("Failed to load configuration");
+    ///   auto sorted = graph.topologicalSort().expect("Build graph has cycles");
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Union field access is controlled by _isOk discriminant flag
+    /// 2. We only access _value when _isOk is true, _error when false
+    /// 3. Throwing exceptions is a safe operation in D
+    /// 4. Context message provides better error traceability
+    T expect(string context) @trusted
+    {
+        if (!_isOk)
+        {
+            static if (is(typeof(_error.toString()) : string))
+                throw new Exception(context ~ ": " ~ _error.toString());
+            else
+                throw new Exception(context);
+        }
+        return _value;
+    }
+    
     /// Unwrap or return default value
     /// 
     /// Safety: This function is @trusted because:
@@ -94,7 +118,12 @@ struct Result(T, E)
     }
     
     /// Get error (throws if ok)
-    E unwrapErr()
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Union field access is controlled by _isOk discriminant flag
+    /// 2. We only access _error when _isOk is false
+    /// 3. Throwing exceptions is a safe operation in D
+    E unwrapErr() @trusted
     {
         if (_isOk)
             throw new Exception("Called unwrapErr on an Ok value");
@@ -237,8 +266,32 @@ struct Result(E) if (is(E))
         }
     }
     
+    /// Unwrap void result with contextual error message (Rust-style expect)
+    /// Provides better debugging information than plain unwrap()
+    /// 
+    /// Example:
+    ///   cache.flush().expect("Failed to flush cache to disk");
+    ///   validator.validate().expect("Schema validation failed");
+    /// 
+    /// Safety: Same as unwrap() but with added context for debugging
+    void expect(string context)
+    {
+        if (!_isOk)
+        {
+            static if (is(typeof(_error.toString()) : string))
+                throw new Exception(context ~ ": " ~ _error.toString());
+            else
+                throw new Exception(context);
+        }
+    }
+    
     /// Get error (throws if ok)
-    E unwrapErr()
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. _error field access is controlled by _isOk discriminant flag
+    /// 2. We only access _error when _isOk is false
+    /// 3. Throwing exceptions is a safe operation in D
+    E unwrapErr() @trusted
     {
         if (_isOk)
             throw new Exception("Called unwrapErr on an Ok value");

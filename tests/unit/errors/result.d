@@ -57,6 +57,44 @@ unittest
     writeln("\x1b[32m  ✓ UnwrapErr on Ok throws correctly\x1b[0m");
 }
 
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m errors.result - Expect on Ok returns value");
+    
+    auto result = Ok!(int, string)(42);
+    auto value = result.expect("Should not fail");
+    
+    Assert.equal(value, 42);
+    
+    writeln("\x1b[32m  ✓ Expect on Ok returns value correctly\x1b[0m");
+}
+
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m errors.result - Expect on Err throws with context");
+    
+    auto result = Err!(int, string)("Operation failed");
+    
+    bool caughtException = false;
+    string exceptionMessage = "";
+    
+    try
+    {
+        result.expect("Critical operation");
+    }
+    catch (Exception e)
+    {
+        caughtException = true;
+        exceptionMessage = e.msg;
+    }
+    
+    Assert.isTrue(caughtException);
+    Assert.isTrue(exceptionMessage.canFind("Critical operation"));
+    Assert.isTrue(exceptionMessage.canFind("Operation failed"));
+    
+    writeln("\x1b[32m  ✓ Expect includes context in error message\x1b[0m");
+}
+
 // ==================== MONAD OPERATIONS ====================
 
 unittest
