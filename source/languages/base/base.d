@@ -27,11 +27,11 @@ interface LanguageHandler
 /// Base implementation with common functionality
 abstract class BaseLanguageHandler : LanguageHandler
 {
-    Result!(string, BuildError) build(Target target, WorkspaceConfig config) @trusted
+    Result!(string, BuildError) build(Target target, WorkspaceConfig config) @safe
     {
         try
         {
-            auto result = buildImpl(target, config);
+            auto result = () @trusted { return buildImpl(target, config); }();
             
             if (result.success)
             {
@@ -66,11 +66,11 @@ abstract class BaseLanguageHandler : LanguageHandler
         }
     }
     
-    bool needsRebuild(in Target target, in WorkspaceConfig config) @trusted
+    bool needsRebuild(in Target target, in WorkspaceConfig config) @safe
     {
         import std.file : exists;
         
-        auto outputs = getOutputs(target, config);
+        auto outputs = () @trusted { return getOutputs(target, config); }();
         
         // Rebuild if any output is missing
         foreach (output; outputs)
@@ -82,11 +82,11 @@ abstract class BaseLanguageHandler : LanguageHandler
         return false;
     }
     
-    void clean(in Target target, in WorkspaceConfig config) @trusted
+    void clean(in Target target, in WorkspaceConfig config) @safe
     {
         import std.file : remove, exists;
         
-        auto outputs = getOutputs(target, config);
+        auto outputs = () @trusted { return getOutputs(target, config); }();
         
         foreach (output; outputs)
         {
@@ -95,7 +95,7 @@ abstract class BaseLanguageHandler : LanguageHandler
         }
     }
     
-    Import[] analyzeImports(string[] sources) @trusted
+    Import[] analyzeImports(string[] sources) @safe
     {
         // Default implementation: delegate to language spec
         // Subclasses can override for custom analysis
@@ -125,6 +125,6 @@ abstract class BaseLanguageHandler : LanguageHandler
     }
     
     /// Subclasses implement the actual build logic
-    protected abstract LanguageBuildResult buildImpl(Target target, WorkspaceConfig config);
+    protected abstract LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config);
 }
 

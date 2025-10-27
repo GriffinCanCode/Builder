@@ -30,7 +30,7 @@ struct FSharpBuildResult
 interface FSharpBuilder
 {
     /// Build sources with given configuration
-    FSharpBuildResult build(string[] sources, FSharpConfig config, Target target, WorkspaceConfig workspaceConfig);
+    FSharpBuildResult build(in string[] sources, in FSharpConfig config, in Target target, in WorkspaceConfig workspaceConfig);
     
     /// Get build mode this builder handles
     FSharpBuildMode getMode();

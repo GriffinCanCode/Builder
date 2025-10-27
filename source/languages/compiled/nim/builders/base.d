@@ -12,10 +12,10 @@ interface NimBuilder
 {
     /// Build Nim project
     NimCompileResult build(
-        string[] sources,
-        NimConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in NimConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system

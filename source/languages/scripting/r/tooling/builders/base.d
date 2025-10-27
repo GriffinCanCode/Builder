@@ -18,16 +18,16 @@ interface RBuilder
 {
     /// Build the target
     BuildResult build(
-        Target target,
-        WorkspaceConfig config,
-        RConfig rConfig,
-        string rCmd
+        in Target target,
+        in WorkspaceConfig config,
+        in RConfig rConfig,
+        in string rCmd
     );
     
     /// Get build outputs
-    string[] getOutputs(Target target, WorkspaceConfig config, RConfig rConfig);
+    string[] getOutputs(in Target target, in WorkspaceConfig config, in RConfig rConfig);
     
     /// Validate build configuration
-    bool validate(Target target, RConfig rConfig);
+    bool validate(in Target target, in RConfig rConfig);
 }
 

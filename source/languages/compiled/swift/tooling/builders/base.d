@@ -9,10 +9,10 @@ interface SwiftBuilder
 {
     /// Build Swift project
     SwiftBuildResult build(
-        string[] sources,
-        SwiftConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in SwiftConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system

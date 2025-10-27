@@ -138,7 +138,7 @@ class ElixirHandler : BaseLanguageHandler
             Logger.info("Auto-formatting code");
             auto formatResult = Formatter.format(
                 elixirConfig.format,
-                cast(string[])target.sources,
+                target.sources,
                 mixCmd,
                 elixirConfig.format.checkFormatted
             );
@@ -191,7 +191,7 @@ class ElixirHandler : BaseLanguageHandler
         
         Logger.debug_("Using builder: " ~ builder.name());
         
-        auto buildResult = builder.build(cast(string[])target.sources, elixirConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto buildResult = builder.build(target.sources, elixirConfig, target, config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -245,7 +245,7 @@ class ElixirHandler : BaseLanguageHandler
         {
             auto formatResult = Formatter.format(
                 elixirConfig.format,
-                cast(string[])target.sources,
+                target.sources,
                 mixCmd,
                 elixirConfig.format.checkFormatted
             );
@@ -281,7 +281,7 @@ class ElixirHandler : BaseLanguageHandler
         
         // Build
         auto builder = BuilderFactory.create(elixirConfig.projectType, elixirConfig);
-        auto buildResult = builder.build(cast(string[])target.sources, elixirConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto buildResult = builder.build(target.sources, elixirConfig, target, config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;

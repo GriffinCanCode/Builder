@@ -224,7 +224,7 @@ class RustHandler : BaseLanguageHandler
         Logger.debug_("Using Rust builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
-        auto compileResult = builder.build(target.sources.dup, rustConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto compileResult = builder.build(target.sources, rustConfig, target, config);
         
         if (!compileResult.success)
         {

@@ -15,14 +15,24 @@ struct Blake3
     private blake3_hasher hasher;
     
     /// Initialize a new hasher with default settings
-    @trusted // Calls C function with valid pointer
+    /// 
+    /// Safety: This constructor is @trusted because:
+    /// 1. Hasher is a valid struct member (not dangling)
+    /// 2. Calls extern(C) blake3_hasher_init with valid pointer
+    /// 3. No memory allocation or escaping references
+    @trusted
     this(int dummy)  // Dummy parameter to allow construction
     {
         blake3_hasher_init(&hasher);
     }
     
     /// Initialize with a key (for keyed hashing/MAC)
-    @trusted // Calls C function with valid static array pointer
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Key is a fixed-size array (BLAKE3_KEY_LEN) - no buffer overflows
+    /// 2. Calls extern(C) blake3_hasher_init_keyed with validated pointer
+    /// 3. Hasher is stack-allocated and returned by value (no dangling)
+    @trusted
     static Blake3 keyed(in ubyte[BLAKE3_KEY_LEN] key)
     {
         Blake3 b;
@@ -31,7 +41,12 @@ struct Blake3
     }
     
     /// Initialize for key derivation
-    @trusted // Calls C function with null-terminated string
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. toStringz() creates a null-terminated copy (safe for C interop)
+    /// 2. Calls extern(C) blake3_hasher_init_derive_key with valid C string
+    /// 3. No memory leaks - temporary string is GC-managed
+    @trusted
     static Blake3 deriveKey(in string context)
     {
         Blake3 b;
@@ -40,7 +55,12 @@ struct Blake3
     }
     
     /// Update hasher with data
-    @trusted // Calls C function with valid slice pointer and length
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. D slice guarantees pointer validity and accurate length
+    /// 2. Empty check prevents invalid pointer dereference
+    /// 3. Calls extern(C) blake3_hasher_update with validated parameters
+    @trusted
     void put(in ubyte[] data)
     {
         if (data.length > 0)
@@ -48,14 +68,24 @@ struct Blake3
     }
     
     /// Update hasher with string
-    @trusted // Safe cast and delegates to trusted put()
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Casting string to ubyte[] is safe (same memory layout)
+    /// 2. Delegates to trusted put(ubyte[]) which validates parameters
+    /// 3. No mutations to the original string
+    @trusted
     void put(in string data)
     {
         put(cast(ubyte[])data);
     }
     
     /// Finalize and get hash (default 32 bytes)
-    @trusted // Calls C function with newly allocated buffer
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Allocates buffer with exact requested length (no buffer overrun)
+    /// 2. Calls extern(C) blake3_hasher_finalize with matching buffer and size
+    /// 3. Returns owned array (no dangling references)
+    @trusted
     ubyte[] finish(in size_t length = BLAKE3_OUT_LEN)
     {
         auto output = new ubyte[length];
@@ -64,7 +94,12 @@ struct Blake3
     }
     
     /// Finalize and get hash as hex string
-    @trusted // Delegates to trusted finish() and safe toHexString()
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Delegates to trusted finish() which performs validation
+    /// 2. toHexString() is @safe (converts to hex representation)
+    /// 3. No unsafe operations performed
+    @trusted
     string finishHex(in size_t length = BLAKE3_OUT_LEN)
     {
         auto hash = finish(length);
@@ -72,7 +107,12 @@ struct Blake3
     }
     
     /// Reset hasher to initial state
-    @trusted // Calls C function with valid hasher pointer
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Hasher is a valid struct member
+    /// 2. Calls extern(C) blake3_hasher_reset with valid pointer
+    /// 3. No memory allocation or deallocation
+    @trusted
     void reset()
     {
         blake3_hasher_reset(&hasher);

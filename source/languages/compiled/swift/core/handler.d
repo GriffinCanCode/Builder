@@ -308,7 +308,7 @@ class SwiftHandler : BaseLanguageHandler
         }
         
         // Compile
-        auto compileResult = builder.build(target.sources.dup, swiftConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto compileResult = builder.build(target.sources, swiftConfig, target, config);
         
         if (!compileResult.success)
         {

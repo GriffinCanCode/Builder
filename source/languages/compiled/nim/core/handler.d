@@ -275,7 +275,7 @@ class NimHandler : BaseLanguageHandler
         Logger.debug_("Using Nim builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
-        auto compileResult = builder.build(target.sources.dup, nimConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto compileResult = builder.build(target.sources, nimConfig, target, config);
         
         if (!compileResult.success)
         {

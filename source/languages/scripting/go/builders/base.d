@@ -9,10 +9,10 @@ interface GoBuilder
 {
     /// Build Go sources with specific mode
     GoBuildResult build(
-        string[] sources,
-        GoConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in GoConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system

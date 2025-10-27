@@ -238,7 +238,7 @@ class DHandler : BaseLanguageHandler
         Logger.debug_("Using D builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Compile
-        auto compileResult = builder.build(target.sources.dup, dConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto compileResult = builder.build(target.sources, dConfig, target, config);
         
         if (!compileResult.success)
         {

@@ -10,10 +10,10 @@ interface DBuilder
 {
     /// Build D files
     DCompileResult build(
-        string[] sources,
-        DConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in DConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system

@@ -34,11 +34,23 @@ struct BinaryStorage
     private static size_t poolIndex;
     
     /// Acquire a buffer from the pool or create a new one
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Validates poolIndex bounds before access
+    /// 2. Limits pool size to prevent unbounded growth
+    /// 3. All pointer operations are bounds-checked
     private static ref Appender!(ubyte[]) acquireBuffer() @trusted nothrow
     {
+        import core.exception : AssertError;
+        
+        // Validate pool index invariant
+        assert(poolIndex <= bufferPool.length, "Pool index out of bounds");
+        
         // Simple pool with max 4 buffers to avoid unbounded growth
         if (poolIndex < bufferPool.length && poolIndex < 4)
         {
+            // Double-check bounds before pointer dereference
+            assert(poolIndex < bufferPool.length, "Pool index exceeds buffer pool length");
             auto buf = &bufferPool[poolIndex++];
             buf.clear(); // Reuse existing capacity
             return *buf;
@@ -49,11 +61,15 @@ struct BinaryStorage
         {
             bufferPool ~= appender!(ubyte[]);
             poolIndex = bufferPool.length;
+            assert(bufferPool.length > 0, "Buffer pool unexpectedly empty after append");
             return bufferPool[$ - 1];
         }
         
         // Fallback: reuse first buffer (shouldn't happen in single-threaded code)
+        // This is safe because we've validated the pool has at least 4 elements
+        assert(bufferPool.length >= 4, "Buffer pool size invariant violated");
         bufferPool[0].clear();
+        poolIndex = 1; // Reset to start of pool
         return bufferPool[0];
     }
     
@@ -157,18 +173,43 @@ struct BinaryStorage
     /// Read string with length prefix
     /// Uses slice of original data to avoid allocation (zero-copy)
     /// The data must remain valid for the lifetime of returned string
-    private static string readString(scope const(ubyte)[] data, ref size_t offset) @trusted pure
+    /// 
+    /// Safety: This function is @trusted because:
+    /// 1. Validates UTF-8 encoding before casting to string
+    /// 2. Performs bounds checking on slice operations
+    /// 3. Data comes from trusted cache files with format validation
+    private static string readString(scope const(ubyte)[] data, ref size_t offset) @trusted
     {
+        import std.utf : validate, UTFException;
+        import std.exception : enforce;
+        
+        // Bounds check for length prefix
+        enforce(offset + 4 <= data.length, "Invalid cache data: insufficient bytes for string length");
+        
         immutable ubyte[4] lengthBytes = data[offset .. offset + 4][0 .. 4];
         immutable length = bigEndianToNative!uint(lengthBytes);
         offset += 4;
         
-        // Zero-copy: cast slice directly to string
-        // This is safe because:
-        // 1. The data comes from file which persists during deserialization
-        // 2. The slice is immutable after cast
-        // 3. We're only reading, not modifying
-        auto str = cast(immutable(char)[])data[offset .. offset + length];
+        // Bounds check for string data
+        enforce(offset + length <= data.length, "Invalid cache data: string length exceeds data bounds");
+        
+        // Get the byte slice
+        auto slice = data[offset .. offset + length];
+        
+        // Validate UTF-8 encoding before casting to string
+        // This is critical for memory safety
+        auto charSlice = cast(const(char)[])slice;
+        try
+        {
+            validate(charSlice);
+        }
+        catch (UTFException e)
+        {
+            throw new Exception("Invalid UTF-8 in cached data: " ~ e.msg);
+        }
+        
+        // Now safe to cast to immutable string
+        auto str = cast(immutable(char)[])slice;
         offset += length;
         
         return str;

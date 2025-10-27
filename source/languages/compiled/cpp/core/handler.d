@@ -327,7 +327,7 @@ class CppHandler : BaseLanguageHandler
         }
         
         // Compile
-        auto compileResult = builder.build(target.sources.dup, cppConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto compileResult = builder.build(target.sources, cppConfig, target, config);
         
         if (!compileResult.success)
         {

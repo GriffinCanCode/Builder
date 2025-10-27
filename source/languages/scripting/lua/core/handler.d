@@ -152,7 +152,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Select and run appropriate builder
         auto builder = selectBuilder(luaConfig);
-        auto buildResult = builder.build(cast(string[])target.sources, luaConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto buildResult = builder.build(target.sources, luaConfig, target, config);
         
         if (!buildResult.success)
         {
@@ -208,7 +208,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Build library
         auto builder = selectBuilder(luaConfig);
-        auto buildResult = builder.build(cast(string[])target.sources, luaConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto buildResult = builder.build(target.sources, luaConfig, target, config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -241,7 +241,7 @@ class LuaHandler : BaseLanguageHandler
         }
         
         // Run tests
-        auto testResult = tester.runTests(cast(string[])target.sources, luaConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto testResult = tester.runTests(target.sources, luaConfig, target, config);
         
         result.success = testResult.success;
         result.error = testResult.error;
@@ -463,7 +463,7 @@ class LuaHandler : BaseLanguageHandler
             return result;
         }
         
-        auto fmtResult = formatter.format(cast(string[])target.sources, config);
+        auto fmtResult = formatter.format(target.sources, config);
         result.success = fmtResult.success;
         result.error = fmtResult.error;
         
@@ -490,7 +490,7 @@ class LuaHandler : BaseLanguageHandler
             return result;
         }
         
-        auto checkResult = checker.check(cast(string[])target.sources, config);
+        auto checkResult = checker.check(target.sources, config);
         result.success = checkResult.success;
         result.error = checkResult.error;
         

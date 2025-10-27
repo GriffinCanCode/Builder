@@ -12,10 +12,10 @@ interface CppBuilder
 {
     /// Build C++ project
     CppCompileResult build(
-        string[] sources,
-        CppConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in CppConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system
@@ -124,10 +124,10 @@ abstract class BaseCppBuilder : CppBuilder
     }
     
     abstract CppCompileResult build(
-        string[] sources,
-        CppConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in CppConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     abstract bool isAvailable();

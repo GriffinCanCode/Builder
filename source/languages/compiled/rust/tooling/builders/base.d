@@ -9,10 +9,10 @@ interface RustBuilder
 {
     /// Build Rust project
     RustCompileResult build(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available on system
@@ -86,10 +86,10 @@ class RustBuilderFactory
 class NullRustBuilder : RustBuilder
 {
     RustCompileResult build(
-        string[] sources,
-        RustConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     )
     {
         import std.process : execute;

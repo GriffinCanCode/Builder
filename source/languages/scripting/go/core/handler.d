@@ -98,7 +98,7 @@ class GoHandler : BaseLanguageHandler
         Logger.debug_("Using builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
         // Build
-        auto buildResult = builder.build(cast(string[])target.sources, goConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto buildResult = builder.build(target.sources, goConfig, target, config);
         
         result.success = buildResult.success;
         result.error = buildResult.error;
@@ -140,7 +140,7 @@ class GoHandler : BaseLanguageHandler
         
         // For libraries, we typically just want to ensure compilation
         // The actual package will be used by other Go code
-        auto buildResult = builder.build(cast(string[])target.sources, goConfig, cast(Target)target, cast(WorkspaceConfig)config);
+        auto buildResult = builder.build(target.sources, goConfig, target, config);
         
         LanguageBuildResult result;
         result.success = buildResult.success;

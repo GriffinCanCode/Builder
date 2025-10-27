@@ -15,10 +15,10 @@ interface ElixirBuilder
 {
     /// Build Elixir project
     ElixirBuildResult build(
-        string[] sources,
-        ElixirConfig config,
-        Target target,
-        WorkspaceConfig workspace
+        in string[] sources,
+        in ElixirConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
     );
     
     /// Check if builder is available
