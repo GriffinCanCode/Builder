@@ -1,10 +1,13 @@
 module core.services;
 
 import std.stdio;
+import std.conv : to;
 import core.graph.graph;
 import core.execution.executor;
 import core.caching.cache;
 import core.telemetry;
+import core.telemetry.tracing;
+import utils.logging.structured;
 import config.schema.schema;
 import config.parsing.parser;
 import analysis.inference.analyzer;
@@ -30,12 +33,17 @@ final class BuildServices
     private TelemetryStorage _telemetryStorage;
     private RenderMode _renderMode;
     private bool _telemetryEnabled;
+    private Tracer _tracer;
+    private StructuredLogger _structuredLogger;
     
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
     {
         this._config = config;
         this._renderMode = RenderMode.Auto;
+        
+        // Initialize observability (tracing and structured logging)
+        this._initializeObservability();
         
         // Initialize cache
         auto cacheConfig = CacheConfig.fromEnvironment();
@@ -55,6 +63,62 @@ final class BuildServices
             this._telemetryCollector = new TelemetryCollector();
             this._telemetryStorage = new TelemetryStorage(".builder-cache/telemetry", telemetryConfig);
             this._publisher.subscribe(this._telemetryCollector);
+        }
+        
+        string[string] fields;
+        fields["cache_dir"] = options.cacheDir;
+        fields["telemetry_enabled"] = this._telemetryEnabled.to!string;
+        this._structuredLogger.info("Build services initialized", fields);
+    }
+    
+    /// Initialize observability infrastructure
+    /// Tracing is ENABLED BY DEFAULT for comprehensive observability
+    private void _initializeObservability()
+    {
+        import std.process : environment;
+        import std.conv : to;
+        
+        // Initialize structured logger (always enabled)
+        auto verbose = environment.get("BUILDER_VERBOSE", "0");
+        auto minLevel = (verbose == "1" || verbose == "true") ? LogLevel.Debug : LogLevel.Info;
+        this._structuredLogger = new StructuredLogger(minLevel);
+        setStructuredLogger(this._structuredLogger);
+        
+        // Initialize distributed tracing (ENABLED BY DEFAULT)
+        // Set BUILDER_TRACING_ENABLED=0 to disable
+        auto tracingEnabled = environment.get("BUILDER_TRACING_ENABLED", "1");
+        if (tracingEnabled != "0" && tracingEnabled != "false")
+        {
+            // Determine exporter type from environment
+            auto exporterType = environment.get("BUILDER_TRACING_EXPORTER", "jaeger");
+            auto outputFile = environment.get("BUILDER_TRACING_OUTPUT", ".builder-cache/traces/jaeger.json");
+            
+            SpanExporter exporter;
+            if (exporterType == "console")
+            {
+                exporter = new ConsoleSpanExporter();
+            }
+            else  // Default to Jaeger
+            {
+                exporter = new JaegerSpanExporter(outputFile);
+            }
+            
+            this._tracer = new Tracer(exporter);
+            setTracer(this._tracer);
+            
+            string[string] fields;
+            fields["exporter"] = exporterType;
+            fields["output"] = (exporterType == "console") ? "console" : outputFile;
+            this._structuredLogger.debug_("Distributed tracing enabled (default)", fields);
+        }
+        else
+        {
+            // Create disabled tracer (user explicitly disabled)
+            this._tracer = new Tracer(null);
+            this._tracer.setEnabled(false);
+            setTracer(this._tracer);
+            
+            this._structuredLogger.debug_("Distributed tracing disabled by user");
         }
     }
     

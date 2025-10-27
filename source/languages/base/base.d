@@ -3,6 +3,8 @@ module languages.base.base;
 import std.conv : to;
 import config.schema.schema;
 import analysis.targets.types;
+import core.telemetry.tracing;
+import utils.logging.structured;
 import errors;
 
 /// Base interface for language-specific build handlers
@@ -51,6 +53,24 @@ abstract class BaseLanguageHandler : LanguageHandler
     /// - Invalid target: handler validates and returns error Result
     Result!(string, BuildError) build(Target target, WorkspaceConfig config) @safe
     {
+        // Get global tracer and structured logger (safe operations)
+        auto tracer = () @trusted { return getTracer(); }();
+        auto logger = () @trusted { return getStructuredLogger(); }();
+        
+        // Create span for language handler execution
+        auto handlerSpan = () @trusted { 
+            return tracer.startSpan("language-handler", SpanKind.Internal); 
+        }();
+        
+        // Ensure span is finished
+        scope(exit) () @trusted { tracer.finishSpan(handlerSpan); }();
+        
+        () @trusted {
+            handlerSpan.setAttribute("handler.language", target.language.to!string);
+            handlerSpan.setAttribute("handler.target", target.name);
+            handlerSpan.setAttribute("handler.type", target.type.to!string);
+        }();
+        
         try
         {
             // Safety: buildImpl() performs I/O and process execution
@@ -60,6 +80,11 @@ abstract class BaseLanguageHandler : LanguageHandler
             
             if (result.success)
             {
+                () @trusted { 
+                    handlerSpan.setStatus(SpanStatus.Ok);
+                    handlerSpan.setAttribute("build.success", "true");
+                }();
+                
                 return Ok!(string, BuildError)(result.outputHash);
             }
             else
@@ -73,6 +98,12 @@ abstract class BaseLanguageHandler : LanguageHandler
                     "building target",
                     "language: " ~ target.language.to!string
                 ));
+                
+                () @trusted {
+                    handlerSpan.recordException(new Exception(result.error));
+                    handlerSpan.setStatus(SpanStatus.Error, result.error);
+                }();
+                
                 return Err!(string, BuildError)(error);
             }
         }
@@ -87,6 +118,12 @@ abstract class BaseLanguageHandler : LanguageHandler
                 "caught exception during build",
                 e.classinfo.name
             ));
+            
+            () @trusted {
+                handlerSpan.recordException(e);
+                handlerSpan.setStatus(SpanStatus.Error, e.msg);
+            }();
+            
             return Err!(string, BuildError)(error);
         }
     }
