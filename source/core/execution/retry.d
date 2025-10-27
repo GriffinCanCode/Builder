@@ -63,8 +63,12 @@ struct RetryPolicy
         long withJitter;
         if (jitterFactor > 0.0)
         {
-            auto rng = Mt19937(unpredictableSeed);
-            immutable jitter = uniform(-jitterFactor, jitterFactor, rng);
+            // Use deterministic pseudo-random jitter based on attempt number
+            // This avoids needing RNG state while still providing variation
+            immutable seed = attempt * 2654435761UL;  // Golden ratio hash
+            immutable pseudoRandom = (seed ^ (seed >> 16)) & 0xFFFF;
+            immutable normalizedRandom = cast(double)pseudoRandom / 0xFFFF;  // 0.0 to 1.0
+            immutable jitter = (normalizedRandom * 2.0 - 1.0) * jitterFactor;  // -jitterFactor to +jitterFactor
             withJitter = cast(long)(capped * (1.0 + jitter));
         }
         else

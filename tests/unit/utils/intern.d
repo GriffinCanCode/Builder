@@ -153,7 +153,7 @@ unittest
     
     Assert.equal(stats.uniqueStrings, 10, "Should have 10 unique paths");
     Assert.equal(stats.totalInterns, 500, "Should have 500 total interns");
-    Assert.isTrue(stats.deduplicationRate > 98.0, "Should have >98% deduplication");
+    Assert.isTrue(stats.deduplicationRate >= 98.0, "Should have >=98% deduplication");
     
     // Estimate memory saved
     immutable avgPathLength = 30;

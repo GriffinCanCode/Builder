@@ -29,6 +29,13 @@ class TypeScriptHandler : BaseLanguageHandler
         
         Logger.debugLog("Building TypeScript target: " ~ target.name);
         
+        // Validate sources
+        if (target.sources.empty)
+        {
+            result.error = "No source files provided for TypeScript target";
+            return result;
+        }
+        
         // Parse TypeScript configuration
         TSConfig tsConfig = parseTSConfig(target);
         
