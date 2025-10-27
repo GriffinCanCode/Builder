@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import languages.jvm.kotlin;
 import config.schema.schema;
+import errors;
 import tests.harness;
 import tests.fixtures;
 

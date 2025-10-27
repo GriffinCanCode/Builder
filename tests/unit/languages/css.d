@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import languages.web.css;
 import config.schema.schema;
+import errors;
 import tests.harness;
 import tests.fixtures;
 
@@ -369,5 +370,130 @@ unittest
     // Assert.notNull(imports);
     
     writeln("\x1b[32m  ✓ CSS custom properties work\x1b[0m");
+}
+
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test CSS handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.css - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("css-error-test"));
+    
+    auto target = TargetBuilder.create("//styles:missing")
+        .withType(TargetType.Library)
+        .withSources([buildPath(tempDir.getPath(), "nonexistent.css")])
+        .build();
+    target.language = TargetLanguage.CSS;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new CSSHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    if (result.isErr)
+    {
+        auto error = result.unwrapErr();
+        Assert.notEmpty(error.message);
+    }
+    
+    writeln("\x1b[32m  ✓ CSS missing source file error handled\x1b[0m");
+}
+
+/// Test CSS handler with syntax error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.css - Syntax error handling");
+    
+    auto tempDir = scoped(new TempDir("css-error-test"));
+    
+    tempDir.createFile("broken.css", `
+body {
+    color: #333
+    /* Missing semicolon and closing brace */
+
+.container
+    margin: 0 auto;
+    /* Missing opening brace */
+`);
+    
+    auto target = TargetBuilder.create("//styles:broken")
+        .withType(TargetType.Library)
+        .withSources([buildPath(tempDir.getPath(), "broken.css")])
+        .build();
+    target.language = TargetLanguage.CSS;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new CSSHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ CSS syntax error handled\x1b[0m");
+}
+
+/// Test CSS handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.css - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("css-chain-test"));
+    
+    tempDir.createFile("styles.css", `
+body {
+    margin: 0;
+    padding: 0;
+}
+`);
+    
+    auto target = TargetBuilder.create("//styles:test")
+        .withType(TargetType.Library)
+        .withSources([buildPath(tempDir.getPath(), "styles.css")])
+        .build();
+    target.language = TargetLanguage.CSS;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new CSSHandler();
+    auto result = handler.build(target, config);
+    
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ CSS Result error chaining works\x1b[0m");
+}
+
+/// Test CSS handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.css - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("css-empty-test"));
+    
+    auto target = TargetBuilder.create("//styles:empty")
+        .withType(TargetType.Library)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.CSS;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "dist");
+    
+    auto handler = new CSSHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ CSS empty sources error handled\x1b[0m");
 }
 

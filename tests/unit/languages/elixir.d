@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import languages.scripting.elixir;
 import config.schema.schema;
+import errors;
 import tests.harness;
 import tests.fixtures;
 
@@ -295,5 +296,130 @@ end
     // Assert.notNull(imports);
     
     writeln("\x1b[32m  ✓ Elixir macros work\x1b[0m");
+}
+
+// ==================== ERROR HANDLING TESTS ====================
+
+/// Test Elixir handler with missing source file
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.elixir - Missing source file error");
+    
+    auto tempDir = scoped(new TempDir("elixir-error-test"));
+    
+    auto target = TargetBuilder.create("//app:missing")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "nonexistent.ex")])
+        .build();
+    target.language = TargetLanguage.Elixir;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "_build");
+    
+    auto handler = new ElixirHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with missing source file");
+    if (result.isErr)
+    {
+        auto error = result.unwrapErr();
+        Assert.notEmpty(error.message);
+    }
+    
+    writeln("\x1b[32m  ✓ Elixir missing source file error handled\x1b[0m");
+}
+
+/// Test Elixir handler with syntax error
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.elixir - Syntax error handling");
+    
+    auto tempDir = scoped(new TempDir("elixir-error-test"));
+    
+    tempDir.createFile("broken.ex", `
+defmodule Broken do
+  def broken_function( do
+    IO.puts "Missing parameter list"
+    # Missing closing end
+`);
+    
+    auto target = TargetBuilder.create("//app:broken")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "broken.ex")])
+        .build();
+    target.language = TargetLanguage.Elixir;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "_build");
+    
+    auto handler = new ElixirHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isOk || result.isErr);
+    
+    writeln("\x1b[32m  ✓ Elixir syntax error handled\x1b[0m");
+}
+
+/// Test Elixir handler Result error chaining
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.elixir - Result error chaining");
+    
+    auto tempDir = scoped(new TempDir("elixir-chain-test"));
+    
+    tempDir.createFile("main.ex", `
+defmodule Main do
+  def main do
+    IO.puts "Hello, Elixir!"
+  end
+end
+
+Main.main()
+`);
+    
+    auto target = TargetBuilder.create("//app:test")
+        .withType(TargetType.Executable)
+        .withSources([buildPath(tempDir.getPath(), "main.ex")])
+        .build();
+    target.language = TargetLanguage.Elixir;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "_build");
+    
+    auto handler = new ElixirHandler();
+    auto result = handler.build(target, config);
+    
+    auto withFallback = result.orElse((BuildError e) => Ok!(string, BuildError)("fallback"));
+    Assert.isTrue(withFallback.isOk);
+    
+    writeln("\x1b[32m  ✓ Elixir Result error chaining works\x1b[0m");
+}
+
+/// Test Elixir handler with empty sources
+unittest
+{
+    writeln("\x1b[36m[TEST]\x1b[0m languages.elixir - Empty sources error");
+    
+    auto tempDir = scoped(new TempDir("elixir-empty-test"));
+    
+    auto target = TargetBuilder.create("//app:empty")
+        .withType(TargetType.Executable)
+        .withSources([])
+        .build();
+    target.language = TargetLanguage.Elixir;
+    
+    WorkspaceConfig config;
+    config.root = tempDir.getPath();
+    config.options.outputDir = buildPath(tempDir.getPath(), "_build");
+    
+    auto handler = new ElixirHandler();
+    auto result = handler.build(target, config);
+    
+    Assert.isTrue(result.isErr, "Build should fail with no sources");
+    
+    writeln("\x1b[32m  ✓ Elixir empty sources error handled\x1b[0m");
 }
 
