@@ -100,7 +100,7 @@ class RScriptBuilder : RBuilder
     }
     
     /// Create R script wrapper
-    private bool createScriptWrapper(string scriptPath, string outputPath, ref RConfig config)
+    private bool createScriptWrapper(string scriptPath, string outputPath, const ref RConfig config)
     {
         try
         {

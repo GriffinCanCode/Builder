@@ -417,8 +417,8 @@ class RHandler : BaseLanguageHandler
     
     /// Run testthat tests
     private LanguageBuildResult runTestthatTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RConfig rConfig,
         string workDir
     )
@@ -450,8 +450,8 @@ class RHandler : BaseLanguageHandler
     
     /// Run tinytest tests
     private LanguageBuildResult runTinytestTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RConfig rConfig,
         string workDir
     )
@@ -478,8 +478,8 @@ class RHandler : BaseLanguageHandler
     
     /// Run RUnit tests
     private LanguageBuildResult runRUnitTests(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RConfig rConfig,
         string workDir
     )
@@ -506,8 +506,8 @@ class RHandler : BaseLanguageHandler
     
     /// Run test scripts directly
     private LanguageBuildResult runTestScripts(
-        Target target,
-        WorkspaceConfig config,
+        const Target target,
+        const WorkspaceConfig config,
         RConfig rConfig,
         string workDir
     )

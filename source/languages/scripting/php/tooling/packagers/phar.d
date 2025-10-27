@@ -94,8 +94,8 @@ class NativePharPackager : Packager
     /// Generate PHP script to create PHAR
     private string generatePharScript(
         PHARConfig config,
-        string[] sources,
-        string projectRoot
+        const string[] sources,
+        const string projectRoot
     )
     {
         string script = "<?php\n";

@@ -2,9 +2,11 @@ module tests.unit.core.telemetry;
 
 import std.stdio;
 import std.datetime : Clock, dur;
-import std.algorithm : all;
+import std.algorithm : all, canFind;
+import std.string : indexOf;
 import core.telemetry;
 import cli.events.events;
+import errors;
 
 /// Test TelemetryCollector event handling
 unittest
@@ -224,7 +226,6 @@ unittest
     session.failed = 0;
     session.succeeded = true;
     session.cacheHitRate = 75.0;
-    session.parallelismUtilization = 0.0;
     session.targetsPerSecond = 3.33;
     
     BuildSession[] sessions = [session];

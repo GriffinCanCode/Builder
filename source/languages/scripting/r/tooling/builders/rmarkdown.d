@@ -189,7 +189,7 @@ class RMarkdownBuilder : RBuilder
     }
     
     /// Prepare environment variables
-    private string[string] prepareEnvironment(ref RConfig config)
+    private string[string] prepareEnvironment(const ref RConfig config)
     {
         import std.process : environment;
         

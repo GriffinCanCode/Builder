@@ -88,7 +88,7 @@ LintResult lintFiles(
 
 /// Lint with lintr package
 private LintResult lintWithLintr(
-    string[] files,
+    const string[] files,
     RLintConfig config,
     string rCmd,
     string workDir
@@ -225,7 +225,7 @@ cat(jsonlite::toJSON(all_results, auto_unbox = TRUE))
 
 /// Lint with goodpractice package
 private LintResult lintWithGoodpractice(
-    string[] files,
+    const string[] files,
     RLintConfig config,
     string rCmd,
     string workDir
@@ -372,7 +372,7 @@ FormatResult formatFiles(
 
 /// Format with styler package
 private FormatResult formatWithStyler(
-    string[] files,
+    const string[] files,
     RFormatConfig config,
     string rCmd,
     string workDir
@@ -469,7 +469,7 @@ cat(jsonlite::toJSON(changed_files))
 
 /// Format with formatR package
 private FormatResult formatWithFormatR(
-    string[] files,
+    const string[] files,
     RFormatConfig config,
     string rCmd,
     string workDir
@@ -562,7 +562,7 @@ cat(jsonlite::toJSON(changed_files))
 }
 
 /// Validate R syntax without executing
-bool validateSyntax(string[] files, string rCmd, string workDir)
+bool validateSyntax(const string[] files, string rCmd, string workDir)
 {
     if (files.empty)
         return true;

@@ -13,7 +13,7 @@ import utils.logging.logger;
 class PyFormatters
 {
     /// Format Python code with ruff
-    static ToolResult formatRuff(string[] sources, bool check = false)
+    static ToolResult formatRuff(const string[] sources, bool check = false)
     {
         ToolResult result;
         result.success = true;
@@ -58,7 +58,7 @@ class PyFormatters
     }
     
     /// Format Python code with black
-    static ToolResult formatBlack(string[] sources, string pythonCmd = "python3", bool check = false)
+    static ToolResult formatBlack(const string[] sources, string pythonCmd = "python3", bool check = false)
     {
         ToolResult result;
         result.success = true;
@@ -137,7 +137,7 @@ class Formatter
     }
     
     /// Auto-detect and use best available formatter
-    private static FormatResult formatAuto(string[] sources, string pythonCmd, bool check)
+    private static FormatResult formatAuto(const string[] sources, string pythonCmd, bool check)
     {
         // Priority: ruff (fastest) > black (most popular) > others
         
@@ -162,7 +162,7 @@ class Formatter
     }
     
     /// Format with ruff
-    private static FormatResult formatRuff(string[] sources, bool check)
+    private static FormatResult formatRuff(const string[] sources, bool check)
     {
         FormatResult result;
         
@@ -181,7 +181,7 @@ class Formatter
         
         if (!check && result.success)
         {
-            result.formattedFiles = sources;
+            result.formattedFiles = sources.dup;
             Logger.info("Code formatted with ruff");
         }
         else if (check && !result.hadChanges)
@@ -193,7 +193,7 @@ class Formatter
     }
     
     /// Format with black
-    private static FormatResult formatBlack(string[] sources, string pythonCmd, bool check)
+    private static FormatResult formatBlack(const string[] sources, string pythonCmd, bool check)
     {
         FormatResult result;
         
@@ -212,7 +212,7 @@ class Formatter
         
         if (!check && result.success)
         {
-            result.formattedFiles = sources;
+            result.formattedFiles = sources.dup;
             Logger.info("Code formatted with black");
         }
         else if (check && !result.hadChanges)
@@ -224,7 +224,7 @@ class Formatter
     }
     
     /// Format with blue
-    private static FormatResult formatBlue(string[] sources, string pythonCmd, bool check)
+    private static FormatResult formatBlue(const string[] sources, string pythonCmd, bool check)
     {
         FormatResult result;
         
@@ -241,14 +241,14 @@ class Formatter
         
         if (!check && result.success)
         {
-            result.formattedFiles = sources;
+            result.formattedFiles = sources.dup;
         }
         
         return result;
     }
     
     /// Format with yapf
-    private static FormatResult formatYapf(string[] sources, string pythonCmd, bool check)
+    private static FormatResult formatYapf(const string[] sources, string pythonCmd, bool check)
     {
         FormatResult result;
         
@@ -268,14 +268,14 @@ class Formatter
         
         if (!check && result.success)
         {
-            result.formattedFiles = sources;
+            result.formattedFiles = sources.dup;
         }
         
         return result;
     }
     
     /// Format with autopep8
-    private static FormatResult formatAutopep8(string[] sources, string pythonCmd, bool check)
+    private static FormatResult formatAutopep8(const string[] sources, string pythonCmd, bool check)
     {
         FormatResult result;
         
@@ -295,7 +295,7 @@ class Formatter
         
         if (!check && result.success)
         {
-            result.formattedFiles = sources;
+            result.formattedFiles = sources.dup;
         }
         
         return result;

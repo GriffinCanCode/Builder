@@ -112,8 +112,8 @@ class BoxPackager : Packager
     private void createDefaultConfig(
         string configPath,
         PHARConfig config,
-        string[] sources,
-        string projectRoot
+        const string[] sources,
+        const string projectRoot
     )
     {
         JSONValue boxConfig = parseJSON("{}");

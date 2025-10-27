@@ -131,7 +131,7 @@ class TypeChecker
     }
     
     /// Auto-detect and use best available type checker
-    private static TypeCheckResult checkAuto(string[] sources, TypeCheckConfig config, string pythonCmd)
+    private static TypeCheckResult checkAuto(const string[] sources, TypeCheckConfig config, string pythonCmd)
     {
         // Priority: pyright (fastest) > mypy (most complete) > pytype > pyre
         
@@ -163,7 +163,7 @@ class TypeChecker
     }
     
     /// Type check with mypy
-    private static TypeCheckResult checkMypy(string[] sources, TypeCheckConfig config, string pythonCmd)
+    private static TypeCheckResult checkMypy(const string[] sources, TypeCheckConfig config, string pythonCmd)
     {
         TypeCheckResult result;
         
@@ -241,7 +241,7 @@ class TypeChecker
     }
     
     /// Type check with pyright
-    private static TypeCheckResult checkPyright(string[] sources, TypeCheckConfig config)
+    private static TypeCheckResult checkPyright(const string[] sources, TypeCheckConfig config)
     {
         TypeCheckResult result;
         
@@ -296,7 +296,7 @@ class TypeChecker
     }
     
     /// Type check with pytype
-    private static TypeCheckResult checkPytype(string[] sources, TypeCheckConfig config, string pythonCmd)
+    private static TypeCheckResult checkPytype(const string[] sources, TypeCheckConfig config, string pythonCmd)
     {
         TypeCheckResult result;
         
@@ -343,7 +343,7 @@ class TypeChecker
     }
     
     /// Type check with pyre
-    private static TypeCheckResult checkPyre(string[] sources, TypeCheckConfig config)
+    private static TypeCheckResult checkPyre(const string[] sources, TypeCheckConfig config)
     {
         TypeCheckResult result;
         

@@ -13,7 +13,7 @@ import utils.logging.logger;
 class PyLinters
 {
     /// Lint Python code with ruff
-    static ToolResult lintRuff(string[] sources)
+    static ToolResult lintRuff(const string[] sources)
     {
         ToolResult result;
         
@@ -82,7 +82,7 @@ class PyLinters
     }
     
     /// Lint Python code with flake8
-    static ToolResult lintFlake8(string[] sources, string pythonCmd = "python3")
+    static ToolResult lintFlake8(const string[] sources, string pythonCmd = "python3")
     {
         ToolResult result;
         
@@ -151,7 +151,7 @@ class Linter
     }
     
     /// Auto-detect and use best available linter
-    private static ToolResult lintAuto(string[] sources, string pythonCmd)
+    private static ToolResult lintAuto(const string[] sources, string pythonCmd)
     {
         // Priority: ruff (fastest, most comprehensive) > pylint > flake8
         
@@ -182,7 +182,7 @@ class Linter
     }
     
     /// Lint with bandit (security-focused)
-    private static ToolResult lintBandit(string[] sources, string pythonCmd)
+    private static ToolResult lintBandit(const string[] sources, string pythonCmd)
     {
         ToolResult result;
         
@@ -210,7 +210,7 @@ class Linter
     }
     
     /// Lint with pyflakes
-    private static ToolResult lintPyflakes(string[] sources, string pythonCmd)
+    private static ToolResult lintPyflakes(const string[] sources, string pythonCmd)
     {
         ToolResult result;
         

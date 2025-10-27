@@ -119,7 +119,7 @@ class RShinyBuilder : RBuilder
     }
     
     /// Create Shiny launcher script
-    private bool createShinyLauncher(string appDir, string outputPath, ref RConfig config)
+    private bool createShinyLauncher(string appDir, string outputPath, const ref RConfig config)
     {
         try
         {
