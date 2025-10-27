@@ -154,6 +154,24 @@ final class BuildCache
     /// Uses two-tier hashing for 1000x speedup on unchanged files
     /// Thread-safe: synchronized via internal mutex
     /// 
+    /// WARNING: TOCTOU (Time-Of-Check-Time-Of-Use) Race Condition
+    /// This function is subject to race conditions where files may be modified
+    /// between the exists() check and hashFileTwoTier() call. This is acceptable
+    /// for build caching (eventual consistency model) but NOT suitable for
+    /// security-critical applications requiring strong integrity guarantees.
+    /// 
+    /// For build systems, this TOCTOU is benign because:
+    /// 1. Concurrent file modifications during a build are user errors
+    /// 2. Next build will detect the changes via updated hashes
+    /// 3. Worst case: unnecessary rebuild (safe failure mode)
+    /// 4. Does NOT compromise system security or data integrity
+    /// 
+    /// DO NOT use this caching strategy for:
+    /// - Cryptographic validation of untrusted files
+    /// - Security-sensitive file integrity checking
+    /// - Tamper detection in production systems
+    /// - Any scenario where file atomicity is required
+    /// 
     /// Safety: This function is @trusted because:
     /// 1. Mutex synchronization ensures thread-safe access to entries
     /// 2. File system operations (exists, timeLastModified, FastHash) are unsafe I/O
