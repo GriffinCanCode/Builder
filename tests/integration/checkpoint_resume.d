@@ -71,7 +71,19 @@ unittest
     targets ~= target4;
     
     // Build graph
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto sorted = graph.topologicalSort();
     Assert.isTrue(sorted.isOk, "Graph should be valid");
     
@@ -134,7 +146,19 @@ unittest
     }
     
     // Build graph
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Create resume planner
     ResumeConfig resumeConfig;
@@ -188,7 +212,19 @@ unittest
         targets ~= target;
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Use SkipFailed strategy
     ResumeConfig resumeConfig;
@@ -254,7 +290,19 @@ unittest
     target3.deps = ["target2"];
     targets ~= target3;
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Use Smart strategy
     ResumeConfig resumeConfig;
@@ -302,7 +350,19 @@ unittest
         targets ~= target;
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Set max age to 24 hours
     ResumeConfig resumeConfig;
@@ -312,7 +372,7 @@ unittest
     // Plan should fail due to age
     auto planResult = planner.plan(checkpoint, graph);
     Assert.isTrue(planResult.isErr, "Old checkpoint should be rejected");
-    Assert.isTrue(planResult.unwrapErr().indexOf("too old") >= 0, "Error should mention age");
+    Assert.isTrue(planResult.unwrapErr().canFind("too old"), "Error should mention age");
     
     writeln("\x1b[32m  ✓ Checkpoint expiration works correctly\x1b[0m");
 }
@@ -343,7 +403,19 @@ unittest
         targets ~= target;
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Checkpoint should be invalid
     Assert.isFalse(checkpoint.isValid(graph), "Checkpoint should be invalid for different graph");
@@ -386,7 +458,19 @@ unittest
         targets ~= target;
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Initially all nodes should be Pending
     foreach (node; graph.nodes.values)
@@ -447,7 +531,19 @@ unittest
     }
     
     // First build - will fail on target3
-    auto graph1 = new BuildGraph(targets);
+    auto graph1 = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph1.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph1.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto executor1 = new BuildExecutor(graph1, config, 2, null, true, false);
     executor1.execute();
     
@@ -465,7 +561,19 @@ unittest
     std.file.write(target3Path, "print('Target 3 fixed')\n");
     
     // Second build - should resume from checkpoint
-    auto graph2 = new BuildGraph(targets);
+    auto graph2 = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph2.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph2.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto executor2 = new BuildExecutor(graph2, config, 2, null, true, false);
     
     // Load checkpoint and merge

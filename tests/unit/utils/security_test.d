@@ -2,6 +2,8 @@ module tests.unit.utils.security_test;
 
 import std.stdio;
 import std.exception;
+import std.algorithm : canFind, startsWith;
+import std.process : Config;
 import utils.security;
 
 /// Comprehensive security validation tests
@@ -343,13 +345,3 @@ unittest
     
     writeln("✓ Performance benchmarks completed");
 }
-
-void main()
-{
-    writeln("=== Builder Security Test Suite ===\n");
-    
-    // Tests run automatically via unittest blocks
-    
-    writeln("\n=== All Security Tests Passed ===");
-}
-

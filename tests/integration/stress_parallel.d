@@ -69,7 +69,19 @@ unittest
     // Build dependency graph
     writeln("  Building dependency graph...");
     auto graphTimer = StopWatch(AutoStart.yes);
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     graphTimer.stop();
     writeln("  ✓ Built graph in ", graphTimer.peek().total!"msecs", "ms");
     
@@ -77,8 +89,8 @@ unittest
     Assert.equal(graph.nodes.length, targetCount);
     auto stats = graph.getStats();
     writeln("  Graph stats:");
-    writeln("    Nodes: ", stats.nodeCount);
-    writeln("    Edges: ", stats.edgeCount);
+    writeln("    Nodes: ", stats.totalNodes);
+    writeln("    Edges: ", stats.totalEdges);
     writeln("    Depth: ", stats.maxDepth);
     
     // Topological sort
@@ -163,12 +175,24 @@ unittest
         }
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto stats = graph.getStats();
     
     writeln("  Graph stats:");
-    writeln("    Nodes: ", stats.nodeCount);
-    writeln("    Edges: ", stats.edgeCount);
+    writeln("    Nodes: ", stats.totalNodes);
+    writeln("    Edges: ", stats.totalEdges);
     writeln("    Max depth: ", stats.maxDepth);
     
     Assert.equal(stats.maxDepth, 2, "Should have depth 2 (root + leaves)");
@@ -229,12 +253,24 @@ unittest
         }
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto stats = graph.getStats();
     
     writeln("  Graph stats:");
-    writeln("    Nodes: ", stats.nodeCount);
-    writeln("    Edges: ", stats.edgeCount);
+    writeln("    Nodes: ", stats.totalNodes);
+    writeln("    Edges: ", stats.totalEdges);
     writeln("    Max depth: ", stats.maxDepth);
     
     Assert.equal(stats.maxDepth, chainLength, "Should have depth equal to chain length");
@@ -317,15 +353,27 @@ unittest
         targets ~= merge;
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto stats = graph.getStats();
     
     writeln("  Graph stats:");
-    writeln("    Nodes: ", stats.nodeCount);
-    writeln("    Edges: ", stats.edgeCount);
+    writeln("    Nodes: ", stats.totalNodes);
+    writeln("    Edges: ", stats.totalEdges);
     writeln("    Max depth: ", stats.maxDepth);
     
-    Assert.equal(stats.nodeCount, diamondCount * 4);
+    Assert.equal(stats.totalNodes, diamondCount * 4);
     
     // Execute build
     writeln("  Executing parallel build...");
@@ -334,7 +382,7 @@ unittest
     executor.execute();
     buildTimer.stop();
     
-    writeln("  ✓ Built ", stats.nodeCount, " targets in ", buildTimer.peek().total!"msecs", "ms");
+    writeln("  ✓ Built ", stats.totalNodes, " targets in ", buildTimer.peek().total!"msecs", "ms");
     
     writeln("\x1b[32m  ✓ Diamond dependency pattern stress test passed\x1b[0m");
 }
@@ -392,7 +440,19 @@ unittest
         }
     }
     
-    auto graph = new BuildGraph(targets);
+    auto graph = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     
     // Check for cycles
     auto sortResult = graph.topologicalSort();
@@ -400,10 +460,10 @@ unittest
     
     auto stats = graph.getStats();
     writeln("  Graph stats:");
-    writeln("    Nodes: ", stats.nodeCount);
-    writeln("    Edges: ", stats.edgeCount);
+    writeln("    Nodes: ", stats.totalNodes);
+    writeln("    Edges: ", stats.totalEdges);
     writeln("    Max depth: ", stats.maxDepth);
-    writeln("    Avg dependencies per target: ", stats.edgeCount * 1.0 / stats.nodeCount);
+    writeln("    Avg dependencies per target: ", stats.totalEdges * 1.0 / stats.totalNodes);
     
     // Execute build
     writeln("  Executing parallel build...");
@@ -449,7 +509,19 @@ unittest
     
     // Serial execution (1 worker)
     writeln("  Testing serial execution (1 worker)...");
-    auto graph1 = new BuildGraph(targets);
+    auto graph1 = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph1.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph1.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto serialTimer = StopWatch(AutoStart.yes);
     auto executor1 = new BuildExecutor(graph1, config, 1, null, false, false);
     executor1.execute();
@@ -459,7 +531,19 @@ unittest
     
     // Parallel execution (all CPUs)
     writeln("  Testing parallel execution (", totalCPUs, " workers)...");
-    auto graph2 = new BuildGraph(targets);
+    auto graph2 = new BuildGraph();
+    foreach (target; targets)
+    {
+        graph2.addTarget(target);
+    }
+    foreach (target; targets)
+    {
+        foreach (dep; target.deps)
+        {
+            auto result = graph2.addDependency(target.name, dep);
+            Assert.isTrue(result.isOk, "Dependency should be added");
+        }
+    }
     auto parallelTimer = StopWatch(AutoStart.yes);
     auto executor2 = new BuildExecutor(graph2, config, totalCPUs, null, false, false);
     executor2.execute();
