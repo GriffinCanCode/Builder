@@ -29,4 +29,5 @@ public import core.execution.executor;
 public import core.caching.cache;
 public import core.caching.storage;
 public import core.caching.eviction;
+public import core.telemetry;
 

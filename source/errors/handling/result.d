@@ -15,7 +15,7 @@ struct Result(T, E)
     }
     
     /// Create a successful result
-    static Result ok(T value)
+    static Result ok(T value) @trusted
     {
         Result r;
         r._isOk = true;
@@ -24,7 +24,7 @@ struct Result(T, E)
     }
     
     /// Create an error result
-    static Result err(E error)
+    static Result err(E error) @trusted
     {
         Result r;
         r._isOk = false;
@@ -140,13 +140,13 @@ struct Result(T, E)
 }
 
 /// Helper to create Ok result
-Result!(T, E) Ok(T, E)(T value)
+Result!(T, E) Ok(T, E)(T value) @trusted
 {
     return Result!(T, E).ok(value);
 }
 
 /// Helper to create Err result
-Result!(T, E) Err(T, E)(E error)
+Result!(T, E) Err(T, E)(E error) @trusted
 {
     return Result!(T, E).err(error);
 }
@@ -159,7 +159,7 @@ struct Result(E) if (is(E))
     private E _error;
     
     /// Create a successful void result
-    static Result ok()
+    static Result ok() @trusted
     {
         Result r;
         r._isOk = true;
@@ -167,7 +167,7 @@ struct Result(E) if (is(E))
     }
     
     /// Create an error result
-    static Result err(E error)
+    static Result err(E error) @trusted
     {
         Result r;
         r._isOk = false;
@@ -294,25 +294,25 @@ struct Result(E) if (is(E))
 alias VoidResult(E) = Result!E;
 
 /// Create a successful void result
-Result!E success(E)()
+Result!E success(E)() @trusted
 {
     return Result!E.ok();
 }
 
 /// Create an error void result
-Result!E failure(E)(E error)
+Result!E failure(E)(E error) @trusted
 {
     return Result!E.err(error);
 }
 
 /// Helper to create Ok void result (type-inferred from error type)
-Result!E Ok(E)()
+Result!E Ok(E)() @trusted
 {
     return Result!E.ok();
 }
 
 /// Helper to create Err void result (explicit)
-Result!E Err(E)(E error)
+Result!E Err(E)(E error) @trusted
 {
     return Result!E.err(error);
 }

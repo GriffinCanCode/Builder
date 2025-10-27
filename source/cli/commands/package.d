@@ -8,4 +8,5 @@ module cli.commands;
 
 public import cli.commands.init;
 public import cli.commands.infer;
+public import cli.commands.telemetry;
 

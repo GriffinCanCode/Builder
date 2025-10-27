@@ -5,6 +5,7 @@ import std.array;
 import std.conv;
 import core.graph.graph;
 import core.execution.executor;
+import core.telemetry;
 import config.parsing.parser;
 import analysis.inference.analyzer;
 import utils.logging.logger;
@@ -81,6 +82,10 @@ void main(string[] args)
             case "install-extension":
                 installExtensionCommand();
                 break;
+            case "telemetry":
+                auto subcommand = args.length > 2 ? args[2] : "summary";
+                TelemetryCommand.execute(subcommand);
+                break;
             default:
                 Logger.error("Unknown command: " ~ command);
                 printHelp();
@@ -104,6 +109,7 @@ void printHelp() @safe
     writeln("  resume            Resume failed build from checkpoint");
     writeln("  clean             Clean build cache (includes checkpoints)");
     writeln("  graph [target]    Show dependency graph");
+    writeln("  telemetry         Show build telemetry and analytics");
     writeln("  init              Initialize a new Builderfile with auto-detection");
     writeln("  infer             Show what targets would be auto-detected (dry-run)");
     writeln("  install-extension Install Builder VS Code extension\n");
@@ -120,6 +126,7 @@ void printHelp() @safe
     writeln("  builder init                     # Create Builderfile based on project structure");
     writeln("  builder build //path/to:target   # Build specific target");
     writeln("  builder graph //path/to:target   # Show dependencies");
+    writeln("  builder telemetry                # View build analytics and insights");
 }
 
 void buildCommand(in string target, in bool showGraph, in string modeStr) @trusted
@@ -157,10 +164,41 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @trust
     auto publisher = new SimpleEventPublisher();
     auto renderer = RendererFactory.createWithPublisher(publisher, renderMode);
     
+    // Initialize telemetry system
+    auto telemetryConfig = TelemetryConfig.fromEnvironment();
+    auto telemetryCollector = new TelemetryCollector();
+    auto telemetryStorage = new TelemetryStorage(".builder-telemetry", telemetryConfig);
+    
+    if (telemetryConfig.enabled)
+    {
+        publisher.subscribe(telemetryCollector);
+        Logger.debug_("Telemetry collection enabled");
+    }
+    
     // Execute build with event publishing
     auto executor = new BuildExecutor(graph, config, 0, publisher);
     executor.execute();
     executor.shutdown();
+    
+    // Persist telemetry data
+    if (telemetryConfig.enabled)
+    {
+        auto sessionResult = telemetryCollector.getSession();
+        if (sessionResult.isOk)
+        {
+            auto session = sessionResult.unwrap();
+            auto appendResult = telemetryStorage.append(session);
+            
+            if (appendResult.isErr)
+            {
+                Logger.warning("Failed to persist telemetry: " ~ appendResult.unwrapErr().toString());
+            }
+            else
+            {
+                Logger.debug_("Telemetry data persisted successfully");
+            }
+        }
+    }
     
     // Flush any remaining output
     renderer.flush();
@@ -297,10 +335,30 @@ void resumeCommand(in string modeStr) @trusted
     auto publisher = new SimpleEventPublisher();
     auto renderer = RendererFactory.createWithPublisher(publisher, renderMode);
     
+    // Initialize telemetry system
+    auto telemetryConfig = TelemetryConfig.fromEnvironment();
+    auto telemetryCollector = new TelemetryCollector();
+    auto telemetryStorage = new TelemetryStorage(".builder-telemetry", telemetryConfig);
+    
+    if (telemetryConfig.enabled)
+    {
+        publisher.subscribe(telemetryCollector);
+    }
+    
     // Execute build with checkpoint resume
     auto executor = new BuildExecutor(graph, config, 0, publisher);
     executor.execute();
     executor.shutdown();
+    
+    // Persist telemetry data
+    if (telemetryConfig.enabled)
+    {
+        auto sessionResult = telemetryCollector.getSession();
+        if (sessionResult.isOk)
+        {
+            telemetryStorage.append(sessionResult.unwrap());
+        }
+    }
     
     // Flush any remaining output
     renderer.flush();
