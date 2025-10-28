@@ -177,9 +177,14 @@ final class WorkStealingScheduler(T)
     }
     
     /// Shutdown scheduler and all workers
+    /// Idempotent: safe to call multiple times
     @trusted
     void shutdown()
     {
+        // Check if already shut down (idempotent)
+        if (!atomicLoad(running))
+            return;
+        
         atomicStore(running, false);
         
         // Stop all workers

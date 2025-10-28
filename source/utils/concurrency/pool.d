@@ -215,9 +215,14 @@ final class ThreadPool
     /// 2. Mutex synchronization prevents races
     /// 3. Thread.join() is inherently unsafe but properly managed
     /// 4. Notifies all workers to exit gracefully
+    /// 5. Idempotent: safe to call multiple times
     @trusted
     void shutdown()
     {
+        // Check if already shut down (idempotent)
+        if (!atomicLoad(running))
+            return;
+        
         atomicStore(running, false);
         
         synchronized (jobMutex)

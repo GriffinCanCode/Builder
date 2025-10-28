@@ -55,6 +55,42 @@ private ThreadPool getSIMDPool(size_t workerCount = 0) nothrow
     }
 }
 
+/// Shutdown the global SIMD thread pool (call before program termination)
+/// 
+/// Safety: This function is @trusted because:
+/// 1. Uses mutex to ensure thread-safe shutdown
+/// 2. ThreadPool.shutdown() is idempotent (safe to call multiple times)
+/// 3. Prevents dangling threads and segfaults on program exit
+@trusted
+void shutdownGlobalSIMDPool() nothrow
+{
+    try
+    {
+        if (globalSIMDPoolMutex !is null)
+        {
+            synchronized (globalSIMDPoolMutex)
+            {
+                if (globalSIMDPool !is null)
+                {
+                    globalSIMDPool.shutdown();
+                    globalSIMDPool = null;
+                }
+            }
+        }
+    }
+    catch (Exception e)
+    {
+        // Best effort - ignore errors during shutdown
+    }
+}
+
+/// Shared static destructor: automatically shutdown global SIMD pool
+/// This prevents segfaults during program termination
+shared static ~this()
+{
+    shutdownGlobalSIMDPool();
+}
+
 /// SIMD-aware parallel operations
 /// Combines task parallelism with data parallelism for maximum throughput
 /// 

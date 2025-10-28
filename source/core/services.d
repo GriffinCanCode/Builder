@@ -65,10 +65,14 @@ final class BuildServices
             this._publisher.subscribe(this._telemetryCollector);
         }
         
-        string[string] fields;
-        fields["cache_dir"] = options.cacheDir;
-        fields["telemetry_enabled"] = this._telemetryEnabled.to!string;
-        this._structuredLogger.info("Build services initialized", fields);
+        // Log initialization (after _structuredLogger is initialized)
+        if (this._structuredLogger !is null)
+        {
+            string[string] fields;
+            fields["cache_dir"] = options.cacheDir;
+            fields["telemetry_enabled"] = this._telemetryEnabled.to!string;
+            this._structuredLogger.info("Build services initialized", fields);
+        }
     }
     
     /// Initialize observability infrastructure

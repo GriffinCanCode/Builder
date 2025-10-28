@@ -84,6 +84,7 @@ final class BuildExecutor
     private bool useWorkStealing;  // Enable work-stealing scheduler
     private Tracer tracer;  // Distributed tracing
     private StructuredLogger structuredLogger;  // Structured logging
+    private bool _isShutdown = false;  // Track shutdown state for idempotency
     
     this(BuildGraph graph, WorkspaceConfig config, size_t maxParallelism = 0, EventPublisher eventPublisher = null, bool enableCheckpoints = true, bool enableRetries = true, bool useWorkStealing = true) @trusted
     {
@@ -160,8 +161,15 @@ final class BuildExecutor
     /// 
     /// IMPORTANT: Always call this before program termination to ensure
     /// cache data is properly flushed to disk and no data is lost.
+    /// Idempotent: safe to call multiple times.
     void shutdown()
     {
+        // Check if already shut down (idempotent)
+        if (_isShutdown)
+            return;
+        
+        _isShutdown = true;
+        
         if (workStealingScheduler !is null)
         {
             workStealingScheduler.shutdown();
