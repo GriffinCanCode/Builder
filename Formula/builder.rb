@@ -1,8 +1,8 @@
 class Builder < Formula
   desc "High-performance build system for mixed-language monorepos"
   homepage "https://github.com/GriffinCanCode/Builder"
-  url "https://github.com/GriffinCanCode/Builder/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "af2b22cb21964dc884d4e69e3b34d34aa7526abc83c7dd4bfbdd3175dbb14866"
+  url "https://github.com/GriffinCanCode/Builder/archive/refs/tags/v1.0.1.tar.gz"
+  sha256 "92f72bde01d112bc17c5e0fb8348b9b6f95f6ec926953004f7765b30248c3a24"
   license "GRIFFIN"
   head "https://github.com/GriffinCanCode/Builder.git", branch: "master"
 
