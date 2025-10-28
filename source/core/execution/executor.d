@@ -234,7 +234,8 @@ final class BuildExecutor
     }
     
     /// Execute the build with event-driven scheduling
-    void execute()
+    /// Returns: true if all targets built successfully, false otherwise
+    bool execute()
     {
         import core.memory : GC;
         
@@ -264,7 +265,7 @@ final class BuildExecutor
                 auto event = new BuildFailedEvent(error.message(), 0, sw.peek(), sw.peek());
                 eventPublisher.publish(event);
             }
-            return;
+            return false;
         }
         
         auto sorted = sortResult.unwrap();
@@ -550,8 +551,8 @@ final class BuildExecutor
             }
         }
         
-        // No longer throw exception - let caller check failed count
-        // Errors are already logged and events published
+        // Return success status
+        return failed == 0;
     }
     
     /// Format size in human-readable format

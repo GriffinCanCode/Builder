@@ -416,7 +416,18 @@ struct SemanticAnalyzer
         // Parse type field (required)
         if (!decl.hasField("type"))
         {
-            return error!(Target)(decl, "Missing required field 'type'");
+            string message = "Target '" ~ decl.name ~ "' missing required field 'type'\n\n" ~
+                "All targets must specify a type. Available types:\n" ~
+                "  - executable: Builds a binary executable\n" ~
+                "  - library: Builds a library (static or shared)\n" ~
+                "  - test: Runs tests\n" ~
+                "  - custom: Custom build command\n\n" ~
+                "Example:\n" ~
+                "  target(\"" ~ decl.name ~ "\") {\n" ~
+                "    type: executable;\n" ~
+                "    sources: [\"*.d\"];\n" ~
+                "  }";
+            return error!(Target)(decl, message);
         }
         
         auto typeField = decl.getField("type");
@@ -432,7 +443,41 @@ struct SemanticAnalyzer
         // Parse sources field (required)
         if (!decl.hasField("sources"))
         {
-            return error!(Target)(decl, "Missing required field 'sources'");
+            string typeStr = target.type == TargetType.Custom ? "custom" : 
+                            target.type == TargetType.Executable ? "executable" :
+                            target.type == TargetType.Library ? "library" : "test";
+            
+            string message = "Target '" ~ decl.name ~ "' missing required field 'sources'\n\n" ~
+                "All targets must have a 'sources' field, even custom targets.\n";
+            
+            if (target.type == TargetType.Custom)
+            {
+                message ~= "\nFor custom targets, sources can be:\n" ~
+                    "  - Build script files (e.g., Makefile)\n" ~
+                    "  - Marker files to track changes\n" ~
+                    "  - Input files that trigger rebuild\n";
+            }
+            
+            message ~= "\nExample:\n" ~
+                "  target(\"" ~ decl.name ~ "\") {\n" ~
+                "    type: " ~ typeStr ~ ";\n" ~
+                "    sources: ";
+            
+            if (target.type == TargetType.Custom)
+                message ~= "[\"Makefile\"]";
+            else
+                message ~= "[\"src/**/*.d\"]";
+            
+            message ~= ";\n";
+            
+            if (target.type == TargetType.Custom)
+            {
+                message ~= "    deps: [\"//other:target\"];\n";
+            }
+            
+            message ~= "  }";
+            
+            return error!(Target)(decl, message);
         }
         
         auto sourcesField = decl.getField("sources");

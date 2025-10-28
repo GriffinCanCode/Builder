@@ -219,6 +219,10 @@ final class BuildNode
         size_t maxDepth = 0;
         foreach (dep; dependencies)
         {
+            // Safety: Skip null dependencies to prevent segfault
+            if (dep is null)
+                continue;
+            
             auto depDepth = dep.depth();
             if (depDepth > maxDepth)
                 maxDepth = depDepth;
@@ -594,6 +598,10 @@ final class BuildGraph
         
         foreach (node; sorted)
         {
+            // Safety: Skip null nodes to prevent segfault
+            if (node is null)
+                continue;
+            
             writeln("\nTarget: ", node.id);
             writeln("  Type: ", node.target.type);
             writeln("  Sources: ", node.target.sources.length, " files");
@@ -602,20 +610,41 @@ final class BuildGraph
             {
                 writeln("  Dependencies:");
                 foreach (dep; node.dependencies)
-                    writeln("    - ", dep.id);
+                {
+                    // Safety: Skip null dependencies
+                    if (dep !is null)
+                        writeln("    - ", dep.id);
+                }
             }
             
             if (!node.dependents.empty)
             {
                 writeln("  Dependents:");
                 foreach (dep; node.dependents)
-                    writeln("    - ", dep.id);
+                {
+                    // Safety: Skip null dependents
+                    if (dep !is null)
+                        writeln("    - ", dep.id);
+                }
             }
         }
         
         writeln("\nBuild order (", sorted.length, " targets):");
         foreach (i, node; sorted)
-            writeln("  ", i + 1, ". ", node.id, " (depth: ", node.depth(), ")");
+        {
+            // Safety: Skip null nodes and catch any exceptions from depth()
+            if (node !is null)
+            {
+                try
+                {
+                    writeln("  ", i + 1, ". ", node.id, " (depth: ", node.depth(), ")");
+                }
+                catch (Exception e)
+                {
+                    writeln("  ", i + 1, ". ", node.id, " (depth: ERROR)");
+                }
+            }
+        }
     }
     
     /// Get statistics about the graph

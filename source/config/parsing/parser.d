@@ -58,7 +58,10 @@ class ConfigParser
         // Zero-config mode: infer targets if no Builderfiles found
         if (buildFiles.empty)
         {
-            Logger.info("No Builderfile found - attempting zero-config inference...");
+            Logger.info("═══════════════════════════════════════════");
+            Logger.info("  MODE: Zero-Config (No Builderfile found)");
+            Logger.info("═══════════════════════════════════════════");
+            Logger.info("Attempting automatic target inference...");
             
             try
             {
@@ -88,6 +91,9 @@ class ConfigParser
         }
         else
         {
+            Logger.info("═══════════════════════════════════════════");
+            Logger.info("  MODE: Builderfile (" ~ buildFiles.length.to!string ~ " file(s) found)");
+            Logger.info("═══════════════════════════════════════════");
             Logger.debugLog("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
             
             // Parse each Builderfile with error aggregation
@@ -116,10 +122,15 @@ class ConfigParser
             if (aggregated.hasSuccesses)
             {
                 config.targets = aggregated.successes;
-                Logger.debugLog(
+                Logger.success(
                     "Successfully parsed " ~ aggregated.successes.length.to!string ~
                     " target(s) from " ~ buildFiles.length.to!string ~ " Builderfile file(s)"
                 );
+            }
+            else if (aggregated.hasErrors && !aggregated.hasSuccesses)
+            {
+                Logger.error("All Builderfile files failed to parse");
+                Logger.info("Consider fixing errors or removing invalid Builderfiles");
             }
             
             // If policy is fail-fast and we have errors, return early

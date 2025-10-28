@@ -145,13 +145,23 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @trust
     
     // Execute build with event publishing
     auto executor = services.createExecutor(graph);
-    executor.execute();
+    bool success = executor.execute();
     executor.shutdown();
     
     // Cleanup and persist telemetry
     services.shutdown();
     
-    Logger.success("Build completed successfully!");
+    // Report final status
+    if (success)
+    {
+        Logger.success("Build completed successfully!");
+    }
+    else
+    {
+        Logger.error("Build failed!");
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
 }
 
 RenderMode parseRenderMode(in string mode) @safe pure
@@ -208,26 +218,59 @@ void cleanCommand() @trusted
 /// Graph command handler - visualizes dependency graph (refactored with DI)
 void graphCommand(in string target) @trusted
 {
+    import core.stdc.signal : signal, SIGSEGV, SIGABRT;
+    import core.stdc.stdlib : exit;
+    
     Logger.info("Analyzing dependency graph...");
     
-    // Parse configuration with error handling
-    auto configResult = ConfigParser.parseWorkspace(".");
-    if (configResult.isErr)
+    try
     {
-        Logger.error("Failed to parse workspace configuration");
-        import errors.formatting.format : format;
-        Logger.error(format(configResult.unwrapErr()));
-        import core.stdc.stdlib : exit;
+        // Parse configuration with error handling
+        auto configResult = ConfigParser.parseWorkspace(".");
+        if (configResult.isErr)
+        {
+            Logger.error("Failed to parse workspace configuration");
+            import errors.formatting.format : format;
+            Logger.error(format(configResult.unwrapErr()));
+            exit(1);
+        }
+        
+        auto config = configResult.unwrap();
+        
+        // Validate configuration has targets
+        if (config.targets.length == 0)
+        {
+            Logger.warning("No targets found in workspace configuration");
+            return;
+        }
+        
+        // Create services (lightweight for analysis-only operation)
+        auto services = new BuildServices(config, config.options);
+        
+        // Analyze with error recovery
+        auto graph = services.analyzer.analyze(target);
+        
+        // Print with error handling
+        graph.print();
+    }
+    catch (Exception e)
+    {
+        Logger.error("Fatal error during graph analysis: " ~ e.msg);
+        Logger.error("Stack trace:");
+        Logger.error(e.toString());
+        Logger.error("\nThis is a bug in Builder. Please report it at:");
+        Logger.error("https://github.com/your-org/builder/issues");
         exit(1);
     }
-    
-    auto config = configResult.unwrap();
-    
-    // Create services (lightweight for analysis-only operation)
-    auto services = new BuildServices(config, config.options);
-    auto graph = services.analyzer.analyze(target);
-    
-    graph.print();
+    catch (Error e)
+    {
+        Logger.error("Critical error (segfault/assertion failure): " ~ e.msg);
+        Logger.error("Stack trace:");
+        Logger.error(e.toString());
+        Logger.error("\nThis is a critical bug in Builder. Please report it at:");
+        Logger.error("https://github.com/your-org/builder/issues");
+        exit(139); // SIGSEGV exit code
+    }
 }
 
 /// Resume command handler - continues build from checkpoint (refactored with DI)

@@ -1,6 +1,6 @@
 {
     "name": "builder",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Build system for mixed-language monorepos with compile-time dependency analysis",
     "authors": ["Griffin"],
     "copyright": "Copyright © 2025",

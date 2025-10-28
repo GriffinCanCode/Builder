@@ -510,6 +510,48 @@ struct WorkspaceAnalyzer
             }
         }
         
+        // Warn about unimplemented/unknown fields
+        auto knownFields = [
+            "cacheDir", "outputDir", "parallel", "incremental", 
+            "verbose", "maxJobs", "env", "name"
+        ];
+        
+        foreach (field; decl.fields)
+        {
+            bool isKnown = false;
+            foreach (known; knownFields)
+            {
+                if (field.name == known)
+                {
+                    isKnown = true;
+                    break;
+                }
+            }
+            
+            if (!isKnown)
+            {
+                import utils.logging.logger;
+                
+                // Check if it's a commonly unimplemented feature
+                if (field.name == "checkpointing")
+                {
+                    Logger.warning("Builderspace field 'checkpointing' is currently experimental and may not be fully implemented");
+                }
+                else if (field.name == "retry")
+                {
+                    Logger.warning("Builderspace field 'retry' is currently experimental and may not be fully implemented");
+                }
+                else if (field.name == "telemetry")
+                {
+                    Logger.warning("Builderspace field 'telemetry' is enabled by default; explicit configuration is currently experimental");
+                }
+                else
+                {
+                    Logger.warning("Unknown Builderspace field '" ~ field.name ~ "' will be ignored");
+                }
+            }
+        }
+        
         return Result!BuildError.ok();
     }
     

@@ -16,16 +16,34 @@ import utils.logging.logger;
 class VirtualEnv
 {
     /// Find existing virtual environment in directory
+    /// Searches current directory and common subdirectories
     static string findVenv(string dir)
     {
         // Common venv directory names
         string[] venvNames = [".venv", "venv", "env", ".env"];
         
+        // Check root directory first
         foreach (name; venvNames)
         {
-            string venvPath = buildPath(dir, name);
+            string venvPath = buildNormalizedPath(buildPath(dir, name));
             if (exists(venvPath) && isDir(venvPath) && isVenv(venvPath))
                 return venvPath;
+        }
+        
+        // Check common subdirectories (e.g., backend/venv, frontend/.venv)
+        string[] subdirs = ["backend", "frontend", "api", "server", "client", "src"];
+        foreach (subdir; subdirs)
+        {
+            string subdirPath = buildPath(dir, subdir);
+            if (!exists(subdirPath) || !isDir(subdirPath))
+                continue;
+            
+            foreach (name; venvNames)
+            {
+                string venvPath = buildNormalizedPath(buildPath(subdirPath, name));
+                if (exists(venvPath) && isDir(venvPath) && isVenv(venvPath))
+                    return venvPath;
+            }
         }
         
         return "";
@@ -166,13 +184,22 @@ class VirtualEnv
         // Resolve venv path relative to project
         string venvPath = config.path;
         if (!venvPath.isAbsolute)
-            venvPath = buildPath(projectDir, venvPath);
+            venvPath = buildNormalizedPath(buildPath(projectDir, venvPath));
         
-        // Check if venv already exists
+        // Check if venv already exists at configured path
         if (isVenv(venvPath))
         {
             Logger.debugLog("Using existing virtual environment: " ~ venvPath);
             return venvPath;
+        }
+        
+        // Before creating, search for existing venvs in project directory
+        string existingVenv = findVenv(projectDir);
+        if (!existingVenv.empty)
+        {
+            Logger.info("Found existing virtual environment: " ~ existingVenv);
+            Logger.info("Using it instead of creating new one at: " ~ venvPath);
+            return existingVenv;
         }
         
         // Auto-create if configured
