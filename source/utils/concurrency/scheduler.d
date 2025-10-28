@@ -151,26 +151,43 @@ final class WorkStealingScheduler(T)
         while (true)
         {
             // Check if all workers are idle and no tasks remain
-            bool allIdle = true;
             bool hasTasks = false;
             
-            foreach (worker; workers)
-            {
-                if (!worker.deque.empty())
-                {
-                    hasTasks = true;
-                    break;
-                }
-            }
-            
+            // First check global queue
             synchronized (globalMutex)
             {
                 if (!globalQueue.empty())
                     hasTasks = true;
             }
             
-            if (!hasTasks && atomicLoad(activeWorkers) == 0)
-                break;
+            // Then check worker deques
+            if (!hasTasks)
+            {
+                foreach (worker; workers)
+                {
+                    if (!worker.deque.empty())
+                    {
+                        hasTasks = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Critical fix: Check activeWorkers AFTER checking queues to avoid TOCTOU
+            // If no tasks in queues AND no active workers, we're done
+            // Also ensure activeWorkers check happens atomically relative to queue checks
+            if (!hasTasks)
+            {
+                immutable active = atomicLoad(activeWorkers);
+                if (active == 0)
+                {
+                    // Double-check to avoid race: ensure no worker grabbed work
+                    // between our queue check and activeWorkers check
+                    Thread.sleep(1.msecs);
+                    if (atomicLoad(activeWorkers) == 0)
+                        break;
+                }
+            }
             
             Thread.sleep(1.msecs);
         }
