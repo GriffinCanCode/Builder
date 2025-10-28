@@ -26,19 +26,20 @@ import std.traits;
 /// - Morrison & Afek: "Fast Concurrent Queues for x86 Processors" (2013)
 struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
 {
-    private struct CircularArray
+    private static struct CircularArray
     {
         shared T[] buffer;
-        immutable size_t logSize;  // log2(capacity) for fast modulo
+        size_t logSize;  // log2(capacity) for fast modulo (not immutable for heap allocation)
         
         @disable this(this);  // Non-copyable
         
-        this(size_t capacity) @trusted nothrow
+        static CircularArray* create(size_t capacity) @trusted nothrow
         {
             import std.math : isPowerOf2;
             assert(isPowerOf2(capacity), "Capacity must be power of 2");
             
-            buffer.length = capacity;
+            auto arr = new CircularArray();
+            arr.buffer.length = capacity;
             
             // Calculate log2(capacity)
             size_t temp = capacity;
@@ -48,7 +49,8 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
                 temp >>= 1;
                 log++;
             }
-            logSize = log;
+            arr.logSize = log;
+            return arr;
         }
         
         @property size_t capacity() const pure nothrow @nogc @trusted
@@ -67,14 +69,6 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
             immutable mask = capacity - 1;
             atomicStore(buffer[index & mask], cast(shared)item);
         }
-        
-        CircularArray grow(size_t bottom, size_t top) @trusted
-        {
-            auto newArray = CircularArray(capacity * 2);
-            foreach (i; top .. bottom)
-                newArray.put(i, get(i));
-            return newArray;
-        }
     }
     
     private shared CircularArray* array;
@@ -89,7 +83,7 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
         import std.math : isPowerOf2;
         assert(isPowerOf2(capacity), "Capacity must be power of 2");
         
-        auto arr = new CircularArray(capacity);
+        auto arr = CircularArray.create(capacity);
         atomicStore(array, cast(shared)arr);
         atomicStore(bottom, cast(long)0);
         atomicStore(top, cast(long)0);
@@ -113,10 +107,12 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
         immutable size = b - t;
         if (size >= arr.capacity)
         {
-            // Grow array (rare path)
-            auto newArray = arr.grow(b, t);
-            atomicStore(array, cast(shared)&newArray);
-            arr = &newArray;
+            // Grow array (rare path) - allocate on heap to avoid dangling pointer
+            auto newArray = CircularArray.create(arr.capacity * 2);
+            foreach (i; t .. b)
+                newArray.put(i, arr.get(i));
+            atomicStore(array, cast(shared)newArray);
+            arr = newArray;
         }
         
         arr.put(b, task);
