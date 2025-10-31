@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package example;
+
+import "person.proto";
+
+option java_multiple_files = true;
+option java_package = "com.example.proto";
+option java_outer_classname = "CompanyProto";
+
+// Represents a company
+message Company {
+  // Company ID
+  string id = 1;
+  
+  // Company name
+  string name = 2;
+  
+  // Employees
+  repeated Person employees = 3;
+  
+  // Founded year
+  int32 founded_year = 4;
+  
+  // Industry
+  string industry = 5;
+  
+  // Headquarters address
+  Address headquarters = 6;
+}
+
+// Department within a company
+message Department {
+  string id = 1;
+  string name = 2;
+  Person manager = 3;
+  repeated Person members = 4;
+}
+

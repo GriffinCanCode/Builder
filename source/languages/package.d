@@ -23,6 +23,7 @@ module languages;
 ///   lua/         - Lua language support (modular - runtimes, LuaRocks, LuaJIT, formatters, linters, testers)
 ///   nim/         - Nim language support (modular)
 ///   zig.d        - Zig language support
+///   protobuf/    - Protocol Buffers support (modular - protoc, buf, code generation)
 ///
 /// Usage:
 ///   import languages;

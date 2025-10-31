@@ -32,6 +32,7 @@ import languages.scripting.elixir;
 import languages.compiled.nim;
 import languages.scripting.lua;
 import languages.scripting.r;
+import languages.compiled.protobuf;
 import utils.logging.logger;
 import utils.logging.structured;
 import core.telemetry.tracing;
@@ -150,6 +151,7 @@ final class BuildExecutor
         handlers[TargetLanguage.Nim] = new NimHandler();
         handlers[TargetLanguage.Lua] = new LuaHandler();
         handlers[TargetLanguage.R] = new RHandler();
+        handlers[TargetLanguage.Protobuf] = new ProtobufHandler();
     }
     
     ~this()

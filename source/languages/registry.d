@@ -48,6 +48,7 @@ shared static this()
     aliases[TargetLanguage.Lua] = ["lua"];
     aliases[TargetLanguage.R] = ["r"];
     aliases[TargetLanguage.CSS] = ["css"];
+    aliases[TargetLanguage.Protobuf] = ["protobuf", "proto"];
     aliases[TargetLanguage.Generic] = ["generic"];
     
     languageAliases = cast(immutable) aliases;
@@ -142,6 +143,9 @@ shared static this()
     extensions[".scss"] = TargetLanguage.CSS;
     extensions[".sass"] = TargetLanguage.CSS;
     extensions[".less"] = TargetLanguage.CSS;
+    
+    // Protocol Buffers
+    extensions[".proto"] = TargetLanguage.Protobuf;
     
     extensionMap = cast(immutable) extensions;
 }

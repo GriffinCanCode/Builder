@@ -27,6 +27,7 @@ The languages package provides language-specific build handlers and dependency a
 - **lua.d** - Lua language support
 - **nim.d** - Nim language support
 - **zig.d** - Zig language support
+- **protobuf/** - Protocol Buffers with protoc/buf (modular - multi-language code generation)
 
 ## Usage
 

@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package example;
+
+option java_multiple_files = true;
+option java_package = "com.example.proto";
+option java_outer_classname = "PersonProto";
+
+// Represents a person with basic information
+message Person {
+  // Unique identifier
+  string id = 1;
+  
+  // Full name
+  string name = 2;
+  
+  // Email address
+  string email = 3;
+  
+  // Phone numbers
+  repeated PhoneNumber phones = 4;
+  
+  // Address information
+  Address address = 5;
+  
+  // Age in years
+  int32 age = 6;
+  
+  // Employment status
+  EmploymentStatus status = 7;
+}
+
+// Phone number with type
+message PhoneNumber {
+  string number = 1;
+  PhoneType type = 2;
+}
+
+// Types of phone numbers
+enum PhoneType {
+  PHONE_TYPE_UNSPECIFIED = 0;
+  PHONE_TYPE_MOBILE = 1;
+  PHONE_TYPE_HOME = 2;
+  PHONE_TYPE_WORK = 3;
+}
+
+// Address information
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+  string zip_code = 4;
+  string country = 5;
+}
+
+// Employment status
+enum EmploymentStatus {
+  EMPLOYMENT_STATUS_UNSPECIFIED = 0;
+  EMPLOYMENT_STATUS_EMPLOYED = 1;
+  EMPLOYMENT_STATUS_UNEMPLOYED = 2;
+  EMPLOYMENT_STATUS_STUDENT = 3;
+  EMPLOYMENT_STATUS_RETIRED = 4;
+}
+

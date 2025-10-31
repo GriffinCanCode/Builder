@@ -223,6 +223,7 @@ enum TargetLanguage
     Lua,
     R,
     CSS,
+    Protobuf,
     Generic
 }
 
