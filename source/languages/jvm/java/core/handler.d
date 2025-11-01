@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import languages.base.base;
+import languages.base.mixins;
 import languages.jvm.java.core.config;
 import languages.jvm.java.managers;
 import languages.jvm.java.tooling.detection;
@@ -20,49 +21,28 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.action : ActionId, ActionType;
 
 /// Java build handler - comprehensive and modular with action-level caching
 class JavaHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"java";
+    mixin SimpleBuildOrchestrationMixin!(JavaConfig, "parseJavaConfig");
     
-    this()
+    private void enhanceConfigFromProject(
+        ref JavaConfig javaConfig,
+        in Target target,
+        in WorkspaceConfig config
+    )
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/java", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
-    
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
-        
-        Logger.debugLog("Building Java target: " ~ target.name);
-        
-        // Parse Java configuration
-        JavaConfig javaConfig = parseJavaConfig(target);
-        
         // Detect and enhance configuration from project structure
         BuildToolFactory.enhanceConfigFromProject(javaConfig, config.root);
         
         // Validate Java installation
         if (!JavaToolDetection.isJavacAvailable())
         {
-            result.error = "Java compiler (javac) not found. Please install JDK.";
-            return result;
+            Logger.error("Java compiler (javac) not found. Please install JDK.");
+            return;
         }
         
         // Check Java version
@@ -72,25 +52,6 @@ class JavaHandler : BaseLanguageHandler
             Logger.warning("Java version " ~ javaVersion.toString() ~ 
                           " may not support source version " ~ javaConfig.sourceVersion.toString());
         }
-        
-        // Build based on target type
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, javaConfig);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, javaConfig);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, javaConfig);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, javaConfig);
-                break;
-        }
-        
-        return result;
     }
     
     override string[] getOutputs(in Target target, in WorkspaceConfig config)
@@ -128,8 +89,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildExecutable(
-        const Target target,
-        const WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {
@@ -202,7 +163,7 @@ class JavaHandler : BaseLanguageHandler
         }
         
         // Build using appropriate builder, pass actionCache for per-file caching
-        auto builder = JavaBuilderFactory.create(javaConfig.mode, javaConfig, actionCache);
+        auto builder = JavaBuilderFactory.create(javaConfig.mode, javaConfig, getCache());
         
         if (!builder.isAvailable())
         {
@@ -226,8 +187,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult buildLibrary(
-        const Target target,
-        const WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {
@@ -245,8 +206,8 @@ class JavaHandler : BaseLanguageHandler
     }
     
     private LanguageBuildResult runTests(
-        const Target target,
-        const WorkspaceConfig config,
+        in Target target,
+        in WorkspaceConfig config,
         JavaConfig javaConfig
     )
     {

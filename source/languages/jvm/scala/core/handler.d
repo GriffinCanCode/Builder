@@ -9,6 +9,7 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.base.base;
+import languages.base.mixins;
 import languages.jvm.scala.core.config;
 import languages.jvm.scala.tooling.builders;
 import languages.jvm.scala.tooling.formatters;
@@ -22,40 +23,20 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig;
 
 /// Scala build handler with action-level caching
 class ScalaHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"scala";
+    mixin ConfigParsingMixin!(ScalaConfig, "parseScalaConfig", ["scala", "scalaConfig"]);
+    mixin SimpleBuildOrchestrationMixin!(ScalaConfig, "parseScalaConfig");
     
-    this()
+    private void enhanceConfigFromProject(
+        ref ScalaConfig scalaConfig,
+        in Target target,
+        in WorkspaceConfig config
+    )
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/scala", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
-        
-        Logger.debugLog("Building Scala target: " ~ target.name);
-        
-        // Parse Scala configuration
-        ScalaConfig scalaConfig = parseScalaConfig(target);
-        
         // Auto-detect Scala version if not specified
         if (scalaConfig.versionInfo.major == 0 || scalaConfig.versionInfo.minor == 0)
         {
@@ -68,24 +49,6 @@ class ScalaHandler : BaseLanguageHandler
             scalaConfig.buildTool = ScalaToolDetection.detectBuildTool(config.root);
             Logger.debugLog("Auto-detected build tool: " ~ scalaConfig.buildTool.to!string);
         }
-        
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, scalaConfig);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, scalaConfig);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, scalaConfig);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, scalaConfig);
-                break;
-        }
-        
-        return result;
     }
     
     override string[] getOutputs(in Target target, in WorkspaceConfig config)
@@ -143,7 +106,7 @@ class ScalaHandler : BaseLanguageHandler
         }
         
         // Get appropriate builder with action cache
-        auto builder = ScalaBuilderFactory.createAuto(scalaConfig, config.root, actionCache);
+        auto builder = ScalaBuilderFactory.createAuto(scalaConfig, config.root, getCache());
         
         Logger.debugLog("Using builder: " ~ builder.name());
         
@@ -221,19 +184,6 @@ class ScalaHandler : BaseLanguageHandler
         
         result.success = true;
         result.outputHash = FastHash.hashStrings(target.sources);
-        
-        return result;
-    }
-    
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, ScalaConfig scalaConfig)
-    {
-        LanguageBuildResult result;
-        
-        // Custom builds would use environment or flags
-        // Note: Target struct doesn't have a commands field
-        
-        result.success = true;
-        result.outputs = getOutputs(target, config);
         
         return result;
     }
