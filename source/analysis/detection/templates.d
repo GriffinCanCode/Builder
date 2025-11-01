@@ -120,8 +120,118 @@ class TemplateGenerator
                 return generateFSharpTarget(langInfo);
             case TargetLanguage.CSS:
                 return generateCSSTarget(langInfo);
+            case TargetLanguage.Protobuf:
+                return generateProtobufTarget(langInfo);
             case TargetLanguage.Generic:
                 return generateGenericTarget();
+        }
+    }
+    
+    /// Generate a unique target name for multi-language projects
+    private string generateUniqueTargetName(string languageName, LanguageInfo info)
+    {
+        // For single-language projects, use the project name
+        if (metadata.languages.length == 1)
+        {
+            return metadata.projectName;
+        }
+        
+        string baseName = languageName; // Default to language name
+        
+        // For multi-language projects, try to infer a meaningful name from directory structure
+        if (!info.sourceFiles.empty)
+        {
+            string firstFile = info.sourceFiles[0];
+            string dir = dirName(firstFile);
+            
+            // If all files are in a specific subdirectory (not root), use that directory name
+            if (dir != "." && !dir.empty)
+            {
+                string[] pathParts = dir.split("/");
+                // Get the last non-empty part of the path
+                foreach_reverse (part; pathParts)
+                {
+                    if (!part.empty && part != "." && part != "src" && part != "lib")
+                    {
+                        baseName = part;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Check if this name is already used by another language
+        // Count how many languages would generate the same base name
+        int nameCount = 0;
+        int myIndex = 0;
+        foreach (i, lang; metadata.languages)
+        {
+            string otherBaseName = getBaseName(lang);
+            if (otherBaseName == baseName)
+            {
+                if (lang.language == info.language)
+                    myIndex = nameCount;
+                nameCount++;
+            }
+        }
+        
+        // If multiple languages share the same base name, append language name
+        if (nameCount > 1)
+        {
+            return baseName ~ "-" ~ languageName;
+        }
+        
+        return baseName;
+    }
+    
+    /// Helper to get base name for a language (used for duplicate detection)
+    private string getBaseName(LanguageInfo lang)
+    {
+        if (!lang.sourceFiles.empty)
+        {
+            string firstFile = lang.sourceFiles[0];
+            string dir = dirName(firstFile);
+            
+            if (dir != "." && !dir.empty)
+            {
+                string[] pathParts = dir.split("/");
+                foreach_reverse (part; pathParts)
+                {
+                    if (!part.empty && part != "." && part != "src" && part != "lib")
+                    {
+                        return part;
+                    }
+                }
+            }
+        }
+        
+        // Fallback to language name
+        final switch (lang.language)
+        {
+            case TargetLanguage.Python: return "python";
+            case TargetLanguage.JavaScript: return "javascript";
+            case TargetLanguage.TypeScript: return "typescript";
+            case TargetLanguage.Go: return "go";
+            case TargetLanguage.Rust: return "rust";
+            case TargetLanguage.D: return "d";
+            case TargetLanguage.Java: return "java";
+            case TargetLanguage.Cpp: return "cpp";
+            case TargetLanguage.C: return "c";
+            case TargetLanguage.Ruby: return "ruby";
+            case TargetLanguage.Elixir: return "elixir";
+            case TargetLanguage.PHP: return "php";
+            case TargetLanguage.Swift: return "swift";
+            case TargetLanguage.Kotlin: return "kotlin";
+            case TargetLanguage.CSharp: return "csharp";
+            case TargetLanguage.Zig: return "zig";
+            case TargetLanguage.Scala: return "scala";
+            case TargetLanguage.Nim: return "nim";
+            case TargetLanguage.Lua: return "lua";
+            case TargetLanguage.R: return "r";
+            case TargetLanguage.FSharp: return "fsharp";
+            case TargetLanguage.CSS: return "css";
+            case TargetLanguage.Protobuf: return "protobuf";
+            case TargetLanguage.Generic: return "generic";
         }
     }
     
@@ -129,7 +239,7 @@ class TemplateGenerator
     private string generatePythonTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.py");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("python", info);
         string targetType = hasMainFile(info.sourceFiles) ? "executable" : "library";
         
         string target = format("target(\"%s\") {\n", targetName);
@@ -151,7 +261,7 @@ class TemplateGenerator
     private string generateJavaScriptTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.js");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("javascript", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -172,7 +282,7 @@ class TemplateGenerator
     private string generateTypeScriptTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.ts");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("typescript", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -203,7 +313,7 @@ class TemplateGenerator
     private string generateGoTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.go");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("go", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -227,7 +337,7 @@ class TemplateGenerator
     private string generateRustTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.rs");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("rust", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -249,7 +359,7 @@ class TemplateGenerator
     private string generateDTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.d");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("d", info);
         string targetType = hasMainFile(info.sourceFiles) ? "executable" : "library";
         
         string target = format("target(\"%s\") {\n", targetName);
@@ -265,7 +375,7 @@ class TemplateGenerator
     private string generateJavaTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.java");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("java", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -280,7 +390,7 @@ class TemplateGenerator
     private string generateCppTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.cpp");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("cpp", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -296,7 +406,7 @@ class TemplateGenerator
     private string generateCTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.c");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("c", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -312,7 +422,7 @@ class TemplateGenerator
     private string generateRubyTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.rb");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("ruby", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -327,7 +437,7 @@ class TemplateGenerator
     private string generateElixirTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.ex");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("elixir", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -342,7 +452,7 @@ class TemplateGenerator
     private string generatePHPTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.php");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("php", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -357,7 +467,7 @@ class TemplateGenerator
     private string generateSwiftTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.swift");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("swift", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -372,7 +482,7 @@ class TemplateGenerator
     private string generateKotlinTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.kt");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("kotlin", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -387,7 +497,7 @@ class TemplateGenerator
     private string generateCSharpTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.cs");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("csharp", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -402,7 +512,7 @@ class TemplateGenerator
     private string generateZigTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.zig");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("zig", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -417,7 +527,7 @@ class TemplateGenerator
     private string generateScalaTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.scala");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("scala", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -432,7 +542,7 @@ class TemplateGenerator
     private string generateNimTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.nim");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("nim", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -447,7 +557,7 @@ class TemplateGenerator
     private string generateLuaTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.lua");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("lua", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -462,7 +572,7 @@ class TemplateGenerator
     private string generateRTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.R");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("r", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -477,7 +587,7 @@ class TemplateGenerator
     private string generateFSharpTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.fs");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("fsharp", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: executable;\n";
@@ -492,11 +602,26 @@ class TemplateGenerator
     private string generateCSSTarget(LanguageInfo info)
     {
         string sources = generateSourcesArray(info.sourceFiles, "*.css");
-        string targetName = metadata.projectName;
+        string targetName = generateUniqueTargetName("css", info);
         
         string target = format("target(\"%s\") {\n", targetName);
         target ~= "    type: custom;\n";
         target ~= "    language: css;\n";
+        target ~= format("    sources: %s;\n", sources);
+        target ~= "}";
+        
+        return target;
+    }
+    
+    /// Protobuf target generation
+    private string generateProtobufTarget(LanguageInfo info)
+    {
+        string sources = generateSourcesArray(info.sourceFiles, "*.proto");
+        string targetName = generateUniqueTargetName("protobuf", info);
+        
+        string target = format("target(\"%s\") {\n", targetName);
+        target ~= "    type: library;\n";
+        target ~= "    language: protobuf;\n";
         target ~= format("    sources: %s;\n", sources);
         target ~= "}";
         
@@ -739,6 +864,7 @@ class TemplateGenerator
                 case TargetLanguage.Lua:
                 case TargetLanguage.R:
                 case TargetLanguage.CSS:
+                case TargetLanguage.Protobuf:
                 case TargetLanguage.Generic:
                     break;
             }

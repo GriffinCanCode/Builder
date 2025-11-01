@@ -192,6 +192,7 @@ class TargetInference
             case TargetLanguage.Lua:
             case TargetLanguage.R:
             case TargetLanguage.CSS:
+            case TargetLanguage.Protobuf:
             case TargetLanguage.Generic:
                 return config;
         }

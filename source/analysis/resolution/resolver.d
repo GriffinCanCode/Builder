@@ -126,6 +126,9 @@ class DependencyResolver
             case TargetLanguage.CSS:
                 target = "";  // CSS has no imports to resolve
                 break;
+            case TargetLanguage.Protobuf:
+                target = "";  // Protobuf imports handled by compiler
+                break;
             case TargetLanguage.Generic:
                 target = "";
                 break;
