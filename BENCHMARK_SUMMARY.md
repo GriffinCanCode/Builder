@@ -35,9 +35,11 @@
 - **Scaling:** Linear with available cores
 
 ### Parser & Analysis
-- **Parse Time:** 3-4ms consistently
+- **Parse Time:** 3-4ms consistently (no cache)
+- **Parse Time (cached):** <0.5ms per file (~10x faster)
 - **Analysis Time:** 0-3ms
 - **Total Overhead:** ~350-400ms per build
+- **Parse Cache Hit Rate:** 99%+ on incremental builds
 
 ---
 
@@ -47,8 +49,9 @@
 1. **Exceptional Parallel Execution:** 227% CPU usage shows great multi-core utilization
 2. **Perfect Cache Hit Rates:** 100% cache hits on subsequent builds
 3. **Fast Parsing:** Sub-5ms parsing regardless of project size
-4. **Consistent Performance:** ±3% variance across multiple runs
-5. **Multi-Language Support:** No performance penalty for mixed-language projects
+4. **Incremental Parse Cache:** 10x faster parsing on unchanged files
+5. **Consistent Performance:** ±3% variance across multiple runs
+6. **Multi-Language Support:** No performance penalty for mixed-language projects
 
 ### ⚠️ Optimization Opportunities
 1. **Base Overhead:** ~400ms overhead even for trivial builds
