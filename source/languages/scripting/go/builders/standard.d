@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
 import languages.scripting.go.builders.base;
 import languages.scripting.go.core.config;
 import languages.scripting.go.managers.modules;
@@ -15,10 +16,18 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
 
-/// Standard Go builder - uses go build command
+/// Standard Go builder - uses go build command with action-level caching
 class StandardBuilder : GoBuilder
 {
+    protected ActionCache actionCache;
+    
+    this(ActionCache actionCache = null)
+    {
+        this.actionCache = actionCache;
+    }
+    
     override GoBuildResult build(
         in string[] sources,
         in GoConfig config,
@@ -195,6 +204,43 @@ class StandardBuilder : GoBuilder
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
         
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["goVersion"] = GoTools.getGoVersion();
+        metadata["mode"] = config.mode.to!string;
+        metadata["trimpath"] = config.trimpath.to!string;
+        metadata["buildTags"] = (config.buildTags ~ config.constraints.tags).join(",");
+        metadata["gcflags"] = config.gcflags.join(" ");
+        metadata["ldflags"] = config.ldflags.join(" ");
+        metadata["asmflags"] = config.asmflags.join(" ");
+        if (config.vendor || config.modMode == GoModMode.Vendor)
+            metadata["mod"] = "vendor";
+        else if (config.modMode != GoModMode.Auto)
+            metadata["mod"] = modModeToString(config.modMode);
+        metadata["targetFlags"] = target.flags.join(" ");
+        
+        // Create action ID for Go build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "go_build";
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if build is cached
+        bool hasActionCache = actionCache !is null;
+        if (hasActionCache && actionCache.isCached(actionId, sources, metadata))
+        {
+            // Verify output exists
+            if (exists(outputPath))
+            {
+                Logger.debugLog("  [Cached] Go build: " ~ target.name);
+                result.success = true;
+                result.outputs = [outputPath];
+                result.outputHash = FastHash.hashFile(outputPath);
+                return result;
+            }
+        }
+        
         // Build go build command
         string[] cmd;
         
@@ -334,9 +380,18 @@ class StandardBuilder : GoBuilder
         // Execute build
         auto res = execute(cmd, env, Config.none, size_t.max, workDir);
         
-        if (res.status != 0)
+        bool success = res.status == 0;
+        
+        if (!success)
         {
             result.error = "Go build failed: " ~ res.output;
+            
+            // Record failure in cache
+            if (hasActionCache)
+            {
+                actionCache.update(actionId, sources, [], metadata, false);
+            }
+            
             return result;
         }
         
@@ -368,6 +423,12 @@ class StandardBuilder : GoBuilder
                 result.outputHash = FastHash.hashFile(outputPath);
             else
                 result.outputHash = FastHash.hashStrings(sources);
+            
+            // Update cache with success
+            if (hasActionCache)
+            {
+                actionCache.update(actionId, sources, result.outputs, metadata, true);
+            }
         }
         
         return result;

@@ -15,10 +15,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// Modular JAR builder (Java 9+ module system)
 class ModularJARBuilder : JARBuilder
 {
+    this(ActionCache actionCache = null)
+    {
+        super(actionCache);
+    }
+    
     override string name() const
     {
         return "ModularJAR";

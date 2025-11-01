@@ -9,10 +9,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
 import utils.process : isCommandAvailable;
+import core.caching.action : ActionCache;
 
 /// CGO builder - handles C interop compilation
 class CGoBuilder : StandardBuilder
 {
+    this(ActionCache actionCache = null)
+    {
+        super(actionCache);
+    }
+    
     override GoBuildResult build(
         in string[] sources,
         in GoConfig config,

@@ -20,10 +20,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Java build handler - comprehensive and modular
+/// Java build handler - comprehensive and modular with action-level caching
 class JavaHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/java", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -179,8 +201,8 @@ class JavaHandler : BaseLanguageHandler
             }
         }
         
-        // Build using appropriate builder
-        auto builder = JavaBuilderFactory.create(javaConfig.mode, javaConfig);
+        // Build using appropriate builder, pass actionCache for per-file caching
+        auto builder = JavaBuilderFactory.create(javaConfig.mode, javaConfig, actionCache);
         
         if (!builder.isAvailable())
         {

@@ -15,10 +15,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// Fat JAR (uber-jar) builder - includes all dependencies
 class FatJARBuilder : JARBuilder
 {
+    this(ActionCache actionCache = null)
+    {
+        super(actionCache);
+    }
+    
     override string name() const
     {
         return "FatJAR";

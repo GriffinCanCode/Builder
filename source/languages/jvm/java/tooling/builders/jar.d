@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.regex;
+import std.conv;
 import languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.core.config;
 import languages.jvm.java.tooling.detection;
@@ -15,10 +16,18 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
 
-/// Standard JAR builder
+/// Standard JAR builder with action-level caching for per-file compilation
 class JARBuilder : JavaBuilder
 {
+    protected ActionCache actionCache;
+    
+    this(ActionCache actionCache = null)
+    {
+        this.actionCache = actionCache;
+    }
+    
     override JavaBuildResult build(
         in string[] sources,
         in JavaConfig config,
@@ -106,71 +115,131 @@ class JARBuilder : JavaBuilder
         Logger.info("Compiling Java sources");
         
         string javacCmd = JavaToolDetection.getJavacCommand();
-        string[] cmd = [javacCmd, "-d", outputDir];
         
-        // Add source/target version
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["javac"] = javacCmd;
         if (config.sourceVersion.major > 0)
-            cmd ~= ["-source", config.sourceVersion.toString()];
+            metadata["source"] = config.sourceVersion.toString();
         if (config.targetVersion.major > 0)
-            cmd ~= ["-target", config.targetVersion.toString()];
+            metadata["target"] = config.targetVersion.toString();
+        metadata["encoding"] = config.encoding;
+        metadata["warnings"] = config.warnings.to!string;
+        metadata["enablePreview"] = config.enablePreview.to!string;
+        metadata["compilerFlags"] = config.compilerFlags.join(" ");
+        metadata["targetFlags"] = target.flags.join(" ");
         
-        // Add encoding
-        cmd ~= ["-encoding", config.encoding];
-        
-        // Add warnings
-        if (config.warnings)
-            cmd ~= "-Xlint:all";
-        if (config.warningsAsErrors)
-            cmd ~= "-Werror";
-        if (config.deprecation)
-            cmd ~= "-Xlint:deprecation";
-        
-        // Add preview features
-        if (config.enablePreview)
-            cmd ~= "--enable-preview";
-        
-        // Add classpath
         string classpath = buildClasspath(target, workspace, config);
         if (!classpath.empty)
-            cmd ~= ["-cp", classpath];
+            metadata["classpath"] = classpath;
         
-        // Add module path if using modules
         if (config.modules.enabled && !config.modules.modulePath.empty)
+            metadata["modulePath"] = config.modules.modulePath.join(pathSeparator);
+        
+        // Compile per-file with action caching if enabled
+        bool allSuccess = true;
+        bool hasActionCache = actionCache !is null;
+        
+        foreach (source; sources)
         {
-            cmd ~= ["--module-path", config.modules.modulePath.join(pathSeparator)];
+            // Generate output class file path
+            string sourceBase = baseName(source, ".java");
+            string expectedClass = buildPath(outputDir, sourceBase ~ ".class");
+            
+            // Create action ID for this compilation
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Compile;
+            actionId.subId = source;
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if compilation is cached
+            if (hasActionCache && actionCache.isCached(actionId, [source], metadata))
+            {
+                // Verify output exists
+                if (exists(expectedClass))
+                {
+                    Logger.debugLog("  [Cached] " ~ source);
+                    continue;
+                }
+            }
+            
+            // Compile this source file
+            string[] cmd = [javacCmd, "-d", outputDir];
+            
+            // Add source/target version
+            if (config.sourceVersion.major > 0)
+                cmd ~= ["-source", config.sourceVersion.toString()];
+            if (config.targetVersion.major > 0)
+                cmd ~= ["-target", config.targetVersion.toString()];
+            
+            // Add encoding
+            cmd ~= ["-encoding", config.encoding];
+            
+            // Add warnings
+            if (config.warnings)
+                cmd ~= "-Xlint:all";
+            if (config.warningsAsErrors)
+                cmd ~= "-Werror";
+            if (config.deprecation)
+                cmd ~= "-Xlint:deprecation";
+            
+            // Add preview features
+            if (config.enablePreview)
+                cmd ~= "--enable-preview";
+            
+            // Add classpath
+            if (!classpath.empty)
+                cmd ~= ["-cp", classpath];
+            
+            // Add module path if using modules
+            if (config.modules.enabled && !config.modules.modulePath.empty)
+            {
+                cmd ~= ["--module-path", config.modules.modulePath.join(pathSeparator)];
+            }
+            
+            // Add annotation processor options
+            if (config.processors.enabled)
+            {
+                if (!config.processors.processorPath.empty)
+                    cmd ~= ["--processor-path", config.processors.processorPath.join(pathSeparator)];
+                if (!config.processors.processors.empty)
+                    cmd ~= ["-processor", config.processors.processors.join(",")];
+            }
+            
+            // Add compiler flags
+            cmd ~= config.compilerFlags;
+            cmd ~= target.flags;
+            
+            // Add this source file
+            cmd ~= source;
+            
+            Logger.debugLog("Compiling: " ~ source);
+            
+            auto compileRes = execute(cmd);
+            
+            bool success = compileRes.status == 0;
+            
+            // Record action result in cache
+            if (hasActionCache)
+            {
+                string[] outputs = exists(expectedClass) ? [expectedClass] : [];
+                actionCache.update(actionId, [source], outputs, metadata, success);
+            }
+            
+            if (!success)
+            {
+                result.error = "javac failed on " ~ source ~ ":\n" ~ compileRes.output;
+                allSuccess = false;
+                break;
+            }
+            
+            // Capture warnings
+            if (!compileRes.output.empty)
+                result.warnings ~= compileRes.output.splitLines;
         }
         
-        // Add annotation processor options
-        if (config.processors.enabled)
-        {
-            if (!config.processors.processorPath.empty)
-                cmd ~= ["--processor-path", config.processors.processorPath.join(pathSeparator)];
-            if (!config.processors.processors.empty)
-                cmd ~= ["-processor", config.processors.processors.join(",")];
-        }
-        
-        // Add compiler flags
-        cmd ~= config.compilerFlags;
-        cmd ~= target.flags;
-        
-        // Add sources
-        cmd ~= sources;
-        
-        Logger.debugLog("Compile command: " ~ cmd.join(" "));
-        
-        auto compileRes = execute(cmd);
-        
-        if (compileRes.status != 0)
-        {
-            result.error = "javac failed:\n" ~ compileRes.output;
-            return false;
-        }
-        
-        // Capture warnings
-        if (!compileRes.output.empty)
-            result.warnings ~= compileRes.output.splitLines;
-        
-        return true;
+        return allSuccess;
     }
     
     protected bool createJAR(

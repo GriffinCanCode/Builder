@@ -3,6 +3,7 @@ module languages.scripting.go.builders.base;
 import languages.scripting.go.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import core.caching.action : ActionCache;
 
 /// Base interface for Go builders
 interface GoBuilder
@@ -31,8 +32,8 @@ interface GoBuilder
 /// Factory for creating Go builders
 class GoBuilderFactory
 {
-    /// Create builder based on build mode
-    static GoBuilder create(GoBuildMode mode, GoConfig config)
+    /// Create builder based on build mode with action-level caching support
+    static GoBuilder create(GoBuildMode mode, GoConfig config, ActionCache actionCache = null)
     {
         import languages.scripting.go.builders.standard;
         import languages.scripting.go.builders.plugin;
@@ -45,28 +46,28 @@ class GoBuilderFactory
             case GoBuildMode.Library:
                 // Standard builder handles both
                 if (config.cross.isCross())
-                    return new CrossBuilder();
+                    return new CrossBuilder(actionCache);
                 if (config.cgo.enabled)
-                    return new CGoBuilder();
-                return new StandardBuilder();
+                    return new CGoBuilder(actionCache);
+                return new StandardBuilder(actionCache);
                 
             case GoBuildMode.Plugin:
-                return new PluginBuilder();
+                return new PluginBuilder(actionCache);
                 
             case GoBuildMode.CArchive:
             case GoBuildMode.CShared:
-                return new CGoBuilder();
+                return new CGoBuilder(actionCache);
                 
             case GoBuildMode.PIE:
             case GoBuildMode.Shared:
-                return new StandardBuilder();
+                return new StandardBuilder(actionCache);
         }
     }
     
     /// Auto-detect best builder based on configuration
-    static GoBuilder createAuto(GoConfig config)
+    static GoBuilder createAuto(GoConfig config, ActionCache actionCache = null)
     {
-        return create(config.mode, config);
+        return create(config.mode, config, actionCache);
     }
 }
 

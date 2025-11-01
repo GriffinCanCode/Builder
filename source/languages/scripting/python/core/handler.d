@@ -21,10 +21,32 @@ import utils.python.pywrap;
 // SECURITY: Use secure execute with automatic path validation
 import utils.security : execute;
 import std.process : Config;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Python build handler - comprehensive and modular
+/// Python build handler - comprehensive and modular with action-level caching
 class PythonHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/python", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -107,40 +129,23 @@ class PythonHandler : BaseLanguageHandler
             }
         }
         
-        // Auto-lint if configured
+        // Auto-lint if configured with action-level caching
         if (pyConfig.autoLint && pyConfig.linter != PyLinter.None)
         {
             Logger.info("Auto-linting code");
-            auto lintResult = Linter.lint(target.sources, pyConfig.linter, pythonCmd);
-            if (lintResult.hasIssues())
-            {
-                Logger.warning("Linting found issues:");
-                foreach (warning; lintResult.warnings)
-                {
-                    Logger.warning("  " ~ warning);
-                }
-            }
+            lintWithCaching(target.sources, pyConfig, target.name, pythonCmd);
         }
         
-        // Type check if configured
+        // Type check if configured with action-level caching
         if (pyConfig.typeCheck.enabled)
         {
             Logger.info("Running type checking");
-            auto typeResult = TypeChecker.check(target.sources, pyConfig.typeCheck, pythonCmd);
+            auto typeResult = typeCheckWithCaching(target.sources, pyConfig, target.name, pythonCmd);
             
-            if (typeResult.hasErrors)
+            if (!typeResult.success)
             {
-                result.error = "Type checking failed:\n" ~ typeResult.errors.join("\n");
+                result.error = typeResult.error;
                 return result;
-            }
-            
-            if (typeResult.hasWarnings)
-            {
-                Logger.warning("Type checking warnings:");
-                foreach (warning; typeResult.warnings)
-                {
-                    Logger.warning("  " ~ warning);
-                }
             }
         }
         
@@ -174,10 +179,10 @@ class PythonHandler : BaseLanguageHandler
             PyWrapperGenerator.generate(wrapperConfig);
         }
         
-        // Compile bytecode if configured
+        // Compile bytecode if configured with action-level caching
         if (pyConfig.compileBytecode)
         {
-            compileToBytecode(target.sources, pythonCmd);
+            compileToBytecodeWithCaching(target.sources, pyConfig, target.name, pythonCmd);
         }
         
         result.success = true;
@@ -460,7 +465,56 @@ class PythonHandler : BaseLanguageHandler
         return true;
     }
     
-    /// Compile Python sources to bytecode
+    /// Compile Python sources to bytecode with action-level caching
+    private void compileToBytecodeWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
+    {
+        Logger.info("Compiling to bytecode");
+        
+        // Build metadata
+        string[string] metadata;
+        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
+        metadata["compiler"] = "py_compile";
+        
+        foreach (source; sources)
+        {
+            // Create action ID for bytecode compilation
+            ActionId actionId;
+            actionId.targetId = targetId;
+            actionId.type = ActionType.Compile;
+            actionId.subId = source ~ ":bytecode";
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Determine expected bytecode output
+            string pycPath = source ~ "c";  // .pyc file
+            
+            // Check if bytecode compilation is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                if (exists(pycPath))
+                {
+                    Logger.debugLog("  [Cached] Bytecode: " ~ source);
+                    continue;
+                }
+            }
+            
+            // Compile to bytecode
+            auto cmd = [pythonCmd, "-m", "py_compile", source];
+            auto res = execute(cmd);
+            
+            bool success = res.status == 0;
+            string[] outputs = exists(pycPath) ? [pycPath] : [];
+            
+            // Update cache
+            actionCache.update(actionId, [source], outputs, metadata, success);
+            
+            if (!success)
+            {
+                Logger.warning("Failed to compile " ~ source ~ " to bytecode");
+            }
+        }
+    }
+    
+    /// Compile Python sources to bytecode (legacy non-cached version)
     private void compileToBytecode(const string[] sources, string pythonCmd)
     {
         Logger.info("Compiling to bytecode");
@@ -490,6 +544,105 @@ class PythonHandler : BaseLanguageHandler
         {
             Logger.warning("Failed to generate stubs (install mypy for stub generation)");
         }
+    }
+    
+    /// Lint Python sources with action-level caching
+    private void lintWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
+    {
+        // Build metadata
+        string[string] metadata;
+        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
+        metadata["linter"] = config.linter.to!string;
+        
+        // Create action ID for linting
+        ActionId actionId;
+        actionId.targetId = targetId;
+        actionId.type = ActionType.Custom;
+        actionId.subId = "lint";
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if linting is cached
+        if (actionCache.isCached(actionId, sources, metadata))
+        {
+            Logger.debugLog("  [Cached] Linting");
+            return;
+        }
+        
+        // Run linting
+        auto lintResult = Linter.lint(sources, config.linter, pythonCmd);
+        
+        bool success = !lintResult.hasIssues();
+        
+        // Update cache
+        actionCache.update(actionId, sources, [], metadata, success);
+        
+        if (lintResult.hasIssues())
+        {
+            Logger.warning("Linting found issues:");
+            foreach (warning; lintResult.warnings)
+            {
+                Logger.warning("  " ~ warning);
+            }
+        }
+    }
+    
+    /// Type check Python sources with action-level caching
+    private struct TypeCheckCacheResult
+    {
+        bool success;
+        string error;
+    }
+    
+    private TypeCheckCacheResult typeCheckWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
+    {
+        TypeCheckCacheResult result;
+        result.success = true;
+        
+        // Build metadata
+        string[string] metadata;
+        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
+        metadata["typeChecker"] = config.typeCheck.checker.to!string;
+        metadata["strict"] = config.typeCheck.strict.to!string;
+        
+        // Create action ID for type checking
+        ActionId actionId;
+        actionId.targetId = targetId;
+        actionId.type = ActionType.Custom;
+        actionId.subId = "typecheck";
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if type checking is cached
+        if (actionCache.isCached(actionId, sources, metadata))
+        {
+            Logger.debugLog("  [Cached] Type checking");
+            return result;
+        }
+        
+        // Run type checking
+        auto typeResult = TypeChecker.check(sources, config.typeCheck, pythonCmd);
+        
+        bool success = !typeResult.hasErrors;
+        
+        // Update cache
+        actionCache.update(actionId, sources, [], metadata, success);
+        
+        if (typeResult.hasErrors)
+        {
+            result.success = false;
+            result.error = "Type checking failed:\n" ~ typeResult.errors.join("\n");
+            return result;
+        }
+        
+        if (typeResult.hasWarnings)
+        {
+            Logger.warning("Type checking warnings:");
+            foreach (warning; typeResult.warnings)
+            {
+                Logger.warning("  " ~ warning);
+            }
+        }
+        
+        return result;
     }
     
     /// Detect test runner from project

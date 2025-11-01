@@ -15,10 +15,16 @@ import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.security.validation;
+import core.caching.action : ActionCache;
 
 /// WAR (Web Application Archive) builder
 class WARBuilder : JARBuilder
 {
+    this(ActionCache actionCache = null)
+    {
+        super(actionCache);
+    }
+    
     override string name() const
     {
         return "WAR";

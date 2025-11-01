@@ -18,10 +18,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Go build handler - modular and extensible
+/// Go build handler - modular and extensible with action-level caching
 class GoHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/go", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     /// Build implementation for Go targets
     /// Note: Called through @trusted wrapper in base class
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @system
@@ -99,8 +121,8 @@ class GoHandler : BaseLanguageHandler
             return result;
         }
         
-        // Create appropriate builder
-        auto builder = GoBuilderFactory.createAuto(goConfig);
+        // Create appropriate builder, pass actionCache for per-package caching
+        auto builder = GoBuilderFactory.createAuto(goConfig, actionCache);
         
         if (!builder.isAvailable())
         {
@@ -140,7 +162,7 @@ class GoHandler : BaseLanguageHandler
         // Libraries in Go are just packages - build them to ensure compilation
         goConfig.mode = GoBuildMode.Library;
         
-        auto builder = GoBuilderFactory.createAuto(goConfig);
+        auto builder = GoBuilderFactory.createAuto(goConfig, actionCache);
         
         if (!builder.isAvailable())
         {

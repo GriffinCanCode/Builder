@@ -3,6 +3,7 @@ module languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import core.caching.action : ActionCache;
 
 /// Build result for Java builds
 struct JavaBuildResult
@@ -38,8 +39,8 @@ interface JavaBuilder
 /// Factory for creating Java builders
 class JavaBuilderFactory
 {
-    /// Create builder based on build mode
-    static JavaBuilder create(JavaBuildMode mode, JavaConfig config)
+    /// Create builder based on build mode with action-level caching support
+    static JavaBuilder create(JavaBuildMode mode, JavaConfig config, ActionCache actionCache = null)
     {
         import languages.jvm.java.tooling.builders.jar;
         import languages.jvm.java.tooling.builders.fatjar;
@@ -50,31 +51,31 @@ class JavaBuilderFactory
         final switch (mode)
         {
             case JavaBuildMode.JAR:
-                return new JARBuilder();
+                return new JARBuilder(actionCache);
             
             case JavaBuildMode.FatJAR:
-                return new FatJARBuilder();
+                return new FatJARBuilder(actionCache);
             
             case JavaBuildMode.WAR:
             case JavaBuildMode.EAR:
             case JavaBuildMode.RAR:
-                return new WARBuilder();
+                return new WARBuilder(actionCache);
             
             case JavaBuildMode.ModularJAR:
-                return new ModularJARBuilder();
+                return new ModularJARBuilder(actionCache);
             
             case JavaBuildMode.NativeImage:
-                return new NativeImageBuilder();
+                return new NativeImageBuilder(actionCache);
             
             case JavaBuildMode.Compile:
-                return new JARBuilder(); // Just compile, skip packaging
+                return new JARBuilder(actionCache); // Just compile, skip packaging
         }
     }
     
     /// Auto-detect best builder based on configuration
-    static JavaBuilder createAuto(JavaConfig config)
+    static JavaBuilder createAuto(JavaConfig config, ActionCache actionCache = null)
     {
-        return create(config.mode, config);
+        return create(config.mode, config, actionCache);
     }
 }
 
