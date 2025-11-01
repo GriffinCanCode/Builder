@@ -42,6 +42,7 @@ struct HelpCommand
         writeln("  resume                Resume a failed build from checkpoint");
         writeln("  clean                 Remove build artifacts and cache");
         writeln("  graph [target]        Visualize dependency graph");
+        writeln("  query <expression>    Query targets and dependencies");
         writeln();
         
         writeln("PROJECT SETUP:");
@@ -113,6 +114,9 @@ struct HelpCommand
                 break;
             case "graph":
                 showGraphHelp();
+                break;
+            case "query":
+                showQueryHelp();
                 break;
             case "init":
                 showInitHelp();
@@ -341,6 +345,83 @@ struct HelpCommand
         
         writeln("SEE ALSO:");
         writeln("  builder build --graph    Show graph before building");
+        writeln("  builder infer            Preview auto-detected targets");
+        writeln("  builder query            Query targets and dependencies");
+        writeln();
+    }
+    
+    private static void showQueryHelp()
+    {
+        writeln();
+        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
+        writeln("║                        builder query <expression>                         ║");
+        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
+        writeln();
+        writeln("DESCRIPTION:");
+        writeln("  Execute powerful graph queries to explore target relationships,");
+        writeln("  dependencies, and project structure. Similar to Bazel query.");
+        writeln();
+        
+        writeln("USAGE:");
+        writeln("  builder query '<expression>'");
+        writeln();
+        
+        writeln("QUERY SYNTAX:");
+        writeln("  //...                    All targets in the workspace");
+        writeln("  //path/...               All targets under path");
+        writeln("  //path:target            Specific target");
+        writeln("  //path:*                 All targets in directory");
+        writeln();
+        writeln("  deps(expr)               Direct dependencies of expr");
+        writeln("  deps(expr, depth)        Dependencies up to depth levels");
+        writeln("  rdeps(expr)              Reverse deps (what depends on expr)");
+        writeln("  allpaths(from, to)       All paths between two targets");
+        writeln("  kind(type, expr)         Filter by target type");
+        writeln("  attr(name, value, expr)  Filter by attribute");
+        writeln();
+        
+        writeln("EXAMPLES:");
+        writeln("  builder query '//...'");
+        writeln("    # List all targets");
+        writeln();
+        writeln("  builder query 'deps(//src:app)'");
+        writeln("    # Show all dependencies of //src:app");
+        writeln();
+        writeln("  builder query 'deps(//src:app, 1)'");
+        writeln("    # Show only direct dependencies");
+        writeln();
+        writeln("  builder query 'rdeps(//lib:utils)'");
+        writeln("    # Show what depends on //lib:utils");
+        writeln();
+        writeln("  builder query 'kind(binary, //...)'");
+        writeln("    # Find all binary targets");
+        writeln();
+        writeln("  builder query 'allpaths(//src:app, //lib:core)'");
+        writeln("    # Show all dependency paths from app to core");
+        writeln();
+        
+        writeln("TARGET TYPES:");
+        writeln("  binary, library, test, custom, and language-specific types");
+        writeln();
+        
+        writeln("USE CASES:");
+        writeln("  • Explore dependency relationships");
+        writeln("  • Find unused targets (no rdeps)");
+        writeln("  • Identify build bottlenecks");
+        writeln("  • Analyze impact of changes");
+        writeln("  • Audit target types and structure");
+        writeln("  • Debug circular dependencies");
+        writeln();
+        
+        writeln("NOTES:");
+        writeln("  • Query expressions should be quoted in shell");
+        writeln("  • Queries are fast - only analyze graph, don't build");
+        writeln("  • Works with both Builderfile and zero-config projects");
+        writeln("  • Results are sorted alphabetically");
+        writeln();
+        
+        writeln("SEE ALSO:");
+        writeln("  builder graph            Visualize full dependency graph");
         writeln("  builder infer            Preview auto-detected targets");
         writeln();
     }
@@ -607,7 +688,7 @@ struct HelpCommand
         writeln();
         
         writeln("AVAILABLE COMMANDS:");
-        writeln("  build, resume, clean, graph, init, infer, telemetry,");
+        writeln("  build, resume, clean, graph, query, init, infer, telemetry,");
         writeln("  install-extension, help");
         writeln();
     }

@@ -82,6 +82,18 @@ void main(string[] args)
             case "install-extension":
                 installExtensionCommand();
                 break;
+            case "query":
+                if (args.length < 3)
+                {
+                    Logger.error("Query expression required");
+                    Logger.info("Usage: builder query '<expression>'");
+                    Logger.info("Example: builder query 'deps(//...)'");
+                }
+                else
+                {
+                    QueryCommand.execute(args[2]);
+                }
+                break;
             case "telemetry":
                 auto subcommand = args.length > 2 ? args[2] : "summary";
                 TelemetryCommand.execute(subcommand);

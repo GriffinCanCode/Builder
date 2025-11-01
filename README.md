@@ -12,6 +12,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 - **Error Recovery**: Circuit breaker pattern with exponential backoff, build checkpointing, and smart resumption
 - **Event-Driven CLI**: Multiple render modes (interactive, plain, verbose, quiet) with lock-free progress tracking
 - **Build Telemetry**: Comprehensive analytics, bottleneck identification, and performance regression detection
+- **Query Language**: Powerful Bazel inspired query syntax for exploring dependencies and target relationships
 - **Extensive Multi-language Support**: 26+ languages including Python, JavaScript/TypeScript, Elm, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, Perl, PHP, R, Scala, Elixir, Nim, Lua, OCaml, Haskell, and D
 - **Incremental Builds**: Smart caching with BLAKE3 content hashing and configurable eviction policies
 - **Parallel Execution**: Wave-based parallel builds with thread pool management and optimal CPU utilization
@@ -95,6 +96,12 @@ builder build --mode interactive
 
 # Resume failed build (with checkpointing)
 builder resume
+
+# Query targets and dependencies
+builder query '//...'                    # List all targets
+builder query 'deps(//src:app)'          # Show dependencies
+builder query 'rdeps(//lib:utils)'       # Show reverse dependencies
+builder query 'kind(binary, //...)'      # Filter by type
 
 # View build analytics and performance metrics
 builder telemetry
