@@ -14,10 +14,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// Check builder - syntax and semantic checking without code generation
 class CheckBuilder : NimBuilder
 {
+    void setActionCache(ActionCache cache)
+    {
+        // Check builder doesn't use caching - checks are fast
+    }
+    
     NimCompileResult build(
         in string[] sources,
         in NimConfig config,

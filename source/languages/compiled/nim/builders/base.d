@@ -6,6 +6,7 @@ import std.string;
 import languages.compiled.nim.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import core.caching.action : ActionCache;
 
 /// Base interface for Nim builders
 interface NimBuilder
@@ -29,39 +30,55 @@ interface NimBuilder
     
     /// Supports specific features
     bool supportsFeature(string feature);
+    
+    /// Set action cache for incremental builds
+    void setActionCache(ActionCache cache);
 }
 
 /// Factory for creating Nim builders
 class NimBuilderFactory
 {
-    /// Create builder based on type
-    static NimBuilder create(NimBuilderType builderType, NimConfig config)
+    /// Create builder based on type with optional action cache
+    static NimBuilder create(NimBuilderType builderType, NimConfig config, ActionCache cache = null)
     {
         import languages.compiled.nim.builders.nimble;
         import languages.compiled.nim.builders.compile;
         import languages.compiled.nim.builders.check;
         import languages.compiled.nim.builders.doc;
         import languages.compiled.nim.builders.js;
+        
+        NimBuilder builder;
         
         final switch (builderType)
         {
             case NimBuilderType.Auto:
-                return createAuto(config);
+                builder = createAuto(config);
+                break;
             case NimBuilderType.Nimble:
-                return new NimbleBuilder();
+                builder = new NimbleBuilder();
+                break;
             case NimBuilderType.Compile:
-                return new CompileBuilder();
+                builder = new CompileBuilder();
+                break;
             case NimBuilderType.Check:
-                return new CheckBuilder();
+                builder = new CheckBuilder();
+                break;
             case NimBuilderType.Doc:
-                return new DocBuilder();
+                builder = new DocBuilder();
+                break;
             case NimBuilderType.Js:
-                return new JsBuilder();
+                builder = new JsBuilder();
+                break;
         }
+        
+        if (cache !is null)
+            builder.setActionCache(cache);
+        
+        return builder;
     }
     
-    /// Create builder from string name
-    static NimBuilder createFromName(string name, NimConfig config)
+    /// Create builder from string name with optional action cache
+    static NimBuilder createFromName(string name, NimConfig config, ActionCache cache = null)
     {
         import languages.compiled.nim.builders.nimble;
         import languages.compiled.nim.builders.compile;
@@ -69,25 +86,39 @@ class NimBuilderFactory
         import languages.compiled.nim.builders.doc;
         import languages.compiled.nim.builders.js;
         
+        NimBuilder builder;
+        
         switch (name.toLower)
         {
             case "auto":
-                return createAuto(config);
+                builder = createAuto(config);
+                break;
             case "nimble":
-                return new NimbleBuilder();
+                builder = new NimbleBuilder();
+                break;
             case "compile":
             case "nim":
-                return new CompileBuilder();
+                builder = new CompileBuilder();
+                break;
             case "check":
-                return new CheckBuilder();
+                builder = new CheckBuilder();
+                break;
             case "doc":
-                return new DocBuilder();
+                builder = new DocBuilder();
+                break;
             case "js":
             case "javascript":
-                return new JsBuilder();
+                builder = new JsBuilder();
+                break;
             default:
-                return createAuto(config);
+                builder = createAuto(config);
+                break;
         }
+        
+        if (cache !is null)
+            builder.setActionCache(cache);
+        
+        return builder;
     }
     
     /// Auto-detect best available builder

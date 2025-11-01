@@ -18,10 +18,32 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig;
 
-/// Haskell build handler with GHC, Cabal, and Stack support
+/// Haskell build handler with GHC, Cabal, and Stack support and action-level caching
 class HaskellHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/haskell", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -273,7 +295,7 @@ class HaskellHandler : BaseLanguageHandler
         }
         
         Logger.debugLog("Using GHC: " ~ GHCWrapper.getVersion());
-        return GHCWrapper.compile(target, config, hsConfig);
+        return GHCWrapper.compile(target, config, hsConfig, actionCache);
     }
     
     private LanguageBuildResult buildWithCabal(
@@ -290,7 +312,7 @@ class HaskellHandler : BaseLanguageHandler
         }
         
         Logger.debugLog("Using Cabal: " ~ CabalWrapper.getVersion());
-        return CabalWrapper.build(target, config, hsConfig);
+        return CabalWrapper.build(target, config, hsConfig, actionCache);
     }
     
     private LanguageBuildResult buildWithStack(
@@ -307,7 +329,7 @@ class HaskellHandler : BaseLanguageHandler
         }
         
         Logger.debugLog("Using Stack: " ~ StackWrapper.getVersion());
-        return StackWrapper.build(target, config, hsConfig);
+        return StackWrapper.build(target, config, hsConfig, actionCache);
     }
     
     private HaskellConfig parseHaskellConfig(in Target target, in WorkspaceConfig workspace)

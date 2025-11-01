@@ -15,10 +15,18 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
 
-/// Direct Nim compiler builder - for direct nim c/cpp/js invocations
+/// Direct Nim compiler builder - for direct nim c/cpp/js invocations with action-level caching
 class CompileBuilder : NimBuilder
 {
+    private ActionCache actionCache;
+    
+    void setActionCache(ActionCache cache)
+    {
+        this.actionCache = cache;
+    }
+    
     NimCompileResult build(
         in string[] sources,
         in NimConfig config,
@@ -44,6 +52,53 @@ class CompileBuilder : NimBuilder
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
         
+        // Gather all input files for action caching
+        string[] inputFiles = sources.dup;
+        
+        // Add config files that affect compilation
+        import languages.compiled.nim.analysis.nimble : NimbleParser;
+        string nimbleFile = NimbleParser.findNimbleFile(workspace.root);
+        if (!nimbleFile.empty && exists(nimbleFile))
+            inputFiles ~= nimbleFile;
+        
+        // Check for nim.cfg
+        string nimCfg = buildPath(workspace.root, "nim.cfg");
+        if (exists(nimCfg))
+            inputFiles ~= nimCfg;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["backend"] = config.backend.to!string;
+        metadata["appType"] = config.appType.to!string;
+        metadata["optimize"] = config.optimize.to!string;
+        metadata["release"] = config.release.to!string;
+        metadata["danger"] = config.danger.to!string;
+        metadata["gc"] = config.gc.to!string;
+        metadata["debugInfo"] = config.debugInfo.to!string;
+        metadata["checks"] = config.checks.to!string;
+        metadata["assertions"] = config.assertions.to!string;
+        metadata["compilerFlags"] = config.compilerFlags.join(" ");
+        metadata["defines"] = config.defines.join(",");
+        metadata["nimVersion"] = NimTools.getNimVersion();
+        
+        // Create action ID for compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "nim-compile";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if compilation is cached
+        if (actionCache !is null && actionCache.isCached(actionId, inputFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Nim compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            collectArtifacts(config, result);
+            return result;
+        }
+        
         // Build command based on backend
         string[] cmd = buildCompileCommand(entryPoint, outputPath, config);
         
@@ -61,11 +116,27 @@ class CompileBuilder : NimBuilder
         }
         
         // Execute compilation
+        Logger.debugLog("Compiling: " ~ entryPoint);
         auto res = execute(cmd, env);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Nim compilation failed: " ~ res.output;
+            
+            // Update cache with failure
+            if (actionCache !is null)
+            {
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+            }
+            
             return result;
         }
         
@@ -76,6 +147,19 @@ class CompileBuilder : NimBuilder
         if (!exists(outputPath))
         {
             result.error = "Compilation succeeded but output file not found: " ~ outputPath;
+            
+            // Update cache with failure
+            if (actionCache !is null)
+            {
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+            }
+            
             return result;
         }
         
@@ -85,6 +169,18 @@ class CompileBuilder : NimBuilder
         
         // Collect additional artifacts (nimcache, etc.)
         collectArtifacts(config, result);
+        
+        // Update cache with success
+        if (actionCache !is null)
+        {
+            actionCache.update(
+                actionId,
+                inputFiles,
+                result.outputs,
+                metadata,
+                true
+            );
+        }
         
         return result;
     }

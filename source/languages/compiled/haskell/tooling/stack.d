@@ -11,8 +11,10 @@ import std.conv;
 import languages.compiled.haskell.core.config;
 import config.schema.schema;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
+import utils.files.hash : FastHash;
 
-/// Stack build tool wrapper
+/// Stack build tool wrapper with action-level caching
 struct StackWrapper
 {
     /// Check if Stack is available
@@ -54,11 +56,12 @@ struct StackWrapper
         return "unknown";
     }
     
-    /// Build with Stack
+    /// Build with Stack with action-level caching
     static LanguageBuildResult build(
         in Target target,
         in WorkspaceConfig config,
-        const HaskellConfig hsConfig
+        const HaskellConfig hsConfig,
+        ActionCache actionCache = null
     )
     {
         LanguageBuildResult result;
@@ -81,6 +84,50 @@ struct StackWrapper
         }
         
         Logger.debugLog("Using Stack file: " ~ stackFile);
+        
+        // Gather input files for action caching
+        string[] inputFiles = target.sources.dup;
+        inputFiles ~= stackFile;
+        
+        // Add stack.yaml.lock if it exists
+        string stackLock = buildPath(config.root, "stack.yaml.lock");
+        if (exists(stackLock))
+            inputFiles ~= stackLock;
+        
+        // Add package.yaml if it exists (hpack)
+        string packageYaml = buildPath(config.root, "package.yaml");
+        if (exists(packageYaml))
+            inputFiles ~= packageYaml;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["stackVersion"] = getVersion();
+        metadata["mode"] = hsConfig.mode.to!string;
+        metadata["resolver"] = hsConfig.resolver;
+        metadata["parallel"] = hsConfig.parallel.to!string;
+        metadata["jobs"] = hsConfig.jobs.to!string;
+        metadata["ghcOptions"] = hsConfig.ghcOptions.join(" ");
+        
+        // Create action ID for Stack build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "stack-build";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // For stack, we check if build succeeded and output exists
+        string stackWorkDir = buildPath(config.root, ".stack-work");
+        
+        // Check if build is cached
+        if (actionCache !is null && actionCache.isCached(actionId, inputFiles, metadata) && exists(stackWorkDir))
+        {
+            Logger.debugLog("  [Cached] Stack build");
+            result.success = true;
+            result.outputs = findBuiltExecutables(stackWorkDir);
+            if (!result.outputs.empty)
+                result.outputHash = FastHash.hashFile(result.outputs[0]);
+            return result;
+        }
         
         // Build command based on mode
         string[] args = ["stack"];
@@ -133,26 +180,47 @@ struct StackWrapper
         }
         
         // Execute build
-        Logger.debugLog("Running: " ~ args.join(" "));
+        Logger.debugLog("Building with Stack");
+        Logger.debugLog("  Command: " ~ args.join(" "));
+        
+        bool success = false;
         
         try
         {
             auto execResult = execute(args, null, Config.none, size_t.max, config.root);
             
-            if (execResult.status == 0)
+            success = (execResult.status == 0);
+            
+            if (success)
             {
                 result.success = true;
                 
                 // Find output executables
-                string stackWorkDir = buildPath(config.root, ".stack-work");
                 if (exists(stackWorkDir))
                 {
                     result.outputs = findBuiltExecutables(stackWorkDir);
                 }
                 
+                if (!result.outputs.empty && exists(result.outputs[0]))
+                {
+                    result.outputHash = FastHash.hashFile(result.outputs[0]);
+                }
+                
                 if (!execResult.output.empty)
                 {
                     Logger.debugLog("Stack output: " ~ execResult.output);
+                }
+                
+                // Update cache with success
+                if (actionCache !is null)
+                {
+                    actionCache.update(
+                        actionId,
+                        inputFiles,
+                        result.outputs,
+                        metadata,
+                        true
+                    );
                 }
             }
             else
@@ -160,12 +228,36 @@ struct StackWrapper
                 result.error = execResult.output;
                 Logger.error("Stack build failed:");
                 Logger.error(execResult.output);
+                
+                // Update cache with failure
+                if (actionCache !is null)
+                {
+                    actionCache.update(
+                        actionId,
+                        inputFiles,
+                        [],
+                        metadata,
+                        false
+                    );
+                }
             }
         }
         catch (Exception e)
         {
             result.error = "Stack execution failed: " ~ e.msg;
             Logger.error(result.error);
+            
+            // Update cache with failure
+            if (actionCache !is null)
+            {
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+            }
         }
         
         return result;

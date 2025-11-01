@@ -14,10 +14,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// Documentation generator builder
 class DocBuilder : NimBuilder
 {
+    void setActionCache(ActionCache cache)
+    {
+        // Doc builder doesn't use caching currently
+    }
+    
     NimCompileResult build(
         in string[] sources,
         in NimConfig config,

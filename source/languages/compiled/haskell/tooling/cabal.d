@@ -11,8 +11,10 @@ import std.conv;
 import languages.compiled.haskell.core.config;
 import config.schema.schema;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
+import utils.files.hash : FastHash;
 
-/// Cabal build tool wrapper
+/// Cabal build tool wrapper with action-level caching
 struct CabalWrapper
 {
     /// Check if Cabal is available
@@ -54,11 +56,12 @@ struct CabalWrapper
         return "unknown";
     }
     
-    /// Build with Cabal
+    /// Build with Cabal with action-level caching
     static LanguageBuildResult build(
         in Target target,
         in WorkspaceConfig config,
-        const HaskellConfig hsConfig
+        const HaskellConfig hsConfig,
+        ActionCache actionCache = null
     )
     {
         LanguageBuildResult result;
@@ -84,6 +87,49 @@ struct CabalWrapper
         }
         
         Logger.debugLog("Using Cabal file: " ~ cabalFile);
+        
+        // Gather input files for action caching
+        string[] inputFiles = target.sources.dup;
+        inputFiles ~= cabalFile;
+        
+        // Add cabal.project files if they exist
+        string cabalProject = buildPath(config.root, "cabal.project");
+        if (exists(cabalProject))
+            inputFiles ~= cabalProject;
+        
+        string cabalProjectLocal = buildPath(config.root, "cabal.project.local");
+        if (exists(cabalProjectLocal))
+            inputFiles ~= cabalProjectLocal;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["cabalVersion"] = getVersion();
+        metadata["mode"] = hsConfig.mode.to!string;
+        metadata["optLevel"] = hsConfig.optLevel.to!string;
+        metadata["parallel"] = hsConfig.parallel.to!string;
+        metadata["jobs"] = hsConfig.jobs.to!string;
+        metadata["ghcOptions"] = hsConfig.ghcOptions.join(" ");
+        
+        // Create action ID for Cabal build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "cabal-build";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // For cabal, we check if build succeeded and output exists
+        string distDir = buildPath(config.root, "dist-newstyle");
+        
+        // Check if build is cached
+        if (actionCache !is null && actionCache.isCached(actionId, inputFiles, metadata) && exists(distDir))
+        {
+            Logger.debugLog("  [Cached] Cabal build");
+            result.success = true;
+            result.outputs = findBuiltExecutables(distDir);
+            if (!result.outputs.empty)
+                result.outputHash = FastHash.hashFile(result.outputs[0]);
+            return result;
+        }
         
         // Update dependencies
         if (!updateDependencies(config.root))
@@ -145,26 +191,47 @@ struct CabalWrapper
         }
         
         // Execute build
-        Logger.debugLog("Running: " ~ args.join(" "));
+        Logger.debugLog("Building with Cabal");
+        Logger.debugLog("  Command: " ~ args.join(" "));
+        
+        bool success = false;
         
         try
         {
             auto execResult = execute(args, null, Config.none, size_t.max, config.root);
             
-            if (execResult.status == 0)
+            success = (execResult.status == 0);
+            
+            if (success)
             {
                 result.success = true;
                 
                 // Find output executables
-                string distDir = buildPath(config.root, "dist-newstyle");
                 if (exists(distDir))
                 {
                     result.outputs = findBuiltExecutables(distDir);
                 }
                 
+                if (!result.outputs.empty && exists(result.outputs[0]))
+                {
+                    result.outputHash = FastHash.hashFile(result.outputs[0]);
+                }
+                
                 if (!execResult.output.empty)
                 {
                     Logger.debugLog("Cabal output: " ~ execResult.output);
+                }
+                
+                // Update cache with success
+                if (actionCache !is null)
+                {
+                    actionCache.update(
+                        actionId,
+                        inputFiles,
+                        result.outputs,
+                        metadata,
+                        true
+                    );
                 }
             }
             else
@@ -172,12 +239,36 @@ struct CabalWrapper
                 result.error = execResult.output;
                 Logger.error("Cabal build failed:");
                 Logger.error(execResult.output);
+                
+                // Update cache with failure
+                if (actionCache !is null)
+                {
+                    actionCache.update(
+                        actionId,
+                        inputFiles,
+                        [],
+                        metadata,
+                        false
+                    );
+                }
             }
         }
         catch (Exception e)
         {
             result.error = "Cabal execution failed: " ~ e.msg;
             Logger.error(result.error);
+            
+            // Update cache with failure
+            if (actionCache !is null)
+            {
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+            }
         }
         
         return result;

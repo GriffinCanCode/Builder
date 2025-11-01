@@ -15,10 +15,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// JavaScript backend builder - compiles Nim to JavaScript
 class JsBuilder : NimBuilder
 {
+    void setActionCache(ActionCache cache)
+    {
+        // JS builder inherits from CompileBuilder pattern - could add caching in future
+    }
+    
     NimCompileResult build(
         in string[] sources,
         in NimConfig config,

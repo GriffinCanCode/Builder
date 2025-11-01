@@ -18,10 +18,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig;
 
-/// Comprehensive Nim build handler with multi-backend support
+/// Comprehensive Nim build handler with multi-backend support and action-level caching
 class NimHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/nim", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -263,8 +285,8 @@ class NimHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Create builder
-        auto builder = NimBuilderFactory.create(nimConfig.builder, nimConfig);
+        // Create builder and pass actionCache
+        auto builder = NimBuilderFactory.create(nimConfig.builder, nimConfig, actionCache);
         
         if (!builder.isAvailable())
         {
@@ -274,7 +296,7 @@ class NimHandler : BaseLanguageHandler
         
         Logger.debugLog("Using Nim builder: " ~ builder.name() ~ " (" ~ builder.getVersion() ~ ")");
         
-        // Compile
+        // Compile (with action-level caching)
         auto compileResult = builder.build(target.sources, nimConfig, target, config);
         
         if (!compileResult.success)

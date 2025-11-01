@@ -15,10 +15,16 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// Nimble builder - uses nimble build system for package-based projects
 class NimbleBuilder : NimBuilder
 {
+    void setActionCache(ActionCache cache)
+    {
+        // Nimble builder could add caching in future for nimble build operations
+    }
+    
     NimCompileResult build(
         in string[] sources,
         in NimConfig config,

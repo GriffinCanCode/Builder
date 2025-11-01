@@ -11,8 +11,10 @@ import std.conv;
 import languages.compiled.haskell.core.config;
 import config.schema.schema;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
+import utils.files.hash : FastHash;
 
-/// GHC compiler wrapper
+/// GHC compiler wrapper with action-level caching
 struct GHCWrapper
 {
     /// Check if GHC is available
@@ -96,11 +98,12 @@ struct GHCWrapper
         }
     }
     
-    /// Compile with GHC
+    /// Compile with GHC with action-level caching
     static LanguageBuildResult compile(
         in Target target,
         in WorkspaceConfig config,
-        const HaskellConfig hsConfig
+        const HaskellConfig hsConfig,
+        ActionCache actionCache = null
     )
     {
         LanguageBuildResult result;
@@ -108,6 +111,53 @@ struct GHCWrapper
         if (!isAvailable())
         {
             result.error = "GHC not found";
+            return result;
+        }
+        
+        // Gather input files for action caching
+        string[] inputFiles = target.sources.dup;
+        
+        // Add config files that affect compilation
+        foreach (cabalFile; dirEntries(config.root, "*.cabal", SpanMode.shallow))
+        {
+            inputFiles ~= cabalFile.name;
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["ghcVersion"] = getVersion();
+        metadata["optLevel"] = hsConfig.optLevel.to!string;
+        metadata["standard"] = hsConfig.standard.to!string;
+        metadata["extensions"] = hsConfig.extensions.join(",");
+        metadata["warnings"] = hsConfig.warnings.to!string;
+        metadata["werror"] = hsConfig.werror.to!string;
+        metadata["profiling"] = hsConfig.profiling.to!string;
+        metadata["threaded"] = hsConfig.threaded.to!string;
+        metadata["static"] = hsConfig.static_.to!string;
+        metadata["dynamic"] = hsConfig.dynamic.to!string;
+        metadata["ghcOptions"] = hsConfig.ghcOptions.join(" ");
+        metadata["customFlags"] = hsConfig.customFlags.join(" ");
+        metadata["packages"] = hsConfig.packages.join(",");
+        
+        // Determine output path
+        string outputDir = hsConfig.outputDir.empty ? config.options.outputDir : hsConfig.outputDir;
+        string outputName = target.name.split(":")[$ - 1];
+        string outputPath = buildPath(outputDir, outputName);
+        
+        // Create action ID for GHC compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "ghc-compile";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if compilation is cached
+        if (actionCache !is null && actionCache.isCached(actionId, inputFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] GHC compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
             return result;
         }
         
@@ -194,16 +244,13 @@ struct GHCWrapper
         // Custom flags
         args ~= hsConfig.customFlags;
         
-        // Output directory
-        string outputDir = hsConfig.outputDir.empty ? config.options.outputDir : hsConfig.outputDir;
+        // Output directory (already computed above for caching)
         if (!exists(outputDir))
         {
             mkdirRecurse(outputDir);
         }
         
-        // Output path
-        string outputName = target.name.split(":")[$ - 1];
-        string outputPath = buildPath(outputDir, outputName);
+        // Output path (already computed above)
         args ~= "-o";
         args ~= outputPath;
         
@@ -254,13 +301,18 @@ struct GHCWrapper
         args ~= mainFile;
         
         // Execute compilation
-        Logger.debugLog("Running: " ~ args.join(" "));
+        Logger.debugLog("Compiling with GHC: " ~ mainFile);
+        Logger.debugLog("  Command: " ~ args.join(" "));
+        
+        bool success = false;
         
         try
         {
             auto execResult = execute(args, null, Config.none, size_t.max, config.root);
             
-            if (execResult.status == 0)
+            success = (execResult.status == 0);
+            
+            if (success)
             {
                 result.success = true;
                 result.outputs = [outputPath];
@@ -268,7 +320,6 @@ struct GHCWrapper
                 // Hash the output
                 if (exists(outputPath))
                 {
-                    import utils.files.hash : FastHash;
                     result.outputHash = FastHash.hashFile(outputPath);
                 }
                 
@@ -276,18 +327,54 @@ struct GHCWrapper
                 {
                     Logger.debugLog("GHC output: " ~ execResult.output);
                 }
+                
+                // Update cache with success
+                if (actionCache !is null)
+                {
+                    actionCache.update(
+                        actionId,
+                        inputFiles,
+                        [outputPath],
+                        metadata,
+                        true
+                    );
+                }
             }
             else
             {
                 result.error = execResult.output;
                 Logger.error("GHC compilation failed:");
                 Logger.error(execResult.output);
+                
+                // Update cache with failure
+                if (actionCache !is null)
+                {
+                    actionCache.update(
+                        actionId,
+                        inputFiles,
+                        [],
+                        metadata,
+                        false
+                    );
+                }
             }
         }
         catch (Exception e)
         {
             result.error = "GHC execution failed: " ~ e.msg;
             Logger.error(result.error);
+            
+            // Update cache with failure
+            if (actionCache !is null)
+            {
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+            }
         }
         
         return result;
