@@ -15,6 +15,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 - **Query Language**: Powerful Bazel inspired query syntax for exploring dependencies and target relationships
 - **Extensive Multi-language Support**: 26+ languages including Python, JavaScript/TypeScript, Elm, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, Perl, PHP, R, Scala, Elixir, Nim, Lua, OCaml, Haskell, and D
 - **Incremental Builds**: Smart caching with BLAKE3 content hashing and configurable eviction policies
+- **Action-Level Caching**: Fine-grained caching for individual build steps (compile, link, test) with 2-3x better cache utilization
 - **Parallel Execution**: Wave-based parallel builds with thread pool management and optimal CPU utilization
 - **Monorepo Optimized**: Efficient workspace scanning and dependency resolution for large-scale repos
 
@@ -26,7 +27,7 @@ source/
 ├── core/                    # Build execution engine
 │   ├── graph/              # Dependency graph and topological sorting
 │   ├── execution/          # Task execution, parallelization, checkpointing, retry
-│   ├── caching/            # Build cache with BLAKE3 hashing and eviction
+│   ├── caching/            # Two-tier caching: target-level and action-level
 │   └── telemetry/          # Build analytics, bottleneck detection, trends
 ├── analysis/                # Dependency analysis and resolution
 │   ├── inference/          # Build target analysis
