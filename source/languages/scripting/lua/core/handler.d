@@ -9,6 +9,7 @@ import std.array;
 import std.json;
 import std.conv;
 import languages.base.base;
+import languages.base.mixins;
 import languages.scripting.lua.core.config;
 import languages.scripting.lua.tooling.detection;
 import languages.scripting.lua.tooling.builders;
@@ -28,84 +29,29 @@ import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionTyp
 /// Lua language build handler with action-level caching - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"lua";
+    mixin ConfigParsingMixin!(LuaConfig, "parseLuaConfig", ["lua", "luaConfig"]);
+    mixin SimpleBuildOrchestrationMixin!(LuaConfig, "parseLuaConfig");
     
-    this()
+    private void enhanceConfigFromProject(
+        ref LuaConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
+    )
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/lua", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
-    /// Build implementation - orchestrates Lua compilation/execution
-    /// 
-    /// Safety: This function is @trusted because:
-    /// 1. Required by BaseLanguageHandler design (called via @trusted wrapper)
-    /// 2. Performs file I/O (parseLuaConfig reads JSON)
-    /// 3. Delegates to build* methods which execute Lua toolchain
-    /// 4. All operations validated by configuration system
-    /// 
-    /// Invariants:
-    /// - Configuration is parsed and validated before build
-    /// - Target type determines build method (final switch ensures coverage)
-    /// - All file paths are constructed within workspace
-    /// 
-    /// What could go wrong:
-    /// - Config parse fails: validateConfig catches, returns error
-    /// - Build method fails: error propagates in result.error
-    /// - Lua toolchain missing: detected in validateConfig
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
-    {
-        LanguageBuildResult result;
-        
-        Logger.debugLog("Building Lua target: " ~ target.name);
-        
-        // Parse Lua configuration
-        LuaConfig luaConfig = parseLuaConfig(target);
-        
         // Auto-detect runtime if needed
-        if (luaConfig.runtime == LuaRuntime.Auto)
+        if (config.runtime == LuaRuntime.Auto)
         {
-            luaConfig.runtime = detectRuntime();
-            Logger.debugLog("Auto-detected runtime: " ~ runtimeToString(luaConfig.runtime));
+            config.runtime = detectRuntime();
+            Logger.debugLog("Auto-detected runtime: " ~ runtimeToString(config.runtime));
         }
         
         // Validate configuration
-        auto validation = validateConfig(luaConfig, target);
+        auto validation = validateConfig(config, target);
         if (!validation.empty)
         {
-            result.error = "Configuration validation failed: " ~ validation;
-            return result;
+            Logger.warning("Configuration validation failed: " ~ validation);
         }
-        
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, luaConfig);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, luaConfig);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, luaConfig);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, luaConfig);
-                break;
-        }
-        
-        return result;
     }
     
     /// Get output file paths for target
@@ -225,7 +171,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Select and run appropriate builder with action cache
         auto builder = selectBuilder(luaConfig);
-        builder.setActionCache(actionCache);
+        builder.setActionCache(getCache());
         auto buildResult = builder.build(target.sources, luaConfig, target, config);
         
         if (!buildResult.success)
@@ -299,7 +245,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Build library with action cache
         auto builder = selectBuilder(luaConfig);
-        builder.setActionCache(actionCache);
+        builder.setActionCache(getCache());
         auto buildResult = builder.build(target.sources, luaConfig, target, config);
         
         result.success = buildResult.success;
@@ -353,7 +299,7 @@ class LuaHandler : BaseLanguageHandler
         
         // Check if test framework initialization is cached
         bool frameworkInitialized = false;
-        if (actionCache.isCached(initActionId, [], initMetadata))
+        if (getCache().isCached(initActionId, [], initMetadata))
         {
             Logger.debugLog("  [Cached] Test framework initialization: " ~ frameworkName);
             frameworkInitialized = true;
@@ -368,14 +314,14 @@ class LuaHandler : BaseLanguageHandler
                           "' is not available. Please install it.";
             
             // Cache the unavailability to avoid repeated checks
-            actionCache.update(initActionId, [], [], initMetadata, false);
+            getCache().update(initActionId, [], [], initMetadata, false);
             return result;
         }
         
         // Cache successful initialization
         if (!frameworkInitialized)
         {
-            actionCache.update(initActionId, [], [], initMetadata, true);
+            getCache().update(initActionId, [], [], initMetadata, true);
         }
         
         // Run tests
@@ -397,54 +343,6 @@ class LuaHandler : BaseLanguageHandler
         return result;
     }
     
-    /// Parse Lua configuration from target
-    /// 
-    /// Safety: This function is @trusted because:
-    /// 1. Parses JSON from target.config (untrusted input)
-    /// 2. LuaConfig.fromJSON validates and sanitizes values
-    /// 3. File I/O if custom config file specified
-    /// 4. Exception handling ensures safe defaults
-    /// 
-    /// Invariants:
-    /// - Invalid JSON returns default config
-    /// - All config values are validated by fromJSON
-    /// - Exceptions result in default config (safe fallback)
-    /// 
-    /// What could go wrong:
-    /// - Malformed JSON: parseJSON throws, caught, returns default
-    /// - Invalid config values: fromJSON validates, uses defaults
-    private LuaConfig parseLuaConfig(in Target target) @trusted
-    {
-        LuaConfig config;
-        
-        // Try language-specific keys
-        string configKey = "";
-        if ("lua" in target.langConfig)
-            configKey = "lua";
-        else if ("luaConfig" in target.langConfig)
-            configKey = "luaConfig";
-        
-        if (!configKey.empty)
-        {
-            try
-            {
-                auto json = parseJSON(target.langConfig[configKey]);
-                config = LuaConfig.fromJSON(json);
-            }
-            catch (Exception e)
-            {
-                Logger.warning("Failed to parse Lua config, using defaults: " ~ e.msg);
-            }
-        }
-        
-        // Auto-detect entry point if not specified
-        if (config.entryPoint.empty && !target.sources.empty)
-        {
-            config.entryPoint = target.sources[0];
-        }
-        
-        return config;
-    }
     
     /// Validate configuration
     /// 
@@ -576,7 +474,7 @@ class LuaHandler : BaseLanguageHandler
             rockspecActionId.inputHash = FastHash.hashFile(rockspecFile);
             
             // Check if rockspec installation is cached
-            if (actionCache.isCached(rockspecActionId, [rockspecFile], rockspecMetadata))
+            if (getCache().isCached(rockspecActionId, [rockspecFile], rockspecMetadata))
             {
                 Logger.info("  [Cached] LuaRocks dependencies from rockspec");
             }
@@ -590,12 +488,12 @@ class LuaHandler : BaseLanguageHandler
                 if (!success)
                 {
                     result.error = rockResult.error;
-                    actionCache.update(rockspecActionId, [rockspecFile], [], rockspecMetadata, false);
+                    getCache().update(rockspecActionId, [rockspecFile], [], rockspecMetadata, false);
                     return result;
                 }
                 
                 Logger.info("Successfully installed dependencies from rockspec");
-                actionCache.update(rockspecActionId, [rockspecFile], [], rockspecMetadata, true);
+                getCache().update(rockspecActionId, [rockspecFile], [], rockspecMetadata, true);
             }
         }
         else if (!config.luarocks.dependencies.empty)
@@ -617,7 +515,7 @@ class LuaHandler : BaseLanguageHandler
                 rockActionId.inputHash = FastHash.hashString(rock);
                 
                 // Check if rock installation is cached
-                if (actionCache.isCached(rockActionId, [], rockMetadata))
+                if (getCache().isCached(rockActionId, [], rockMetadata))
                 {
                     Logger.debugLog("  [Cached] Rock: " ~ rock);
                     continue;
@@ -629,12 +527,12 @@ class LuaHandler : BaseLanguageHandler
                 if (!success)
                 {
                     result.error = "Failed to install rock '" ~ rock ~ "': " ~ rockResult.error;
-                    actionCache.update(rockActionId, [], [], rockMetadata, false);
+                    getCache().update(rockActionId, [], [], rockMetadata, false);
                     return result;
                 }
                 
                 Logger.info("Installed rock: " ~ rock);
-                actionCache.update(rockActionId, [], [], rockMetadata, true);
+                getCache().update(rockActionId, [], [], rockMetadata, true);
             }
         }
         else

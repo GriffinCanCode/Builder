@@ -10,6 +10,7 @@ import std.json;
 import std.conv;
 import std.uuid;
 import languages.base.base;
+import languages.base.mixins;
 import languages.scripting.php.core.config;
 import languages.scripting.php.tooling.detection;
 import languages.scripting.php.managers.composer;
@@ -27,60 +28,48 @@ import core.caching.action;
 /// PHP build handler with action-level caching for syntax validation, analysis, and packaging
 class PHPHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"php";
+    mixin ConfigParsingMixin!(PHPConfig, "parsePHPConfig", ["php", "phpConfig"]);
+    mixin BuildOrchestrationMixin!(PHPConfig, "parsePHPConfig", string);
     
-    this()
+    private string setupBuildContext(PHPConfig phpConfig, in WorkspaceConfig config)
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/php", cacheConfig);
+        return setupPHPEnvironment(phpConfig);
     }
     
-    ~this()
+    private void enhanceConfigFromProject(
+        ref PHPConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
+    )
     {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
+        if (target.sources.empty)
+            return;
+        
+        string sourceDir = dirName(target.sources[0]);
+        
+        // Auto-detect composer.json
+        if (config.composer.composerJson.empty)
         {
-            try
+            string composerPath = ComposerTool.findComposerJson(sourceDir);
+            if (!composerPath.empty)
             {
-                actionCache.close();
+                config.composer.composerJson = composerPath;
+                Logger.debugLog("Found composer.json: " ~ composerPath);
             }
-            catch (Exception) {}
         }
-    }
-    
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
         
-        Logger.debugLog("Building PHP target: " ~ target.name);
-        
-        // Parse PHP configuration
-        PHPConfig phpConfig = parsePHPConfig(target);
-        
-        // Detect and enhance configuration from project structure
-        enhanceConfigFromProject(phpConfig, target, config);
-        
-        // Detect PHP version and validate
-        string phpCmd = setupPHPEnvironment(phpConfig);
-        
-        // Build based on target type
-        final switch (target.type)
+        // Auto-detect analyzer
+        if (config.analysis.analyzer == PHPAnalyzer.Auto)
         {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, phpConfig, phpCmd);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, phpConfig, phpCmd);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, phpConfig, phpCmd);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, phpConfig, phpCmd);
-                break;
+            config.analysis.analyzer = AnalyzerFactory.detectFromProject(workspace.root);
         }
         
-        return result;
+        // Auto-detect formatter
+        if (config.formatter.formatter == PHPFormatter.Auto)
+        {
+            config.formatter.formatter = FormatterFactory.detectFromProject(workspace.root);
+        }
     }
     
     override string[] getOutputs(in Target target, in WorkspaceConfig config)
@@ -385,8 +374,8 @@ class PHPHandler : BaseLanguageHandler
         metadata["packager"] = packager.name();
         metadata["outputFile"] = phpConfig.phar.outputFile;
         metadata["entryPoint"] = phpConfig.phar.entryPoint;
-        metadata["compression"] = phpConfig.phar.compression.to!string;
-        metadata["sign"] = phpConfig.phar.sign.to!string;
+        metadata["compression"] = phpConfig.phar.compression;
+        metadata["signature"] = phpConfig.phar.signature;
         
         // Determine output file
         string outputFile = phpConfig.phar.outputFile;
@@ -402,7 +391,7 @@ class PHPHandler : BaseLanguageHandler
         actionId.inputHash = FastHash.hashStrings(target.sources);
         
         // Check if packaging is cached
-        if (actionCache.isCached(actionId, target.sources, metadata) && exists(fullOutputPath))
+        if (getCache().isCached(actionId, target.sources, metadata) && exists(fullOutputPath))
         {
             Logger.debugLog("  [Cached] PHAR packaging: " ~ outputFile);
             result.success = true;
@@ -417,7 +406,7 @@ class PHPHandler : BaseLanguageHandler
         bool success = packageResult.success;
         
         // Record action result
-        actionCache.update(
+        getCache().update(
             actionId,
             target.sources,
             packageResult.artifacts,
@@ -790,70 +779,6 @@ class PHPHandler : BaseLanguageHandler
         return result;
     }
     
-    /// Parse PHP configuration from target
-    private PHPConfig parsePHPConfig(const Target target)
-    {
-        PHPConfig config;
-        
-        // Try language-specific keys
-        string configKey = "";
-        if ("php" in target.langConfig)
-            configKey = "php";
-        else if ("phpConfig" in target.langConfig)
-            configKey = "phpConfig";
-        
-        if (!configKey.empty)
-        {
-            try
-            {
-                auto json = parseJSON(target.langConfig[configKey]);
-                config = PHPConfig.fromJSON(json);
-            }
-            catch (Exception e)
-            {
-                Logger.warning("Failed to parse PHP config, using defaults: " ~ e.msg);
-            }
-        }
-        
-        return config;
-    }
-    
-    /// Enhance configuration based on project structure
-    private void enhanceConfigFromProject(
-        ref PHPConfig config,
-        const Target target,
-        const WorkspaceConfig workspace
-    )
-    {
-        if (target.sources.empty)
-            return;
-        
-        string sourceDir = dirName(target.sources[0]);
-        
-        // Auto-detect composer.json
-        if (config.composer.composerJson.empty)
-        {
-            string composerPath = ComposerTool.findComposerJson(sourceDir);
-            if (!composerPath.empty)
-            {
-                config.composer.composerJson = composerPath;
-                Logger.debugLog("Found composer.json: " ~ composerPath);
-            }
-        }
-        
-        // Auto-detect analyzer
-        if (config.analysis.analyzer == PHPAnalyzer.Auto)
-        {
-            config.analysis.analyzer = AnalyzerFactory.detectFromProject(workspace.root);
-        }
-        
-        // Auto-detect formatter
-        if (config.formatter.formatter == PHPFormatter.Auto)
-        {
-            config.formatter.formatter = FormatterFactory.detectFromProject(workspace.root);
-        }
-    }
-    
     /// Setup PHP environment and return PHP command to use
     private string setupPHPEnvironment(PHPConfig config)
     {
@@ -1089,7 +1014,7 @@ class PHPHandler : BaseLanguageHandler
             actionId.inputHash = FastHash.hashFile(source);
             
             // Check if validation is cached
-            if (actionCache.isCached(actionId, [source], metadata))
+            if (getCache().isCached(actionId, [source], metadata))
             {
                 Logger.debugLog("  [Cached] Syntax validation: " ~ source);
                 continue;
@@ -1100,7 +1025,7 @@ class PHPHandler : BaseLanguageHandler
             bool success = (res.status == 0);
             
             // Record action result (no outputs for validation)
-            actionCache.update(
+            getCache().update(
                 actionId,
                 [source],
                 [],
@@ -1143,7 +1068,7 @@ class PHPHandler : BaseLanguageHandler
         actionId.inputHash = FastHash.hashStrings(target.sources);
         
         // Check if analysis is cached (we don't have outputs, only validation)
-        if (actionCache.isCached(actionId, target.sources, metadata))
+        if (getCache().isCached(actionId, target.sources, metadata))
         {
             Logger.debugLog("  [Cached] Static analysis for: " ~ target.name);
             
@@ -1161,7 +1086,7 @@ class PHPHandler : BaseLanguageHandler
         bool success = !analysisResult.hasErrors();
         
         // Record action result
-        actionCache.update(
+        getCache().update(
             actionId,
             target.sources,
             [],

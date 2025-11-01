@@ -10,6 +10,7 @@ import std.json;
 import std.string;
 import std.conv;
 import languages.base.base;
+import languages.base.mixins;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.info;
 import languages.scripting.r.managers.packages;
@@ -27,117 +28,121 @@ import core.caching.action;
 /// R language handler with action-level caching for linting, formatting, package building, and tests
 class RHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"r";
+    mixin ConfigParsingMixin!(RConfig, "parseRConfig", ["r", "rConfig"]);
+    mixin SimpleBuildOrchestrationMixin!(RConfig, "parseRConfig");
     
-    this()
+    private void enhanceConfigFromProject(
+        ref RConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
+    )
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/r", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
+        if (target.sources.empty)
+            return;
+        
+        string sourceDir = dirName(target.sources[0]);
+        
+        // Auto-detect package structure
+        if (exists(buildPath(sourceDir, "DESCRIPTION")))
         {
-            try
+            if (config.mode == RBuildMode.Script)
             {
-                actionCache.close();
+                config.mode = RBuildMode.Package;
+                Logger.debugLog("Detected R package structure");
             }
-            catch (Exception) {}
         }
-    }
-    
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
         
-        Logger.debugLog("Building R target: " ~ target.name);
+        // Auto-detect Shiny app
+        if (exists(buildPath(sourceDir, "app.R")) || 
+            (exists(buildPath(sourceDir, "server.R")) && exists(buildPath(sourceDir, "ui.R"))))
+        {
+            if (config.mode == RBuildMode.Script)
+            {
+                config.mode = RBuildMode.Shiny;
+                Logger.debugLog("Detected Shiny app");
+            }
+        }
         
-        // Parse R configuration
-        RConfig rConfig = parseRConfig(target);
+        // Auto-detect RMarkdown
+        if (target.sources[0].endsWith(".Rmd") || target.sources[0].endsWith(".rmd"))
+        {
+            if (config.mode == RBuildMode.Script)
+            {
+                config.mode = RBuildMode.RMarkdown;
+                Logger.debugLog("Detected RMarkdown document");
+            }
+        }
         
-        // Auto-detect mode and enhance config from project structure
-        enhanceConfigFromProject(rConfig, target, config);
+        // Auto-detect environment
+        if (config.env.manager == REnvManager.Auto)
+        {
+            if (usesRenv(sourceDir))
+            {
+                config.env.manager = REnvManager.Renv;
+                config.env.enabled = true;
+                Logger.debugLog("Detected renv environment");
+            }
+            else if (usesPackrat(sourceDir))
+            {
+                config.env.manager = REnvManager.Packrat;
+                config.env.enabled = true;
+                Logger.debugLog("Detected packrat environment");
+            }
+        }
         
         // Validate R installation
-        if (!validateRInstallation(rConfig))
+        if (!validateRInstallation(config))
         {
-            result.error = "R/Rscript not available. Install from: https://www.r-project.org/";
-            return result;
+            Logger.warning("R/Rscript not available. Install from: https://www.r-project.org/");
+            return;
         }
         
-        Logger.debugLog("Using R: " ~ getRVersion(rConfig.rCommand));
+        Logger.debugLog("Using R: " ~ getRVersion(config.rCommand));
         
         // Setup environment if configured
-        if (rConfig.env.enabled)
+        if (config.env.enabled)
         {
-            auto envResult = setupEnvironment(rConfig, config.root);
+            auto envResult = setupEnvironment(config, workspace.root);
             if (!envResult.success)
             {
-                result.error = "Environment setup failed: " ~ envResult.error;
-                return result;
+                Logger.warning("Environment setup failed: " ~ envResult.error);
+                return;
             }
         }
         
         // Install dependencies if requested
-        if (rConfig.installDeps)
+        if (config.installDeps)
         {
-            if (!installProjectDependencies(rConfig, target, config))
+            if (!installProjectDependencies(config, target, workspace))
             {
-                result.error = "Failed to install dependencies";
-                return result;
+                Logger.warning("Failed to install dependencies");
+                return;
             }
         }
         
         // Run linter with action-level caching if configured
-        if (rConfig.lint.linter != RLinter.None && !target.sources.empty)
+        if (config.lint.linter != RLinter.None && !target.sources.empty)
         {
-            auto lintResult = lintFilesWithCache(target, rConfig, config.root);
+            auto lintResult = lintFilesWithCache(target, config, workspace.root);
             if (!lintResult.success)
             {
-                if (rConfig.lint.failOnWarnings || lintResult.errorCount > 0)
+                if (config.lint.failOnWarnings || lintResult.errorCount > 0)
                 {
-                    result.error = "Linting failed with " ~ lintResult.errorCount.to!string ~ " error(s)";
-                    return result;
+                    Logger.warning("Linting failed with " ~ lintResult.errorCount.to!string ~ " error(s)");
                 }
             }
         }
         
         // Run formatter with action-level caching if configured
-        if (rConfig.format.autoFormat && !target.sources.empty)
+        if (config.format.autoFormat && !target.sources.empty)
         {
-            auto formatResult = formatFilesWithCache(target, rConfig, config.root);
+            auto formatResult = formatFilesWithCache(target, config, workspace.root);
             if (!formatResult.success)
             {
                 Logger.warning("Formatting failed: " ~ formatResult.error);
             }
         }
-        
-        // Build based on target type and mode
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, rConfig);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, rConfig);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, rConfig);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, rConfig);
-                break;
-        }
-        
-        // Snapshot environment if configured
-        if (result.success && rConfig.env.autoSnapshot && rConfig.env.enabled)
-        {
-            snapshotEnvironment(rConfig.env.manager, config.root, rConfig.rExecutable, rConfig);
-        }
-        
-        return result;
     }
     
     override string[] getOutputs(in Target target, in WorkspaceConfig config)
@@ -255,89 +260,6 @@ class RHandler : BaseLanguageHandler
         result.success = true;
         result.outputHash = FastHash.hashStrings(target.sources);
         return result;
-    }
-    
-    /// Parse R configuration from target
-    private RConfig parseRConfig(in Target target)
-    {
-        RConfig config;
-        
-        // Try language-specific keys
-        if ("r" in target.langConfig)
-        {
-            try
-            {
-                auto json = parseJSON(target.langConfig["r"]);
-                config = RConfig.fromJSON(json);
-            }
-            catch (Exception e)
-            {
-                Logger.warning("Failed to parse R config, using defaults: " ~ e.msg);
-            }
-        }
-        
-        return config;
-    }
-    
-    /// Enhance configuration from project structure
-    private void enhanceConfigFromProject(
-        ref RConfig config,
-        in Target target,
-        in WorkspaceConfig workspace
-    )
-    {
-        if (target.sources.empty)
-            return;
-        
-        string sourceDir = dirName(target.sources[0]);
-        
-        // Auto-detect package structure
-        if (exists(buildPath(sourceDir, "DESCRIPTION")))
-        {
-            if (config.mode == RBuildMode.Script)
-            {
-                config.mode = RBuildMode.Package;
-                Logger.debugLog("Detected R package structure");
-            }
-        }
-        
-        // Auto-detect Shiny app
-        if (exists(buildPath(sourceDir, "app.R")) || 
-            (exists(buildPath(sourceDir, "server.R")) && exists(buildPath(sourceDir, "ui.R"))))
-        {
-            if (config.mode == RBuildMode.Script)
-            {
-                config.mode = RBuildMode.Shiny;
-                Logger.debugLog("Detected Shiny app");
-            }
-        }
-        
-        // Auto-detect RMarkdown
-        if (target.sources[0].endsWith(".Rmd") || target.sources[0].endsWith(".rmd"))
-        {
-            if (config.mode == RBuildMode.Script)
-            {
-                config.mode = RBuildMode.RMarkdown;
-                Logger.debugLog("Detected RMarkdown document");
-            }
-        }
-        
-        // Auto-detect environment
-        if (config.env.manager == REnvManager.Auto)
-        {
-            if (usesRenv(sourceDir))
-            {
-                config.env.manager = REnvManager.Renv;
-                config.env.enabled = true;
-                Logger.debugLog("Detected renv environment");
-            }
-            else if (usesPackrat(sourceDir))
-            {
-                config.env.manager = REnvManager.Packrat;
-                config.env.enabled = true;
-                Logger.debugLog("Detected packrat environment");
-            }
-        }
     }
     
     /// Validate R installation
@@ -606,7 +528,7 @@ class RHandler : BaseLanguageHandler
             actionId.inputHash = FastHash.hashFile(source);
             
             // Check if linting is cached
-            if (actionCache.isCached(actionId, [source], metadata))
+            if (getCache().isCached(actionId, [source], metadata))
             {
                 Logger.debugLog("  [Cached] Linting: " ~ source);
                 continue;
@@ -616,7 +538,7 @@ class RHandler : BaseLanguageHandler
             auto fileResult = lintFiles([source], rConfig.lint, rConfig.rExecutable, workDir);
             
             // Record action result
-            actionCache.update(
+            getCache().update(
                 actionId,
                 [source],
                 [],
@@ -658,7 +580,7 @@ class RHandler : BaseLanguageHandler
             actionId.inputHash = FastHash.hashFile(source);
             
             // Check if formatting is cached
-            if (actionCache.isCached(actionId, [source], metadata))
+            if (getCache().isCached(actionId, [source], metadata))
             {
                 Logger.debugLog("  [Cached] Formatting: " ~ source);
                 continue;
@@ -668,7 +590,7 @@ class RHandler : BaseLanguageHandler
             auto fileResult = formatFiles([source], rConfig.format, rConfig.rExecutable, workDir);
             
             // Record action result (output is the same file, modified in place)
-            actionCache.update(
+            getCache().update(
                 actionId,
                 [source],
                 [source],

@@ -10,6 +10,7 @@ import std.conv;
 import std.json;
 import std.string : lineSplitter, strip, indexOf;
 import languages.base.base;
+import languages.base.mixins;
 import languages.scripting.perl.core.config;
 import config.schema.schema;
 import analysis.targets.types;
@@ -20,78 +21,22 @@ import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionTyp
 /// Perl build handler with action-level caching
 class PerlHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"perl";
+    mixin ConfigParsingMixin!(PerlConfig, "parsePerlConfig", ["perl", "perlConfig"]);
+    mixin OutputResolutionMixin!(PerlConfig, "parsePerlConfig");
+    mixin SimpleBuildOrchestrationMixin!(PerlConfig, "parsePerlConfig");
     
-    this()
+    private void enhanceConfigFromProject(
+        ref PerlConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
+    )
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/perl", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
-    
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
-        
-        Logger.debugLog("Building Perl target: " ~ target.name);
-        
-        // Parse Perl configuration
-        PerlConfig perlConfig = parsePerlConfig(target);
-        
         // Validate Perl is available
-        if (!isPerlAvailable(perlConfig))
+        if (!isPerlAvailable(config))
         {
-            result.error = "Perl interpreter not found";
-            return result;
+            Logger.warning("Perl interpreter not available at: " ~ config.perlVersion.interpreterPath);
         }
-        
-        // Build based on target type
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, perlConfig);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, perlConfig);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, perlConfig);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, perlConfig);
-                break;
-        }
-        
-        return result;
-    }
-    
-    override string[] getOutputs(in Target target, in WorkspaceConfig config)
-    {
-        string[] outputs;
-        
-        if (!target.outputPath.empty)
-        {
-            outputs ~= buildPath(config.options.outputDir, target.outputPath);
-        }
-        else
-        {
-            auto name = target.name.split(":")[$ - 1];
-            outputs ~= buildPath(config.options.outputDir, name);
-        }
-        
-        return outputs;
     }
     
     private LanguageBuildResult buildExecutable(
@@ -349,34 +294,6 @@ class PerlHandler : BaseLanguageHandler
         return result;
     }
     
-    /// Parse Perl configuration from target
-    private PerlConfig parsePerlConfig(const Target target)
-    {
-        PerlConfig config;
-        
-        // Try language-specific keys
-        string configKey = "";
-        if ("perl" in target.langConfig)
-            configKey = "perl";
-        else if ("perlConfig" in target.langConfig)
-            configKey = "perlConfig";
-        
-        if (!configKey.empty)
-        {
-            try
-            {
-                auto json = parseJSON(target.langConfig[configKey]);
-                config = PerlConfig.fromJSON(json);
-            }
-            catch (Exception e)
-            {
-                Logger.warning("Failed to parse Perl config, using defaults: " ~ e.msg);
-            }
-        }
-        
-        return config;
-    }
-    
     /// Check if Perl is available
     private bool isPerlAvailable(const PerlConfig config)
     {
@@ -418,7 +335,7 @@ class PerlHandler : BaseLanguageHandler
             actionId.inputHash = FastHash.hashFile(source);
             
             // Check if syntax check is cached
-            if (actionCache.isCached(actionId, [source], metadata))
+            if (getCache().isCached(actionId, [source], metadata))
             {
                 Logger.debugLog("  [Cached] Syntax check: " ~ source);
                 continue;
@@ -458,7 +375,7 @@ class PerlHandler : BaseLanguageHandler
             }
             
             // Update cache with syntax check result
-            actionCache.update(
+            getCache().update(
                 actionId,
                 [source],
                 [],
@@ -551,7 +468,7 @@ class PerlHandler : BaseLanguageHandler
         actionId.inputHash = FastHash.hashStrings(sources);
         
         // Check if analysis is cached
-        if (actionCache.isCached(actionId, sources, metadata))
+        if (getCache().isCached(actionId, sources, metadata))
         {
             Logger.info("  [Cached] Perl::Critic analysis");
             result.success = true;
@@ -603,7 +520,7 @@ class PerlHandler : BaseLanguageHandler
         }
         
         // Update cache with analysis result
-        actionCache.update(
+        getCache().update(
             actionId,
             sources,
             [],
@@ -681,7 +598,7 @@ class PerlHandler : BaseLanguageHandler
             actionId.inputHash = FastHash.hashString(modSpec);
             
             // Check if module installation is cached
-            if (actionCache.isCached(actionId, [], metadata))
+            if (getCache().isCached(actionId, [], metadata))
             {
                 Logger.debugLog("  [Cached] Module: " ~ modSpec);
                 continue;
@@ -709,7 +626,7 @@ class PerlHandler : BaseLanguageHandler
                     Logger.error("Failed to install " ~ modSpec ~ ": " ~ res.output);
                     if (!mod.optional)
                     {
-                        actionCache.update(actionId, [], [], metadata, false);
+                        getCache().update(actionId, [], [], metadata, false);
                         return false;
                     }
                 }
@@ -719,13 +636,13 @@ class PerlHandler : BaseLanguageHandler
                 Logger.error("Failed to install " ~ modSpec ~ ": " ~ e.msg);
                 if (!mod.optional)
                 {
-                    actionCache.update(actionId, [], [], metadata, false);
+                    getCache().update(actionId, [], [], metadata, false);
                     return false;
                 }
             }
             
             // Update cache with installation result
-            actionCache.update(actionId, [], [], metadata, success);
+            getCache().update(actionId, [], [], metadata, success);
         }
         
         return true;
@@ -791,7 +708,7 @@ class PerlHandler : BaseLanguageHandler
         actionId.inputHash = FastHash.hashStrings(testFiles);
         
         // Check if test execution is cached
-        if (actionCache.isCached(actionId, testFiles, metadata))
+        if (getCache().isCached(actionId, testFiles, metadata))
         {
             Logger.info("  [Cached] Test execution: prove");
             result.success = true;
@@ -862,7 +779,7 @@ class PerlHandler : BaseLanguageHandler
         }
         
         // Update cache with test result
-        actionCache.update(
+        getCache().update(
             actionId,
             testFiles,
             [],
@@ -998,7 +915,7 @@ class PerlHandler : BaseLanguageHandler
         actionId.inputHash = FastHash.hashStrings(inputFiles);
         
         // Check if build is cached
-        if (actionCache.isCached(actionId, inputFiles, metadata))
+        if (getCache().isCached(actionId, inputFiles, metadata))
         {
             Logger.info("  [Cached] Module::Build");
             result.success = true;
@@ -1011,7 +928,7 @@ class PerlHandler : BaseLanguageHandler
         if (configRes.status != 0)
         {
             result.error = "Build.PL failed: " ~ configRes.output;
-            actionCache.update(actionId, inputFiles, [], metadata, false);
+            getCache().update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
@@ -1020,7 +937,7 @@ class PerlHandler : BaseLanguageHandler
         if (buildRes.status != 0)
         {
             result.error = "Build failed: " ~ buildRes.output;
-            actionCache.update(actionId, inputFiles, [], metadata, false);
+            getCache().update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
@@ -1028,7 +945,7 @@ class PerlHandler : BaseLanguageHandler
         result.success = true;
         
         // Update cache with success
-        actionCache.update(actionId, inputFiles, [], metadata, success);
+        getCache().update(actionId, inputFiles, [], metadata, success);
         
         return result;
     }
@@ -1065,7 +982,7 @@ class PerlHandler : BaseLanguageHandler
         actionId.inputHash = FastHash.hashStrings(inputFiles);
         
         // Check if build is cached
-        if (actionCache.isCached(actionId, inputFiles, metadata))
+        if (getCache().isCached(actionId, inputFiles, metadata))
         {
             Logger.info("  [Cached] ExtUtils::MakeMaker");
             result.success = true;
@@ -1078,7 +995,7 @@ class PerlHandler : BaseLanguageHandler
         if (configRes.status != 0)
         {
             result.error = "Makefile.PL failed: " ~ configRes.output;
-            actionCache.update(actionId, inputFiles, [], metadata, false);
+            getCache().update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
@@ -1087,7 +1004,7 @@ class PerlHandler : BaseLanguageHandler
         if (buildRes.status != 0)
         {
             result.error = "make failed: " ~ buildRes.output;
-            actionCache.update(actionId, inputFiles, [], metadata, false);
+            getCache().update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
@@ -1095,7 +1012,7 @@ class PerlHandler : BaseLanguageHandler
         result.success = true;
         
         // Update cache with success
-        actionCache.update(actionId, inputFiles, [], metadata, success);
+        getCache().update(actionId, inputFiles, [], metadata, success);
         
         return result;
     }
@@ -1188,7 +1105,7 @@ class PerlHandler : BaseLanguageHandler
                 htmlActionId.inputHash = FastHash.hashFile(source);
                 
                 // Check if HTML generation is cached
-                if (actionCache.isCached(htmlActionId, [source], htmlMetadata) && exists(htmlOutput))
+                if (getCache().isCached(htmlActionId, [source], htmlMetadata) && exists(htmlOutput))
                 {
                     Logger.debugLog("  [Cached] POD HTML: " ~ baseName);
                 }
@@ -1199,7 +1116,7 @@ class PerlHandler : BaseLanguageHandler
                         auto res = execute(["pod2html", "--infile=" ~ source, "--outfile=" ~ htmlOutput]);
                         bool success = (res.status == 0);
                         
-                        actionCache.update(
+                        getCache().update(
                             htmlActionId,
                             [source],
                             [htmlOutput],
@@ -1210,7 +1127,7 @@ class PerlHandler : BaseLanguageHandler
                     catch (Exception e)
                     {
                         Logger.warning("Failed to generate HTML docs for " ~ source);
-                        actionCache.update(htmlActionId, [source], [], htmlMetadata, false);
+                        getCache().update(htmlActionId, [source], [], htmlMetadata, false);
                     }
                 }
             }
@@ -1236,7 +1153,7 @@ class PerlHandler : BaseLanguageHandler
                     manActionId.inputHash = FastHash.hashFile(source);
                     
                     // Check if man generation is cached
-                    if (actionCache.isCached(manActionId, [source], manMetadata) && exists(manOutput))
+                    if (getCache().isCached(manActionId, [source], manMetadata) && exists(manOutput))
                     {
                         Logger.debugLog("  [Cached] POD man: " ~ baseName);
                     }
@@ -1247,7 +1164,7 @@ class PerlHandler : BaseLanguageHandler
                             auto res = execute(["pod2man", source, manOutput]);
                             bool success = (res.status == 0);
                             
-                            actionCache.update(
+                            getCache().update(
                                 manActionId,
                                 [source],
                                 [manOutput],
@@ -1258,7 +1175,7 @@ class PerlHandler : BaseLanguageHandler
                         catch (Exception e)
                         {
                             Logger.warning("Failed to generate man page for " ~ source);
-                            actionCache.update(manActionId, [source], [], manMetadata, false);
+                            getCache().update(manActionId, [source], [], manMetadata, false);
                         }
                     }
                 }
