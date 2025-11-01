@@ -15,16 +15,27 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Direct compiler builder - compiles without external build system
+/// Direct compiler builder - compiles without external build system with action-level caching
 class DirectBuilder : BaseCppBuilder
 {
     private CompilerInfo compilerInfo;
+    private ActionCache actionCache;
     
-    this(CppConfig config)
+    this(CppConfig config, ActionCache cache = null)
     {
         super(config);
         compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/cpp", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
     }
     
     override CppCompileResult build(
@@ -86,7 +97,7 @@ class DirectBuilder : BaseCppBuilder
         string[] cppObjects;
         if (!cppFiles.empty)
         {
-            auto cppResult = compileFiles(cppFiles, config, objDir, true);
+            auto cppResult = compileFiles(cppFiles, config, objDir, true, target);
             if (!cppResult.success)
             {
                 result.error = cppResult.error;
@@ -103,7 +114,7 @@ class DirectBuilder : BaseCppBuilder
         string[] cObjects;
         if (!cFiles.empty)
         {
-            auto cResult = compileFiles(cFiles, config, objDir, false);
+            auto cResult = compileFiles(cFiles, config, objDir, false, target);
             if (!cResult.success)
             {
                 result.error = cResult.error;
@@ -121,7 +132,7 @@ class DirectBuilder : BaseCppBuilder
         result.objects = allObjects;
         
         // Link
-        auto linkResult = linkObjects(allObjects, outputFile, config, !cppFiles.empty);
+        auto linkResult = linkObjects(allObjects, outputFile, config, !cppFiles.empty, target);
         if (!linkResult.success)
         {
             result.error = linkResult.error;
@@ -166,12 +177,13 @@ class DirectBuilder : BaseCppBuilder
         }
     }
     
-    /// Compile source files to object files
+    /// Compile source files to object files with action-level caching
     private CppCompileResult compileFiles(
         string[] sources,
         in CppConfig config,
         string objDir,
-        bool isCpp
+        bool isCpp,
+        in Target target
     )
     {
         CppCompileResult result;
@@ -183,10 +195,31 @@ class DirectBuilder : BaseCppBuilder
         
         auto flags = buildCompilerFlags(config, isCpp);
         
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = compiler;
+        metadata["flags"] = flags.join(" ");
+        metadata["isCpp"] = isCpp.to!string;
+        
         foreach (source; sources)
         {
             // Generate object file path
             string objFile = buildPath(objDir, baseName(source).stripExtension ~ ".o");
+            
+            // Create action ID for this compilation
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Compile;
+            actionId.subId = baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if this compilation is cached
+            if (actionCache.isCached(actionId, [source], metadata) && exists(objFile))
+            {
+                Logger.debugLog("  [Cached] " ~ source);
+                result.objects ~= objFile;
+                continue;
+            }
             
             // Build compile command
             string[] cmd = [compiler];
@@ -200,10 +233,22 @@ class DirectBuilder : BaseCppBuilder
             // Execute compilation
             auto res = execute(cmd);
             
-            if (res.status != 0)
+            bool success = (res.status == 0);
+            
+            if (!success)
             {
                 result.success = false;
                 result.error = "Compilation failed for " ~ source ~ ": " ~ res.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    [source],
+                    [],
+                    metadata,
+                    false
+                );
+                
                 return result;
             }
             
@@ -214,18 +259,28 @@ class DirectBuilder : BaseCppBuilder
                 result.warnings ~= "In " ~ source ~ ": " ~ res.output;
             }
             
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                [source],
+                [objFile],
+                metadata,
+                true
+            );
+            
             result.objects ~= objFile;
         }
         
         return result;
     }
     
-    /// Link object files to final output
+    /// Link object files to final output with action-level caching
     private CppCompileResult linkObjects(
         string[] objects,
         string outputFile,
         in CppConfig config,
-        bool isCpp
+        bool isCpp,
+        in Target target
     )
     {
         CppCompileResult result;
@@ -234,6 +289,31 @@ class DirectBuilder : BaseCppBuilder
         string linker = isCpp ?
             Toolchain.getCppCompiler(compilerInfo) :
             Toolchain.getCCompiler(compilerInfo);
+        
+        // Build linker flags
+        auto linkerFlags = buildLinkerFlags(config);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["linker"] = linker;
+        metadata["linkerFlags"] = linkerFlags.join(" ");
+        metadata["isCpp"] = isCpp.to!string;
+        
+        // Create action ID for linking
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Link;
+        actionId.subId = baseName(outputFile);
+        // Hash all object files together for input hash
+        actionId.inputHash = FastHash.hashStrings(objects);
+        
+        // Check if linking is cached
+        if (actionCache.isCached(actionId, objects, metadata) && exists(outputFile))
+        {
+            Logger.debugLog("  [Cached] Linking: " ~ outputFile);
+            result.success = true;
+            return result;
+        }
         
         // Build link command
         string[] cmd = [linker];
@@ -245,7 +325,7 @@ class DirectBuilder : BaseCppBuilder
         cmd ~= objects;
         
         // Linker flags
-        cmd ~= buildLinkerFlags(config);
+        cmd ~= linkerFlags;
         
         Logger.debugLog("Linking: " ~ outputFile);
         Logger.debugLog("  Command: " ~ cmd.join(" "));
@@ -253,9 +333,21 @@ class DirectBuilder : BaseCppBuilder
         // Execute linking
         auto res = execute(cmd);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Linking failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                objects,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
@@ -265,6 +357,15 @@ class DirectBuilder : BaseCppBuilder
             result.hadWarnings = true;
             result.warnings ~= "Linker: " ~ res.output;
         }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            objects,
+            [outputFile],
+            metadata,
+            true
+        );
         
         result.success = true;
         return result;

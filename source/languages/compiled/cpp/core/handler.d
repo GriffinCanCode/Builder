@@ -19,10 +19,24 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// C++ build handler with comprehensive feature support
+/// C++ build handler with comprehensive feature support and action-level caching
 class CppHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/cpp", cacheConfig);
+    }
+    
+    ~this()
+    {
+        if (actionCache)
+            actionCache.close();
+    }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -298,8 +312,8 @@ class CppHandler : BaseLanguageHandler
         CppConfig cppConfig
     )
     {
-        // Create builder based on configuration
-        auto builder = CppBuilderFactory.create(cppConfig);
+        // Create builder based on configuration, pass actionCache for per-file caching
+        auto builder = CppBuilderFactory.create(cppConfig, actionCache);
         
         if (!builder.isAvailable())
         {

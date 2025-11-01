@@ -83,17 +83,43 @@ struct EvictionPolicy
         // Fixed overhead
         size += ENTRY_OVERHEAD_BYTES;
         
-        // Strings
-        size += entry.targetId.length;
-        size += entry.buildHash.length;
-        size += entry.metadataHash.length;
-        
-        // Maps
-        foreach (source, hash; entry.sourceHashes)
-            size += source.length + hash.length;
-        
-        foreach (dep, hash; entry.depHashes)
-            size += dep.length + hash.length;
+        // Check if this is an ActionEntry (has actionId) or CacheEntry (has targetId)
+        static if (__traits(hasMember, T, "actionId"))
+        {
+            // ActionEntry
+            size += entry.actionId.targetId.length;
+            size += entry.actionId.inputHash.length;
+            size += entry.actionId.subId.length;
+            size += entry.executionHash.length;
+            
+            foreach (input; entry.inputs)
+                size += input.length;
+            
+            foreach (output; entry.outputs)
+                size += output.length;
+            
+            foreach (key, value; entry.inputHashes)
+                size += key.length + value.length;
+            
+            foreach (key, value; entry.outputHashes)
+                size += key.length + value.length;
+            
+            foreach (key, value; entry.metadata)
+                size += key.length + value.length;
+        }
+        else
+        {
+            // CacheEntry (original)
+            size += entry.targetId.length;
+            size += entry.buildHash.length;
+            size += entry.metadataHash.length;
+            
+            foreach (source, hash; entry.sourceHashes)
+                size += source.length + hash.length;
+            
+            foreach (dep, hash; entry.depHashes)
+                size += dep.length + hash.length;
+        }
         
         return size;
     }

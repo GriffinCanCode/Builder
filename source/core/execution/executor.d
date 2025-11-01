@@ -11,7 +11,7 @@ import core.sync.condition;
 import core.atomic;
 import core.graph.graph;
 import core.caching.cache;
-import core.caching.action;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId;
 import config.schema.schema;
 import languages.base.base;
 import languages.scripting.python;
@@ -111,7 +111,7 @@ final class BuildExecutor
         this.cache = new BuildCache(".builder-cache", cacheConfig);
         
         // Initialize action-level cache
-        const actionCacheConfig = CacheConfig.fromEnvironment();
+        const actionCacheConfig = ActionCacheConfig.fromEnvironment();
         this.actionCache = new ActionCache(".builder-cache/actions", actionCacheConfig);
         
         // Initialize retry orchestrator
