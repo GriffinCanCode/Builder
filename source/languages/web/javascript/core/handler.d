@@ -55,15 +55,18 @@ class JavaScriptHandler : BaseLanguageHandler
         // Parse JavaScript configuration
         JSConfig jsConfig = parseJSConfig(target);
         
-        // Detect TypeScript
-        bool isTypeScript = target.sources.any!(s => s.endsWith(".ts") || s.endsWith(".tsx"));
-        if (isTypeScript && target.language != TargetLanguage.TypeScript)
+        // Validate: JavaScript handler should only process .js/.jsx files, not TypeScript
+        bool hasTypeScript = target.sources.any!(s => s.endsWith(".ts") || s.endsWith(".tsx") || s.endsWith(".mts") || s.endsWith(".cts"));
+        if (hasTypeScript)
         {
-            Logger.debugLog("Detected TypeScript sources");
+            result.error = "JavaScript handler received TypeScript files (.ts/.tsx). " ~
+                          "Please use language: typescript for this target. " ~
+                          "Files: " ~ target.sources.filter!(s => s.endsWith(".ts") || s.endsWith(".tsx")).join(", ");
+            return result;
         }
         
-        // Detect JSX/React
-        bool hasJSX = target.sources.any!(s => s.endsWith(".jsx") || s.endsWith(".tsx"));
+        // Detect JSX/React (only .jsx for JavaScript, not .tsx)
+        bool hasJSX = target.sources.any!(s => s.endsWith(".jsx"));
         if (hasJSX && !jsConfig.jsx)
         {
             Logger.debugLog("Detected JSX sources, enabling JSX support");
@@ -388,36 +391,23 @@ class JavaScriptHandler : BaseLanguageHandler
         
         foreach (source; target.sources)
         {
-            // For TypeScript files, use tsc if available
-            if (source.endsWith(".ts") || source.endsWith(".tsx"))
+            // JavaScript handler should only validate .js/.jsx files
+            // TypeScript files should be handled by TypeScript handler
+            if (source.endsWith(".ts") || source.endsWith(".tsx") || source.endsWith(".mts") || source.endsWith(".cts"))
             {
-                if (isCommandAvailable("tsc"))
-                {
-                    auto cmd = ["tsc", "--noEmit", source];
-                    auto res = execute(cmd);
-                    
-                    if (res.status != 0)
-                    {
-                        result.error = "TypeScript validation failed: " ~ res.output;
-                        return result;
-                    }
-                }
-                else
-                {
-                    Logger.warning("TypeScript file found but tsc not available");
-                }
+                result.error = "JavaScript handler cannot validate TypeScript files. " ~
+                              "Use language: typescript for file: " ~ source;
+                return result;
             }
-            else
+            
+            // Validate JavaScript with Node.js
+            auto cmd = ["node", "--check", source];
+            auto res = execute(cmd);
+            
+            if (res.status != 0)
             {
-                // Validate JavaScript with Node.js
-                auto cmd = ["node", "--check", source];
-                auto res = execute(cmd);
-                
-                if (res.status != 0)
-                {
-                    result.error = "JavaScript validation failed in " ~ source ~ ": " ~ res.output;
-                    return result;
-                }
+                result.error = "JavaScript validation failed in " ~ source ~ ": " ~ res.output;
+                return result;
             }
         }
         

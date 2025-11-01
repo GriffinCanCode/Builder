@@ -29,6 +29,12 @@ enum TSCompiler
     SWC,
     /// esbuild - optimized for TypeScript
     ESBuild,
+    /// Webpack - advanced features and plugin ecosystem
+    Webpack,
+    /// Rollup - library optimization with tree-shaking
+    Rollup,
+    /// Vite - modern dev server with HMR and fast builds
+    Vite,
     /// No compilation (type check only)
     None
 }
@@ -301,6 +307,9 @@ struct TSConfig
                 case "tsc": config.compiler = TSCompiler.TSC; break;
                 case "swc": config.compiler = TSCompiler.SWC; break;
                 case "esbuild": config.compiler = TSCompiler.ESBuild; break;
+                case "webpack": config.compiler = TSCompiler.Webpack; break;
+                case "rollup": config.compiler = TSCompiler.Rollup; break;
+                case "vite": config.compiler = TSCompiler.Vite; break;
                 case "none": config.compiler = TSCompiler.None; break;
                 default: config.compiler = TSCompiler.Auto; break;
             }

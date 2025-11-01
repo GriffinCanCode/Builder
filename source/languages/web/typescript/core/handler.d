@@ -61,6 +61,23 @@ class TypeScriptHandler : BaseLanguageHandler
         // Parse TypeScript configuration
         TSConfig tsConfig = parseTSConfig(target);
         
+        // Validate: TypeScript handler should process .ts/.tsx files
+        // Allow .js/.jsx only if allowJs is explicitly enabled
+        bool hasPlainJS = target.sources.any!(s => 
+            (s.endsWith(".js") || s.endsWith(".jsx") || s.endsWith(".mjs") || s.endsWith(".cjs")) &&
+            !s.endsWith(".d.ts")  // Declaration files are okay
+        );
+        
+        if (hasPlainJS && !tsConfig.allowJs)
+        {
+            result.error = "TypeScript handler received JavaScript files (.js/.jsx) but allowJs is not enabled. " ~
+                          "Either use language: javascript for this target, or enable allowJs in config. " ~
+                          "Files: " ~ target.sources.filter!(s => 
+                              (s.endsWith(".js") || s.endsWith(".jsx")) && !s.endsWith(".d.ts")
+                          ).join(", ");
+            return result;
+        }
+        
         // Detect JSX/TSX
         bool hasTSX = target.sources.any!(s => s.endsWith(".tsx"));
         if (hasTSX && tsConfig.jsx == TSXMode.React)

@@ -38,6 +38,9 @@ class TSBundlerFactory
         import languages.web.typescript.tooling.bundlers.tsc;
         import languages.web.typescript.tooling.bundlers.swc;
         import languages.web.typescript.tooling.bundlers.esbuild;
+        import languages.web.typescript.tooling.bundlers.webpack;
+        import languages.web.typescript.tooling.bundlers.rollup;
+        import languages.web.typescript.tooling.bundlers.vite;
         
         final switch (type)
         {
@@ -49,6 +52,12 @@ class TSBundlerFactory
                 return new SWCBundler();
             case TSCompiler.ESBuild:
                 return new TSESBuildBundler();
+            case TSCompiler.Webpack:
+                return new TSWebpackBundler();
+            case TSCompiler.Rollup:
+                return new TSRollupBundler();
+            case TSCompiler.Vite:
+                return new TSViteBundler();
             case TSCompiler.None:
                 return new NullTSBundler();
         }
@@ -60,16 +69,50 @@ class TSBundlerFactory
         import languages.web.typescript.tooling.bundlers.tsc;
         import languages.web.typescript.tooling.bundlers.swc;
         import languages.web.typescript.tooling.bundlers.esbuild;
+        import languages.web.typescript.tooling.bundlers.webpack;
+        import languages.web.typescript.tooling.bundlers.rollup;
+        import languages.web.typescript.tooling.bundlers.vite;
         
-        // For library mode with declarations, prefer tsc (most accurate)
-        if (config.mode == TSBuildMode.Library && config.declaration)
+        // For library mode with declarations, prefer rollup (best tree-shaking) or tsc (most accurate)
+        if (config.mode == TSBuildMode.Library)
         {
-            auto tsc = new TSCBundler(cache);
-            if (tsc.isAvailable())
-                return tsc;
+            if (config.declaration)
+            {
+                // Prefer rollup for libraries with tree-shaking
+                auto rollup = new TSRollupBundler();
+                if (rollup.isAvailable())
+                    return rollup;
+                
+                // Fallback to tsc for accurate declaration files
+                auto tsc = new TSCBundler(cache);
+                if (tsc.isAvailable())
+                    return tsc;
+            }
+            else
+            {
+                // Without declarations, prefer rollup for tree-shaking
+                auto rollup = new TSRollupBundler();
+                if (rollup.isAvailable())
+                    return rollup;
+            }
         }
         
-        // For speed, prefer swc > esbuild > tsc
+        // For bundle mode, prefer modern bundlers with framework support
+        if (config.mode == TSBuildMode.Bundle)
+        {
+            // Check if this is a framework project (has jsx/tsx)
+            // Prefer Vite for modern framework projects
+            auto vite = new TSViteBundler();
+            if (vite.isAvailable())
+                return vite;
+            
+            // Fallback to webpack for complex bundling
+            auto webpack = new TSWebpackBundler();
+            if (webpack.isAvailable())
+                return webpack;
+        }
+        
+        // For speed in compile mode, prefer swc > esbuild > tsc
         auto swc = new SWCBundler();
         if (swc.isAvailable())
             return swc;
