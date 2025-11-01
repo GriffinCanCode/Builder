@@ -3,6 +3,7 @@ module languages.compiled.rust.tooling.builders.base;
 import std.range;
 import languages.compiled.rust.core.config;
 import config.schema.schema;
+import core.caching.action : ActionCache;
 
 /// Base interface for Rust builders
 interface RustBuilder
@@ -31,25 +32,26 @@ interface RustBuilder
 /// Factory for creating Rust builders
 class RustBuilderFactory
 {
-    /// Create builder based on compiler type
-    static RustBuilder create(RustCompiler compiler, RustConfig config)
+    /// Create builder based on compiler type with optional action cache
+    static RustBuilder create(RustCompiler compiler, RustConfig config, ActionCache cache = null)
     {
         import languages.compiled.rust.tooling.builders.cargo;
         import languages.compiled.rust.tooling.builders.rustc;
+        import core.caching.action : ActionCache;
         
         final switch (compiler)
         {
             case RustCompiler.Auto:
-                return createAuto(config);
+                return createAuto(config, cache);
             case RustCompiler.Cargo:
-                return new CargoBuilder();
+                return new CargoBuilder(cache);
             case RustCompiler.Rustc:
                 return new RustcBuilder();
         }
     }
     
-    /// Auto-detect best available builder
-    private static RustBuilder createAuto(RustConfig config)
+    /// Auto-detect best available builder with optional action cache
+    private static RustBuilder createAuto(RustConfig config, ActionCache cache)
     {
         import languages.compiled.rust.tooling.builders.cargo;
         import languages.compiled.rust.tooling.builders.rustc;
@@ -58,7 +60,7 @@ class RustBuilderFactory
         // If Cargo.toml exists or is specified, prefer cargo
         if (!config.manifest.empty)
         {
-            auto cargo = new CargoBuilder();
+            auto cargo = new CargoBuilder(cache);
             if (cargo.isAvailable())
                 return cargo;
         }
@@ -67,7 +69,7 @@ class RustBuilderFactory
         auto manifest = CargoParser.findManifest([config.entry]);
         if (!manifest.empty)
         {
-            auto cargo = new CargoBuilder();
+            auto cargo = new CargoBuilder(cache);
             if (cargo.isAvailable())
                 return cargo;
         }
@@ -78,7 +80,7 @@ class RustBuilderFactory
             return rustc;
         
         // Default to cargo
-        return new CargoBuilder();
+        return new CargoBuilder(cache);
     }
 }
 

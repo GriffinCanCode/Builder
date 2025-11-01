@@ -18,10 +18,24 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Advanced Rust build handler with cargo, rustup, and toolchain support
+/// Advanced Rust build handler with cargo, rustup, and toolchain support with action-level caching
 class RustHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/rust", cacheConfig);
+    }
+    
+    ~this()
+    {
+        if (actionCache)
+            actionCache.close();
+    }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -211,8 +225,8 @@ class RustHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Create builder
-        auto builder = RustBuilderFactory.create(rustConfig.compiler, rustConfig);
+        // Create builder, pass actionCache for per-build-step caching
+        auto builder = RustBuilderFactory.create(rustConfig.compiler, rustConfig, actionCache);
         
         if (!builder.isAvailable())
         {

@@ -14,10 +14,26 @@ import languages.compiled.rust.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Cargo builder - uses cargo for compilation
+/// Cargo builder - uses cargo for compilation with action-level caching
 class CargoBuilder : RustBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/rust", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
+    
     RustCompileResult build(
         in string[] sources,
         in RustConfig config,
@@ -89,6 +105,75 @@ class CargoBuilder : RustBuilder
     private RustCompileResult buildTarget(in RustConfig config, string projectDir, in WorkspaceConfig workspace)
     {
         RustCompileResult result;
+        
+        // Gather all source files for cache validation
+        string manifestPath = buildPath(projectDir, "Cargo.toml");
+        string[] inputFiles = [manifestPath];
+        
+        // Add all Rust source files in src/
+        string srcDir = buildPath(projectDir, "src");
+        if (exists(srcDir) && isDir(srcDir))
+        {
+            foreach (entry; dirEntries(srcDir, "*.rs", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["mode"] = "build";
+        metadata["profile"] = config.release ? "release" : "debug";
+        metadata["target"] = config.target;
+        metadata["features"] = config.features.join(",");
+        metadata["cargoFlags"] = config.cargoFlags.join(" ");
+        metadata["rustcFlags"] = config.rustcFlags.join(" ");
+        
+        // Determine output path
+        string targetDir = config.targetDir.empty ? "target" : config.targetDir;
+        string profileDir = config.release ? "release" : "debug";
+        
+        if (!config.target.empty)
+            targetDir = buildPath(targetDir, config.target, profileDir);
+        else
+            targetDir = buildPath(targetDir, profileDir);
+        
+        string fullTargetDir = buildPath(projectDir, targetDir);
+        
+        // Create action ID for cargo build
+        ActionId actionId;
+        actionId.targetId = baseName(projectDir);
+        actionId.type = ActionType.Compile;
+        actionId.subId = "cargo_build";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata) && exists(fullTargetDir))
+        {
+            // Find cached artifacts
+            if (isDir(fullTargetDir))
+            {
+                foreach (entry; dirEntries(fullTargetDir, SpanMode.shallow))
+                {
+                    if (entry.isFile)
+                    {
+                        auto name = baseName(entry.name);
+                        if (!name.endsWith(".d") && !name.endsWith(".rlib"))
+                            result.outputs ~= entry.name;
+                        else if (name.endsWith(".rlib"))
+                            result.artifacts ~= entry.name;
+                    }
+                }
+            }
+            
+            if (!result.outputs.empty)
+            {
+                Logger.debugLog("  [Cached] Cargo build: " ~ projectDir);
+                result.success = true;
+                result.outputHash = FastHash.hashFile(result.outputs[0]);
+                return result;
+            }
+        }
         
         // Build cargo command
         string[] cmd = ["cargo", "build"];
@@ -180,25 +265,26 @@ class CargoBuilder : RustBuilder
         // Execute build
         auto res = execute(cmd, env, Config.none, size_t.max, projectDir);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Cargo build failed:\n" ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
         // Parse warnings
         parseCargoOutput(res.output, result);
-        
-        // Determine output path
-        string targetDir = config.targetDir.empty ? "target" : config.targetDir;
-        string profileDir = config.release ? "release" : "debug";
-        
-        if (!config.target.empty)
-            targetDir = buildPath(targetDir, config.target, profileDir);
-        else
-            targetDir = buildPath(targetDir, profileDir);
-        
-        string fullTargetDir = buildPath(projectDir, targetDir);
         
         // Find built artifacts
         if (exists(fullTargetDir) && isDir(fullTargetDir))
@@ -224,6 +310,15 @@ class CargoBuilder : RustBuilder
             result.outputHash = FastHash.hashFile(result.outputs[0]);
         else
             result.outputHash = FastHash.hashString(res.output);
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            inputFiles,
+            result.outputs ~ result.artifacts,
+            metadata,
+            true
+        );
         
         return result;
     }

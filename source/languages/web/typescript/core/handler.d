@@ -19,10 +19,24 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process.checker : isCommandAvailable;
+import core.caching.action;
 
-/// TypeScript build handler - separate from JavaScript with type-first approach
+/// TypeScript build handler with action-level caching for separate compile + bundle steps
 class TypeScriptHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/typescript", cacheConfig);
+    }
+    
+    ~this()
+    {
+        if (actionCache)
+            actionCache.close();
+    }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -202,10 +216,62 @@ class TypeScriptHandler : BaseLanguageHandler
         return result;
     }
     
-    /// Compile/bundle target using configured compiler
+    /// Compile/bundle target using configured compiler with action-level caching
     private LanguageBuildResult compileTarget(in Target target, in WorkspaceConfig config, TSConfig tsConfig)
     {
         LanguageBuildResult result;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = tsConfig.compiler.to!string;
+        metadata["mode"] = tsConfig.mode.to!string;
+        metadata["target"] = tsConfig.target.to!string;
+        metadata["moduleFormat"] = tsConfig.moduleFormat.to!string;
+        metadata["outDir"] = tsConfig.outDir;
+        metadata["declaration"] = tsConfig.declaration.to!string;
+        metadata["sourceMap"] = tsConfig.sourceMap.to!string;
+        metadata["strict"] = tsConfig.strict.to!string;
+        
+        // Add tsconfig.json as input if it exists
+        string[] inputFiles = target.sources.dup;
+        if (!tsConfig.tsconfig.empty && exists(tsConfig.tsconfig))
+        {
+            inputFiles ~= tsConfig.tsconfig;
+        }
+        
+        // Create action ID for TypeScript compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "typescript_compile";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Determine expected outputs
+        string[] expectedOutputs = getOutputs(target, config);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            // Verify all outputs exist
+            bool allOutputsExist = true;
+            foreach (output; expectedOutputs)
+            {
+                if (!exists(output))
+                {
+                    allOutputsExist = false;
+                    break;
+                }
+            }
+            
+            if (allOutputsExist)
+            {
+                Logger.debugLog("  [Cached] TypeScript compilation: " ~ target.name);
+                result.success = true;
+                result.outputs = expectedOutputs;
+                result.outputHash = FastHash.hashStrings(expectedOutputs);
+                return result;
+            }
+        }
         
         // Create compiler/bundler
         auto bundler = TSBundlerFactory.create(tsConfig.compiler, tsConfig);
@@ -222,9 +288,21 @@ class TypeScriptHandler : BaseLanguageHandler
         // Compile
         auto compileResult = bundler.compile(target.sources, tsConfig, target, config);
         
-        if (!compileResult.success)
+        bool success = compileResult.success;
+        
+        if (!success)
         {
             result.error = compileResult.error;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
@@ -241,6 +319,15 @@ class TypeScriptHandler : BaseLanguageHandler
         result.success = true;
         result.outputs = compileResult.outputs ~ compileResult.declarations;
         result.outputHash = compileResult.outputHash;
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            inputFiles,
+            result.outputs,
+            metadata,
+            true
+        );
         
         return result;
     }

@@ -34,18 +34,19 @@ interface CppBuilder
 /// Factory for creating C++ builders
 class CppBuilderFactory
 {
-    /// Create builder based on build system and compiler
-    static CppBuilder create(CppConfig config)
+    /// Create builder based on build system and compiler with optional action cache
+    static CppBuilder create(CppConfig config, ActionCache cache = null)
     {
         import languages.compiled.cpp.builders.direct;
         import languages.compiled.cpp.builders.cmake;
         import languages.compiled.cpp.builders.make;
         import languages.compiled.cpp.builders.ninja;
+        import core.caching.action : ActionCache;
         
         // If build system is specified, use it
         if (config.buildSystem != BuildSystem.None && config.buildSystem != BuildSystem.Auto)
         {
-            return createBuildSystem(config.buildSystem, config);
+            return createBuildSystem(config.buildSystem, config, cache);
         }
         
         // Auto-detect build system
@@ -58,46 +59,47 @@ class CppBuilderFactory
         // If no build system, use direct compilation
         if (buildSystem == BuildSystem.None)
         {
-            return new DirectBuilder(config);
+            return new DirectBuilder(config, cache);
         }
         
-        return createBuildSystem(buildSystem, config);
+        return createBuildSystem(buildSystem, config, cache);
     }
     
-    /// Create builder for specific build system
-    private static CppBuilder createBuildSystem(BuildSystem buildSystem, CppConfig config)
+    /// Create builder for specific build system with optional action cache
+    private static CppBuilder createBuildSystem(BuildSystem buildSystem, CppConfig config, ActionCache cache)
     {
         import languages.compiled.cpp.builders.direct;
         import languages.compiled.cpp.builders.cmake;
         import languages.compiled.cpp.builders.make;
         import languages.compiled.cpp.builders.ninja;
+        import core.caching.action : ActionCache;
         
         final switch (buildSystem)
         {
             case BuildSystem.None:
-                return new DirectBuilder(config);
+                return new DirectBuilder(config, cache);
             case BuildSystem.Auto:
-                return create(config);
+                return create(config, cache);
             case BuildSystem.CMake:
                 auto cmake = new CMakeBuilder(config);
                 if (cmake.isAvailable())
                     return cmake;
-                return new DirectBuilder(config);
+                return new DirectBuilder(config, cache);
             case BuildSystem.Make:
                 auto make = new MakeBuilder(config);
                 if (make.isAvailable())
                     return make;
-                return new DirectBuilder(config);
+                return new DirectBuilder(config, cache);
             case BuildSystem.Ninja:
                 auto ninja = new NinjaBuilder(config);
                 if (ninja.isAvailable())
                     return ninja;
-                return new DirectBuilder(config);
+                return new DirectBuilder(config, cache);
             case BuildSystem.Bazel:
             case BuildSystem.Meson:
             case BuildSystem.Xmake:
                 // TODO: Implement these build systems
-                return new DirectBuilder(config);
+                return new DirectBuilder(config, cache);
         }
     }
     
