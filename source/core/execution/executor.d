@@ -11,6 +11,7 @@ import core.sync.condition;
 import core.atomic;
 import core.graph.graph;
 import core.caching.cache;
+import core.caching.action;
 import config.schema.schema;
 import languages.base.base;
 import languages.scripting.python;
@@ -73,6 +74,7 @@ final class BuildExecutor
     private BuildGraph graph;
     private WorkspaceConfig config;
     private BuildCache cache;
+    private ActionCache actionCache;
     private LanguageHandler[TargetLanguage] handlers;
     private ThreadPool pool;
     private LockFreeQueue!BuildNode readyQueue;  // Lock-free ready queue for scalability
@@ -107,6 +109,10 @@ final class BuildExecutor
         // Initialize cache with configuration from environment
         const cacheConfig = CacheConfig.fromEnvironment();
         this.cache = new BuildCache(".builder-cache", cacheConfig);
+        
+        // Initialize action-level cache
+        const actionCacheConfig = CacheConfig.fromEnvironment();
+        this.actionCache = new ActionCache(".builder-cache/actions", actionCacheConfig);
         
         // Initialize retry orchestrator
         this.retryOrchestrator = new RetryOrchestrator();
@@ -192,11 +198,16 @@ final class BuildExecutor
             pool = null;
         }
         
-        // Explicitly close cache to prevent data loss
+        // Explicitly close caches to prevent data loss
         // This is critical - don't rely on destructor which may fail during GC
         if (cache !is null)
         {
             cache.close();
+        }
+        
+        if (actionCache !is null)
+        {
+            actionCache.close();
         }
     }
     
@@ -505,8 +516,9 @@ final class BuildExecutor
         
         auto failed = atomicLoad(failedTasks);
         
-        // Flush cache to disk (lazy write optimization)
+        // Flush caches to disk (lazy write optimization)
         cache.flush();
+        actionCache.flush();
         
         // Get cache statistics
         auto cacheStats = cache.getStats();
@@ -567,6 +579,21 @@ final class BuildExecutor
                 Logger.info("  Hash cache hit rate: " ~ cacheStats.hashCacheHitRate.to!string[0..min(MAX_STAT_STRING_LENGTH, cacheStats.hashCacheHitRate.to!string.length)] ~ "%");
                 Logger.info("  Hash cache saves: " ~ cacheStats.hashCacheHits.to!string ~ " duplicate hashes avoided");
             }
+        }
+        
+        // Print action-level cache statistics
+        auto actionStats = actionCache.getStats();
+        if (actionStats.totalEntries > 0)
+        {
+            Logger.info("Action-Level Cache:");
+            Logger.info("  Total actions: " ~ actionStats.totalEntries.to!string);
+            Logger.info("  Cache size: " ~ formatSize(actionStats.totalSize));
+            if (actionStats.hits + actionStats.misses > 0)
+            {
+                Logger.info("  Hit rate: " ~ actionStats.hitRate.to!string[0..min(MAX_STAT_STRING_LENGTH, actionStats.hitRate.to!string.length)] ~ "%");
+            }
+            Logger.info("  Successful actions: " ~ actionStats.successfulActions.to!string);
+            Logger.info("  Failed actions: " ~ actionStats.failedActions.to!string);
         }
         
         // Return success status
@@ -663,9 +690,13 @@ final class BuildExecutor
             {
                 auto error = new BuildFailureError(
                     node.id,
-                    "No handler for language: " ~ target.language.to!string,
+                    "No language handler found for: " ~ target.language.to!string,
                     ErrorCode.HandlerNotFound
                 );
+                error.addSuggestion("Check that the language '" ~ target.language.to!string ~ "' is supported");
+                error.addSuggestion("Run 'builder --version' to see all supported languages");
+                error.addSuggestion("Verify the 'language' field in your Builderfile is spelled correctly");
+                error.addSuggestion("For unsupported languages, use 'language: shell' with a custom command");
                 result.error = error.message();
                 
                 targetSpan.recordException(new Exception(error.message()));
@@ -679,9 +710,20 @@ final class BuildExecutor
                 return result;
             }
             
-            // Build the target using new Result-based API with retry logic
+            // Build the target using new Result-based API with retry logic and action-level caching
             auto compileSpan = tracer.startSpan("compile", SpanKind.Internal, targetSpan);
             compileSpan.setAttribute("target.sources_count", target.sources.length.to!string);
+            
+            // Create action recorder for fine-grained caching
+            auto actionRecorder = (ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success) {
+                actionCache.update(actionId, inputs, outputs, metadata, success);
+            };
+            
+            // Create build context with action recorder
+            BuildContext buildContext;
+            buildContext.target = target;
+            buildContext.config = config;
+            buildContext.recorder = actionRecorder;
             
             Result!(string, BuildError) buildResult;
             
@@ -703,14 +745,16 @@ final class BuildExecutor
                         }
                         
                         node.incrementRetries();
-                        return handler.build(target, config);
+                        // Use buildWithContext for action-level caching
+                        return handler.buildWithContext(buildContext);
                     },
                     policy
                 );
             }
             else
             {
-                buildResult = handler.build(target, config);
+                // Use buildWithContext for action-level caching
+                buildResult = handler.buildWithContext(buildContext);
             }
             
             tracer.finishSpan(compileSpan);
@@ -770,8 +814,12 @@ final class BuildExecutor
         }
         catch (Exception e)
         {
-            auto error = new BuildFailureError(node.id, e.msg);
+            auto error = new BuildFailureError(node.id, "Build failed with exception: " ~ e.msg);
             error.addContext(ErrorContext("building node", "exception caught"));
+            error.addSuggestion("Check the error message above for specific details");
+            error.addSuggestion("Run with --verbose for more detailed output");
+            error.addSuggestion("Verify all dependencies and build tools are properly installed");
+            error.addSuggestion("Check file permissions and disk space");
             result.error = error.message();
             
             targetSpan.recordException(e);

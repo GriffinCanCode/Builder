@@ -34,6 +34,7 @@ abstract class BaseBuildError : BuildError
     private ErrorCode _code;
     private string _message;
     private ErrorContext[] _contexts;
+    private string[] _customSuggestions;
     
     this(ErrorCode code, string message) @trusted
     {
@@ -66,10 +67,22 @@ abstract class BaseBuildError : BuildError
         return isRecoverable(_code);
     }
     
+    /// Get custom suggestions for this specific error instance
+    const(string)[] customSuggestions() const
+    {
+        return _customSuggestions;
+    }
+    
     /// Add context to error chain
     void addContext(ErrorContext ctx) @safe
     {
         _contexts ~= ctx;
+    }
+    
+    /// Add a custom suggestion specific to this error instance
+    void addSuggestion(string suggestion) @safe
+    {
+        _customSuggestions ~= suggestion;
     }
     
     override string toString() const
@@ -337,6 +350,12 @@ struct ErrorBuilder(T : BaseBuildError)
     ErrorBuilder withContext(string operation, string details = "")
     {
         error.addContext(ErrorContext(operation, details));
+        return this;
+    }
+    
+    ErrorBuilder withSuggestion(string suggestion)
+    {
+        error.addSuggestion(suggestion);
         return this;
     }
     

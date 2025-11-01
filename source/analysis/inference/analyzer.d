@@ -192,8 +192,12 @@ class DependencyAnalyzer
                 // Check file exists
                 if (!exists(source) || !isFile(source))
                 {
-                    auto error = new IOError(source, "Source file not found", ErrorCode.FileNotFound);
+                    auto error = new IOError(source, "Source file not found during dependency analysis", ErrorCode.FileNotFound);
                     error.addContext(ErrorContext("analyzing target", target.name));
+                    error.addSuggestion("Verify the file path in your Builderfile is correct");
+                    error.addSuggestion("Check if the file was deleted or moved");
+                    error.addSuggestion("Ensure glob patterns are matching the intended files");
+                    error.addSuggestion("Run 'ls " ~ source ~ "' to check if the file exists");
                     return Err!(FileAnalysis, BuildError)(error);
                 }
                 
@@ -210,8 +214,12 @@ class DependencyAnalyzer
                 }
                 catch (Exception e)
                 {
-                    auto error = new AnalysisError(target.name, e.msg, ErrorCode.AnalysisFailed);
+                    auto error = new AnalysisError(target.name, "Failed to analyze dependencies: " ~ e.msg, ErrorCode.AnalysisFailed);
                     error.addContext(ErrorContext("analyzing file", source));
+                    error.addSuggestion("Check if the source file has valid syntax");
+                    error.addSuggestion("Ensure the file encoding is correct (UTF-8)");
+                    error.addSuggestion("Verify the language handler supports this file type");
+                    error.addSuggestion("Try compiling the file directly to check for errors");
                     return Err!(FileAnalysis, BuildError)(error);
                 }
             },

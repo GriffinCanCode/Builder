@@ -12,7 +12,7 @@ import config.schema.schema : LanguageBuildResult;
 /// Convert exception to BuildError
 BuildError fromException(Exception e, ErrorCode code = ErrorCode.InternalError)
 {
-    auto error = new InternalError(e.msg, code);
+    auto error = new InternalError("Internal error: " ~ e.msg, code);
     
     // Try to extract stack trace
     static if (__traits(compiles, e.info))
@@ -20,6 +20,10 @@ BuildError fromException(Exception e, ErrorCode code = ErrorCode.InternalError)
         if (e.info)
             error.stackTrace = e.info.toString();
     }
+    
+    error.addSuggestion("This is likely a bug in Builder");
+    error.addSuggestion("Please report this with full error details and reproduction steps");
+    error.addSuggestion("Try running with --verbose for more information");
     
     return error;
 }
@@ -33,7 +37,10 @@ Result!(string, BuildError) toResult(LanguageBuildResult buildResult, string tar
     }
     else
     {
-        auto error = new BuildFailureError(targetId, buildResult.error);
+        auto error = new BuildFailureError(targetId, "Build failed: " ~ buildResult.error);
+        error.addSuggestion("Review the build output above for specific errors");
+        error.addSuggestion("Check that all dependencies are installed");
+        error.addSuggestion("Verify the build configuration is correct");
         return Err!(string, BuildError)(error);
     }
 }

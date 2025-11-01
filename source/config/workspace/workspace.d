@@ -388,6 +388,10 @@ struct WorkspaceParser
         auto err = new ParseError(filePath, message, ErrorCode.ParseFailed);
         err.line = token.line;
         err.column = token.column;
+        err.addSuggestion("Check the Builderspace file syntax");
+        err.addSuggestion("See docs/architecture/DSL.md for Builderspace syntax reference");
+        err.addSuggestion("Review examples in the examples/ directory");
+        err.addSuggestion("Ensure all braces, parentheses, and quotes are properly matched");
         return Err!(T, BuildError)(err);
     }
 }
@@ -558,6 +562,9 @@ struct WorkspaceAnalyzer
     private Result!BuildError error(string message)
     {
         auto err = new ParseError(workspacePath, message, ErrorCode.InvalidBuildFile);
+        err.addSuggestion("Verify the workspace configuration is valid");
+        err.addSuggestion("Check docs/architecture/DSL.md for valid workspace fields");
+        err.addSuggestion("Review Builderspace examples in the examples/ directory");
         return Result!BuildError.err(err);
     }
 }

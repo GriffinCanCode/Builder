@@ -43,8 +43,12 @@ struct DSLParser
         if (file.targets.empty)
         {
             auto error = new ParseError(filePath, 
-                "Builderfile must contain at least one target",
+                "Builderfile is empty or contains no valid target definitions",
                 ErrorCode.InvalidBuildFile);
+            error.addSuggestion("Add at least one target definition to the Builderfile");
+            error.addSuggestion("See examples/ directory for valid Builderfile examples");
+            error.addSuggestion("Run 'builder init' to create a template Builderfile");
+            error.addSuggestion("Check docs/architecture/DSL.md for target syntax");
             return Err!(BuildFile, BuildError)(error);
         }
         

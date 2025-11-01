@@ -71,10 +71,14 @@ class ConfigParser
                 if (config.targets.empty)
                 {
                     auto error = new ParseError(root, 
-                        "No Builderfile found and no targets could be inferred", 
+                        "No Builderfile found and no build targets could be automatically inferred", 
                         ErrorCode.ParseFailed);
                     error.addContext(ErrorContext("workspace initialization", 
                         "Run 'builder init' to create a Builderfile"));
+                    error.addSuggestion("Run 'builder init' to create a Builderfile with example targets");
+                    error.addSuggestion("Add a Builderfile manually - see docs/user-guides/CLI.md");
+                    error.addSuggestion("Ensure your project has recognizable source files (*.py, *.js, *.d, etc.)");
+                    error.addSuggestion("Check examples/ directory for language-specific configurations");
                     return Err!(WorkspaceConfig, BuildError)(error);
                 }
                 
@@ -84,8 +88,11 @@ class ConfigParser
             catch (Exception e)
             {
                 auto error = new ParseError(root, 
-                    "Failed to infer targets: " ~ e.msg, 
+                    "Failed to automatically infer build targets: " ~ e.msg, 
                     ErrorCode.ParseFailed);
+                error.addSuggestion("Create a Builderfile manually: builder init");
+                error.addSuggestion("Check that your project structure is supported");
+                error.addSuggestion("See docs/user-guides/CLI.md for configuration help");
                 return Err!(WorkspaceConfig, BuildError)(error);
             }
         }
@@ -240,8 +247,12 @@ class ConfigParser
                         if (!SecurityValidator.isPathWithinBase(source, root))
                         {
                             auto error = new ParseError(path, 
-                                "Source file outside workspace: " ~ source, 
+                                "Security violation: Source file references path outside workspace: " ~ source, 
                                 ErrorCode.InvalidFieldValue);
+                            error.addSuggestion("Ensure all source paths are within the project workspace");
+                            error.addSuggestion("Use relative paths instead of absolute paths");
+                            error.addSuggestion("Check for '..' in paths that escape the workspace");
+                            error.addSuggestion("Copy external files into the workspace if needed");
                             error.addContext(ErrorContext("validating sources", "path traversal detected"));
                             return Err!(Target[], BuildError)(error);
                         }
@@ -262,22 +273,33 @@ class ConfigParser
         }
         catch (JSONException e)
         {
-            auto error = new ParseError(path, e.msg, ErrorCode.InvalidJson);
+            auto error = new ParseError(path, "Invalid JSON syntax in Builderfile: " ~ e.msg, ErrorCode.InvalidJson);
             error.addContext(ErrorContext("parsing JSON", "invalid JSON syntax"));
+            error.addSuggestion("Validate JSON syntax using a JSON linter or jsonlint.com");
+            error.addSuggestion("Check for missing commas, brackets, or quotes");
+            error.addSuggestion("Ensure all strings are properly escaped");
+            error.addSuggestion("Use a JSON-aware editor (VSCode, Sublime, etc.)");
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
         catch (FileException e)
         {
-            auto error = new IOError(path, e.msg, ErrorCode.FileReadFailed);
+            auto error = new IOError(path, "Failed to read Builderfile: " ~ e.msg, ErrorCode.FileReadFailed);
             error.addContext(ErrorContext("reading Builderfile file"));
+            error.addSuggestion("Check file permissions: ls -la " ~ path);
+            error.addSuggestion("Ensure the file exists and is readable");
+            error.addSuggestion("Verify the file is not locked by another process");
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
         catch (Exception e)
         {
-            auto error = new ParseError(path, e.msg, ErrorCode.ParseFailed);
+            auto error = new ParseError(path, "Failed to parse Builderfile: " ~ e.msg, ErrorCode.ParseFailed);
             error.addContext(ErrorContext("parsing Builderfile file", baseName(path)));
+            error.addSuggestion("Check the Builderfile syntax and structure");
+            error.addSuggestion("See docs/user-guides/CLI.md for valid configuration format");
+            error.addSuggestion("Review examples in the examples/ directory");
+            error.addSuggestion("Validate JSON syntax if using JSON format");
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
@@ -302,14 +324,21 @@ class ConfigParser
         }
         catch (FileException e)
         {
-            auto error = new IOError(path, e.msg, ErrorCode.FileReadFailed);
+            auto error = new IOError(path, "Failed to read Builderspace file: " ~ e.msg, ErrorCode.FileReadFailed);
             error.addContext(ErrorContext("reading Builderspace file"));
+            error.addSuggestion("Check file permissions: ls -la " ~ path);
+            error.addSuggestion("Ensure the Builderspace file exists");
+            error.addSuggestion("Verify the file is not locked by another process");
             return Result!BuildError.err(error);
         }
         catch (Exception e)
         {
-            auto error = new ParseError(path, e.msg, ErrorCode.ParseFailed);
+            auto error = new ParseError(path, "Failed to parse Builderspace file: " ~ e.msg, ErrorCode.ParseFailed);
             error.addContext(ErrorContext("parsing Builderspace file"));
+            error.addSuggestion("Check Builderspace file syntax");
+            error.addSuggestion("Ensure the file follows the correct DSL format");
+            error.addSuggestion("See docs/architecture/DSL.md for syntax reference");
+            error.addSuggestion("Review examples in the examples/ directory");
             return Result!BuildError.err(error);
         }
     }

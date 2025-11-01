@@ -212,10 +212,14 @@ struct Lexer
                 
                 // Unknown character
                 auto error = new ParseError(filePath, 
-                    "Unexpected character: '" ~ c ~ "'",
+                    "Unexpected character '" ~ c ~ "' in Builderfile",
                     ErrorCode.ParseFailed);
                 error.line = line;
                 error.column = column;
+                error.addSuggestion("Check for invalid or special characters in the configuration");
+                error.addSuggestion("Ensure proper quoting for strings with special characters");
+                error.addSuggestion("Verify file encoding is UTF-8");
+                error.addSuggestion("See docs/architecture/DSL.md for valid syntax");
                 return Err!(Token, BuildError)(error);
         }
     }
@@ -262,10 +266,14 @@ struct Lexer
         if (isAtEnd())
         {
             auto error = new ParseError(filePath, 
-                "Unterminated string literal",
+                "Unterminated string literal - missing closing quote",
                 ErrorCode.ParseFailed);
             error.line = startLine;
             error.column = startCol;
+            error.addSuggestion("Add closing quote (" ~ [quote] ~ ") to match the opening quote");
+            error.addSuggestion("Check for unescaped quotes inside the string");
+            error.addSuggestion("Ensure the string doesn't span multiple lines without proper escaping");
+            error.addSuggestion("Use matching quote types (single or double)");
             return Err!(Token, BuildError)(error);
         }
         

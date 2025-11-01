@@ -39,7 +39,10 @@ struct TargetId
     {
         if (qualified.empty)
         {
-            auto error = new ParseError("Empty target ID", null);
+            auto error = new ParseError("Empty target ID - target identifier cannot be empty", null);
+            error.addSuggestion("Provide a valid target identifier in the format 'name' or 'namespace:name'");
+            error.addSuggestion("Check that the target definition has a non-empty 'name' field");
+            error.addSuggestion("See docs/architecture/DSL.md for target naming conventions");
             return Result!(TargetId, BuildError).err(error);
         }
         
@@ -70,7 +73,10 @@ struct TargetId
         // Validate name is not empty
         if (name.empty)
         {
-            auto error = new ParseError("Target name cannot be empty in: " ~ qualified, null);
+            auto error = new ParseError("Target name cannot be empty in qualified ID: " ~ qualified, null);
+            error.addSuggestion("Ensure target names are non-empty after namespace delimiter");
+            error.addSuggestion("Format should be 'name' or 'namespace:name' where both parts are non-empty");
+            error.addSuggestion("Check for trailing colons or double colons in target IDs");
             return Result!(TargetId, BuildError).err(error);
         }
         

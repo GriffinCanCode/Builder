@@ -373,15 +373,21 @@ final class BuildGraph
     {
         if (from !in nodes)
         {
-            auto error = new GraphError("Target not found in graph: " ~ from, ErrorCode.NodeNotFound);
+            auto error = new GraphError("Target '" ~ from ~ "' not found in dependency graph", ErrorCode.NodeNotFound);
             error.addContext(ErrorContext("adding dependency", "from: " ~ from ~ ", to: " ~ to));
+            error.addSuggestion("Ensure target '" ~ from ~ "' is defined in your Builderfile");
+            error.addSuggestion("Run 'builder graph' to see all available targets");
+            error.addSuggestion("Check for typos in the target name");
             return Result!BuildError.err(cast(BuildError) error);
         }
         
         if (to !in nodes)
         {
-            auto error = new GraphError("Target not found in graph: " ~ to, ErrorCode.NodeNotFound);
+            auto error = new GraphError("Target '" ~ to ~ "' not found in dependency graph", ErrorCode.NodeNotFound);
             error.addContext(ErrorContext("adding dependency", "from: " ~ from ~ ", to: " ~ to));
+            error.addSuggestion("Ensure target '" ~ to ~ "' is defined in your Builderfile");
+            error.addSuggestion("Run 'builder graph' to see all available targets");
+            error.addSuggestion("Check for typos in the target name");
             return Result!BuildError.err(cast(BuildError) error);
         }
         
@@ -393,8 +399,12 @@ final class BuildGraph
         {
         if (wouldCreateCycle(fromNode, toNode))
         {
-            auto error = new GraphError("Circular dependency detected: " ~ from ~ " -> " ~ to, ErrorCode.GraphCycle);
+            auto error = new GraphError("Circular dependency detected: adding '" ~ from ~ "' -> '" ~ to ~ "' would create a cycle", ErrorCode.GraphCycle);
             error.addContext(ErrorContext("adding dependency", "would create cycle"));
+            error.addSuggestion("Run 'builder graph' to visualize the dependency cycle");
+            error.addSuggestion("Remove or reorder dependencies to break the cycle");
+            error.addSuggestion("Consider extracting shared code into a separate target");
+            error.addSuggestion("Check if the dependency is actually needed");
             return Result!BuildError.err(cast(BuildError) error);
             }
         }
@@ -416,15 +426,21 @@ final class BuildGraph
         
         if (fromKey !in nodes)
         {
-            auto error = new GraphError("Target not found in graph: " ~ fromKey, ErrorCode.NodeNotFound);
+            auto error = new GraphError("Target '" ~ fromKey ~ "' not found in dependency graph", ErrorCode.NodeNotFound);
             error.addContext(ErrorContext("adding dependency", "from: " ~ fromKey ~ ", to: " ~ toKey));
+            error.addSuggestion("Ensure target '" ~ fromKey ~ "' is defined in your Builderfile");
+            error.addSuggestion("Run 'builder graph' to see all available targets");
+            error.addSuggestion("Check for typos in the target name");
             return Result!BuildError.err(cast(BuildError) error);
         }
         
         if (toKey !in nodes)
         {
-            auto error = new GraphError("Target not found in graph: " ~ toKey, ErrorCode.NodeNotFound);
+            auto error = new GraphError("Target '" ~ toKey ~ "' not found in dependency graph", ErrorCode.NodeNotFound);
             error.addContext(ErrorContext("adding dependency", "from: " ~ fromKey ~ ", to: " ~ toKey));
+            error.addSuggestion("Ensure target '" ~ toKey ~ "' is defined in your Builderfile");
+            error.addSuggestion("Run 'builder graph' to see all available targets");
+            error.addSuggestion("Check for typos in the target name");
             return Result!BuildError.err(cast(BuildError) error);
         }
         
@@ -436,8 +452,12 @@ final class BuildGraph
         {
         if (wouldCreateCycle(fromNode, toNode))
         {
-            auto error = new GraphError("Circular dependency detected: " ~ fromKey ~ " -> " ~ toKey, ErrorCode.GraphCycle);
+            auto error = new GraphError("Circular dependency detected: adding '" ~ fromKey ~ "' -> '" ~ toKey ~ "' would create a cycle", ErrorCode.GraphCycle);
             error.addContext(ErrorContext("adding dependency", "would create cycle"));
+            error.addSuggestion("Run 'builder graph' to visualize the dependency cycle");
+            error.addSuggestion("Remove or reorder dependencies to break the cycle");
+            error.addSuggestion("Consider extracting shared code into a separate target");
+            error.addSuggestion("Check if the dependency is actually needed");
             return Result!BuildError.err(cast(BuildError) error);
             }
         }
@@ -455,13 +475,28 @@ final class BuildGraph
     /// 
     /// When a node gains a new dependency, all nodes that depend on it
     /// may need recalculation of their depth.
-    private void invalidateDepthCascade(BuildNode node) @safe nothrow
+    /// 
+    /// Note: Uses visited set to prevent infinite recursion in case of cycles
+    /// (cycles will be detected later during validation).
+    private void invalidateDepthCascade(BuildNode node) @trusted nothrow
     {
-        node.invalidateDepthCache();
-        foreach (dependent; node.dependents)
+        bool[BuildNode] visited;
+        
+        void invalidateRecursive(BuildNode n) nothrow
         {
-            invalidateDepthCascade(dependent);
+            if (n in visited)
+                return;
+            
+            visited[n] = true;
+            n.invalidateDepthCache();
+            
+            foreach (dependent; n.dependents)
+            {
+                invalidateRecursive(dependent);
+            }
         }
+        
+        invalidateRecursive(node);
     }
     
     /// Check if adding an edge would create a cycle (O(V+E) worst case)
@@ -536,8 +571,12 @@ final class BuildGraph
             
             if (node in visiting)
             {
-                auto error = new GraphError("Circular dependency detected involving: " ~ node.id, ErrorCode.GraphCycle);
+                auto error = new GraphError("Circular dependency detected in build graph involving target: " ~ node.id, ErrorCode.GraphCycle);
                 error.addContext(ErrorContext("topological sort", "cycle detected"));
+                error.addSuggestion("Run 'builder graph' to visualize all dependencies");
+                error.addSuggestion("Trace the cycle by checking which targets depend on '" ~ node.id ~ "'");
+                error.addSuggestion("Break the cycle by removing or refactoring dependencies");
+                error.addSuggestion("Consider using lazy loading or interface-based design patterns");
                 cycleError = cast(BuildError) error;
                 return;
             }

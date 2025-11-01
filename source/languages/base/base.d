@@ -4,14 +4,41 @@ import std.conv : to;
 import config.schema.schema;
 import analysis.targets.types;
 import core.telemetry.tracing;
+import core.caching.action;
 import utils.logging.structured;
 import errors;
+
+/// Action recording callback for fine-grained caching
+/// Allows language handlers to report individual actions to the executor
+alias ActionRecorder = void delegate(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success);
+
+/// Build context with action-level caching support
+struct BuildContext
+{
+    Target target;
+    WorkspaceConfig config;
+    ActionRecorder recorder;  // Optional action recorder
+    
+    /// Record an action for fine-grained caching
+    void recordAction(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success)
+    {
+        if (recorder !is null)
+            recorder(actionId, inputs, outputs, metadata, success);
+    }
+}
 
 /// Base interface for language-specific build handlers
 interface LanguageHandler
 {
     /// Build a target - returns Result type for type-safe error handling
     Result!(string, BuildError) build(Target target, WorkspaceConfig config);
+    
+    /// Build with action-level context (optional, for fine-grained caching)
+    /// Default implementation calls basic build() for backward compatibility
+    final Result!(string, BuildError) buildWithContext(BuildContext context)
+    {
+        return build(context.target, context.config);
+    }
     
     /// Check if target needs rebuild
     bool needsRebuild(in Target target, in WorkspaceConfig config);
@@ -29,6 +56,12 @@ interface LanguageHandler
 /// Base implementation with common functionality
 abstract class BaseLanguageHandler : LanguageHandler
 {
+    /// Build a target with action-level context support
+    Result!(string, BuildError) buildWithContext(BuildContext context) @safe
+    {
+        return build(context.target, context.config);
+    }
+    
     /// Build a target with error handling and Result wrapper
     /// 
     /// Safety: Calls buildImpl() and getOutputs() through @trusted wrappers because
@@ -91,13 +124,17 @@ abstract class BaseLanguageHandler : LanguageHandler
             {
                 auto error = new BuildFailureError(
                     target.name,
-                    result.error,
+                    "Build command failed: " ~ result.error,
                     ErrorCode.BuildFailed
                 );
                 error.addContext(ErrorContext(
                     "building target",
                     "language: " ~ target.language.to!string
                 ));
+                error.addSuggestion("Review the error output above for specific compilation errors");
+                error.addSuggestion("Check that all dependencies and build tools are installed");
+                error.addSuggestion("Verify source files have no syntax errors");
+                error.addSuggestion("Try building manually to reproduce the issue");
                 
                 () @trusted {
                     handlerSpan.recordException(new Exception(result.error));
@@ -111,13 +148,17 @@ abstract class BaseLanguageHandler : LanguageHandler
         {
             auto error = new BuildFailureError(
                 target.name,
-                e.msg,
+                "Build failed with exception: " ~ e.msg,
                 ErrorCode.BuildFailed
             );
             error.addContext(ErrorContext(
                 "caught exception during build",
                 e.classinfo.name
             ));
+            error.addSuggestion("Check the error message above for details");
+            error.addSuggestion("Verify the build command is correct");
+            error.addSuggestion("Ensure all required tools and dependencies are available");
+            error.addSuggestion("Run with --verbose for more detailed output");
             
             () @trusted {
                 handlerSpan.recordException(e);
