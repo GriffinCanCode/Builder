@@ -7,6 +7,7 @@ import std.range;
 import std.format : formattedWrite;
 import errors.types.types;
 import errors.handling.codes;
+import errors.types.context : ErrorSuggestion, ErrorContext;
 
 private import std.string : sformat = format;
 
@@ -96,21 +97,17 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
     {
         import std.algorithm : uniq;
         import std.array : array;
+        import errors.types.context : ErrorSuggestion;
         
-        // Try to get custom suggestions from the error
-        string[] suggestions;
+        // Try to get typed suggestions from the error
+        const(ErrorSuggestion)[] typedSuggestions;
         if (auto baseErr = cast(const BaseBuildError)error)
         {
-            // Prioritize custom suggestions, then add generic ones
-            suggestions = baseErr.customSuggestions().dup ~ suggestFixes(error);
-        }
-        else
-        {
-            suggestions = suggestFixes(error);
+            typedSuggestions = baseErr.suggestions();
         }
         
-        // Remove duplicates while preserving order
-        if (!suggestions.empty)
+        // If we have typed suggestions, format them nicely
+        if (!typedSuggestions.empty)
         {
             result.put("\n");
             if (opts.colors)
@@ -121,22 +118,133 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
             
             // Track seen suggestions to avoid duplicates
             bool[string] seen;
-            foreach (suggestion; suggestions)
+            foreach (suggestion; typedSuggestions)
             {
-                if (suggestion !in seen)
+                string formatted = formatSuggestion(suggestion, opts);
+                if (formatted !in seen)
                 {
-                    seen[suggestion] = true;
-                    if (opts.colors)
-                        result.put(cast(string)Color.Yellow);
-                    result.put("  • ");
-                    result.put(suggestion);
-                    result.put("\n");
-                    if (opts.colors)
-                        result.put(cast(string)Color.Reset);
+                    seen[formatted] = true;
+                    result.put(formatted);
+                }
+            }
+        }
+        else
+        {
+            // Fallback to generic suggestions if no typed suggestions
+            string[] suggestions = suggestFixes(error);
+            if (!suggestions.empty)
+            {
+                result.put("\n");
+                if (opts.colors)
+                    result.put(cast(string)(Color.Bold ~ Color.Yellow));
+                result.put("Suggestions:\n");
+                if (opts.colors)
+                    result.put(cast(string)Color.Reset);
+                
+                bool[string] seen;
+                foreach (suggestion; suggestions)
+                {
+                    if (suggestion !in seen)
+                    {
+                        seen[suggestion] = true;
+                        if (opts.colors)
+                            result.put(cast(string)Color.Yellow);
+                        result.put("  • ");
+                        result.put(suggestion);
+                        result.put("\n");
+                        if (opts.colors)
+                            result.put(cast(string)Color.Reset);
+                    }
                 }
             }
         }
     }
+    
+    return result.data;
+}
+
+/// Format a single suggestion with type-specific styling
+string formatSuggestion(const ErrorSuggestion suggestion, FormatOptions opts)
+{
+    import std.array : appender;
+    
+    auto result = appender!string;
+    
+    // Bullet point
+    if (opts.colors)
+        result.put(cast(string)Color.Yellow);
+    result.put("  • ");
+    
+    // Icon/prefix based on type
+    final switch (suggestion.type)
+    {
+        case ErrorSuggestion.Type.Command:
+            if (opts.colors)
+                result.put(cast(string)Color.Green);
+            result.put("Run: ");
+            if (opts.colors)
+                result.put(cast(string)Color.Reset);
+            break;
+        case ErrorSuggestion.Type.Documentation:
+            if (opts.colors)
+                result.put(cast(string)Color.Blue);
+            result.put("Docs: ");
+            if (opts.colors)
+                result.put(cast(string)Color.Reset);
+            break;
+        case ErrorSuggestion.Type.FileCheck:
+            if (opts.colors)
+                result.put(cast(string)Color.Yellow);
+            result.put("Check: ");
+            if (opts.colors)
+                result.put(cast(string)Color.Reset);
+            break;
+        case ErrorSuggestion.Type.Configuration:
+            if (opts.colors)
+                result.put(cast(string)Color.Yellow);
+            result.put("Config: ");
+            if (opts.colors)
+                result.put(cast(string)Color.Reset);
+            break;
+        case ErrorSuggestion.Type.General:
+            break;
+    }
+    
+    // Message
+    result.put(suggestion.message);
+    
+    // Detail (command, URL, etc.)
+    if (!suggestion.detail.empty)
+    {
+        result.put("\n    ");
+        if (opts.colors)
+            result.put(cast(string)Color.Gray);
+        
+        final switch (suggestion.type)
+        {
+            case ErrorSuggestion.Type.Command:
+                result.put("$ ");
+                result.put(suggestion.detail);
+                break;
+            case ErrorSuggestion.Type.Documentation:
+                result.put("→ ");
+                result.put(suggestion.detail);
+                break;
+            case ErrorSuggestion.Type.FileCheck:
+            case ErrorSuggestion.Type.Configuration:
+            case ErrorSuggestion.Type.General:
+                result.put(suggestion.detail);
+                break;
+        }
+        
+        if (opts.colors)
+            result.put(cast(string)Color.Reset);
+    }
+    
+    result.put("\n");
+    
+    if (opts.colors)
+        result.put(cast(string)Color.Reset);
     
     return result.data;
 }

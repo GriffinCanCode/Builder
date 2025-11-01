@@ -688,15 +688,19 @@ final class BuildExecutor
             auto handler = handlers.get(target.language, null);
             if (handler is null)
             {
-                auto error = new BuildFailureError(
+                // Use builder pattern with typed suggestions for better UX
+                import errors.types.context : ErrorSuggestion;
+                
+                auto error = ErrorBuilder!BuildFailureError.create(
                     node.id,
                     "No language handler found for: " ~ target.language.to!string,
                     ErrorCode.HandlerNotFound
-                );
-                error.addSuggestion("Check that the language '" ~ target.language.to!string ~ "' is supported");
-                error.addSuggestion("Run 'builder --version' to see all supported languages");
-                error.addSuggestion("Verify the 'language' field in your Builderfile is spelled correctly");
-                error.addSuggestion("For unsupported languages, use 'language: shell' with a custom command");
+                )
+                .withFileCheck("Check that the language '" ~ target.language.to!string ~ "' is supported")
+                .withCommand("See all supported languages", "builder --version")
+                .withFileCheck("Verify the 'language' field in your Builderfile is spelled correctly")
+                .withConfig("For unsupported languages, use 'language: shell' with a custom command", "language: shell")
+                .build();
                 result.error = error.message();
                 
                 targetSpan.recordException(new Exception(error.message()));
@@ -814,12 +818,16 @@ final class BuildExecutor
         }
         catch (Exception e)
         {
-            auto error = new BuildFailureError(node.id, "Build failed with exception: " ~ e.msg);
-            error.addContext(ErrorContext("building node", "exception caught"));
-            error.addSuggestion("Check the error message above for specific details");
-            error.addSuggestion("Run with --verbose for more detailed output");
-            error.addSuggestion("Verify all dependencies and build tools are properly installed");
-            error.addSuggestion("Check file permissions and disk space");
+            // Use builder pattern with typed suggestions
+            import errors.types.context : ErrorSuggestion;
+            
+            auto error = ErrorBuilder!BuildFailureError.create(node.id, "Build failed with exception: " ~ e.msg)
+                .withContext("building node", "exception caught")
+                .withSuggestion("Check the error message above for specific details")
+                .withCommand("Run with verbose output", "builder build --verbose")
+                .withFileCheck("Verify all dependencies and build tools are properly installed")
+                .withFileCheck("Check file permissions and disk space")
+                .build();
             result.error = error.message();
             
             targetSpan.recordException(e);

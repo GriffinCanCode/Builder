@@ -389,7 +389,7 @@ class SPMBuilder : SwiftBuilder
         }
     }
     
-    private string[] getBuildOutputs(in SwiftConfig config, WorkspaceConfig workspace)
+    private string[] getBuildOutputs(in SwiftConfig config, in WorkspaceConfig workspace)
     {
         string[] outputs;
         

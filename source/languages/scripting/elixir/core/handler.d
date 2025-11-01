@@ -672,7 +672,7 @@ class ElixirHandler : BaseLanguageHandler
             Logger.info("Running Dialyzer");
             
             // Cache Dialyzer PLT builds
-            string pltPath = buildPath(projectRoot, config.dialyzer.pltPath);
+            string pltPath = buildPath(projectRoot, config.dialyzer.pltFile);
             string[] dialyzerInputs;
             
             // Gather BEAM files for PLT
@@ -687,7 +687,7 @@ class ElixirHandler : BaseLanguageHandler
             
             // Build metadata for PLT cache
             string[string] pltMetadata;
-            pltMetadata["apps"] = config.dialyzer.apps.join(",");
+            pltMetadata["apps"] = config.dialyzer.pltApps.join(",");
             pltMetadata["warnings"] = config.dialyzer.warnings.join(",");
             pltMetadata["flags"] = config.dialyzer.flags.join(",");
             
@@ -767,9 +767,9 @@ class ElixirHandler : BaseLanguageHandler
             
             // Build metadata for ExDoc cache
             string[string] docMetadata;
-            docMetadata["format"] = config.docs.format;
-            docMetadata["outputPath"] = config.docs.outputPath;
-            docMetadata["mainModule"] = config.docs.mainModule;
+            docMetadata["format"] = config.docs.formatters.join(",");
+            docMetadata["outputPath"] = config.docs.output;
+            docMetadata["mainModule"] = config.docs.main;
             
             // Create action ID for ExDoc generation
             ActionId docActionId;
@@ -778,7 +778,7 @@ class ElixirHandler : BaseLanguageHandler
             docActionId.subId = "exdoc";
             docActionId.inputHash = FastHash.hashStrings(docInputs);
             
-            string docOutputDir = buildPath(projectRoot, config.docs.outputPath);
+            string docOutputDir = buildPath(projectRoot, config.docs.output);
             
             // Check if ExDoc is cached
             if (actionCache.isCached(docActionId, docInputs, docMetadata) && exists(docOutputDir))
@@ -798,7 +798,7 @@ class ElixirHandler : BaseLanguageHandler
                     docInputs,
                     docOutputs,
                     docMetadata,
-                    docResult.success
+                    docResult
                 );
             }
         }

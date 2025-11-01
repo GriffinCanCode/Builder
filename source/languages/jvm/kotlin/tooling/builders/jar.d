@@ -524,7 +524,7 @@ class JARBuilder : KotlinBuilder
         string[string] metadata;
         metadata["operation"] = "jar-package";
         metadata["includeRuntime"] = config.packaging.includeRuntime.to!string;
-        metadata["manifest"] = config.packaging.manifest;
+        metadata["mainClass"] = config.packaging.mainClass;
         
         // Collect all class files as inputs
         string[] classFiles;
@@ -559,10 +559,6 @@ class JARBuilder : KotlinBuilder
         
         // Build jar command
         string[] cmd = ["jar", "cf", outputPath];
-        
-        // Add manifest if specified
-        if (!config.packaging.manifest.empty && exists(config.packaging.manifest))
-            cmd = ["jar", "cfm", outputPath, config.packaging.manifest];
         
         // Add class files
         cmd ~= ["-C", classDir, "."];

@@ -76,7 +76,7 @@ struct EvictionPolicy
     }
     
     /// Estimate the size of a cache entry in bytes
-    private size_t estimateEntrySize(T)(T entry) pure @nogc
+    private size_t estimateEntrySize(T)(auto ref const T entry) const pure @nogc
     {
         size_t size = 0;
         
@@ -125,7 +125,7 @@ struct EvictionPolicy
     }
     
     /// Calculate total cache size
-    size_t calculateTotalSize(T)(T[string] entries) pure @nogc
+    size_t calculateTotalSize(T)(const T[string] entries) const pure @nogc
     {
         size_t total = 0;
         foreach (entry; entries.byValue)

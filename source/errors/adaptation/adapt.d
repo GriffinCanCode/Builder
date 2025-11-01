@@ -9,9 +9,11 @@ import config.schema.schema : LanguageBuildResult;
 
 /// Adapters for integrating new error system with legacy code
 
-/// Convert exception to BuildError
+/// Convert exception to BuildError with strongly-typed suggestions
 BuildError fromException(Exception e, ErrorCode code = ErrorCode.InternalError)
 {
+    import errors.types.context : ErrorSuggestion;
+    
     auto error = new InternalError("Internal error: " ~ e.msg, code);
     
     // Try to extract stack trace
@@ -21,26 +23,39 @@ BuildError fromException(Exception e, ErrorCode code = ErrorCode.InternalError)
             error.stackTrace = e.info.toString();
     }
     
-    error.addSuggestion("This is likely a bug in Builder");
-    error.addSuggestion("Please report this with full error details and reproduction steps");
-    error.addSuggestion("Try running with --verbose for more information");
+    // Use structured suggestions for better user experience
+    error.addSuggestion(ErrorSuggestion("This is likely a bug in Builder"));
+    error.addSuggestion(ErrorSuggestion.docs(
+        "Please report this issue",
+        "https://github.com/griffinstormer/Builder/issues"
+    ));
+    error.addSuggestion(ErrorSuggestion.command(
+        "Run with verbose output for more details",
+        "builder build --verbose"
+    ));
     
     return error;
 }
 
-/// Convert LanguageBuildResult to Result type
+/// Convert LanguageBuildResult to Result type with typed suggestions
 Result!(string, BuildError) toResult(LanguageBuildResult buildResult, string targetId = "")
 {
+    import errors.types.context : ErrorSuggestion;
+    
     if (buildResult.success)
     {
         return Ok!(string, BuildError)(buildResult.outputHash);
     }
     else
     {
-        auto error = new BuildFailureError(targetId, "Build failed: " ~ buildResult.error);
-        error.addSuggestion("Review the build output above for specific errors");
-        error.addSuggestion("Check that all dependencies are installed");
-        error.addSuggestion("Verify the build configuration is correct");
+        // Use builder pattern for type-safe error with structured suggestions
+        auto error = ErrorBuilder!BuildFailureError.create(targetId, "Build failed: " ~ buildResult.error)
+            .withSuggestion("Review the build output above for specific errors")
+            .withFileCheck("Check that all dependencies are installed")
+            .withFileCheck("Verify the build configuration is correct")
+            .withCommand("Run with verbose logging", "builder build --verbose")
+            .build();
+        
         return Err!(string, BuildError)(error);
     }
 }

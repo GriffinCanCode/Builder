@@ -69,6 +69,12 @@ class RubyHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
+        if (target.sources.empty)
+        {
+            result.error = "No source files provided";
+            return result;
+        }
+        
         if (rubyConfig.installDeps && !installDependencies(rubyConfig, config.root))
             {
                 result.error = "Failed to install dependencies";
@@ -142,6 +148,12 @@ class RubyHandler : BaseLanguageHandler
     )
     {
         LanguageBuildResult result;
+        
+        if (target.sources.empty)
+        {
+            result.error = "No source files provided";
+            return result;
+        }
         
         if (rubyConfig.installDeps && !installDependencies(rubyConfig, config.root))
             {
@@ -377,5 +389,36 @@ class RubyHandler : BaseLanguageHandler
         getCache().update(actionId, target.sources, [], metadata, !result.hasErrors());
         
         return result;
+    }
+    
+    /// Analyze imports in Ruby source files
+    override Import[] analyzeImports(in string[] sources) @safe
+    {
+        import std.file : readText, exists, isFile;
+        
+        auto spec = () @trusted { return getLanguageSpec(TargetLanguage.Ruby); }();
+        if (spec is null)
+            return [];
+        
+        Import[] allImports;
+        
+        foreach (source; sources)
+        {
+            if (!exists(source) || !isFile(source))
+                continue;
+            
+            try
+            {
+                auto content = readText(source);
+                auto imports = () @trusted { return spec.scanImports(source, content); }();
+                allImports ~= imports;
+            }
+            catch (Exception e)
+            {
+                // Silently skip unreadable files
+            }
+        }
+        
+        return allImports;
     }
 }

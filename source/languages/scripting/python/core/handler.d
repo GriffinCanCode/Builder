@@ -463,4 +463,35 @@ class PythonHandler : BaseLanguageHandler
         if (res.status != 0)
             Logger.warning("Failed to generate stubs (install mypy for stub generation)");
     }
+    
+    /// Analyze imports in Python source files
+    override Import[] analyzeImports(in string[] sources) @safe
+    {
+        import std.file : readText, exists, isFile;
+        
+        auto spec = () @trusted { return getLanguageSpec(TargetLanguage.Python); }();
+        if (spec is null)
+            return [];
+        
+        Import[] allImports;
+        
+        foreach (source; sources)
+        {
+            if (!exists(source) || !isFile(source))
+                continue;
+            
+            try
+            {
+                auto content = readText(source);
+                auto imports = () @trusted { return spec.scanImports(source, content); }();
+                allImports ~= imports;
+            }
+            catch (Exception e)
+            {
+                // Silently skip unreadable files
+            }
+        }
+        
+        return allImports;
+    }
 }

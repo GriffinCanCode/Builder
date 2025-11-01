@@ -394,7 +394,7 @@ struct ASTPrinter
         writeLine("Field: " ~ field.name ~ " = " ~ valueToString(field.value));
     }
     
-    private string valueToString(ref ExpressionValue value)
+    private string valueToString(const ref ExpressionValue value)
     {
         final switch (value.kind)
         {
@@ -406,11 +406,11 @@ struct ASTPrinter
                 return value.identifierValue.name;
             case ExpressionValue.Kind.Array:
                 return "[" ~ value.arrayValue.elements
-                    .map!(e => valueToString(cast()e))
+                    .map!(e => valueToString(e))
                     .join(", ") ~ "]";
             case ExpressionValue.Kind.Map:
                 return "{" ~ value.mapValue.pairs.byKeyValue
-                    .map!(kv => kv.key ~ ": " ~ valueToString(cast()kv.value))
+                    .map!(kv => kv.key ~ ": " ~ valueToString(kv.value))
                     .join(", ") ~ "}";
         }
     }

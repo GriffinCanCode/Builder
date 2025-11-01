@@ -273,29 +273,33 @@ class ConfigParser
         }
         catch (JSONException e)
         {
-            auto error = new ParseError(path, "Invalid JSON syntax in Builderfile: " ~ e.msg, ErrorCode.InvalidJson);
-            error.addContext(ErrorContext("parsing JSON", "invalid JSON syntax"));
-            error.addSuggestion("Validate JSON syntax using a JSON linter or jsonlint.com");
-            error.addSuggestion("Check for missing commas, brackets, or quotes");
-            error.addSuggestion("Ensure all strings are properly escaped");
-            error.addSuggestion("Use a JSON-aware editor (VSCode, Sublime, etc.)");
+            // Use builder pattern for type-safe error construction with structured suggestions
+            import errors.types.context : ErrorSuggestion;
+            
+            auto error = ErrorBuilder!ParseError.create(path, "Invalid JSON syntax in Builderfile: " ~ e.msg, ErrorCode.InvalidJson)
+                .withContext("parsing JSON", "invalid JSON syntax")
+                .withCommand("Validate JSON syntax", "jsonlint " ~ path)
+                .withDocs("JSON linter online", "https://jsonlint.com")
+                .withFileCheck("Check for missing commas, brackets, or quotes")
+                .withFileCheck("Ensure all strings are properly escaped")
+                .withSuggestion("Use a JSON-aware editor (VSCode, Sublime, etc.)")
+                .build();
+            
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
         catch (FileException e)
         {
-            auto error = new IOError(path, "Failed to read Builderfile: " ~ e.msg, ErrorCode.FileReadFailed);
-            error.addContext(ErrorContext("reading Builderfile file"));
-            error.addSuggestion("Check file permissions: ls -la " ~ path);
-            error.addSuggestion("Ensure the file exists and is readable");
-            error.addSuggestion("Verify the file is not locked by another process");
+            // Use smart constructor with built-in context-aware suggestions
+            auto error = fileReadError(path, e.msg, "reading Builderfile");
             Logger.error(format(error));
             return Err!(Target[], BuildError)(error);
         }
         catch (Exception e)
         {
-            auto error = new ParseError(path, "Failed to parse Builderfile: " ~ e.msg, ErrorCode.ParseFailed);
-            error.addContext(ErrorContext("parsing Builderfile file", baseName(path)));
+            // Use smart parse error constructor with automatic suggestions
+            auto error = parseErrorWithContext(path, "Failed to parse Builderfile: " ~ e.msg, 0, "parsing Builderfile file");
+            error.addContext(ErrorContext("", baseName(path)));
             error.addSuggestion("Check the Builderfile syntax and structure");
             error.addSuggestion("See docs/user-guides/CLI.md for valid configuration format");
             error.addSuggestion("Review examples in the examples/ directory");
@@ -324,21 +328,15 @@ class ConfigParser
         }
         catch (FileException e)
         {
-            auto error = new IOError(path, "Failed to read Builderspace file: " ~ e.msg, ErrorCode.FileReadFailed);
-            error.addContext(ErrorContext("reading Builderspace file"));
-            error.addSuggestion("Check file permissions: ls -la " ~ path);
+            // Use smart constructor - automatically includes appropriate suggestions
+            auto error = fileReadError(path, e.msg, "reading Builderspace file");
             error.addSuggestion("Ensure the Builderspace file exists");
-            error.addSuggestion("Verify the file is not locked by another process");
             return Result!BuildError.err(error);
         }
         catch (Exception e)
         {
-            auto error = new ParseError(path, "Failed to parse Builderspace file: " ~ e.msg, ErrorCode.ParseFailed);
-            error.addContext(ErrorContext("parsing Builderspace file"));
-            error.addSuggestion("Check Builderspace file syntax");
-            error.addSuggestion("Ensure the file follows the correct DSL format");
-            error.addSuggestion("See docs/architecture/DSL.md for syntax reference");
-            error.addSuggestion("Review examples in the examples/ directory");
+            // Use smart parse error constructor with Builderspace-specific suggestions
+            auto error = parseErrorWithContext(path, "Failed to parse Builderspace file: " ~ e.msg, 0, "parsing Builderspace file");
             return Result!BuildError.err(error);
         }
     }

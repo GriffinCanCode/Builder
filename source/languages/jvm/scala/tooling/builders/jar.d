@@ -119,8 +119,8 @@ class JARBuilder : ScalaBuilder
         // Build metadata for cache validation
         string[string] metadata;
         metadata["compiler"] = "scalac";
-        metadata["version"] = config.version_.toString();
-        metadata["target"] = config.target.to!string;
+        metadata["version"] = format("%d.%d.%d", config.versionInfo.major, config.versionInfo.minor, config.versionInfo.patch);
+        metadata["target"] = config.compiler.target;
         metadata["flags"] = (target.flags ~ buildCompilerOptions(config)).join(" ");
         metadata["classpath"] = cp;
         

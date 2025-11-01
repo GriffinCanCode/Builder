@@ -1,8 +1,86 @@
-module errors.context;
+module errors.types.context;
 
 import std.conv;
 import std.datetime;
 import std.array : empty;
+
+/// Type-safe suggestion for error recovery
+struct ErrorSuggestion
+{
+    enum Type
+    {
+        Command,           // A CLI command to run
+        Documentation,     // Link to documentation
+        FileCheck,         // File/permission check
+        Configuration,     // Config file change
+        General            // General advice
+    }
+    
+    Type type;
+    string message;
+    string detail;         // Optional detail (e.g., URL, command)
+    
+    this(string message, Type type = Type.General, string detail = "") @safe pure nothrow @nogc
+    {
+        this.message = message;
+        this.type = type;
+        this.detail = detail;
+    }
+    
+    /// Create a command suggestion
+    static ErrorSuggestion command(string description, string cmd) @safe pure nothrow
+    {
+        return ErrorSuggestion(description, Type.Command, cmd);
+    }
+    
+    /// Create a documentation suggestion
+    static ErrorSuggestion docs(string description, string url = "") @safe pure nothrow
+    {
+        return ErrorSuggestion(description, Type.Documentation, url);
+    }
+    
+    /// Create a file check suggestion
+    static ErrorSuggestion fileCheck(string description, string path = "") @safe pure nothrow
+    {
+        return ErrorSuggestion(description, Type.FileCheck, path);
+    }
+    
+    /// Create a configuration suggestion
+    static ErrorSuggestion config(string description, string setting = "") @safe pure nothrow
+    {
+        return ErrorSuggestion(description, Type.Configuration, setting);
+    }
+    
+    string toString() const
+    {
+        import std.array : empty;
+        
+        string result = message;
+        if (!detail.empty)
+        {
+            final switch (type)
+            {
+                case Type.Command:
+                    result ~= ": " ~ detail;
+                    break;
+                case Type.Documentation:
+                    result ~= " (" ~ detail ~ ")";
+                    break;
+                case Type.FileCheck:
+                    if (!detail.empty)
+                        result ~= ": " ~ detail;
+                    break;
+                case Type.Configuration:
+                    if (!detail.empty)
+                        result ~= ": " ~ detail;
+                    break;
+                case Type.General:
+                    break;
+            }
+        }
+        return result;
+    }
+}
 
 /// Error context entry - represents one layer in the error chain
 struct ErrorContext

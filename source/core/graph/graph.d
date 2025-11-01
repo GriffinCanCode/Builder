@@ -205,14 +205,16 @@ final class BuildNode
     /// 
     /// Performance: O(V+E) total across all nodes due to memoization.
     /// Without memoization, this would be O(E^depth) - exponential for deep graphs.
-    size_t depth() const @trusted nothrow
+    /// 
+    /// Note: Not const because it modifies internal cache (_cachedDepth) for memoization.
+    size_t depth() @safe nothrow
     {
         if (_cachedDepth != size_t.max)
             return _cachedDepth;
         
         if (dependencies.empty)
         {
-            (cast()this)._cachedDepth = 0;
+            _cachedDepth = 0;
             return 0;
         }
         
@@ -228,7 +230,7 @@ final class BuildNode
                 maxDepth = depDepth;
         }
         
-        (cast()this)._cachedDepth = maxDepth + 1;
+        _cachedDepth = maxDepth + 1;
         return _cachedDepth;
     }
     
@@ -306,13 +308,15 @@ final class BuildGraph
     /// For Immediate mode, this is optional (cycles already detected).
     /// 
     /// Returns: Ok on success, Err with cycle details on failure
-    Result!BuildError validate() const @trusted
+    /// 
+    /// Note: Not const because it modifies internal validation state (_validated).
+    Result!BuildError validate() @safe
     {
         auto sortResult = topologicalSort();
         if (sortResult.isErr)
             return Result!BuildError.err(sortResult.unwrapErr());
         
-        (cast()this)._validated = true;
+        _validated = true;
         return Ok!BuildError();
     }
     
@@ -373,21 +377,17 @@ final class BuildGraph
     {
         if (from !in nodes)
         {
-            auto error = new GraphError("Target '" ~ from ~ "' not found in dependency graph", ErrorCode.NodeNotFound);
+            // Use smart constructor for target not found errors
+            auto error = targetNotFoundError(from);
             error.addContext(ErrorContext("adding dependency", "from: " ~ from ~ ", to: " ~ to));
-            error.addSuggestion("Ensure target '" ~ from ~ "' is defined in your Builderfile");
-            error.addSuggestion("Run 'builder graph' to see all available targets");
-            error.addSuggestion("Check for typos in the target name");
             return Result!BuildError.err(cast(BuildError) error);
         }
         
         if (to !in nodes)
         {
-            auto error = new GraphError("Target '" ~ to ~ "' not found in dependency graph", ErrorCode.NodeNotFound);
+            // Use smart constructor for target not found errors
+            auto error = targetNotFoundError(to);
             error.addContext(ErrorContext("adding dependency", "from: " ~ from ~ ", to: " ~ to));
-            error.addSuggestion("Ensure target '" ~ to ~ "' is defined in your Builderfile");
-            error.addSuggestion("Run 'builder graph' to see all available targets");
-            error.addSuggestion("Check for typos in the target name");
             return Result!BuildError.err(cast(BuildError) error);
         }
         
@@ -399,12 +399,16 @@ final class BuildGraph
         {
         if (wouldCreateCycle(fromNode, toNode))
         {
-            auto error = new GraphError("Circular dependency detected: adding '" ~ from ~ "' -> '" ~ to ~ "' would create a cycle", ErrorCode.GraphCycle);
-            error.addContext(ErrorContext("adding dependency", "would create cycle"));
-            error.addSuggestion("Run 'builder graph' to visualize the dependency cycle");
-            error.addSuggestion("Remove or reorder dependencies to break the cycle");
-            error.addSuggestion("Consider extracting shared code into a separate target");
-            error.addSuggestion("Check if the dependency is actually needed");
+            // Use builder pattern with typed suggestions for cycle errors
+            import errors.types.context : ErrorSuggestion;
+            
+            auto error = ErrorBuilder!GraphError.create("Circular dependency detected: adding '" ~ from ~ "' -> '" ~ to ~ "' would create a cycle", ErrorCode.GraphCycle)
+                .withContext("adding dependency", "would create cycle")
+                .withCommand("Visualize the dependency cycle", "builder graph")
+                .withFileCheck("Remove or reorder dependencies to break the cycle")
+                .withSuggestion("Consider extracting shared code into a separate target")
+                .withFileCheck("Check if the dependency is actually needed")
+                .build();
             return Result!BuildError.err(cast(BuildError) error);
             }
         }
@@ -536,32 +540,27 @@ final class BuildGraph
     /// Returns Result to handle cycles gracefully
     /// 
     /// Safety: This function is @trusted because:
-    /// 1. Nested function captures only local variables and const graph
+    /// 1. Nested function captures only local variables and graph
     /// 2. Associative array operations are bounds-checked
     /// 3. Array appending (~=) is memory-safe
-    /// 4. const(BuildNode) prevents mutations during traversal
+    /// 4. Node references remain valid (classes on GC heap)
     /// 5. Error result propagation maintains type safety
-    /// 6. CRITICAL: Casts away const on line 254 to return mutable BuildNode[]
-    ///    This is safe because callers have mutable access to the graph nodes
     /// 
     /// Invariants:
-    /// - Graph structure is not modified during traversal (const method)
+    /// - Graph structure is not modified during traversal
     /// - Node references remain valid (classes on GC heap)
-    /// - const-to-mutable cast only returns references, doesn't enable mutation
-    ///   of graph structure itself
     /// 
     /// What could go wrong:
-    /// - If this method is called on a truly const BuildGraph (not just const ref
-    ///   to mutable graph), and caller modifies returned nodes: undefined behavior
-    /// - In practice, graph is mutable; const is for read-only traversal guarantee
-    Result!(BuildNode[], BuildError) topologicalSort() const @trusted
+    /// - If nodes array is modified during iteration: undefined behavior
+    /// - Prevented by not exposing mutable access during traversal
+    Result!(BuildNode[], BuildError) topologicalSort() @trusted
     {
         BuildNode[] sorted;
-        bool[const(BuildNode)] visited;
-        bool[const(BuildNode)] visiting;
+        bool[BuildNode] visited;
+        bool[BuildNode] visiting;
         BuildError cycleError = null;
         
-        void visit(const(BuildNode) node)
+        void visit(BuildNode node)
         {
             if (cycleError !is null)
                 return;
@@ -588,7 +587,7 @@ final class BuildGraph
             
             visiting.remove(node);
             visited[node] = true;
-            sorted ~= cast(BuildNode)node; // Safe cast for returning mutable reference
+            sorted ~= node;
         }
         
         foreach (node; nodes.values)
@@ -618,7 +617,9 @@ final class BuildGraph
     }
     
     /// Print the graph for visualization
-    void print() const
+    /// 
+    /// Note: Not const because it calls topologicalSort() which may modify depth caches.
+    void print()
     {
         import utils.logging.logger;
         import errors.formatting.format;
@@ -696,7 +697,10 @@ final class BuildGraph
         size_t criticalPathLength; // Longest path through graph
     }
     
-    GraphStats getStats() const
+    /// Get statistics about the graph
+    /// 
+    /// Note: Not const because it calls depth() which modifies caches.
+    GraphStats getStats()
     {
         GraphStats stats;
         stats.totalNodes = nodes.length;
@@ -723,12 +727,12 @@ final class BuildGraph
     
     /// Calculate critical path cost for all nodes
     /// Returns map of node ID to critical path cost (estimated build time to completion)
-    size_t[string] calculateCriticalPath(size_t delegate(BuildNode) @safe estimateCost) const @trusted
+    size_t[string] calculateCriticalPath(size_t delegate(BuildNode) @safe estimateCost) @trusted
     {
         size_t[string] costs;
         bool[string] visited;
         
-        size_t visit(const BuildNode node) @trusted
+        size_t visit(BuildNode node) @trusted
         {
             if (node.id in visited)
                 return costs[node.id];
@@ -744,7 +748,7 @@ final class BuildGraph
             }
             
             // Critical path cost = own cost + max dependent cost
-            immutable cost = estimateCost(cast(BuildNode)node) + maxDependentCost;
+            immutable cost = estimateCost(node) + maxDependentCost;
             costs[node.id] = cost;
             return cost;
         }
@@ -756,15 +760,15 @@ final class BuildGraph
     }
     
     /// Calculate critical path length (longest chain)
-    private size_t calculateCriticalPathLength() const @trusted
+    private size_t calculateCriticalPathLength() @trusted
     {
         if (nodes.empty)
             return 0;
         
         size_t maxPath = 0;
-        bool[const(BuildNode)] visited;
+        bool[BuildNode] visited;
         
-        size_t dfs(const BuildNode node)
+        size_t dfs(BuildNode node)
         {
             if (node in visited)
                 return 0;

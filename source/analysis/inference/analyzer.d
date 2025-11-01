@@ -192,12 +192,10 @@ class DependencyAnalyzer
                 // Check file exists
                 if (!exists(source) || !isFile(source))
                 {
-                    auto error = new IOError(source, "Source file not found during dependency analysis", ErrorCode.FileNotFound);
+                    // Use smart constructor for file not found errors
+                    auto error = fileNotFoundError(source, "analyzing target: " ~ target.name);
                     error.addContext(ErrorContext("analyzing target", target.name));
-                    error.addSuggestion("Verify the file path in your Builderfile is correct");
-                    error.addSuggestion("Check if the file was deleted or moved");
-                    error.addSuggestion("Ensure glob patterns are matching the intended files");
-                    error.addSuggestion("Run 'ls " ~ source ~ "' to check if the file exists");
+                    error.addSuggestion(ErrorSuggestion.fileCheck("Ensure glob patterns are matching the intended files"));
                     return Err!(FileAnalysis, BuildError)(error);
                 }
                 
@@ -214,12 +212,16 @@ class DependencyAnalyzer
                 }
                 catch (Exception e)
                 {
-                    auto error = new AnalysisError(target.name, "Failed to analyze dependencies: " ~ e.msg, ErrorCode.AnalysisFailed);
-                    error.addContext(ErrorContext("analyzing file", source));
-                    error.addSuggestion("Check if the source file has valid syntax");
-                    error.addSuggestion("Ensure the file encoding is correct (UTF-8)");
-                    error.addSuggestion("Verify the language handler supports this file type");
-                    error.addSuggestion("Try compiling the file directly to check for errors");
+                    // Use builder pattern with typed suggestions
+                    import errors.types.context : ErrorSuggestion;
+                    
+                    auto error = ErrorBuilder!AnalysisError.create(target.name, "Failed to analyze dependencies: " ~ e.msg, ErrorCode.AnalysisFailed)
+                        .withContext("analyzing file", source)
+                        .withFileCheck("Check if the source file has valid syntax")
+                        .withFileCheck("Ensure the file encoding is correct (UTF-8)")
+                        .withFileCheck("Verify the language handler supports this file type")
+                        .withSuggestion("Try compiling the file directly to check for errors")
+                        .build();
                     return Err!(FileAnalysis, BuildError)(error);
                 }
             },

@@ -13,6 +13,7 @@ module tools.benchmark_performance;
 
 import std.stdio;
 import std.datetime.stopwatch;
+import std.datetime;
 import std.file;
 import std.path;
 import std.algorithm;
@@ -20,6 +21,8 @@ import std.array;
 import std.conv;
 import std.format;
 import std.range;
+import std.process;
+import std.parallelism;
 import core.memory : GC;
 
 struct BenchmarkResult

@@ -49,9 +49,9 @@ class StandardBuilder : CSharpBuilder
         string[string] metadata;
         metadata["buildTool"] = "dotnet";
         metadata["configuration"] = config.configuration;
-        metadata["framework"] = config.framework.targetFramework;
-        metadata["platform"] = config.platform;
-        metadata["flags"] = config.dotnet.additionalArgs.join(" ");
+        metadata["framework"] = config.framework.to!string;
+        metadata["platform"] = config.platformTarget;
+        metadata["optimize"] = config.optimize.to!string;
         
         // Collect input files
         string[] inputFiles = sources.dup;

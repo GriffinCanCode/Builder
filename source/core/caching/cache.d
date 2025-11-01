@@ -462,8 +462,8 @@ final class BuildCache
             stats.oldestEntry = entries.values.map!(e => e.timestamp).minElement;
             stats.newestEntry = entries.values.map!(e => e.timestamp).maxElement;
             
-            // Calculate cache size (cast away const for calculation)
-            stats.totalSize = (cast(EvictionPolicy)eviction).calculateTotalSize(cast(CacheEntry[string])entries);
+            // Calculate cache size
+            stats.totalSize = eviction.calculateTotalSize(entries);
             
             // Hash statistics
             stats.contentHashes = contentHashCount;
@@ -504,11 +504,10 @@ final class BuildCache
                     writeln("Warning: Could not migrate old cache format");
                     
                     // Log with new error system
-                    auto error = new CacheError("Failed to migrate legacy JSON cache format: " ~ e.msg, ErrorCode.CacheLoadFailed);
+                    // Use smart constructor with typed suggestions
+                    auto error = cacheLoadError(jsonCacheFile, "Failed to migrate legacy JSON cache format: " ~ e.msg);
                     error.addContext(ErrorContext("migrating JSON cache", jsonCacheFile));
-                    error.cachePath = jsonCacheFile;
                     error.addSuggestion("The legacy JSON cache format is incompatible with the current version");
-                    error.addSuggestion("Run 'builder clean' to remove old cache and start fresh");
                     error.addSuggestion("The cache will be automatically rebuilt using the new binary format");
                 }
             }
@@ -529,13 +528,17 @@ final class BuildCache
                 writeln("Warning: Cache signature verification failed, starting fresh");
                 entries.clear();
                 
-                auto error = new CacheError("Cache signature verification failed - possible tampering or corruption detected", ErrorCode.CacheCorrupted);
-                error.addContext(ErrorContext("verifying cache integrity", cacheFilePath));
+                // Use builder pattern with typed suggestions for corruption
+                import errors.types.context : ErrorSuggestion;
+                
+                auto error = ErrorBuilder!CacheError.create("Cache signature verification failed - possible tampering or corruption detected", ErrorCode.CacheCorrupted)
+                    .withContext("verifying cache integrity", cacheFilePath)
+                    .withFileCheck("The cache file may have been modified or corrupted")
+                    .withCommand("Remove corrupted cache", "builder clean")
+                    .withCommand("Check file system integrity", "fsck")
+                    .withFileCheck("Ensure no other processes are modifying files in .builder-cache/")
+                    .build();
                 error.cachePath = cacheFilePath;
-                error.addSuggestion("The cache file may have been modified or corrupted");
-                error.addSuggestion("Run 'builder clean' to remove corrupted cache");
-                error.addSuggestion("If this persists, check file system integrity: fsck (Linux) or Disk Utility (macOS)");
-                error.addSuggestion("Ensure no other processes are modifying files in .builder-cache/");
                 return;
             }
             
@@ -562,13 +565,12 @@ final class BuildCache
             entries.clear();
             
             // Log with new error system
-            auto error = new CacheError("Failed to load cache: " ~ e.msg, ErrorCode.CacheCorrupted);
+            // Use smart constructor with typed suggestions
+            auto error = cacheLoadError(cacheFilePath, e.msg);
             error.addContext(ErrorContext("loading binary cache", cacheFilePath));
-            error.cachePath = cacheFilePath;
             error.addSuggestion("The cache file is corrupted or from an incompatible version");
-            error.addSuggestion("Run 'builder clean' to remove the corrupted cache");
-            error.addSuggestion("Check available disk space: df -h");
-            error.addSuggestion("Ensure .builder-cache/ directory has proper permissions");
+            error.addSuggestion(ErrorSuggestion.command("Check available disk space", "df -h"));
+            error.addSuggestion(ErrorSuggestion.fileCheck("Ensure .builder-cache/ directory has proper permissions"));
         }
     }
     

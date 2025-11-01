@@ -6,6 +6,7 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
+import std.conv;
 import languages.scripting.lua.tooling.builders.base;
 import languages.scripting.lua.tooling.detection : isAvailable, getCompilerCommand;
 import languages.scripting.lua.core.config;
@@ -74,7 +75,7 @@ class BytecodeBuilder : LuaBuilder
         
         // Per-file bytecode caching for granular incremental builds
         string[] perFileOutputs;
-        bool usePerFile = (sources.length > 1 && config.bytecode.perFile);
+        bool usePerFile = (sources.length > 1);
         
         if (usePerFile)
         {

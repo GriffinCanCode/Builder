@@ -5,6 +5,7 @@ bin/
 *.obj
 *.exe
 *.lst
+.venv/
 
 # Cache
 .builder-cache/
@@ -19,6 +20,7 @@ bin/
 
 # OS
 .DS_Store
+nimcache/
 Thumbs.db
 
 # Test artifacts
