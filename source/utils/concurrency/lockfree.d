@@ -1,6 +1,7 @@
 module utils.concurrency.lockfree;
 
 import core.atomic;
+import core.sync.mutex;
 import std.algorithm;
 import std.range;
 
@@ -189,8 +190,16 @@ struct FastHashCache
     private CacheEntry[string] cache;
     private shared size_t hits;
     private shared size_t misses;
+    private Mutex cacheMutex;  // Protects cache AA access
     
     @disable this(this); // Non-copyable
+    
+    /// Explicitly initialize the cache (must be called before use)
+    @trusted
+    void initialize()
+    {
+        cacheMutex = new Mutex();
+    }
     
     /// Get cached hash if available
     /// Returns tuple: (found, contentHash, metadataHash)
@@ -199,6 +208,7 @@ struct FastHashCache
     /// 1. Associative array lookup is bounds-checked
     /// 2. atomicLoad ensures thread-safe read of shared data
     /// 3. String casts are safe (strings are immutable)
+    /// 4. Synchronized access to AA via mutex
     @trusted
     auto get(string path)
     {
@@ -209,16 +219,21 @@ struct FastHashCache
             string metadataHash;
         }
         
-        if (auto entry = path in cache)
+        assert(cacheMutex !is null, "FastHashCache not initialized - call initialize() first");
+        
+        synchronized (cacheMutex)
         {
-            if (atomicLoad(entry.valid))
+            if (auto entry = path in cache)
             {
-                atomicOp!"+="(hits, 1);
-                return Result(
-                    true,
-                    cast(string)atomicLoad(entry.contentHash),
-                    cast(string)atomicLoad(entry.metadataHash)
-                );
+                if (atomicLoad(entry.valid))
+                {
+                    atomicOp!"+="(hits, 1);
+                    return Result(
+                        true,
+                        cast(string)atomicLoad(entry.contentHash),
+                        cast(string)atomicLoad(entry.metadataHash)
+                    );
+                }
             }
         }
         
@@ -229,25 +244,49 @@ struct FastHashCache
     /// Store hash in cache
     /// 
     /// Safety: This function is @trusted because:
-    /// 1. Associative array insert is memory-safe
-    /// 2. atomicStore ensures thread-safe write
+    /// 1. Associative array insert is memory-safe when synchronized
+    /// 2. atomicStore ensures thread-safe write to entry fields
     /// 3. String to shared string cast is safe (immutable data)
+    /// 4. Mutex protects concurrent AA modifications
     @trusted
     void put(string path, string contentHash, string metadataHash)
     {
-        CacheEntry entry;
-        atomicStore(entry.contentHash, cast(shared)contentHash);
-        atomicStore(entry.metadataHash, cast(shared)metadataHash);
-        atomicStore(entry.valid, true);
-        cache[path] = entry;
+        if (cacheMutex is null)
+        {
+            import std.stdio : stderr;
+            stderr.writeln("ERROR: FastHashCache.put called with null mutex!");
+            return; // Fail gracefully instead of crashing
+        }
+        
+        try
+        {
+            synchronized (cacheMutex)
+            {
+                CacheEntry entry;
+                entry.contentHash = cast(shared)contentHash;
+                entry.metadataHash = cast(shared)metadataHash;
+                entry.valid = cast(shared)true;
+                cache[path] = entry;
+            }
+        }
+        catch (Exception e)
+        {
+            import std.stdio : stderr;
+            stderr.writeln("ERROR in FastHashCache.put: ", e.msg);
+        }
     }
     
     /// Check if cache entry exists and is valid
     @trusted
     bool isValid(string path) const
     {
-        if (auto entry = path in cache)
-            return atomicLoad(entry.valid);
+        assert(cacheMutex !is null, "FastHashCache not initialized - call initialize() first");
+        
+        synchronized (cast(Mutex)cacheMutex)
+        {
+            if (auto entry = path in cache)
+                return atomicLoad(entry.valid);
+        }
         return false;
     }
     
@@ -255,7 +294,12 @@ struct FastHashCache
     @trusted
     void clear()
     {
-        cache.clear();
+        assert(cacheMutex !is null, "FastHashCache not initialized - call initialize() first");
+        
+        synchronized (cacheMutex)
+        {
+            cache.clear();
+        }
         atomicStore(hits, cast(size_t)0);
         atomicStore(misses, cast(size_t)0);
     }

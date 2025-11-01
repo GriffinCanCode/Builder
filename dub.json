@@ -45,7 +45,11 @@
             "mainSourceFile": "tests/runner.d",
             "sourcePaths": ["source", "tests"],
             "importPaths": ["source", "tests"],
-            "excludedSourceFiles": ["source/app.d"],
+            "excludedSourceFiles": [
+                "source/app.d",
+                "tests/bench/scale_benchmark.d",
+                "tests/bench/integration_bench.d"
+            ],
             "buildOptions": ["unittests", "debugMode", "debugInfo"]
         }
     ],
