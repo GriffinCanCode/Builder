@@ -22,10 +22,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// R language handler - comprehensive and modular
+/// R language handler with action-level caching for linting, formatting, package building, and tests
 class RHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/r", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -68,10 +90,10 @@ class RHandler : BaseLanguageHandler
             }
         }
         
-        // Run linter if configured
+        // Run linter with action-level caching if configured
         if (rConfig.lint.linter != RLinter.None && !target.sources.empty)
         {
-            auto lintResult = lintFiles(target.sources, rConfig.lint, rConfig.rExecutable, config.root);
+            auto lintResult = lintFilesWithCache(target, rConfig, config.root);
             if (!lintResult.success)
             {
                 if (rConfig.lint.failOnWarnings || lintResult.errorCount > 0)
@@ -82,10 +104,10 @@ class RHandler : BaseLanguageHandler
             }
         }
         
-        // Run formatter if configured
+        // Run formatter with action-level caching if configured
         if (rConfig.format.autoFormat && !target.sources.empty)
         {
-            auto formatResult = formatFiles(target.sources, rConfig.format, rConfig.rExecutable, config.root);
+            auto formatResult = formatFilesWithCache(target, rConfig, config.root);
             if (!formatResult.success)
             {
                 Logger.warning("Formatting failed: " ~ formatResult.error);
@@ -556,6 +578,112 @@ class RHandler : BaseLanguageHandler
         }
         
         return env;
+    }
+    
+    /// Lint files with action-level caching (per-file for granularity)
+    private auto lintFilesWithCache(in Target target, RConfig rConfig, string workDir)
+    {
+        import languages.scripting.r.tooling.checkers : LintResult;
+        
+        LintResult result;
+        result.success = true;
+        result.errorCount = 0;
+        result.warningCount = 0;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["linter"] = rConfig.lint.linter.to!string;
+        metadata["rExecutable"] = rConfig.rExecutable;
+        metadata["failOnWarnings"] = rConfig.lint.failOnWarnings.to!string;
+        
+        foreach (source; target.sources)
+        {
+            // Create action ID for linting
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Custom;
+            actionId.subId = "lint_" ~ baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if linting is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                Logger.debugLog("  [Cached] Linting: " ~ source);
+                continue;
+            }
+            
+            // Run actual linting
+            auto fileResult = lintFiles([source], rConfig.lint, rConfig.rExecutable, workDir);
+            
+            // Record action result
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                fileResult.success
+            );
+            
+            // Aggregate results
+            result.errorCount += fileResult.errorCount;
+            result.warningCount += fileResult.warningCount;
+            
+            if (!fileResult.success)
+                result.success = false;
+        }
+        
+        return result;
+    }
+    
+    /// Format files with action-level caching (per-file for granularity)
+    private auto formatFilesWithCache(in Target target, RConfig rConfig, string workDir)
+    {
+        import languages.scripting.r.tooling.checkers : FormatResult;
+        
+        FormatResult result;
+        result.success = true;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["autoFormat"] = rConfig.format.autoFormat.to!string;
+        metadata["rExecutable"] = rConfig.rExecutable;
+        
+        foreach (source; target.sources)
+        {
+            // Create action ID for formatting
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Transform;
+            actionId.subId = "format_" ~ baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if formatting is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                Logger.debugLog("  [Cached] Formatting: " ~ source);
+                continue;
+            }
+            
+            // Run actual formatting
+            auto fileResult = formatFiles([source], rConfig.format, rConfig.rExecutable, workDir);
+            
+            // Record action result (output is the same file, modified in place)
+            actionCache.update(
+                actionId,
+                [source],
+                [source],
+                metadata,
+                fileResult.success
+            );
+            
+            if (!fileResult.success)
+            {
+                result.success = false;
+                result.error = fileResult.error;
+            }
+        }
+        
+        return result;
     }
     
     /// Analyze imports in R files

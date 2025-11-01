@@ -22,10 +22,32 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.security.validation;
+import core.caching.action;
 
-/// PHP build handler - comprehensive and modular
+/// PHP build handler with action-level caching for syntax validation, analysis, and packaging
 class PHPHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/php", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -133,12 +155,10 @@ class PHPHandler : BaseLanguageHandler
             }
         }
         
-        // Run static analysis if configured
+        // Run static analysis with action-level caching if configured
         if (phpConfig.analysis.enabled && phpConfig.analysis.analyzer != PHPAnalyzer.None)
         {
-            Logger.info("Running static analysis");
-            auto analyzer = AnalyzerFactory.create(phpConfig.analysis.analyzer, config.root);
-            auto analysisResult = analyzer.analyze(target.sources, phpConfig.analysis, config.root);
+            auto analysisResult = runStaticAnalysisWithCache(target, phpConfig, config.root);
             
             if (analysisResult.hasErrors())
             {
@@ -156,11 +176,11 @@ class PHPHandler : BaseLanguageHandler
             }
         }
         
-        // Validate PHP syntax
-        auto validationResult = PHPTools.validateSyntaxBatch(target.sources, phpCmd);
+        // Validate PHP syntax with action-level caching (per-file for granularity)
+        auto validationResult = validateSyntaxWithCache(target, phpCmd, phpConfig);
         if (!validationResult.success)
         {
-            result.error = "PHP syntax validation failed:\n" ~ validationResult.errors.join("\n");
+            result.error = "PHP syntax validation failed:\n" ~ validationResult.error;
             return result;
         }
         
@@ -360,10 +380,52 @@ class PHPHandler : BaseLanguageHandler
         
         Logger.debugLog("Using packager: " ~ packager.name() ~ " (" ~ packager.getVersion() ~ ")");
         
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["packager"] = packager.name();
+        metadata["outputFile"] = phpConfig.phar.outputFile;
+        metadata["entryPoint"] = phpConfig.phar.entryPoint;
+        metadata["compression"] = phpConfig.phar.compression.to!string;
+        metadata["sign"] = phpConfig.phar.sign.to!string;
+        
+        // Determine output file
+        string outputFile = phpConfig.phar.outputFile;
+        if (outputFile.empty)
+            outputFile = "app.phar";
+        string fullOutputPath = buildPath(config.options.outputDir, outputFile);
+        
+        // Create action ID for PHAR packaging
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = "phar";
+        actionId.inputHash = FastHash.hashStrings(target.sources);
+        
+        // Check if packaging is cached
+        if (actionCache.isCached(actionId, target.sources, metadata) && exists(fullOutputPath))
+        {
+            Logger.debugLog("  [Cached] PHAR packaging: " ~ outputFile);
+            result.success = true;
+            result.outputs = [fullOutputPath];
+            result.outputHash = FastHash.hashFile(fullOutputPath);
+            return result;
+        }
+        
         // Package
         auto packageResult = packager.createPackage(target.sources, phpConfig.phar, config.root);
         
-        if (!packageResult.success)
+        bool success = packageResult.success;
+        
+        // Record action result
+        actionCache.update(
+            actionId,
+            target.sources,
+            packageResult.artifacts,
+            metadata,
+            success
+        );
+        
+        if (!success)
         {
             result.error = "PHAR packaging failed:\n" ~ packageResult.errors.join("\n");
             return result;
@@ -996,6 +1058,118 @@ class PHPHandler : BaseLanguageHandler
         result.success = true;
         result.outputHash = FastHash.hashStrings(target.sources);
         return result;
+    }
+    
+    /// Validate syntax with action-level caching (per-file for granularity)
+    private struct ValidationResult
+    {
+        bool success;
+        string error;
+    }
+    
+    private ValidationResult validateSyntaxWithCache(in Target target, string phpCmd, PHPConfig phpConfig)
+    {
+        ValidationResult result;
+        result.success = true;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["phpCmd"] = phpCmd;
+        metadata["strictTypes"] = phpConfig.strictTypes.to!string;
+        
+        string[] allErrors;
+        
+        foreach (source; target.sources)
+        {
+            // Create action ID for syntax validation
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Custom;
+            actionId.subId = "syntax_" ~ baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if validation is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                Logger.debugLog("  [Cached] Syntax validation: " ~ source);
+                continue;
+            }
+            
+            // Validate syntax
+            auto res = execute([phpCmd, "-l", source]);
+            bool success = (res.status == 0);
+            
+            // Record action result (no outputs for validation)
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                success
+            );
+            
+            if (!success)
+            {
+                allErrors ~= "In " ~ source ~ ": " ~ res.output;
+                result.success = false;
+            }
+        }
+        
+        if (!result.success)
+        {
+            result.error = allErrors.join("\n");
+        }
+        
+        return result;
+    }
+    
+    /// Run static analysis with action-level caching
+    private auto runStaticAnalysisWithCache(in Target target, PHPConfig phpConfig, string projectRoot)
+    {
+        Logger.info("Running static analysis");
+        auto analyzer = AnalyzerFactory.create(phpConfig.analysis.analyzer, projectRoot);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["analyzer"] = phpConfig.analysis.analyzer.to!string;
+        metadata["level"] = phpConfig.analysis.level.to!string;
+        metadata["paths"] = phpConfig.analysis.paths.join(",");
+        
+        // Create action ID for static analysis
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Custom;
+        actionId.subId = "static_analysis";
+        actionId.inputHash = FastHash.hashStrings(target.sources);
+        
+        // Check if analysis is cached (we don't have outputs, only validation)
+        if (actionCache.isCached(actionId, target.sources, metadata))
+        {
+            Logger.debugLog("  [Cached] Static analysis for: " ~ target.name);
+            
+            // Return a fake successful result
+            import languages.scripting.php.analysis : AnalysisResult;
+            AnalysisResult cachedResult;
+            cachedResult.errors = [];
+            cachedResult.warnings = [];
+            return cachedResult;
+        }
+        
+        // Run actual analysis
+        auto analysisResult = analyzer.analyze(target.sources, phpConfig.analysis, projectRoot);
+        
+        bool success = !analysisResult.hasErrors();
+        
+        // Record action result
+        actionCache.update(
+            actionId,
+            target.sources,
+            [],
+            metadata,
+            success
+        );
+        
+        return analysisResult;
     }
     
     override Import[] analyzeImports(in string[] sources)

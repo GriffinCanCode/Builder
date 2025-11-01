@@ -20,10 +20,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Ruby build handler - comprehensive and modular
+/// Ruby build handler with action-level caching for syntax checking, type checking, formatting, and gem building
 class RubyHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/ruby", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -114,12 +136,10 @@ class RubyHandler : BaseLanguageHandler
             }
         }
         
-        // Type check if configured
+        // Type check with action-level caching if configured
         if (rubyConfig.typeCheck.enabled)
         {
-            Logger.info("Running type checking");
-            auto checker = TypeCheckerFactory.create(rubyConfig.typeCheck.checker);
-            auto typeResult = checker.check(target.sources, rubyConfig.typeCheck);
+            auto typeResult = typeCheckWithCache(target, rubyConfig);
             
             if (typeResult.hasErrors())
             {
@@ -137,11 +157,11 @@ class RubyHandler : BaseLanguageHandler
             }
         }
         
-        // Validate Ruby syntax
-        string[] syntaxErrors;
-        if (!SyntaxChecker.check(target.sources, syntaxErrors))
+        // Validate Ruby syntax with action-level caching
+        auto syntaxResult = checkSyntaxWithCache(target, rubyConfig);
+        if (!syntaxResult.success)
         {
-            result.error = syntaxErrors.join("\n");
+            result.error = syntaxResult.error;
             return result;
         }
         
@@ -186,12 +206,10 @@ class RubyHandler : BaseLanguageHandler
             }
         }
         
-        // Type check if configured
+        // Type check with action-level caching if configured
         if (rubyConfig.typeCheck.enabled)
         {
-            Logger.info("Running type checking");
-            auto checker = TypeCheckerFactory.create(rubyConfig.typeCheck.checker);
-            auto typeResult = checker.check(target.sources, rubyConfig.typeCheck);
+            auto typeResult = typeCheckWithCache(target, rubyConfig);
             
             if (typeResult.hasErrors())
             {
@@ -200,11 +218,11 @@ class RubyHandler : BaseLanguageHandler
             }
         }
         
-        // Validate syntax
-        string[] syntaxErrors;
-        if (!SyntaxChecker.check(target.sources, syntaxErrors))
+        // Validate syntax with action-level caching
+        auto syntaxResult = checkSyntaxWithCache(target, rubyConfig);
+        if (!syntaxResult.success)
         {
-            result.error = syntaxErrors.join("\n");
+            result.error = syntaxResult.error;
             return result;
         }
         
@@ -645,6 +663,116 @@ class RubyHandler : BaseLanguageHandler
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
+    }
+    
+    /// Check syntax with action-level caching (per-file for granularity)
+    private struct SyntaxResult
+    {
+        bool success;
+        string error;
+    }
+    
+    private SyntaxResult checkSyntaxWithCache(in Target target, RubyConfig rubyConfig)
+    {
+        SyntaxResult result;
+        result.success = true;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["ruby"] = "syntax_check";
+        
+        string[] allErrors;
+        
+        foreach (source; target.sources)
+        {
+            // Create action ID for syntax checking
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Custom;
+            actionId.subId = "syntax_" ~ baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if syntax check is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                Logger.debugLog("  [Cached] Syntax check: " ~ source);
+                continue;
+            }
+            
+            // Check syntax
+            string[] fileErrors;
+            bool success = SyntaxChecker.check([source], fileErrors);
+            
+            // Record action result
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                success
+            );
+            
+            if (!success)
+            {
+                allErrors ~= fileErrors;
+                result.success = false;
+            }
+        }
+        
+        if (!result.success)
+        {
+            result.error = allErrors.join("\n");
+        }
+        
+        return result;
+    }
+    
+    /// Type check with action-level caching
+    private auto typeCheckWithCache(in Target target, RubyConfig rubyConfig)
+    {
+        Logger.info("Running type checking");
+        auto checker = TypeCheckerFactory.create(rubyConfig.typeCheck.checker);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["checker"] = rubyConfig.typeCheck.checker.to!string;
+        metadata["strictLevel"] = rubyConfig.typeCheck.strictLevel.to!string;
+        
+        // Create action ID for type checking
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Custom;
+        actionId.subId = "type_check";
+        actionId.inputHash = FastHash.hashStrings(target.sources);
+        
+        // Check if type checking is cached
+        if (actionCache.isCached(actionId, target.sources, metadata))
+        {
+            Logger.debugLog("  [Cached] Type checking for: " ~ target.name);
+            
+            // Return a fake successful result
+            import languages.scripting.ruby.tooling.checkers : TypeCheckResult;
+            TypeCheckResult cachedResult;
+            cachedResult.errors = [];
+            cachedResult.warnings = [];
+            return cachedResult;
+        }
+        
+        // Run actual type checking
+        auto typeResult = checker.check(target.sources, rubyConfig.typeCheck);
+        
+        bool success = !typeResult.hasErrors();
+        
+        // Record action result
+        actionCache.update(
+            actionId,
+            target.sources,
+            [],
+            metadata,
+            success
+        );
+        
+        return typeResult;
     }
     
     override Import[] analyzeImports(in string[] sources)
