@@ -1,0 +1,247 @@
+module languages.base.mixins;
+
+import std.conv : to;
+import std.path : buildPath;
+import std.array : split, empty;
+import core.caching.action : ActionCache, ActionCacheConfig;
+import config.schema.schema;
+import analysis.targets.types;
+import utils.files.hash : FastHash;
+import utils.logging.logger : Logger;
+
+/// Generates ActionCache field, constructor, and destructor for a language handler
+/// Usage: mixin CachingHandlerMixin!"python";
+mixin template CachingHandlerMixin(string languageName)
+{
+    import core.caching.action : ActionCache, ActionCacheConfig;
+    
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/" ~ languageName, cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
+    /// Get access to the action cache
+    protected final ActionCache getCache() @safe nothrow
+    {
+        return actionCache;
+    }
+}
+
+/// Generates config parsing method with standardized error handling
+/// Usage: mixin ConfigParsingMixin!(PyConfig, "parsePyConfig", ["python", "pyConfig"]);
+mixin template ConfigParsingMixin(TConfig, string methodName, string[] configKeys)
+{
+    import std.json : parseJSON;
+    
+    mixin("private TConfig " ~ methodName ~ "(in Target target)
+    {
+        TConfig config;
+        
+        // Try each config key in order
+        foreach (key; configKeys)
+        {
+            if (key in target.langConfig)
+            {
+                try
+                {
+                    auto json = parseJSON(target.langConfig[key]);
+                    config = TConfig.fromJSON(json);
+                    return config;
+                }
+                catch (Exception e)
+                {
+                    Logger.warning(\"Failed to parse \" ~ key ~ \" config, trying next or using defaults: \" ~ e.msg);
+                }
+            }
+        }
+        
+        return config;
+    }");
+}
+
+/// Generates standardized output path resolution
+/// Usage: mixin OutputResolutionMixin!(RustConfig, "parseRustConfig");
+mixin template OutputResolutionMixin(TConfig, string configParserName, string defaultExt = "")
+{
+    mixin("override string[] getOutputs(in Target target, in WorkspaceConfig config)
+    {
+        auto langConfig = " ~ configParserName ~ "(target);
+        string[] outputs;
+        
+        if (!target.outputPath.empty)
+        {
+            outputs ~= buildPath(config.options.outputDir, target.outputPath);
+        }
+        else
+        {
+            auto name = target.name.split(\":\")[$ - 1];
+            string ext = \"" ~ defaultExt ~ "\";
+            outputs ~= buildPath(config.options.outputDir, name ~ ext);
+        }
+        
+        return outputs;
+    }");
+}
+
+/// Generates build orchestration with target type dispatching
+/// Usage: mixin BuildOrchestrationMixin!(PyConfig, "parsePyConfig", "string");
+mixin template BuildOrchestrationMixin(TConfig, string configParserName, ContextType...)
+{
+    static if (ContextType.length == 0)
+    {
+        // No additional context needed
+        mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+        {
+            LanguageBuildResult result;
+            
+            Logger.debugLog(\"Building \" ~ target.language.to!string ~ \" target: \" ~ target.name);
+            
+            auto langConfig = " ~ configParserName ~ "(target);
+            enhanceConfigFromProject(langConfig, target, config);
+            
+            final switch (target.type)
+            {
+                case TargetType.Executable:
+                    result = buildExecutable(target, config, langConfig);
+                    break;
+                case TargetType.Library:
+                    result = buildLibrary(target, config, langConfig);
+                    break;
+                case TargetType.Test:
+                    result = runTests(target, config, langConfig);
+                    break;
+                case TargetType.Custom:
+                    result = buildCustom(target, config, langConfig);
+                    break;
+            }
+            
+            return result;
+        }
+        
+        // Subclasses must implement these
+        private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
+        private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
+        private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
+        private LanguageBuildResult buildCustom(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ")
+        {
+            LanguageBuildResult result;
+            result.success = true;
+            result.outputHash = FastHash.hashStrings(target.sources);
+            return result;
+        }
+        
+        // Optional hook for config enhancement
+        private void enhanceConfigFromProject(ref " ~ TConfig.stringof ~ " config, in Target target, in WorkspaceConfig wsConfig) {}");
+    }
+    else
+    {
+        // With additional context (e.g., command string)
+        mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+        {
+            LanguageBuildResult result;
+            
+            Logger.debugLog(\"Building \" ~ target.language.to!string ~ \" target: \" ~ target.name);
+            
+            auto langConfig = " ~ configParserName ~ "(target);
+            enhanceConfigFromProject(langConfig, target, config);
+            
+            auto context = setupBuildContext(langConfig, config);
+            
+            final switch (target.type)
+            {
+                case TargetType.Executable:
+                    result = buildExecutable(target, config, langConfig, context);
+                    break;
+                case TargetType.Library:
+                    result = buildLibrary(target, config, langConfig, context);
+                    break;
+                case TargetType.Test:
+                    result = runTests(target, config, langConfig, context);
+                    break;
+                case TargetType.Custom:
+                    result = buildCustom(target, config, langConfig, context);
+                    break;
+            }
+            
+            return result;
+        }
+        
+        // Subclasses must implement these
+        private " ~ ContextType[0].stringof ~ " setupBuildContext(" ~ TConfig.stringof ~ ", in WorkspaceConfig);
+        private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
+        private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
+        private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
+        private LanguageBuildResult buildCustom(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ")
+        {
+            LanguageBuildResult result;
+            result.success = true;
+            result.outputHash = FastHash.hashStrings(target.sources);
+            return result;
+        }
+        
+        // Optional hook for config enhancement
+        private void enhanceConfigFromProject(ref " ~ TConfig.stringof ~ " config, in Target target, in WorkspaceConfig wsConfig) {}");
+    }
+}
+
+/// Simplified orchestration for handlers without additional context
+mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
+{
+    mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    {
+        LanguageBuildResult result;
+        
+        Logger.debugLog(\"Building \" ~ target.language.to!string ~ \" target: \" ~ target.name);
+        
+        auto langConfig = " ~ configParserName ~ "(target);
+        enhanceConfigFromProject(langConfig, target, config);
+        
+        final switch (target.type)
+        {
+            case TargetType.Executable:
+                result = buildExecutable(target, config, langConfig);
+                break;
+            case TargetType.Library:
+                result = buildLibrary(target, config, langConfig);
+                break;
+            case TargetType.Test:
+                result = runTests(target, config, langConfig);
+                break;
+            case TargetType.Custom:
+                result = buildCustom(target, config, langConfig);
+                break;
+        }
+        
+        return result;
+    }
+    
+    private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
+    private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
+    private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
+    private LanguageBuildResult buildCustom(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ")
+    {
+        LanguageBuildResult result;
+        result.success = true;
+        result.outputHash = FastHash.hashStrings(target.sources);
+        return result;
+    }
+    
+    private void enhanceConfigFromProject(ref " ~ TConfig.stringof ~ " config, in Target target, in WorkspaceConfig wsConfig) {}");
+}
+

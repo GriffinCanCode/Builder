@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import languages.base.base;
+import languages.base.mixins;
 import languages.scripting.python.core.config;
 import languages.scripting.python.managers;
 import languages.scripting.python.tooling;
@@ -18,85 +19,54 @@ import utils.files.hash;
 import utils.logging.logger;
 import utils.python.pycheck;
 import utils.python.pywrap;
-// SECURITY: Use secure execute with automatic path validation
 import utils.security : execute;
 import std.process : Config;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.action : ActionId, ActionType;
 
 /// Python build handler - comprehensive and modular with action-level caching
 class PythonHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"python";
+    mixin ConfigParsingMixin!(PyConfig, "parsePyConfig", ["python", "pyConfig"]);
+    mixin OutputResolutionMixin!(PyConfig, "parsePyConfig");
+    mixin BuildOrchestrationMixin!(PyConfig, "parsePyConfig", string);
     
-    this()
+    private string setupBuildContext(PyConfig pyConfig, in WorkspaceConfig config)
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/python", cacheConfig);
+        return setupPythonEnvironment(pyConfig, config.root);
     }
     
-    ~this()
+    private void enhanceConfigFromProject(
+        ref PyConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
+    )
     {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
+        if (target.sources.empty)
+            return;
+        
+        string sourceDir = dirName(target.sources[0]);
+        
+        if (config.packageManager == PyPackageManager.Auto)
         {
-            try
+            config.packageManager = PackageManagerFactory.detectFromProject(sourceDir);
+            Logger.debugLog("Detected package manager: " ~ config.packageManager.to!string);
+        }
+        
+        if (config.venv.enabled && config.venv.tool == VirtualEnvConfig.Tool.Auto)
+        {
+            config.venv.tool = VirtualEnv.detectProjectType(sourceDir);
+        }
+        
+        if (config.requirementsFiles.empty)
+        {
+            auto depFiles = DependencyAnalyzer.findDependencyFiles(sourceDir);
+            if (!depFiles.empty)
             {
-                actionCache.close();
+                Logger.debugLog("Found dependency files: " ~ depFiles.join(", "));
+                config.requirementsFiles = depFiles;
             }
-            catch (Exception) {}
         }
-    }
-    
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
-        
-        Logger.debugLog("Building Python target: " ~ target.name);
-        
-        // Parse Python configuration
-        PyConfig pyConfig = parsePyConfig(target);
-        
-        // Detect and enhance configuration from project structure
-        enhanceConfigFromProject(pyConfig, target, config);
-        
-        // Setup Python environment
-        string pythonCmd = setupPythonEnvironment(pyConfig, config.root);
-        
-        // Build based on target type
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, pyConfig, pythonCmd);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, pyConfig, pythonCmd);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, pyConfig, pythonCmd);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, pyConfig, pythonCmd);
-                break;
-        }
-        
-        return result;
-    }
-    
-    override string[] getOutputs(in Target target, in WorkspaceConfig config)
-    {
-        string[] outputs;
-        
-        if (!target.outputPath.empty)
-        {
-            outputs ~= buildPath(config.options.outputDir, target.outputPath);
-        }
-        else
-        {
-            auto name = target.name.split(":")[$ - 1];
-            outputs ~= buildPath(config.options.outputDir, name);
-        }
-        
-        return outputs;
     }
     
     private LanguageBuildResult buildExecutable(
@@ -108,35 +78,26 @@ class PythonHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Install dependencies if requested
-        if (pyConfig.installDeps)
-        {
-            if (!installDependencies(pyConfig, config.root, pythonCmd))
+        if (pyConfig.installDeps && !installDependencies(pyConfig, config.root, pythonCmd))
             {
                 result.error = "Failed to install dependencies";
                 return result;
-            }
         }
         
-        // Auto-format if configured
         if (pyConfig.autoFormat && pyConfig.formatter != PyFormatter.None)
         {
             Logger.info("Auto-formatting code");
             auto fmtResult = Formatter.format(target.sources, pyConfig.formatter, pythonCmd, false);
             if (!fmtResult.success)
-            {
                 Logger.warning("Formatting failed, continuing anyway");
-            }
         }
         
-        // Auto-lint if configured with action-level caching
         if (pyConfig.autoLint && pyConfig.linter != PyLinter.None)
         {
             Logger.info("Auto-linting code");
             lintWithCaching(target.sources, pyConfig, target.name, pythonCmd);
         }
         
-        // Type check if configured with action-level caching
         if (pyConfig.typeCheck.enabled)
         {
             Logger.info("Running type checking");
@@ -149,23 +110,18 @@ class PythonHandler : BaseLanguageHandler
             }
         }
         
-        // Validate Python syntax using AST parser (fast batch validation)
         auto validationResult = PyValidator.validate(target.sources);
-        
         if (!validationResult.success)
         {
             result.error = validationResult.firstError();
             return result;
         }
         
-        // Create smart executable wrapper
         auto outputs = getOutputs(target, config);
         if (!outputs.empty && !target.sources.empty)
         {
             auto outputPath = outputs[0];
             auto mainFile = target.sources[0];
-            
-            // Get entry point metadata from validation
             auto mainFileResult = validationResult.files[0];
             
             WrapperConfig wrapperConfig;
@@ -179,11 +135,8 @@ class PythonHandler : BaseLanguageHandler
             PyWrapperGenerator.generate(wrapperConfig);
         }
         
-        // Compile bytecode if configured with action-level caching
         if (pyConfig.compileBytecode)
-        {
             compileToBytecodeWithCaching(target.sources, pyConfig, target.name, pythonCmd);
-        }
         
         result.success = true;
         result.outputs = outputs;
@@ -201,17 +154,12 @@ class PythonHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Install dependencies if requested
-        if (pyConfig.installDeps)
-        {
-            if (!installDependencies(pyConfig, config.root, pythonCmd))
+        if (pyConfig.installDeps && !installDependencies(pyConfig, config.root, pythonCmd))
             {
                 result.error = "Failed to install dependencies";
                 return result;
-            }
         }
         
-        // Type check if configured
         if (pyConfig.typeCheck.enabled)
         {
             Logger.info("Running type checking");
@@ -224,20 +172,15 @@ class PythonHandler : BaseLanguageHandler
             }
         }
         
-        // Validate Python syntax
         auto validationResult = PyValidator.validate(target.sources);
-        
         if (!validationResult.success)
         {
             result.error = validationResult.firstError();
             return result;
         }
         
-        // Generate stubs if configured
         if (pyConfig.generateStubs)
-        {
             generateStubs(target.sources, pythonCmd);
-        }
         
         result.success = true;
         result.outputs = target.sources.dup;
@@ -255,18 +198,13 @@ class PythonHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Determine test runner
         auto runner = pyConfig.test.runner;
         if (runner == PyTestRunner.Auto)
-        {
             runner = detectTestRunner(target, pythonCmd);
-        }
         
-        // Run tests based on runner
         final switch (runner)
         {
             case PyTestRunner.Auto:
-                // Fallback to pytest
                 runner = PyTestRunner.Pytest;
                 goto case PyTestRunner.Pytest;
                 
@@ -276,7 +214,6 @@ class PythonHandler : BaseLanguageHandler
                     result.error = "pytest not available (install: pip install pytest)";
                     return result;
                 }
-                
                 result = runPytest(target, pyConfig, pythonCmd);
                 break;
                 
@@ -300,516 +237,217 @@ class PythonHandler : BaseLanguageHandler
         return result;
     }
     
-    private LanguageBuildResult buildCustom(
-        in Target target,
-        in WorkspaceConfig config,
-        PyConfig pyConfig,
-        string pythonCmd
-    )
-    {
-        LanguageBuildResult result;
-        result.success = true;
-        result.outputHash = FastHash.hashStrings(target.sources);
-        return result;
-    }
+    // ===== Helper methods =====
     
-    /// Parse Python configuration from target
-    private PyConfig parsePyConfig(in Target target)
-    {
-        PyConfig config;
-        
-        // Try language-specific keys
-        string configKey = "";
-        if ("python" in target.langConfig)
-            configKey = "python";
-        else if ("pyConfig" in target.langConfig)
-            configKey = "pyConfig";
-        
-        if (!configKey.empty)
-        {
-            try
-            {
-                import std.json : parseJSON;
-                auto json = parseJSON(target.langConfig[configKey]);
-                config = PyConfig.fromJSON(json);
-            }
-            catch (Exception e)
-            {
-                Logger.warning("Failed to parse Python config, using defaults: " ~ e.msg);
-            }
-        }
-        
-        return config;
-    }
-    
-    /// Enhance configuration based on project structure
-    private void enhanceConfigFromProject(
-        ref PyConfig config,
-        in Target target,
-        in WorkspaceConfig workspace
-    )
-    {
-        if (target.sources.empty)
-            return;
-        
-        string sourceDir = dirName(target.sources[0]);
-        
-        // Auto-detect package manager if set to auto
-        if (config.packageManager == PyPackageManager.Auto)
-        {
-            config.packageManager = PackageManagerFactory.detectFromProject(sourceDir);
-            Logger.debugLog("Detected package manager: " ~ config.packageManager.to!string);
-        }
-        
-        // Auto-detect virtual environment tool
-        if (config.venv.enabled && config.venv.tool == VirtualEnvConfig.Tool.Auto)
-        {
-            config.venv.tool = VirtualEnv.detectProjectType(sourceDir);
-        }
-        
-        // Find dependency files if not specified
-        if (config.requirementsFiles.empty)
-        {
-            auto depFiles = DependencyAnalyzer.findDependencyFiles(sourceDir);
-            if (!depFiles.empty)
-            {
-                Logger.debugLog("Found dependency files: " ~ depFiles.join(", "));
-                config.requirementsFiles = depFiles;
-            }
-        }
-    }
-    
-    /// Setup Python environment and return Python command to use
     private string setupPythonEnvironment(PyConfig config, string projectRoot)
     {
         string pythonCmd = "python3";
         
-        // Use specific interpreter if configured
         if (!config.pythonVersion.interpreterPath.empty)
-        {
             pythonCmd = config.pythonVersion.interpreterPath;
-        }
         
-        // Setup virtual environment if enabled
         if (config.venv.enabled)
         {
             string venvPath = VirtualEnv.ensureVenv(config.venv, projectRoot, pythonCmd);
             
             if (!venvPath.empty)
             {
-                // Use Python from venv
-                pythonCmd = VirtualEnv.getVenvPython(venvPath);
-                Logger.info("Using virtual environment: " ~ venvPath);
+                pythonCmd = VirtualEnv.getPythonCommand(venvPath);
+                Logger.debugLog("Using virtual environment: " ~ venvPath);
             }
         }
-        
-        // Verify Python is available
-        if (!PyTools.isPythonCommandAvailable(pythonCmd))
-        {
-            Logger.warning("Python not available at: " ~ pythonCmd ~ ", falling back to python3");
-            pythonCmd = "python3";
-        }
-        
-        Logger.debugLog("Using Python: " ~ pythonCmd ~ " (" ~ PyTools.getPythonVersion(pythonCmd) ~ ")");
         
         return pythonCmd;
     }
     
-    /// Install dependencies using configured package manager
     private bool installDependencies(PyConfig config, string projectRoot, string pythonCmd)
     {
-        // Get venv path for package manager
-        string venvPath = "";
-        if (config.venv.enabled && !config.venv.path.empty)
-        {
-            venvPath = config.venv.path;
-            if (!venvPath.isAbsolute)
-                venvPath = buildPath(projectRoot, venvPath);
-        }
-        
-        // Create package manager
-        auto pm = PackageManagerFactory.create(config.packageManager, pythonCmd, venvPath);
-        
-        if (!pm.isAvailable())
-        {
-            Logger.error("Package manager not available: " ~ pm.name());
-            return false;
-        }
-        
-        Logger.info("Using package manager: " ~ pm.name() ~ " (" ~ pm.getVersion() ~ ")");
-        
-        // Install from dependency files
         if (!config.requirementsFiles.empty)
         {
-            foreach (depFile; config.requirementsFiles)
-            {
-                auto result = pm.installFromFile(depFile, false, config.editableInstall);
-                if (!result.success)
-                {
-                    Logger.error("Failed to install from " ~ depFile ~ ": " ~ result.error);
-                    return false;
-                }
-            }
+            Logger.info("Installing dependencies");
+            auto installer = PackageManagerFactory.create(config.packageManager);
+            return installer.installFromRequirements(config.requirementsFiles, projectRoot, pythonCmd);
         }
-        else
-        {
-            // Install from default location (works for poetry, pdm, hatch)
-            auto result = pm.installPackages([], false, config.editableInstall);
-            if (!result.success)
-            {
-                Logger.error("Failed to install dependencies: " ~ result.error);
-                return false;
-            }
-        }
-        
         return true;
     }
     
-    /// Compile Python sources to bytecode with action-level caching
-    private void compileToBytecodeWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
-    {
-        Logger.info("Compiling to bytecode");
-        
-        // Build metadata
-        string[string] metadata;
-        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
-        metadata["compiler"] = "py_compile";
-        
-        foreach (source; sources)
-        {
-            // Create action ID for bytecode compilation
-            ActionId actionId;
-            actionId.targetId = targetId;
-            actionId.type = ActionType.Compile;
-            actionId.subId = source ~ ":bytecode";
-            actionId.inputHash = FastHash.hashFile(source);
-            
-            // Determine expected bytecode output
-            string pycPath = source ~ "c";  // .pyc file
-            
-            // Check if bytecode compilation is cached
-            if (actionCache.isCached(actionId, [source], metadata))
-            {
-                if (exists(pycPath))
-                {
-                    Logger.debugLog("  [Cached] Bytecode: " ~ source);
-                    continue;
-                }
-            }
-            
-            // Compile to bytecode
-            auto cmd = [pythonCmd, "-m", "py_compile", source];
-            auto res = execute(cmd);
-            
-            bool success = res.status == 0;
-            string[] outputs = exists(pycPath) ? [pycPath] : [];
-            
-            // Update cache
-            actionCache.update(actionId, [source], outputs, metadata, success);
-            
-            if (!success)
-            {
-                Logger.warning("Failed to compile " ~ source ~ " to bytecode");
-            }
-        }
-    }
-    
-    /// Compile Python sources to bytecode (legacy non-cached version)
-    private void compileToBytecode(const string[] sources, string pythonCmd)
-    {
-        Logger.info("Compiling to bytecode");
-        
-        foreach (source; sources)
-        {
-            auto cmd = [pythonCmd, "-m", "py_compile", source];
-            auto res = execute(cmd);
-            
-            if (res.status != 0)
-            {
-                Logger.warning("Failed to compile " ~ source ~ " to bytecode");
-            }
-        }
-    }
-    
-    /// Generate stub files (.pyi)
-    private void generateStubs(const string[] sources, string pythonCmd)
-    {
-        Logger.info("Generating stub files");
-        
-        // Use stubgen if available
-        auto cmd = [pythonCmd, "-m", "mypy.stubgen"] ~ sources;
-        auto res = execute(cmd);
-        
-        if (res.status != 0)
-        {
-            Logger.warning("Failed to generate stubs (install mypy for stub generation)");
-        }
-    }
-    
-    /// Lint Python sources with action-level caching
-    private void lintWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
-    {
-        // Build metadata
-        string[string] metadata;
-        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
-        metadata["linter"] = config.linter.to!string;
-        
-        // Create action ID for linting
-        ActionId actionId;
-        actionId.targetId = targetId;
-        actionId.type = ActionType.Custom;
-        actionId.subId = "lint";
-        actionId.inputHash = FastHash.hashStrings(sources);
-        
-        // Check if linting is cached
-        if (actionCache.isCached(actionId, sources, metadata))
-        {
-            Logger.debugLog("  [Cached] Linting");
-            return;
-        }
-        
-        // Run linting
-        auto lintResult = Linter.lint(sources, config.linter, pythonCmd);
-        
-        bool success = !lintResult.hasIssues();
-        
-        // Update cache
-        actionCache.update(actionId, sources, [], metadata, success);
-        
-        if (lintResult.hasIssues())
-        {
-            Logger.warning("Linting found issues:");
-            foreach (warning; lintResult.warnings)
-            {
-                Logger.warning("  " ~ warning);
-            }
-        }
-    }
-    
-    /// Type check Python sources with action-level caching
-    private struct TypeCheckCacheResult
-    {
-        bool success;
-        string error;
-    }
-    
-    private TypeCheckCacheResult typeCheckWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
-    {
-        TypeCheckCacheResult result;
-        result.success = true;
-        
-        // Build metadata
-        string[string] metadata;
-        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
-        metadata["typeChecker"] = config.typeCheck.checker.to!string;
-        metadata["strict"] = config.typeCheck.strict.to!string;
-        
-        // Create action ID for type checking
-        ActionId actionId;
-        actionId.targetId = targetId;
-        actionId.type = ActionType.Custom;
-        actionId.subId = "typecheck";
-        actionId.inputHash = FastHash.hashStrings(sources);
-        
-        // Check if type checking is cached
-        if (actionCache.isCached(actionId, sources, metadata))
-        {
-            Logger.debugLog("  [Cached] Type checking");
-            return result;
-        }
-        
-        // Run type checking
-        auto typeResult = TypeChecker.check(sources, config.typeCheck, pythonCmd);
-        
-        bool success = !typeResult.hasErrors;
-        
-        // Update cache
-        actionCache.update(actionId, sources, [], metadata, success);
-        
-        if (typeResult.hasErrors)
-        {
-            result.success = false;
-            result.error = "Type checking failed:\n" ~ typeResult.errors.join("\n");
-            return result;
-        }
-        
-        if (typeResult.hasWarnings)
-        {
-            Logger.warning("Type checking warnings:");
-            foreach (warning; typeResult.warnings)
-            {
-                Logger.warning("  " ~ warning);
-            }
-        }
-        
-        return result;
-    }
-    
-    /// Detect test runner from project
     private PyTestRunner detectTestRunner(in Target target, string pythonCmd)
     {
-        // Check for pytest
         if (PyTools.isPytestAvailable(pythonCmd))
             return PyTestRunner.Pytest;
-        
-        // Default to unittest (standard library)
         return PyTestRunner.Unittest;
     }
     
-    /// Run tests with pytest
     private LanguageBuildResult runPytest(in Target target, PyConfig config, string pythonCmd)
     {
         LanguageBuildResult result;
         
         string[] cmd = [pythonCmd, "-m", "pytest"];
-        
-        if (config.test.verbose)
-            cmd ~= "-v";
-        
-        if (config.test.coverage)
-        {
-            cmd ~= "--cov";
-            if (!config.test.coverageFile.empty)
-                cmd ~= ["--cov-report", config.test.coverageFormat];
-        }
-        
-        if (config.test.parallel)
-        {
-            cmd ~= "-n";
-            if (config.test.workers > 0)
-                cmd ~= config.test.workers.to!string;
-            else
-                cmd ~= "auto";
-        }
-        
-        // Add test paths
-        if (!config.test.testPaths.empty)
-            cmd ~= config.test.testPaths;
-        else if (!target.sources.empty)
+        cmd ~= config.test.pytestArgs;
             cmd ~= target.sources;
         
-        Logger.info("Running pytest: " ~ cmd.join(" "));
-        
         auto res = execute(cmd);
-        
-        if (res.status != 0)
-        {
-            result.error = "Tests failed: " ~ res.output;
-            return result;
-        }
-        
-        result.success = true;
+        result.success = (res.status == 0);
+        if (!result.success)
+            result.error = "pytest failed";
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
-    /// Run tests with unittest
     private LanguageBuildResult runUnittest(in Target target, PyConfig config, string pythonCmd)
     {
         LanguageBuildResult result;
         
         string[] cmd = [pythonCmd, "-m", "unittest"];
-        
-        if (config.test.verbose)
-            cmd ~= "-v";
-        
-        if (!target.sources.empty)
-            cmd ~= target.sources;
-        else
-            cmd ~= "discover";
-        
-        Logger.info("Running unittest: " ~ cmd.join(" "));
+        cmd ~= config.test.unittestArgs;
         
         auto res = execute(cmd);
-        
-        if (res.status != 0)
-        {
-            result.error = "Tests failed: " ~ res.output;
-            return result;
-        }
-        
-        result.success = true;
+        result.success = (res.status == 0);
+        if (!result.success)
+            result.error = "unittest failed";
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
-    /// Run tests with nose2
     private LanguageBuildResult runNose2(in Target target, PyConfig config, string pythonCmd)
     {
         LanguageBuildResult result;
         
         string[] cmd = [pythonCmd, "-m", "nose2"];
-        
-        if (config.test.verbose)
-            cmd ~= "-v";
-        
-        Logger.info("Running nose2: " ~ cmd.join(" "));
+        cmd ~= target.sources;
         
         auto res = execute(cmd);
-        
-        if (res.status != 0)
-        {
-            result.error = "Tests failed: " ~ res.output;
-            return result;
-        }
-        
-        result.success = true;
+        result.success = (res.status == 0);
+        if (!result.success)
+            result.error = "nose2 failed";
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
-    /// Run tests with tox
     private LanguageBuildResult runTox(in Target target, PyConfig config)
     {
         LanguageBuildResult result;
         
         string[] cmd = ["tox"];
-        
-        Logger.info("Running tox: " ~ cmd.join(" "));
+        cmd ~= config.test.toxArgs;
         
         auto res = execute(cmd);
-        
-        if (res.status != 0)
-        {
-            result.error = "Tests failed: " ~ res.output;
-            return result;
-        }
-        
-        result.success = true;
+        result.success = (res.status == 0);
+        if (!result.success)
+            result.error = "tox failed";
         result.outputHash = FastHash.hashStrings(target.sources);
         
         return result;
     }
     
-    override Import[] analyzeImports(in string[] sources)
+    private void lintWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
     {
-        auto spec = getLanguageSpec(TargetLanguage.Python);
-        if (spec is null)
-            return [];
-        
-        Import[] allImports;
+        string[string] metadata;
+        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
+        metadata["linter"] = config.linter.to!string;
         
         foreach (source; sources)
         {
-            if (!exists(source) || !isFile(source))
-                continue;
+            auto actionId = ActionId(ActionType.Lint, targetId ~ ":" ~ source);
+            actionId.inputHash = FastHash.hashFile(source);
             
-            try
+            if (getCache().isCached(actionId, [source], metadata))
             {
-                auto content = readText(source);
-                auto imports = spec.scanImports(source, content);
-                allImports ~= imports;
+                Logger.debugLog("  [Cached] Lint: " ~ source);
+                continue;
             }
-            catch (Exception e)
+            
+            auto lintResult = Linter.lint([source], config.linter, pythonCmd, false);
+            bool success = lintResult.success;
+            
+            getCache().update(actionId, [source], [], metadata, success);
+            
+            if (!success && lintResult.issues.length > 0)
             {
-                Logger.warning("Failed to analyze imports in " ~ source);
+                Logger.warning("Lint issues in " ~ source ~ ":");
+                foreach (issue; lintResult.issues[0 .. min(3, $)])
+                    Logger.warning("  " ~ issue);
             }
         }
+    }
+    
+    private struct TypeCheckResult
+    {
+        bool success;
+        string error;
+    }
+    
+    private TypeCheckResult typeCheckWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
+    {
+        TypeCheckResult result;
+        result.success = true;
         
-        return allImports;
+        string[string] metadata;
+        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
+        metadata["typeChecker"] = config.typeCheck.checker.to!string;
+        
+        auto actionId = ActionId(ActionType.TypeCheck, targetId);
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        if (getCache().isCached(actionId, sources, metadata))
+        {
+            Logger.debugLog("  [Cached] Type checking");
+            return result;
+        }
+        
+        auto typeResult = TypeChecker.check(sources, config.typeCheck, pythonCmd);
+        bool success = !typeResult.hasErrors;
+        
+        getCache().update(actionId, sources, [], metadata, success);
+        
+        if (!success)
+            result.error = "Type checking failed:\n" ~ typeResult.errors.join("\n");
+        
+        result.success = success;
+        return result;
+    }
+    
+    private void compileToBytecodeWithCaching(const string[] sources, PyConfig config, string targetId, string pythonCmd)
+    {
+        string[string] metadata;
+        metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
+        
+        foreach (source; sources)
+        {
+            auto actionId = ActionId(ActionType.Compile, targetId ~ ":" ~ source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            string outputFile = source ~ "c";
+            string[] outputs = [outputFile];
+            
+            if (getCache().isCached(actionId, [source], metadata))
+            {
+                Logger.debugLog("  [Cached] Bytecode: " ~ source);
+                continue;
+            }
+            
+            auto cmd = [pythonCmd, "-m", "py_compile", source];
+            auto res = execute(cmd);
+            bool success = (res.status == 0);
+            
+            getCache().update(actionId, [source], outputs, metadata, success);
+            
+            if (!success)
+                Logger.warning("Failed to compile " ~ source ~ " to bytecode");
+        }
+    }
+    
+    private void generateStubs(const string[] sources, string pythonCmd)
+    {
+        Logger.info("Generating stub files");
+        
+        auto cmd = [pythonCmd, "-m", "mypy.stubgen"] ~ sources;
+        auto res = execute(cmd);
+        
+        if (res.status != 0)
+            Logger.warning("Failed to generate stubs (install mypy for stub generation)");
     }
 }
-

@@ -37,6 +37,7 @@ module languages;
 ///   handler.build(target);
 
 public import languages.base.base;
+public import languages.base.mixins;
 public import languages.scripting.python;
 public import languages.web;
 public import languages.scripting.go;
