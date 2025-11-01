@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.string;
+import std.conv;
 import languages.base.base;
 import languages.web.elm.core.config;
 import config.schema.schema;
@@ -15,10 +16,32 @@ import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process.checker : isCommandAvailable;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Elm build handler - compiles Elm to JavaScript
+/// Elm build handler with action-level caching
 class ElmHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/elm", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -203,6 +226,87 @@ class ElmHandler : BaseLanguageHandler
             mkdirRecurse(outputDir);
         }
         
+        // Prepare inputs: All Elm source files + elm.json
+        string[] inputFiles = target.sources.dup;
+        
+        // Add elm.json as critical dependency
+        if (exists("elm.json"))
+        {
+            inputFiles ~= "elm.json";
+        }
+        
+        // Add entry point if not already in sources
+        if (!elmConfig.entry.empty && !inputFiles.canFind(elmConfig.entry))
+        {
+            inputFiles ~= elmConfig.entry;
+        }
+        
+        // Find and add all .elm files in source directories
+        if (exists("elm.json"))
+        {
+            try
+            {
+                auto elmJson = parseJSON(readText("elm.json"));
+                if ("source-directories" in elmJson)
+                {
+                    foreach (dir; elmJson["source-directories"].array)
+                    {
+                        string srcDir = dir.str;
+                        if (exists(srcDir) && isDir(srcDir))
+                        {
+                            foreach (entry; dirEntries(srcDir, "*.elm", SpanMode.depth))
+                            {
+                                if (isFile(entry.name) && !inputFiles.canFind(entry.name))
+                                {
+                                    inputFiles ~= entry.name;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                // If we can't parse elm.json, just use provided sources
+                Logger.warning("Could not parse elm.json for source discovery: " ~ e.msg);
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["elmVersion"] = getElmVersion();
+        metadata["optimize"] = elmConfig.optimize.to!string;
+        metadata["debugMode"] = elmConfig.debugMode.to!string;
+        metadata["outputTarget"] = elmConfig.outputTarget.to!string;
+        metadata["mode"] = elmConfig.mode.to!string;
+        
+        if (!elmConfig.entry.empty)
+            metadata["entry"] = elmConfig.entry;
+        if (!elmConfig.compilerFlags.empty)
+            metadata["compilerFlags"] = elmConfig.compilerFlags.join(" ");
+        if (!elmConfig.sourceDirs.empty)
+            metadata["sourceDirs"] = elmConfig.sourceDirs.join(",");
+        
+        // Create action ID for Elm compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "elm-compile";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            if (exists(outputPath))
+            {
+                Logger.debugLog("  [Cached] Elm compilation: " ~ target.name);
+                result.success = true;
+                result.outputs = [outputPath];
+                result.outputHash = FastHash.hashFile(outputPath);
+                return result;
+            }
+        }
+        
         // Build command
         string[] cmd = ["elm", "make", elmConfig.entry];
         
@@ -230,6 +334,8 @@ class ElmHandler : BaseLanguageHandler
             Logger.debugLog("Command: " ~ cmd.join(" "));
         }
         
+        bool success = false;
+        
         try
         {
             auto compileResult = execute(cmd);
@@ -237,6 +343,16 @@ class ElmHandler : BaseLanguageHandler
             if (compileResult.status != 0)
             {
                 result.error = "Elm compilation failed:\n" ~ compileResult.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+                
                 return result;
             }
             
@@ -244,8 +360,20 @@ class ElmHandler : BaseLanguageHandler
             if (!exists(outputPath))
             {
                 result.error = "Expected output file not created: " ~ outputPath;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+                
                 return result;
             }
+            
+            success = true;
             
             result.success = true;
             result.outputs = [outputPath];
@@ -261,9 +389,32 @@ class ElmHandler : BaseLanguageHandler
         catch (Exception e)
         {
             result.error = "Failed to compile Elm: " ~ e.msg;
+            success = false;
         }
         
+        // Update cache with result
+        actionCache.update(
+            actionId,
+            inputFiles,
+            success ? [outputPath] : [],
+            metadata,
+            success
+        );
+        
         return result;
+    }
+    
+    /// Get Elm compiler version for cache validation
+    private string getElmVersion()
+    {
+        try
+        {
+            auto res = execute(["elm", "--version"]);
+            if (res.status == 0)
+                return res.output.strip;
+        }
+        catch (Exception) {}
+        return "unknown";
     }
     
     /// Parse Elm configuration from target

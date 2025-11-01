@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.json;
+import std.conv;
 import languages.base.base;
 import languages.web.css.core.config;
 import languages.web.css.processors;
@@ -14,10 +15,32 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// CSS/SCSS/PostCSS build handler
+/// CSS/SCSS/PostCSS build handler with action-level caching
 class CSSHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/css", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -112,10 +135,103 @@ class CSSHandler : BaseLanguageHandler
         
         Logger.debugLog("Using CSS processor: " ~ processor.name());
         
+        // Prepare inputs: sources + config files
+        string[] inputFiles = target.sources.dup;
+        
+        // Add processor config files if they exist
+        if (!target.sources.empty)
+        {
+            string baseDir = dirName(target.sources[0]);
+            
+            // PostCSS configs
+            string[] configFiles = [
+                buildPath(baseDir, "postcss.config.js"),
+                buildPath(baseDir, "postcss.config.json"),
+                buildPath(baseDir, ".postcssrc"),
+                buildPath(baseDir, "tailwind.config.js"),
+                buildPath(baseDir, ".browserslistrc")
+            ];
+            
+            // SCSS config
+            if (cssConfig.processor == CSSProcessorType.SCSS)
+            {
+                configFiles ~= buildPath(baseDir, "sass-options.json");
+            }
+            
+            foreach (cf; configFiles)
+            {
+                if (exists(cf))
+                    inputFiles ~= cf;
+            }
+        }
+        
+        // Add explicit tailwind config if specified
+        if (!cssConfig.tailwindConfig.empty && exists(cssConfig.tailwindConfig))
+        {
+            inputFiles ~= cssConfig.tailwindConfig;
+        }
+        
+        // Determine expected outputs
+        string[] expectedOutputs = getOutputs(target, config);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["processor"] = processor.name();
+        metadata["processorVersion"] = processor.getVersion();
+        metadata["processorType"] = cssConfig.processor.to!string;
+        metadata["minify"] = cssConfig.minify.to!string;
+        metadata["sourcemap"] = cssConfig.sourcemap.to!string;
+        metadata["autoprefix"] = cssConfig.autoprefix.to!string;
+        metadata["purge"] = cssConfig.purge.to!string;
+        metadata["framework"] = cssConfig.framework.to!string;
+        
+        if (!cssConfig.output.empty)
+            metadata["output"] = cssConfig.output;
+        if (!cssConfig.targets.empty)
+            metadata["targets"] = cssConfig.targets.join(",");
+        if (!cssConfig.postcssPlugins.empty)
+            metadata["postcssPlugins"] = cssConfig.postcssPlugins.join(",");
+        if (!cssConfig.includePaths.empty)
+            metadata["includePaths"] = cssConfig.includePaths.join(",");
+        if (!cssConfig.contentPaths.empty)
+            metadata["contentPaths"] = cssConfig.contentPaths.join(",");
+        
+        // Create action ID for CSS processing
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Transform;  // CSS processing is a transformation
+        actionId.subId = "css-compile";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            bool allOutputsExist = expectedOutputs.all!(o => exists(o));
+            if (allOutputsExist)
+            {
+                Logger.debugLog("  [Cached] CSS compilation: " ~ target.name);
+                result.success = true;
+                result.outputs = expectedOutputs;
+                result.outputHash = FastHash.hashStrings(expectedOutputs);
+                return result;
+            }
+        }
+        
         // Compile
         auto compileResult = processor.compile(target.sources, cssConfig, target, config);
         
-        if (!compileResult.success)
+        bool success = compileResult.success;
+        
+        // Update cache with result
+        actionCache.update(
+            actionId,
+            inputFiles,
+            compileResult.outputs,
+            metadata,
+            success
+        );
+        
+        if (!success)
         {
             result.error = compileResult.error;
             return result;

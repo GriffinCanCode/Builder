@@ -20,10 +20,32 @@ import utils.process.checker : isCommandAvailable;
 // SECURITY: Use secure execute with automatic path validation
 import utils.security : execute;
 import std.process : Config;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// JavaScript/TypeScript build handler with bundler support
+/// JavaScript/TypeScript build handler with bundler support and action-level caching
 class JavaScriptHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/javascript", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -227,7 +249,7 @@ class JavaScriptHandler : BaseLanguageHandler
         return result;
     }
     
-    /// Bundle target using configured bundler
+    /// Bundle target using configured bundler with action-level caching
     private LanguageBuildResult bundleTarget(in Target target, in WorkspaceConfig config, JSConfig jsConfig)
     {
         LanguageBuildResult result;
@@ -250,10 +272,103 @@ class JavaScriptHandler : BaseLanguageHandler
         
         Logger.debugLog("Using bundler: " ~ bundler.name() ~ " (" ~ bundler.getVersion() ~ ")");
         
+        // Prepare inputs: sources + config files
+        string[] inputFiles = target.sources.dup;
+        
+        // Add config files if they exist
+        if (!target.sources.empty)
+        {
+            string baseDir = dirName(target.sources[0]);
+            
+            string[] configFiles = [
+                buildPath(baseDir, "package.json"),
+                buildPath(baseDir, "package-lock.json"),
+                buildPath(baseDir, "yarn.lock"),
+                buildPath(baseDir, "pnpm-lock.yaml"),
+                buildPath(baseDir, "tsconfig.json"),
+                buildPath(baseDir, "jsconfig.json"),
+                buildPath(baseDir, "webpack.config.js"),
+                buildPath(baseDir, "rollup.config.js"),
+                buildPath(baseDir, "vite.config.js"),
+                buildPath(baseDir, "esbuild.config.js"),
+                buildPath(baseDir, ".babelrc"),
+                buildPath(baseDir, ".babelrc.json"),
+                buildPath(baseDir, "babel.config.js")
+            ];
+            
+            foreach (cf; configFiles)
+            {
+                if (exists(cf))
+                    inputFiles ~= cf;
+            }
+        }
+        
+        // Add custom config file if specified
+        if (!jsConfig.configFile.empty && exists(jsConfig.configFile))
+        {
+            inputFiles ~= jsConfig.configFile;
+        }
+        
+        // Determine expected outputs
+        string[] expectedOutputs = getOutputs(target, config);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["bundler"] = bundler.name();
+        metadata["bundlerVersion"] = bundler.getVersion();
+        metadata["bundlerType"] = jsConfig.bundler.to!string;
+        metadata["mode"] = jsConfig.mode.to!string;
+        metadata["platform"] = jsConfig.platform.to!string;
+        metadata["format"] = jsConfig.format.to!string;
+        metadata["minify"] = jsConfig.minify.to!string;
+        metadata["sourcemap"] = jsConfig.sourcemap.to!string;
+        metadata["target"] = jsConfig.target;
+        metadata["jsx"] = jsConfig.jsx.to!string;
+        metadata["jsxFactory"] = jsConfig.jsxFactory;
+        
+        if (!jsConfig.entry.empty)
+            metadata["entry"] = jsConfig.entry;
+        if (!jsConfig.external.empty)
+            metadata["external"] = jsConfig.external.join(",");
+        if (!jsConfig.packageManager.empty)
+            metadata["packageManager"] = jsConfig.packageManager;
+        
+        // Create action ID for bundling
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;  // Bundling is a packaging operation
+        actionId.subId = "bundle";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if bundling is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            bool allOutputsExist = expectedOutputs.all!(o => exists(o));
+            if (allOutputsExist)
+            {
+                Logger.debugLog("  [Cached] JavaScript bundle: " ~ target.name);
+                result.success = true;
+                result.outputs = expectedOutputs;
+                result.outputHash = FastHash.hashStrings(expectedOutputs);
+                return result;
+            }
+        }
+        
         // Bundle
         auto bundleResult = bundler.bundle(target.sources, jsConfig, target, config);
         
-        if (!bundleResult.success)
+        bool success = bundleResult.success;
+        
+        // Update cache with result
+        actionCache.update(
+            actionId,
+            inputFiles,
+            bundleResult.outputs,
+            metadata,
+            success
+        );
+        
+        if (!success)
         {
             result.error = bundleResult.error;
             return result;
