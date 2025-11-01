@@ -2,11 +2,13 @@
 
 ## Overview
 
-Action-level caching has been successfully implemented in six language handlers: C++, Rust, TypeScript, CSS, JavaScript, and Elm. This enables fine-grained incremental builds by caching individual compilation, bundling, and transformation actions rather than entire targets.
+Action-level caching has been successfully implemented in nine language handlers: C++, Rust, TypeScript, CSS, JavaScript, Elm, D, Protobuf, and OCaml. This enables fine-grained incremental builds by caching individual compilation, bundling, code generation, and transformation actions rather than entire targets.
 
 ## Implementation Summary
 
 This document tracks the implementation of action-level caching across language handlers. Action-level caching provides fine-grained incremental builds by caching individual compilation, bundling, and transformation steps.
+
+**Latest Update**: Added action-level caching support for D, Protobuf, and OCaml handlers, bringing the total to 9 language handlers with comprehensive caching support.
 
 ### 1. C++ Handler (Per-File Compilation Caching)
 
@@ -445,29 +447,153 @@ export BUILDER_ACTION_CACHE_MAX_ENTRIES=100000
 export BUILDER_ACTION_CACHE_MAX_AGE_DAYS=60
 ```
 
+### 7. D Handler (Full Compilation Caching)
+
+**Files Modified:**
+- `source/languages/compiled/d/core/handler.d`
+- `source/languages/compiled/d/builders/base.d`
+- `source/languages/compiled/d/builders/direct.d`
+- `source/languages/compiled/d/builders/dub.d`
+
+**Strategy:**
+- **Direct compilation caching**: Cache entire DMD/LDC/GDC compilation as single action
+- **DUB build caching**: Cache dub build commands with source tracking
+- **Metadata tracking**: Compiler flags, versions, defines, import paths, build configuration
+
+**Key Features:**
+```d
+// Direct compiler caching
+ActionId actionId;
+actionId.targetId = target.name;
+actionId.type = ActionType.Compile;
+actionId.subId = "full_compile";
+actionId.inputHash = FastHash.hashStrings(sources.dup);
+
+metadata["compiler"] = compilerCmd;
+metadata["buildConfig"] = config.buildConfig.to!string;
+metadata["optimize"] = config.compilerConfig.optimizationFlags.join(",");
+```
+
+**Action Type:**
+- Uses `ActionType.Compile` (D compilation is a full compilation step)
+
+**Cache Hit Behavior:**
+- If ALL D sources unchanged AND compiler flags unchanged AND output exists → Skip compilation
+- DUB mode: Tracks dub.json/dub.sdl and all .d files in source directories
+- Otherwise → Compile and update cache
+
+**Benefits:**
+- Avoids redundant DMD/LDC/GDC invocations (DMD is fast but LDC can be slow)
+- Respects compiler configuration changes (defines, versions, import paths)
+- Supports both direct compilation and DUB build modes
+- Particularly effective for projects with many D files
+
+### 8. Protobuf Handler (Per-File Code Generation)
+
+**Files Modified:**
+- `source/languages/compiled/protobuf/core/handler.d`
+- `source/languages/compiled/protobuf/tooling/protoc.d`
+
+**Strategy:**
+- **Per-file protoc compilation**: Each .proto file compiled independently
+- **Language-specific output tracking**: Predicts generated files per target language
+- **Plugin-aware**: Tracks protoc plugins and options in metadata
+
+**Key Features:**
+```d
+// Per-file codegen action
+ActionId actionId;
+actionId.targetId = targetId;
+actionId.type = ActionType.Codegen;
+actionId.subId = baseName(protoFile);
+actionId.inputHash = FastHash.hashFile(protoFile);
+
+metadata["outputLanguage"] = config.outputLanguage.to!string;
+metadata["plugins"] = config.plugins.join(",");
+metadata["protocVersion"] = getVersion();
+```
+
+**Action Type:**
+- Uses `ActionType.Codegen` (protobuf is code generation, not compilation)
+
+**Cache Hit Behavior:**
+- If proto file unchanged AND protoc config unchanged AND generated files exist → Skip codegen
+- Per-language output prediction (e.g., `.pb.cc`/`.pb.h` for C++, `_pb2.py` for Python)
+- Otherwise → Run protoc and update cache
+
+**Benefits:**
+- Per-file caching means changing one .proto doesn't regenerate all protos
+- Supports 14 target languages (C++, Python, Go, Java, etc.)
+- Tracks import paths and plugin configurations
+- Particularly effective for large proto file collections (e.g., gRPC services)
+
+### 9. OCaml Handler (Compilation Caching)
+
+**Files Modified:**
+- `source/languages/compiled/ocaml/core/handler.d`
+
+**Strategy:**
+- **Dune build caching**: Cache entire dune build as single action
+- **OCamlopt/OCamlc caching**: Cache native and bytecode compilation
+- **Profile-aware**: Separate caching for dev vs release profiles
+
+**Key Features:**
+```d
+// Dune build caching
+ActionId actionId;
+actionId.targetId = target.name;
+actionId.type = ActionType.Compile;
+actionId.subId = "dune_build";
+actionId.inputHash = FastHash.hashStrings(allSources);
+
+metadata["profile"] = ocamlConfig.duneProfile == DuneProfile.Dev ? "dev" : "release";
+metadata["duneVersion"] = getDuneVersion();
+
+// OCamlopt caching
+metadata["compiler"] = "ocamlopt";
+metadata["optimize"] = ocamlConfig.optimize.to!string;
+metadata["includeDirs"] = ocamlConfig.includeDirs.join(",");
+```
+
+**Action Type:**
+- Uses `ActionType.Compile` (OCaml compilation)
+
+**Cache Hit Behavior:**
+- Dune mode: If dune files and sources unchanged AND profile unchanged → Skip build
+- OCamlopt/OCamlc: If sources unchanged AND compiler flags unchanged → Skip compilation
+- Otherwise → Compile and update cache
+
+**Benefits:**
+- Avoids slow OCaml compilation (especially with optimization)
+- Respects dune configuration changes
+- Supports both native (ocamlopt) and bytecode (ocamlc) compilation
+- Handles include directories and library dependencies
+
 ## Future Enhancements
 
 ### Potential Improvements
 
 1. **Distributed caching**: Share action caches across machines
 2. **Remote execution**: Execute actions on remote build servers
-3. **More languages**: Add action caching to Java, Python, Go handlers
+3. **More languages**: Add action caching to remaining handlers (Java, Python, Go, Swift, Kotlin, etc.)
 4. **Cache analytics**: Track hit rates and optimize cache strategy
 5. **Dependency tracking**: More sophisticated input detection
+6. **Per-file compilation for D**: Add separate compilation support in DirectCompilerBuilder
+7. **Content-addressable storage**: Deduplicate identical outputs across targets
 
 ### Additional Language Handlers
 
 The pattern established here can be applied to:
-- **Java**: Per-class compilation + jar packaging
+- **Java**: Per-class compilation + jar packaging (similar to Kotlin pattern)
 - **Go**: Per-package compilation + linking
-- **Python**: Bytecode caching + wheel building
-- **C#**: Per-project compilation + assembly linking
+- **Python**: Bytecode caching + wheel building (similar to Ruby pattern)
+- **C#**: Per-project compilation + assembly linking (similar to Kotlin pattern)
 - **Swift**: Per-module compilation + linking
-- **Kotlin**: Per-file compilation + jar packaging
+- **Scala**: Per-file compilation + jar packaging (already has partial support)
 
 ## Conclusion
 
-Action-level caching has been successfully implemented in six diverse language handlers (C++, Rust, TypeScript, CSS, JavaScript, Elm), demonstrating the flexibility and power of the ActionCache system. Each implementation is tailored to the specific build model of its language while following consistent patterns for cache validation and updates.
+Action-level caching has been successfully implemented in nine diverse language handlers (C++, Rust, TypeScript, CSS, JavaScript, Elm, D, Protobuf, OCaml), demonstrating the flexibility and power of the ActionCache system. Each implementation is tailored to the specific build model of its language while following consistent patterns for cache validation and updates.
 
 The implementations are:
 - ✅ **Correct**: Properly track inputs, outputs, and metadata
@@ -475,7 +601,7 @@ The implementations are:
 - ✅ **Safe**: HMAC signing prevents tampering
 - ✅ **Compatible**: No breaking changes to existing code or tests
 - ✅ **Maintainable**: Clear patterns that can be replicated
-- ✅ **Comprehensive**: Covers compiled, interpreted, and web languages
+- ✅ **Comprehensive**: Covers compiled, interpreted, web, and codegen languages
 
 ### Key Metrics by Handler
 

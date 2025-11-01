@@ -6,8 +6,11 @@ import std.path;
 import std.array;
 import std.algorithm;
 import std.file;
+import std.conv;
 import languages.compiled.protobuf.core.config;
 import utils.logging.logger;
+import utils.files.hash;
+import core.caching.action : ActionCache, ActionId, ActionType;
 
 /// Result of protoc compilation
 struct ProtocResult
@@ -51,20 +54,136 @@ class ProtocWrapper
         }
     }
     
-    /// Compile proto files
+    /// Compile proto files with per-file action-level caching
     static ProtocResult compile(
         const string[] protoFiles,
         const ProtobufConfig config,
-        const string workspaceRoot
+        const string workspaceRoot,
+        ActionCache actionCache = null,
+        string targetId = "protobuf"
     )
     {
         ProtocResult result;
+        result.success = true;
         
         if (!isAvailable())
         {
             result.error = "protoc compiler not found. Install from: https://protobuf.dev/downloads/";
+            result.success = false;
             return result;
         }
+        
+        string outputDir = config.outputDir.empty ? "." : config.outputDir;
+        
+        // Create output directory if it doesn't exist
+        if (!outputDir.empty && !exists(outputDir))
+        {
+            mkdirRecurse(outputDir);
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["outputLanguage"] = config.outputLanguage.to!string;
+        metadata["outputDir"] = outputDir;
+        metadata["importPaths"] = config.importPaths.join(",");
+        metadata["plugins"] = config.plugins.join(",");
+        metadata["generateDescriptor"] = config.generateDescriptor.to!string;
+        metadata["protocVersion"] = getVersion();
+        
+        // Compile each proto file individually (enables fine-grained caching)
+        foreach (protoFile; protoFiles)
+        {
+            // Predict generated output files for this proto file
+            string[] expectedOutputs = predictOutputFiles(protoFile, outputDir, config.outputLanguage);
+            
+            // Check action cache if available
+            if (actionCache !is null)
+            {
+                ActionId actionId;
+                actionId.targetId = targetId;
+                actionId.type = ActionType.Codegen;
+                actionId.subId = baseName(protoFile);
+                actionId.inputHash = FastHash.hashFile(protoFile);
+                
+                // Check if compilation is cached and outputs exist
+                bool allOutputsExist = true;
+                foreach (output; expectedOutputs)
+                {
+                    if (!exists(output))
+                    {
+                        allOutputsExist = false;
+                        break;
+                    }
+                }
+                
+                if (actionCache.isCached(actionId, [protoFile], metadata) && allOutputsExist)
+                {
+                    Logger.debugLog("  [Cached] " ~ protoFile);
+                    result.outputs ~= expectedOutputs;
+                    continue;
+                }
+                
+                // Compile this proto file
+                auto fileResult = compileFile(protoFile, config, workspaceRoot, outputDir);
+                
+                if (!fileResult.success)
+                {
+                    result.error = fileResult.error;
+                    result.success = false;
+                    
+                    // Update cache with failure
+                    actionCache.update(
+                        actionId,
+                        [protoFile],
+                        [],
+                        metadata,
+                        false
+                    );
+                    
+                    return result;
+                }
+                
+                result.outputs ~= fileResult.outputs;
+                result.warnings ~= fileResult.warnings;
+                
+                // Update cache with success
+                actionCache.update(
+                    actionId,
+                    [protoFile],
+                    fileResult.outputs,
+                    metadata,
+                    true
+                );
+            }
+            else
+            {
+                // No caching, compile directly
+                auto fileResult = compileFile(protoFile, config, workspaceRoot, outputDir);
+                
+                if (!fileResult.success)
+                {
+                    result.error = fileResult.error;
+                    result.success = false;
+                    return result;
+                }
+                
+                result.outputs ~= fileResult.outputs;
+                result.warnings ~= fileResult.warnings;
+            }
+        }
+        
+        return result;
+    }
+    
+    /// Compile a single proto file
+    private static ProtocResult compileFile(
+        string protoFile,
+        const ProtobufConfig config,
+        const string workspaceRoot,
+        string outputDir
+    )
+    {
+        ProtocResult result;
         
         // Build protoc command
         string[] cmd = ["protoc"];
@@ -83,7 +202,6 @@ class ProtocWrapper
         
         // Add output directory and language
         string outputFlag = getOutputFlag(config.outputLanguage);
-        string outputDir = config.outputDir.empty ? "." : config.outputDir;
         cmd ~= outputFlag ~ "=" ~ outputDir;
         
         // Add plugins
@@ -109,27 +227,21 @@ class ProtocWrapper
             cmd ~= "--include_source_info";
         }
         
-        // Add proto files
-        cmd ~= protoFiles.dup;
+        // Add single proto file
+        cmd ~= protoFile;
         
-        Logger.debugLog("Running: " ~ cmd.join(" "));
+        Logger.debugLog("Compiling: " ~ protoFile);
         
         try
         {
-            // Create output directory if it doesn't exist
-            if (!outputDir.empty && !exists(outputDir))
-            {
-                mkdirRecurse(outputDir);
-            }
-            
             auto execResult = execute(cmd);
             
             if (execResult.status == 0)
             {
                 result.success = true;
                 
-                // Collect generated files
-                result.outputs = collectGeneratedFiles(outputDir, config.outputLanguage);
+                // Predict generated files for this proto file
+                result.outputs = predictOutputFiles(protoFile, outputDir, config.outputLanguage);
                 
                 // Parse warnings from output
                 if (!execResult.output.empty)
@@ -152,6 +264,68 @@ class ProtocWrapper
         }
         
         return result;
+    }
+    
+    /// Predict output files for a proto file
+    private static string[] predictOutputFiles(
+        string protoFile,
+        string outputDir,
+        ProtobufOutputLanguage lang
+    )
+    {
+        string[] files;
+        string baseName = stripExtension(baseName(protoFile));
+        
+        final switch (lang)
+        {
+            case ProtobufOutputLanguage.Cpp:
+                files ~= buildPath(outputDir, baseName ~ ".pb.cc");
+                files ~= buildPath(outputDir, baseName ~ ".pb.h");
+                break;
+            case ProtobufOutputLanguage.Python:
+                files ~= buildPath(outputDir, baseName ~ "_pb2.py");
+                break;
+            case ProtobufOutputLanguage.Java:
+                // Java generates based on package, harder to predict
+                files ~= outputDir;
+                break;
+            case ProtobufOutputLanguage.Go:
+                files ~= buildPath(outputDir, baseName ~ ".pb.go");
+                break;
+            case ProtobufOutputLanguage.CSharp:
+                files ~= buildPath(outputDir, baseName ~ ".cs");
+                break;
+            case ProtobufOutputLanguage.Ruby:
+                files ~= buildPath(outputDir, baseName ~ "_pb.rb");
+                break;
+            case ProtobufOutputLanguage.JavaScript:
+                files ~= buildPath(outputDir, baseName ~ ".js");
+                break;
+            case ProtobufOutputLanguage.TypeScript:
+                files ~= buildPath(outputDir, baseName ~ ".ts");
+                break;
+            case ProtobufOutputLanguage.Rust:
+                files ~= buildPath(outputDir, baseName ~ ".rs");
+                break;
+            case ProtobufOutputLanguage.Kotlin:
+                files ~= buildPath(outputDir, baseName ~ ".kt");
+                break;
+            case ProtobufOutputLanguage.ObjectiveC:
+                files ~= buildPath(outputDir, baseName ~ ".pbobjc.h");
+                files ~= buildPath(outputDir, baseName ~ ".pbobjc.m");
+                break;
+            case ProtobufOutputLanguage.PHP:
+                files ~= buildPath(outputDir, baseName ~ ".php");
+                break;
+            case ProtobufOutputLanguage.Dart:
+                files ~= buildPath(outputDir, baseName ~ ".pb.dart");
+                break;
+            case ProtobufOutputLanguage.Swift:
+                files ~= buildPath(outputDir, baseName ~ ".pb.swift");
+                break;
+        }
+        
+        return files;
     }
     
     /// Get output flag for language

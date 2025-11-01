@@ -15,15 +15,27 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// DUB builder implementation
+/// DUB builder implementation with action-level caching
 class DubBuilder : DBuilder
 {
     private DConfig config;
+    private ActionCache actionCache;
     
-    this(DConfig config)
+    this(DConfig config, ActionCache cache = null)
     {
         this.config = config;
+        
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/d", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
     }
     
     DCompileResult build(
@@ -40,6 +52,82 @@ class DubBuilder : DBuilder
         if (projectDir.empty || projectDir == ".")
         {
             projectDir = getcwd();
+        }
+        
+        // Collect all D source files in project for input tracking
+        string[] allSources;
+        if (config.dub.single && !sources.empty)
+        {
+            allSources = sources.dup;
+        }
+        else if (!config.dub.packagePath.empty && exists(config.dub.packagePath))
+        {
+            // Add dub.json/dub.sdl as key input
+            allSources ~= config.dub.packagePath;
+            
+            // Try to find all .d files in source directories
+            string srcDir = buildPath(projectDir, "source");
+            if (exists(srcDir) && isDir(srcDir))
+            {
+                foreach (entry; dirEntries(srcDir, "*.d", SpanMode.depth))
+                {
+                    if (isFile(entry.name))
+                        allSources ~= entry.name;
+                }
+            }
+        }
+        else
+        {
+            allSources = sources.dup;
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["command"] = config.dub.command;
+        string compilerStr = config.dub.compiler.empty ? 
+            getCompilerCommand(config.compiler, config.customCompiler) : 
+            config.dub.compiler;
+        metadata["compiler"] = compilerStr;
+        metadata["buildType"] = buildConfigToDubBuild(config.buildConfig);
+        
+        if (!config.dub.configuration.empty)
+            metadata["configuration"] = config.dub.configuration;
+        if (!config.dub.arch.empty)
+            metadata["arch"] = config.dub.arch;
+        if (!config.dub.package_.empty)
+            metadata["package"] = config.dub.package_;
+        
+        // Create action ID for this dub build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "dub_build";
+        actionId.inputHash = FastHash.hashStrings(allSources);
+        
+        // Determine output files
+        string[] expectedOutputs = determineOutputs(config, target, workspace, projectDir);
+        
+        // Check if this build is cached
+        bool allOutputsExist = true;
+        foreach (output; expectedOutputs)
+        {
+            if (!exists(output))
+            {
+                allOutputsExist = false;
+                break;
+            }
+        }
+        
+        if (actionCache.isCached(actionId, allSources, metadata) && allOutputsExist)
+        {
+            Logger.debugLog("  [Cached] DUB build: " ~ target.name);
+            result.success = true;
+            result.outputs = expectedOutputs;
+            if (!expectedOutputs.empty && exists(expectedOutputs[0]))
+            {
+                result.outputHash = FastHash.hashFile(expectedOutputs[0]);
+            }
+            return result;
         }
         
         // Build command
@@ -145,12 +233,23 @@ class DubBuilder : DBuilder
         // Execute
         auto res = execute(cmd, env, std.process.Config.none, size_t.max, projectDir);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "DUB build failed:\n" ~ res.output;
             
             // Try to extract warnings even on failure
             extractWarnings(res.output, result);
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                allSources,
+                [],
+                metadata,
+                false
+            );
             
             return result;
         }
@@ -159,7 +258,7 @@ class DubBuilder : DBuilder
         extractWarnings(res.output, result);
         
         // Determine output files
-        result.outputs = determineOutputs(config, target, workspace, projectDir);
+        result.outputs = expectedOutputs;
         
         // Generate hash
         if (!result.outputs.empty && exists(result.outputs[0]))
@@ -170,6 +269,15 @@ class DubBuilder : DBuilder
         {
             result.outputHash = FastHash.hashStrings(sources);
         }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            allSources,
+            result.outputs,
+            metadata,
+            true
+        );
         
         // Handle coverage if test mode
         if (config.mode == DBuildMode.Test && config.test.coverage)

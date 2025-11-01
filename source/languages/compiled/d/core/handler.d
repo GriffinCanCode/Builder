@@ -20,10 +20,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Advanced D build handler with dub, compiler detection, and tooling support
+/// Advanced D build handler with dub, compiler detection, and tooling support with action-level caching
 class DHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/d", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -225,8 +247,8 @@ class DHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // Create builder
-        auto builder = DBuilderFactory.create(dConfig);
+        // Create builder with action cache
+        auto builder = DBuilderFactory.create(dConfig, actionCache);
         
         if (!builder.isAvailable())
         {

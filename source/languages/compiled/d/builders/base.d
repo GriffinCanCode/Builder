@@ -4,6 +4,7 @@ import languages.compiled.d.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import std.range : empty;
+import core.caching.action : ActionCache;
 
 /// Base interface for D builders
 interface DBuilder
@@ -29,8 +30,8 @@ interface DBuilder
 /// Factory for creating D builders
 class DBuilderFactory
 {
-    /// Create builder based on configuration
-    static DBuilder create(DConfig config)
+    /// Create builder based on configuration with action cache support
+    static DBuilder create(DConfig config, ActionCache actionCache = null)
     {
         import languages.compiled.d.builders.dub;
         import languages.compiled.d.builders.direct;
@@ -49,11 +50,11 @@ class DBuilderFactory
         
         if (useDub)
         {
-            return new DubBuilder(config);
+            return new DubBuilder(config, actionCache);
         }
         
         // Use direct compiler invocation
-        return new DirectCompilerBuilder(config);
+        return new DirectCompilerBuilder(config, actionCache);
     }
 }
 

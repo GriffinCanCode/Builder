@@ -14,17 +14,29 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Direct compiler invocation builder (dmd/ldc/gdc)
+/// Direct compiler invocation builder (dmd/ldc/gdc) with action-level caching
 class DirectCompilerBuilder : DBuilder
 {
     private DConfig config;
     private string compilerCmd;
+    private ActionCache actionCache;
     
-    this(DConfig config)
+    this(DConfig config, ActionCache cache = null)
     {
         this.config = config;
         this.compilerCmd = getCompilerCommand(config.compiler, config.customCompiler);
+        
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/d", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
     }
     
     DCompileResult build(
@@ -46,6 +58,40 @@ class DirectCompilerBuilder : DBuilder
             mkdirRecurse(outputDir);
         }
         
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = compilerCmd;
+        metadata["outputType"] = config.outputType.to!string;
+        metadata["buildConfig"] = config.buildConfig.to!string;
+        metadata["release"] = config.compilerConfig.release.to!string;
+        metadata["optimize"] = config.compilerConfig.optimizationFlags.join(",");
+        metadata["debugSymbols"] = config.compilerConfig.debugSymbols.to!string;
+        
+        // Add additional metadata for precise cache invalidation
+        if (!config.compilerConfig.defines.empty)
+            metadata["defines"] = config.compilerConfig.defines.join(",");
+        if (!config.compilerConfig.versions.empty)
+            metadata["versions"] = config.compilerConfig.versions.join(",");
+        if (!config.compilerConfig.importPaths.empty)
+            metadata["importPaths"] = config.compilerConfig.importPaths.join(",");
+        
+        // Create action ID for this compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "full_compile";
+        actionId.inputHash = FastHash.hashStrings(sources.dup);
+        
+        // Check if this compilation is cached
+        if (actionCache.isCached(actionId, sources, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] D compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
+        
         // Build command based on compiler
         string[] cmd = buildCompilerCommand(sources, outputPath, config);
         
@@ -61,12 +107,23 @@ class DirectCompilerBuilder : DBuilder
         // Execute compilation
         auto res = execute(cmd, env);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Compilation failed:\n" ~ res.output;
             
             // Try to extract warnings even on failure
             extractWarnings(res.output, result);
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                sources,
+                [],
+                metadata,
+                false
+            );
             
             return result;
         }
@@ -78,11 +135,30 @@ class DirectCompilerBuilder : DBuilder
         if (!exists(outputPath))
         {
             result.error = "Expected output file not found: " ~ outputPath;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                sources,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
         result.outputs = [outputPath];
         result.outputHash = FastHash.hashFile(outputPath);
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            sources,
+            [outputPath],
+            metadata,
+            true
+        );
         
         // Generate documentation if requested
         if (config.compilerConfig.doc)

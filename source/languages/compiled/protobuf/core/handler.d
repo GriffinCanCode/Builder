@@ -15,10 +15,32 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Protocol Buffer build handler
+/// Protocol Buffer build handler with action-level caching
 class ProtobufHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/protobuf", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -155,8 +177,14 @@ class ProtobufHandler : BaseLanguageHandler
         
         Logger.debugLog("Using protoc: " ~ ProtocWrapper.getVersion());
         
-        // Compile
-        auto compileResult = ProtocWrapper.compile(protoFiles, pbConfig, config.root);
+        // Compile with action-level caching
+        auto compileResult = ProtocWrapper.compile(
+            protoFiles, 
+            pbConfig, 
+            config.root,
+            actionCache,
+            "protobuf"
+        );
         
         if (!compileResult.success)
         {

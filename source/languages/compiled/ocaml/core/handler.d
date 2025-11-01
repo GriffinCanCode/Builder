@@ -15,10 +15,32 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// OCaml build handler with support for dune, ocamlopt, and ocamlc
+/// OCaml build handler with support for dune, ocamlopt, and ocamlc with action-level caching
 class OCamlHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/ocaml", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -166,6 +188,43 @@ class OCamlHandler : BaseLanguageHandler
         
         Logger.debugLog("Building with dune");
         
+        // Collect all ML sources for cache tracking
+        string[] allSources;
+        if (exists("dune") || exists("dune-project"))
+        {
+            allSources ~= exists("dune") ? "dune" : "dune-project";
+        }
+        foreach (source; target.sources)
+        {
+            if (exists(source))
+                allSources ~= source;
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["profile"] = ocamlConfig.duneProfile == DuneProfile.Dev ? "dev" : "release";
+        metadata["targets"] = ocamlConfig.duneTargets.join(",");
+        metadata["duneVersion"] = getDuneVersion();
+        
+        // Create action ID for this dune build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "dune_build";
+        actionId.inputHash = FastHash.hashStrings(allSources);
+        
+        // Determine expected output
+        string expectedOutput = buildPath(ocamlConfig.outputDir, "default");
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, allSources, metadata) && exists(expectedOutput))
+        {
+            Logger.debugLog("  [Cached] dune build: " ~ target.name);
+            result.success = true;
+            result.outputs = [expectedOutput];
+            return result;
+        }
+        
         // Build command
         string[] cmd = ["dune", "build"];
         
@@ -189,9 +248,21 @@ class OCamlHandler : BaseLanguageHandler
         {
             auto duneResult = execute(cmd);
             
-            if (duneResult.status != 0)
+            bool success = (duneResult.status == 0);
+            
+            if (!success)
             {
                 result.error = "dune build failed:\n" ~ duneResult.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    allSources,
+                    [],
+                    metadata,
+                    false
+                );
+                
                 return result;
             }
             
@@ -204,13 +275,32 @@ class OCamlHandler : BaseLanguageHandler
             result.success = true;
             
             // Dune outputs to _build directory by default
-            result.outputs = [buildPath(ocamlConfig.outputDir, "default")];
+            result.outputs = [expectedOutput];
+            
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                allSources,
+                result.outputs,
+                metadata,
+                true
+            );
             
             return result;
         }
         catch (Exception e)
         {
             result.error = "Failed to execute dune: " ~ e.msg;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                allSources,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
     }
@@ -231,6 +321,47 @@ class OCamlHandler : BaseLanguageHandler
         }
         
         Logger.debugLog("Building with ocamlopt (native compiler)");
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = "ocamlopt";
+        metadata["optimize"] = ocamlConfig.optimize.to!string;
+        metadata["debugInfo"] = ocamlConfig.debugInfo.to!string;
+        metadata["includeDirs"] = ocamlConfig.includeDirs.join(",");
+        metadata["libs"] = ocamlConfig.libs.join(",");
+        metadata["compilerFlags"] = ocamlConfig.compilerFlags.join(" ");
+        
+        // Determine output file
+        string outputDir = ocamlConfig.outputDir.empty ? 
+                          config.options.outputDir : 
+                          ocamlConfig.outputDir;
+        
+        if (!exists(outputDir))
+        {
+            mkdirRecurse(outputDir);
+        }
+        
+        string outputName = ocamlConfig.outputName.empty ? 
+                           target.name.split(":")[$ - 1] : 
+                           ocamlConfig.outputName;
+        
+        string outputPath = buildPath(outputDir, outputName);
+        
+        // Create action ID for this compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "ocamlopt";
+        actionId.inputHash = FastHash.hashStrings(mlFiles.dup);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, mlFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] ocamlopt compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            return result;
+        }
         
         // Determine entry point
         string entryFile = ocamlConfig.entry;
@@ -297,22 +428,6 @@ class OCamlHandler : BaseLanguageHandler
         // Add compiler flags
         cmd ~= ocamlConfig.compilerFlags;
         
-        // Add output
-        string outputDir = ocamlConfig.outputDir.empty ? 
-                          config.options.outputDir : 
-                          ocamlConfig.outputDir;
-        
-        if (!exists(outputDir))
-        {
-            mkdirRecurse(outputDir);
-        }
-        
-        string outputName = ocamlConfig.outputName.empty ? 
-                           target.name.split(":")[$ - 1] : 
-                           ocamlConfig.outputName;
-        
-        string outputPath = buildPath(outputDir, outputName);
-        
         cmd ~= ["-o", outputPath];
         
         // Add source files in dependency order (utils before main)
@@ -333,9 +448,21 @@ class OCamlHandler : BaseLanguageHandler
         {
             auto compileResult = execute(cmd);
             
-            if (compileResult.status != 0)
+            bool success = (compileResult.status == 0);
+            
+            if (!success)
             {
                 result.error = "ocamlopt compilation failed:\n" ~ compileResult.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    mlFiles.dup,
+                    [],
+                    metadata,
+                    false
+                );
+                
                 return result;
             }
             
@@ -348,11 +475,30 @@ class OCamlHandler : BaseLanguageHandler
             result.success = true;
             result.outputs = [outputPath];
             
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                mlFiles.dup,
+                [outputPath],
+                metadata,
+                true
+            );
+            
             return result;
         }
         catch (Exception e)
         {
             result.error = "Failed to execute ocamlopt: " ~ e.msg;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                mlFiles.dup,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
     }
@@ -373,6 +519,50 @@ class OCamlHandler : BaseLanguageHandler
         }
         
         Logger.debugLog("Building with ocamlc (bytecode compiler)");
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = "ocamlc";
+        metadata["debugInfo"] = ocamlConfig.debugInfo.to!string;
+        metadata["includeDirs"] = ocamlConfig.includeDirs.join(",");
+        metadata["libs"] = ocamlConfig.libs.join(",");
+        metadata["compilerFlags"] = ocamlConfig.compilerFlags.join(" ");
+        
+        // Determine output file
+        string outputDir = ocamlConfig.outputDir.empty ? 
+                          config.options.outputDir : 
+                          ocamlConfig.outputDir;
+        
+        if (!exists(outputDir))
+        {
+            mkdirRecurse(outputDir);
+        }
+        
+        string outputName = ocamlConfig.outputName.empty ? 
+                           target.name.split(":")[$ - 1] : 
+                           ocamlConfig.outputName;
+        
+        // Bytecode executables typically have .byte extension
+        if (!outputName.endsWith(".byte"))
+            outputName ~= ".byte";
+        
+        string outputPath = buildPath(outputDir, outputName);
+        
+        // Create action ID for this compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "ocamlc";
+        actionId.inputHash = FastHash.hashStrings(mlFiles.dup);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, mlFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] ocamlc compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            return result;
+        }
         
         // Determine entry point
         string entryFile = ocamlConfig.entry;
@@ -433,26 +623,6 @@ class OCamlHandler : BaseLanguageHandler
         // Add compiler flags
         cmd ~= ocamlConfig.compilerFlags;
         
-        // Add output
-        string outputDir = ocamlConfig.outputDir.empty ? 
-                          config.options.outputDir : 
-                          ocamlConfig.outputDir;
-        
-        if (!exists(outputDir))
-        {
-            mkdirRecurse(outputDir);
-        }
-        
-        string outputName = ocamlConfig.outputName.empty ? 
-                           target.name.split(":")[$ - 1] : 
-                           ocamlConfig.outputName;
-        
-        // Bytecode executables typically have .byte extension
-        if (!outputName.endsWith(".byte"))
-            outputName ~= ".byte";
-        
-        string outputPath = buildPath(outputDir, outputName);
-        
         cmd ~= ["-o", outputPath];
         
         // Add source files in dependency order (utils before main)
@@ -473,9 +643,21 @@ class OCamlHandler : BaseLanguageHandler
         {
             auto compileResult = execute(cmd);
             
-            if (compileResult.status != 0)
+            bool success = (compileResult.status == 0);
+            
+            if (!success)
             {
                 result.error = "ocamlc compilation failed:\n" ~ compileResult.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    mlFiles.dup,
+                    [],
+                    metadata,
+                    false
+                );
+                
                 return result;
             }
             
@@ -488,11 +670,30 @@ class OCamlHandler : BaseLanguageHandler
             result.success = true;
             result.outputs = [outputPath];
             
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                mlFiles.dup,
+                [outputPath],
+                metadata,
+                true
+            );
+            
             return result;
         }
         catch (Exception e)
         {
             result.error = "Failed to execute ocamlc: " ~ e.msg;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                mlFiles.dup,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
     }
@@ -686,6 +887,21 @@ class OCamlHandler : BaseLanguageHandler
         catch (Exception)
         {
             return false;
+        }
+    }
+    
+    private string getDuneVersion()
+    {
+        try
+        {
+            auto result = execute(["dune", "--version"]);
+            if (result.status == 0)
+                return result.output.strip;
+            return "unknown";
+        }
+        catch (Exception)
+        {
+            return "unknown";
         }
     }
     
