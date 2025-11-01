@@ -108,13 +108,13 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
     static if (ContextType.length == 0)
     {
         // No additional context needed
-        mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+        protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
         {
             LanguageBuildResult result;
             
-            Logger.debugLog(\"Building \" ~ target.language.to!string ~ \" target: \" ~ target.name);
+            Logger.debugLog("Building " ~ target.language.to!string ~ " target: " ~ target.name);
             
-            auto langConfig = " ~ configParserName ~ "(target);
+            auto langConfig = mixin(configParserName ~ "(target)");
             enhanceConfigFromProject(langConfig, target, config);
             
             final switch (target.type)
@@ -136,11 +136,8 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
             return result;
         }
         
-        // Subclasses must implement these
-        private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-        private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-        private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-        private LanguageBuildResult buildCustom(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ")
+        // Default implementations that can be overridden
+        private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, TConfig langConfig)
         {
             LanguageBuildResult result;
             result.success = true;
@@ -148,19 +145,18 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
             return result;
         }
         
-        // Optional hook for config enhancement
-        private void enhanceConfigFromProject(ref " ~ TConfig.stringof ~ " config, in Target target, in WorkspaceConfig wsConfig) {}");
+        private void enhanceConfigFromProject(ref TConfig config, in Target target, in WorkspaceConfig wsConfig) {}
     }
     else
     {
         // With additional context (e.g., command string)
-        mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+        protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
         {
             LanguageBuildResult result;
             
-            Logger.debugLog(\"Building \" ~ target.language.to!string ~ \" target: \" ~ target.name);
+            Logger.debugLog("Building " ~ target.language.to!string ~ " target: " ~ target.name);
             
-            auto langConfig = " ~ configParserName ~ "(target);
+            auto langConfig = mixin(configParserName ~ "(target)");
             enhanceConfigFromProject(langConfig, target, config);
             
             auto context = setupBuildContext(langConfig, config);
@@ -184,12 +180,8 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
             return result;
         }
         
-        // Subclasses must implement these
-        private " ~ ContextType[0].stringof ~ " setupBuildContext(" ~ TConfig.stringof ~ ", in WorkspaceConfig);
-        private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
-        private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
-        private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
-        private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, " ~ TConfig.stringof ~ " langConfig, " ~ ContextType[0].stringof ~ " context)
+        // Default implementations that can be overridden
+        private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, TConfig langConfig, ContextType[0] context)
         {
             LanguageBuildResult result;
             result.success = true;
@@ -197,8 +189,7 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
             return result;
         }
         
-        // Optional hook for config enhancement
-        private void enhanceConfigFromProject(ref " ~ TConfig.stringof ~ " config, in Target target, in WorkspaceConfig wsConfig) {}");
+        private void enhanceConfigFromProject(ref TConfig config, in Target target, in WorkspaceConfig wsConfig) {}
     }
 }
 
@@ -207,13 +198,13 @@ mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
 {
     import std.conv : to;
     
-    mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
         
-        Logger.debugLog(\"Building \" ~ target.language.to!string ~ \" target: \" ~ target.name);
+        Logger.debugLog("Building " ~ target.language.to!string ~ " target: " ~ target.name);
         
-        auto langConfig = " ~ configParserName ~ "(target);
+        auto langConfig = mixin(configParserName ~ "(target)");
         enhanceConfigFromProject(langConfig, target, config);
         
         final switch (target.type)
@@ -235,10 +226,8 @@ mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
         return result;
     }
     
-    private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-    private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-    private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, " ~ TConfig.stringof ~ " langConfig)
+    // Default implementations that can be overridden
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, TConfig langConfig)
     {
         LanguageBuildResult result;
         result.success = true;
@@ -246,6 +235,6 @@ mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
         return result;
     }
     
-    private void enhanceConfigFromProject(ref " ~ TConfig.stringof ~ " config, in Target target, in WorkspaceConfig wsConfig) {}");
+    private void enhanceConfigFromProject(ref TConfig config, in Target target, in WorkspaceConfig wsConfig) {}
 }
 

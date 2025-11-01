@@ -26,6 +26,8 @@ enum ActionType : ubyte
     Test,         // Test execution
     Package,      // Packaging/bundling
     Transform,    // Asset transformation
+    Lint,         // Linting/static analysis
+    TypeCheck,    // Type checking
     Custom        // Custom user-defined action
 }
 
@@ -427,7 +429,7 @@ final class ActionCache
                     stats.failedActions++;
             }
             
-            stats.totalSize = (cast(EvictionPolicy)eviction).calculateTotalSize(cast(ActionEntry[string])entries);
+            stats.totalSize = eviction.calculateTotalSize(entries);
             
             return stats;
         }
