@@ -117,10 +117,14 @@ class DependencyResolver
                 target = resolveCppImport(importName);  // Use C++ resolution for compiled languages
                 break;
             case TargetLanguage.Ruby:
+            case TargetLanguage.Perl:
             case TargetLanguage.PHP:
             case TargetLanguage.Elixir:
             case TargetLanguage.Lua:
             case TargetLanguage.R:
+            case TargetLanguage.OCaml:
+            case TargetLanguage.Haskell:
+            case TargetLanguage.Elm:
                 target = "";  // TODO: Implement scripting language resolution
                 break;
             case TargetLanguage.CSS:

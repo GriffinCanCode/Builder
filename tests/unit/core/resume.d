@@ -17,21 +17,25 @@ BuildGraph createTestGraph()
     auto target1 = Target();
     target1.name = "target1";
     target1.type = TargetType.Executable;
+    target1.language = TargetLanguage.D;
     target1.sources = ["test1.d"];
     
     auto target2 = Target();
     target2.name = "target2";
     target2.type = TargetType.Library;
+    target2.language = TargetLanguage.D;
     target2.sources = ["test2.d"];
     
     auto target3 = Target();
     target3.name = "target3";
     target3.type = TargetType.Executable;
+    target3.language = TargetLanguage.D;
     target3.sources = ["test3.d"];
     
     auto target4 = Target();
     target4.name = "target4";
     target4.type = TargetType.Executable;
+    target4.language = TargetLanguage.D;
     target4.sources = ["test4.d"];
     
     graph.addTarget(target1);
@@ -233,6 +237,7 @@ unittest
     auto target = Target();
     target.name = "different";
     target.type = TargetType.Executable;
+    target.language = TargetLanguage.D;
     target.sources = ["test.d"];
     graph2.addTarget(target);
     
