@@ -96,6 +96,8 @@ class TemplateGenerator
                 return generateCTarget(langInfo);
             case TargetLanguage.Ruby:
                 return generateRubyTarget(langInfo);
+            case TargetLanguage.Perl:
+                return generatePerlTarget(langInfo);
             case TargetLanguage.Elixir:
                 return generateElixirTarget(langInfo);
             case TargetLanguage.PHP:
@@ -122,6 +124,12 @@ class TemplateGenerator
                 return generateCSSTarget(langInfo);
             case TargetLanguage.Protobuf:
                 return generateProtobufTarget(langInfo);
+            case TargetLanguage.OCaml:
+                return generateOCamlTarget(langInfo);
+            case TargetLanguage.Haskell:
+                return generateHaskellTarget(langInfo);
+            case TargetLanguage.Elm:
+                return generateElmTarget(langInfo);
             case TargetLanguage.Generic:
                 return generateGenericTarget();
         }
@@ -218,6 +226,7 @@ class TemplateGenerator
             case TargetLanguage.Cpp: return "cpp";
             case TargetLanguage.C: return "c";
             case TargetLanguage.Ruby: return "ruby";
+            case TargetLanguage.Perl: return "perl";
             case TargetLanguage.Elixir: return "elixir";
             case TargetLanguage.PHP: return "php";
             case TargetLanguage.Swift: return "swift";
@@ -231,6 +240,9 @@ class TemplateGenerator
             case TargetLanguage.FSharp: return "fsharp";
             case TargetLanguage.CSS: return "css";
             case TargetLanguage.Protobuf: return "protobuf";
+            case TargetLanguage.OCaml: return "ocaml";
+            case TargetLanguage.Haskell: return "haskell";
+            case TargetLanguage.Elm: return "elm";
             case TargetLanguage.Generic: return "generic";
         }
     }
@@ -433,6 +445,21 @@ class TemplateGenerator
         return target;
     }
     
+    /// Perl target generation
+    private string generatePerlTarget(LanguageInfo info)
+    {
+        string sources = generateSourcesArray(info.sourceFiles, "*.pl");
+        string targetName = generateUniqueTargetName("perl", info);
+        
+        string target = format("target(\"%s\") {\n", targetName);
+        target ~= "    type: executable;\n";
+        target ~= "    language: perl;\n";
+        target ~= format("    sources: %s;\n", sources);
+        target ~= "}";
+        
+        return target;
+    }
+    
     /// Elixir target generation
     private string generateElixirTarget(LanguageInfo info)
     {
@@ -623,6 +650,61 @@ class TemplateGenerator
         target ~= "    type: library;\n";
         target ~= "    language: protobuf;\n";
         target ~= format("    sources: %s;\n", sources);
+        target ~= "}";
+        
+        return target;
+    }
+    
+    /// OCaml target generation
+    private string generateOCamlTarget(LanguageInfo info)
+    {
+        string sources = generateSourcesArray(info.sourceFiles, "*.ml");
+        string targetName = generateUniqueTargetName("ocaml", info);
+        string targetType = hasMainFile(info.sourceFiles) ? "executable" : "library";
+        
+        string target = format("target(\"%s\") {\n", targetName);
+        target ~= format("    type: %s;\n", targetType);
+        target ~= "    language: ocaml;\n";
+        target ~= format("    sources: %s;\n", sources);
+        target ~= "}";
+        
+        return target;
+    }
+    
+    /// Haskell target generation
+    private string generateHaskellTarget(LanguageInfo info)
+    {
+        string sources = generateSourcesArray(info.sourceFiles, "*.hs");
+        string targetName = generateUniqueTargetName("haskell", info);
+        string targetType = hasMainFile(info.sourceFiles) ? "executable" : "library";
+        
+        string target = format("target(\"%s\") {\n", targetName);
+        target ~= format("    type: %s;\n", targetType);
+        target ~= "    language: haskell;\n";
+        target ~= format("    sources: %s;\n", sources);
+        target ~= "}";
+        
+        return target;
+    }
+    
+    /// Generate Elm target
+    private string generateElmTarget(LanguageInfo info)
+    {
+        string sources = generateSourcesArray(info.sourceFiles, "*.elm");
+        string targetName = generateUniqueTargetName("elm", info);
+        string targetType = hasMainFile(info.sourceFiles) ? "executable" : "library";
+        
+        string target = format("target(\"%s\") {\n", targetName);
+        target ~= format("    type: %s;\n", targetType);
+        target ~= "    language: elm;\n";
+        target ~= format("    sources: %s;\n", sources);
+        
+        // Add Elm-specific configuration
+        target ~= "\n    elmConfig: {\n";
+        target ~= "        optimize: false;\n";
+        target ~= "        debug: true;\n";
+        target ~= "        outputTarget: \"javascript\";\n";
+        target ~= "    };\n";
         target ~= "}";
         
         return target;
@@ -852,6 +934,7 @@ class TemplateGenerator
                 case TargetLanguage.Cpp:
                 case TargetLanguage.C:
                 case TargetLanguage.Ruby:
+                case TargetLanguage.Perl:
                 case TargetLanguage.Elixir:
                 case TargetLanguage.PHP:
                 case TargetLanguage.Swift:
@@ -865,6 +948,9 @@ class TemplateGenerator
                 case TargetLanguage.R:
                 case TargetLanguage.CSS:
                 case TargetLanguage.Protobuf:
+                case TargetLanguage.OCaml:
+                case TargetLanguage.Haskell:
+                case TargetLanguage.Elm:
                 case TargetLanguage.Generic:
                     break;
             }

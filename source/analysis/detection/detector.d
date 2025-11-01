@@ -280,6 +280,13 @@ class ProjectDetector
             return true;
         }
         
+        // Elm project
+        if (name == "elm.json")
+        {
+            addOrUpdate(found, TargetLanguage.Elm, [], [path], 0.95);
+            return true;
+        }
+        
         return false;
     }
     

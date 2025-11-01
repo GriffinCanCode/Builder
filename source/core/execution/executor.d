@@ -16,6 +16,7 @@ import languages.base.base;
 import languages.scripting.python;
 import languages.web.javascript;
 import languages.web.typescript;
+import languages.web.elm;
 import languages.scripting.go;
 import languages.compiled.rust : RustHandler;
 import languages.compiled.d : DHandler;
@@ -158,6 +159,7 @@ final class BuildExecutor
         handlers[TargetLanguage.Haskell] = new HaskellHandler();
         handlers[TargetLanguage.OCaml] = new OCamlHandler();
         handlers[TargetLanguage.Protobuf] = new ProtobufHandler();
+        handlers[TargetLanguage.Elm] = new ElmHandler();
     }
     
     ~this()

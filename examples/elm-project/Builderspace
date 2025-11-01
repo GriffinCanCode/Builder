@@ -1,0 +1,10 @@
+// Builderspace for Elm project
+
+workspace("elm-project") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: false;
+    verbose: false;
+    incremental: true;
+}
+

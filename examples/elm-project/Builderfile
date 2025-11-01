@@ -1,0 +1,15 @@
+// Builderfile for Elm project
+// Demonstrates Elm language support
+
+target("elm-app") {
+    type: executable;
+    language: elm;
+    sources: ["src/Main.elm"];
+    
+    config: {
+        "optimize": false,
+        "debug": true,
+        "outputTarget": "html"
+    };
+}
+

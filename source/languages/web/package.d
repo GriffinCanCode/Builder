@@ -6,6 +6,7 @@ module languages.web;
 ///   - JavaScript (Node.js, browser bundling, npm/yarn/pnpm/bun)
 ///   - TypeScript (type-first, multiple compilers, declaration generation)
 ///   - CSS (pure CSS, SCSS, PostCSS, Tailwind, minification)
+///   - Elm (functional programming, compiles to JavaScript)
 ///
 /// All web languages share common infrastructure for:
 ///   - Package managers (npm, yarn, pnpm, bun)
@@ -16,5 +17,6 @@ module languages.web;
 public import languages.web.javascript;
 public import languages.web.typescript;
 public import languages.web.css;
+public import languages.web.elm;
 public import languages.web.shared_;
 

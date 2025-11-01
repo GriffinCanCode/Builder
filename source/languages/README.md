@@ -19,6 +19,7 @@ The languages package provides language-specific build handlers and dependency a
   - **csharp.d** - C# with .NET
   - **fsharp/** - F# with functional programming, FAKE, Paket, Fantomas, Fable
 - **ruby.d** - Ruby with Bundler
+- **perl/** - Perl with CPAN/cpanm (modular - scripts, modules, CPAN distributions, testing)
 - **php/** - PHP with Composer (modular - analysis, formatting, packaging)
 - **swift.d** - Swift with SPM
 - **kotlin.d** - Kotlin with Gradle
@@ -27,6 +28,7 @@ The languages package provides language-specific build handlers and dependency a
 - **lua.d** - Lua language support
 - **nim.d** - Nim language support
 - **zig.d** - Zig language support
+- **ocaml/** - OCaml with dune/ocamlopt/ocamlc (modular - functional programming)
 - **protobuf/** - Protocol Buffers with protoc/buf (modular - multi-language code generation)
 
 ## Usage

@@ -12,7 +12,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 - **Error Recovery**: Circuit breaker pattern with exponential backoff, build checkpointing, and smart resumption
 - **Event-Driven CLI**: Multiple render modes (interactive, plain, verbose, quiet) with lock-free progress tracking
 - **Build Telemetry**: Comprehensive analytics, bottleneck identification, and performance regression detection
-- **Extensive Multi-language Support**: 20+ languages including Python, JavaScript/TypeScript, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, PHP, R, Scala, Elixir, Nim, Lua, and D
+- **Extensive Multi-language Support**: 26+ languages including Python, JavaScript/TypeScript, Elm, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, Perl, PHP, R, Scala, Elixir, Nim, Lua, OCaml, Haskell, and D
 - **Incremental Builds**: Smart caching with BLAKE3 content hashing and configurable eviction policies
 - **Parallel Execution**: Wave-based parallel builds with thread pool management and optimal CPU utilization
 - **Monorepo Optimized**: Efficient workspace scanning and dependency resolution for large-scale repos
@@ -41,7 +41,7 @@ source/
 ├── languages/               # Multi-language support (20+ languages)
 │   ├── base/               # Base language interface
 │   ├── scripting/          # Python, JS, TS, Go, Ruby, PHP, R, Lua, Elixir
-│   ├── compiled/           # Rust, C++, D, Nim, Zig
+│   ├── compiled/           # Rust, C++, D, Nim, Zig, OCaml
 │   ├── jvm/                # Java, Kotlin, Scala
 │   └── dotnet/             # C#, Swift
 ├── cli/                     # Event-driven CLI rendering

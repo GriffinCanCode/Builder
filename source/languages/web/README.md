@@ -1,6 +1,6 @@
 ##  Web Languages Package
 
-Unified support for web development languages and technologies in the Builder build system. This package provides integrated implementations for JavaScript, TypeScript, and CSS with shared infrastructure for package managers, bundlers, and build orchestration.
+Unified support for web development languages and technologies in the Builder build system. This package provides integrated implementations for JavaScript, TypeScript, CSS, and Elm with shared infrastructure for package managers, bundlers, and build orchestration.
 
 ## Overview
 
@@ -31,6 +31,9 @@ web/
 │   ├── processors/            # PostCSS, SCSS, Less, Stylus
 │   ├── frameworks/            # Tailwind, Bootstrap integration
 │   └── package.d              # CSS module exports
+├── elm/                       # Elm support
+│   ├── core/                  # Handler and configuration
+│   └── package.d              # Elm module exports
 ├── package.d                  # Web package exports
 └── README.md                  # This file
 ```
@@ -69,6 +72,17 @@ Comprehensive CSS preprocessing and optimization.
 - **Build Modes**: Compile, production (minified), watch
 - **Features**: Minification, autoprefixing, source maps, purging
 - **Optimization**: Unused CSS removal, browser targeting
+
+### Elm
+Functional programming language that compiles to JavaScript.
+
+**Key Features:**
+- **Compiler**: elm make with debug and optimized modes
+- **Output Formats**: JavaScript or standalone HTML
+- **Testing**: elm-test integration
+- **Code Quality**: elm-format and elm-review support
+- **Type Safety**: No runtime exceptions, reliable refactoring
+- **Documentation**: Automatic docs.json generation
 
 ## Common Features
 
@@ -110,6 +124,7 @@ import languages.web;
 auto jsHandler = new JavaScriptHandler();
 auto tsHandler = new TypeScriptHandler();
 auto cssHandler = new CSSHandler();
+auto elmHandler = new ElmHandler();
 ```
 
 ### Import Specific Language
@@ -118,6 +133,7 @@ auto cssHandler = new CSSHandler();
 import languages.web.javascript;
 import languages.web.typescript;
 import languages.web.css;
+import languages.web.elm;
 ```
 
 ### Import Shared Utilities
@@ -223,6 +239,24 @@ target("scss-styles") {
 }
 ```
 
+### Elm Application
+
+```d
+target("elm-app") {
+    type: executable;
+    language: elm;
+    sources: ["src/Main.elm"];
+    output: "app.html";
+    
+    config: {
+        "optimize": true,
+        "outputTarget": "html",
+        "format": true,
+        "review": true
+    };
+}
+```
+
 ## Bundler Comparison
 
 | Bundler | Speed | Features | Best For |
@@ -317,10 +351,12 @@ languages/web/shared/
 Potential additions to the web package:
 - **Deno** - Secure TypeScript runtime
 - **Bun** - Ultra-fast JavaScript runtime
-- **WebAssembly** - Compile to WASM
+- **WebAssembly** - Compile to WASM (Elm can target this)
 - **HTML** - Template processing (Handlebars, EJS)
 - **SVG** - Optimization and sprite generation
 - **Image Processing** - Optimization, responsive images
+- **PureScript** - Haskell-like functional programming
+- **ReasonML** - OCaml syntax for JavaScript
 
 ## Best Practices
 
@@ -372,6 +408,7 @@ When extending web language support:
 
 - [Node.js](https://nodejs.org/)
 - [TypeScript](https://www.typescriptlang.org/)
+- [Elm](https://elm-lang.org/)
 - [esbuild](https://esbuild.github.io/)
 - [Vite](https://vitejs.dev/)
 - [PostCSS](https://postcss.org/)
