@@ -10,6 +10,7 @@ import std.json;
 import std.string;
 import std.conv;
 import languages.base.base;
+import languages.base.mixins;
 import languages.web.typescript.core.config;
 import languages.web.typescript.tooling.checker;
 import languages.web.typescript.tooling.bundlers;
@@ -25,26 +26,7 @@ import core.caching.action;
 /// TypeScript build handler with action-level caching for separate compile + bundle steps
 class TypeScriptHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/typescript", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"typescript";
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;

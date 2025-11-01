@@ -9,6 +9,7 @@ import std.array;
 import std.json;
 import std.conv;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.cpp.core.config;
 import languages.compiled.cpp.tooling.toolchain;
 import languages.compiled.cpp.analysis.analysis;
@@ -24,26 +25,7 @@ import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionTyp
 /// C++ build handler with comprehensive feature support and action-level caching
 class CppHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/cpp", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"cpp";
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;

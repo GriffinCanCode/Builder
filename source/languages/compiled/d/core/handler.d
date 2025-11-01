@@ -10,6 +10,7 @@ import std.json;
 import std.string;
 import std.conv : to;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.d.core.config;
 import languages.compiled.d.analysis.manifest;
 import languages.compiled.d.managers.toolchain;
@@ -25,26 +26,7 @@ import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionTyp
 /// Advanced D build handler with dub, compiler detection, and tooling support with action-level caching
 class DHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/d", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"d";
     
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {

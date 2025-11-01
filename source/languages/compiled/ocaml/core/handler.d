@@ -10,6 +10,7 @@ import std.conv;
 import std.process;
 import std.string : lineSplitter, strip;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.ocaml.core.config;
 import config.schema.schema;
 import analysis.targets.types;
@@ -20,26 +21,7 @@ import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionTyp
 /// OCaml build handler with support for dune, ocamlopt, and ocamlc with action-level caching
 class OCamlHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/ocaml", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"ocaml";
     
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {

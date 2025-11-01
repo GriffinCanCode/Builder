@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.nim.core.config;
 import languages.compiled.nim.builders;
 import languages.compiled.nim.tooling.tools;
@@ -23,26 +24,7 @@ import core.caching.action : ActionCache, ActionCacheConfig;
 /// Comprehensive Nim build handler with multi-backend support and action-level caching
 class NimHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/nim", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"nim";
     
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {

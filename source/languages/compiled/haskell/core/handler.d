@@ -9,6 +9,7 @@ import std.array;
 import std.json;
 import std.string;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.haskell.core.config;
 import languages.compiled.haskell.tooling.ghc;
 import languages.compiled.haskell.tooling.cabal;
@@ -23,26 +24,7 @@ import core.caching.action : ActionCache, ActionCacheConfig;
 /// Haskell build handler with GHC, Cabal, and Stack support and action-level caching
 class HaskellHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/haskell", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"haskell";
     
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {

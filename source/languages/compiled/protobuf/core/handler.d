@@ -9,6 +9,7 @@ import std.json;
 import std.conv;
 import std.string : lineSplitter;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.protobuf.core.config;
 import languages.compiled.protobuf.tooling.protoc;
 import config.schema.schema;
@@ -20,26 +21,7 @@ import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionTyp
 /// Protocol Buffer build handler with action-level caching
 class ProtobufHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/protobuf", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"protobuf";
     
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {

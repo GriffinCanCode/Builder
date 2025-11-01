@@ -9,6 +9,7 @@ import std.array;
 import std.json;
 import std.string;
 import languages.base.base;
+import languages.base.mixins;
 import languages.compiled.rust.core.config;
 import languages.compiled.rust.analysis.manifest;
 import languages.compiled.rust.managers.toolchain;
@@ -23,26 +24,7 @@ import core.caching.action;
 /// Advanced Rust build handler with cargo, rustup, and toolchain support with action-level caching
 class RustHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
-    
-    this()
-    {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/rust", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
+    mixin CachingHandlerMixin!"rust";
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
