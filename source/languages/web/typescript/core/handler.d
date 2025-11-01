@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.string;
+import std.conv;
 import languages.base.base;
 import languages.web.typescript.core.config;
 import languages.web.typescript.tooling.checker;
@@ -34,8 +35,15 @@ class TypeScriptHandler : BaseLanguageHandler
     
     ~this()
     {
-        if (actionCache)
-            actionCache.close();
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
     }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
@@ -273,8 +281,8 @@ class TypeScriptHandler : BaseLanguageHandler
             }
         }
         
-        // Create compiler/bundler
-        auto bundler = TSBundlerFactory.create(tsConfig.compiler, tsConfig);
+        // Create compiler/bundler, pass actionCache for action-level caching in bundlers
+        auto bundler = TSBundlerFactory.create(tsConfig.compiler, tsConfig, actionCache);
         
         if (!bundler.isAvailable())
         {

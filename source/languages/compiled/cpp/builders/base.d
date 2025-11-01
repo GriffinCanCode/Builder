@@ -6,6 +6,7 @@ import std.conv;
 import languages.compiled.cpp.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import core.caching.action : ActionCache;
 
 /// Base interface for C++ builders
 interface CppBuilder
@@ -41,7 +42,6 @@ class CppBuilderFactory
         import languages.compiled.cpp.builders.cmake;
         import languages.compiled.cpp.builders.make;
         import languages.compiled.cpp.builders.ninja;
-        import core.caching.action : ActionCache;
         
         // If build system is specified, use it
         if (config.buildSystem != BuildSystem.None && config.buildSystem != BuildSystem.Auto)
@@ -72,7 +72,6 @@ class CppBuilderFactory
         import languages.compiled.cpp.builders.cmake;
         import languages.compiled.cpp.builders.make;
         import languages.compiled.cpp.builders.ninja;
-        import core.caching.action : ActionCache;
         
         final switch (buildSystem)
         {

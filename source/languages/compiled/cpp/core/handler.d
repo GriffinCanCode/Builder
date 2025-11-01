@@ -34,8 +34,15 @@ class CppHandler : BaseLanguageHandler
     
     ~this()
     {
-        if (actionCache)
-            actionCache.close();
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
     }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {

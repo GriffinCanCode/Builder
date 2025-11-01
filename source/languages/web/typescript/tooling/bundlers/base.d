@@ -3,6 +3,7 @@ module languages.web.typescript.tooling.bundlers.base;
 import std.array;
 import languages.web.typescript.core.config;
 import config.schema.schema;
+import core.caching.action : ActionCache;
 
 /// Base interface for TypeScript compilers/bundlers
 interface TSBundler
@@ -31,8 +32,8 @@ interface TSBundler
 /// Factory for creating TypeScript bundlers
 class TSBundlerFactory
 {
-    /// Create bundler based on type
-    static TSBundler create(TSCompiler type, TSConfig config)
+    /// Create bundler based on type with optional action cache
+    static TSBundler create(TSCompiler type, TSConfig config, ActionCache cache = null)
     {
         import languages.web.typescript.tooling.bundlers.tsc;
         import languages.web.typescript.tooling.bundlers.swc;
@@ -41,9 +42,9 @@ class TSBundlerFactory
         final switch (type)
         {
             case TSCompiler.Auto:
-                return createAuto(config);
+                return createAuto(config, cache);
             case TSCompiler.TSC:
-                return new TSCBundler();
+                return new TSCBundler(cache);
             case TSCompiler.SWC:
                 return new SWCBundler();
             case TSCompiler.ESBuild:
@@ -53,8 +54,8 @@ class TSBundlerFactory
         }
     }
     
-    /// Auto-detect best available bundler
-    private static TSBundler createAuto(TSConfig config)
+    /// Auto-detect best available bundler with optional action cache
+    private static TSBundler createAuto(TSConfig config, ActionCache cache)
     {
         import languages.web.typescript.tooling.bundlers.tsc;
         import languages.web.typescript.tooling.bundlers.swc;
@@ -63,7 +64,7 @@ class TSBundlerFactory
         // For library mode with declarations, prefer tsc (most accurate)
         if (config.mode == TSBuildMode.Library && config.declaration)
         {
-            auto tsc = new TSCBundler();
+            auto tsc = new TSCBundler(cache);
             if (tsc.isAvailable())
                 return tsc;
         }
@@ -77,7 +78,7 @@ class TSBundlerFactory
         if (esbuild.isAvailable())
             return esbuild;
         
-        auto tsc = new TSCBundler();
+        auto tsc = new TSCBundler(cache);
         if (tsc.isAvailable())
             return tsc;
         

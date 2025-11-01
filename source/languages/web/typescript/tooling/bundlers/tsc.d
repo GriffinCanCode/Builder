@@ -13,10 +13,26 @@ import std.conv;
 import std.string;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Official TypeScript compiler (tsc)
+/// Official TypeScript compiler (tsc) with per-file action caching
 class TSCBundler : TSBundler
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/typescript/tsc", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
+    
     TSCompileResult compile(
         const(string[]) sources,
         TSConfig config,
@@ -36,7 +52,118 @@ class TSCBundler : TSBundler
         string outputDir = config.outDir.empty ? workspace.options.outputDir : config.outDir;
         mkdirRecurse(outputDir);
         
-        // Build tsc command
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = "tsc";
+        metadata["target"] = config.target.to!string;
+        metadata["module"] = config.moduleFormat.to!string;
+        metadata["outDir"] = outputDir;
+        metadata["declaration"] = config.declaration.to!string;
+        metadata["sourceMap"] = config.sourceMap.to!string;
+        
+        // Add tsconfig as input if it exists
+        string[] inputFiles = sources.dup;
+        if (!config.tsconfig.empty && exists(config.tsconfig))
+        {
+            inputFiles ~= config.tsconfig;
+        }
+        
+        // Step 1: Type checking action (fast, can be cached separately)
+        ActionId typeCheckId;
+        typeCheckId.targetId = target.name;
+        typeCheckId.type = ActionType.Custom;  // Using Custom for type checking
+        typeCheckId.subId = "typecheck";
+        typeCheckId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if type checking is cached
+        bool typeCheckCached = actionCache.isCached(typeCheckId, inputFiles, metadata);
+        
+        if (!typeCheckCached)
+        {
+            Logger.debugLog("  [Type checking] " ~ target.name);
+            
+            // Run type check (fast, no emit)
+            string[] checkCmd = ["tsc", "--noEmit"];
+            if (!config.tsconfig.empty && exists(config.tsconfig))
+            {
+                checkCmd ~= ["--project", config.tsconfig];
+            }
+            else
+            {
+                checkCmd ~= buildCompilerOptions(config, outputDir);
+                checkCmd ~= sources;
+            }
+            
+            auto checkRes = execute(checkCmd, null, Config.none, size_t.max, workspace.root);
+            
+            bool typeCheckSuccess = (checkRes.status == 0);
+            
+            if (!typeCheckSuccess)
+            {
+                // Parse type errors but don't fail yet
+                TypeCheckResult checkResult;
+                parseTypeScriptOutput(checkRes.output, checkResult);
+                result.hadTypeErrors = true;
+                result.typeErrors = checkResult.errors;
+            }
+            
+            // Update type check cache
+            actionCache.update(
+                typeCheckId,
+                inputFiles,
+                [],  // Type checking produces no outputs
+                metadata,
+                typeCheckSuccess
+            );
+        }
+        else
+        {
+            Logger.debugLog("  [Cached] Type checking: " ~ target.name);
+        }
+        
+        // Step 2: Compilation action
+        ActionId compileId;
+        compileId.targetId = target.name;
+        compileId.type = ActionType.Compile;
+        compileId.subId = "tsc_emit";
+        compileId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Determine expected outputs
+        string[] expectedOutputs = collectOutputs(sources, config, outputDir);
+        if (config.declaration)
+        {
+            expectedOutputs ~= collectDeclarations(sources, config, outputDir);
+        }
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(compileId, inputFiles, metadata))
+        {
+            // Verify outputs exist
+            bool allExist = true;
+            foreach (output; expectedOutputs)
+            {
+                if (!exists(output))
+                {
+                    allExist = false;
+                    break;
+                }
+            }
+            
+            if (allExist)
+            {
+                Logger.debugLog("  [Cached] TSC compilation: " ~ target.name);
+                result.success = true;
+                result.outputs = collectOutputs(sources, config, outputDir);
+                if (config.declaration)
+                {
+                    result.declarations = collectDeclarations(sources, config, outputDir);
+                }
+                result.outputHash = FastHash.hashFiles(result.outputs);
+                return result;
+            }
+        }
+        
+        // Build tsc command for actual compilation
         string[] cmd = ["tsc"];
         
         // Use tsconfig if specified
@@ -64,7 +191,9 @@ class TSCBundler : TSBundler
         // Execute tsc
         auto res = execute(cmd, null, Config.none, size_t.max, workspace.root);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "TypeScript compilation failed:\n" ~ res.output;
             result.hadTypeErrors = true;
@@ -73,6 +202,15 @@ class TSCBundler : TSBundler
             TypeCheckResult checkResult;
             parseTypeScriptOutput(res.output, checkResult);
             result.typeErrors = checkResult.errors;
+            
+            // Update cache with failure
+            actionCache.update(
+                compileId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
             
             return result;
         }
@@ -90,6 +228,15 @@ class TSCBundler : TSBundler
         
         result.success = true;
         result.outputHash = FastHash.hashFiles(result.outputs);
+        
+        // Update cache with success
+        actionCache.update(
+            compileId,
+            inputFiles,
+            result.outputs ~ result.declarations,
+            metadata,
+            true
+        );
         
         return result;
     }
