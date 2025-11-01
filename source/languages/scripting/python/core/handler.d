@@ -252,7 +252,7 @@ class PythonHandler : BaseLanguageHandler
             
             if (!venvPath.empty)
             {
-                pythonCmd = VirtualEnv.getPythonCommand(venvPath);
+                pythonCmd = VirtualEnv.getVenvPython(venvPath);
                 Logger.debugLog("Using virtual environment: " ~ venvPath);
             }
         }
@@ -266,7 +266,13 @@ class PythonHandler : BaseLanguageHandler
         {
             Logger.info("Installing dependencies");
             auto installer = PackageManagerFactory.create(config.packageManager);
-            return installer.installFromRequirements(config.requirementsFiles, projectRoot, pythonCmd);
+            foreach (reqFile; config.requirementsFiles)
+            {
+                auto result = installer.installFromFile(reqFile);
+                if (!result.success)
+                    return false;
+            }
+            return true;
         }
         return true;
     }
@@ -351,8 +357,7 @@ class PythonHandler : BaseLanguageHandler
         
         foreach (source; sources)
         {
-            auto actionId = ActionId(ActionType.Lint, targetId ~ ":" ~ source);
-            actionId.inputHash = FastHash.hashFile(source);
+            auto actionId = ActionId(targetId, ActionType.Custom, FastHash.hashFile(source), "lint:" ~ source);
             
             if (getCache().isCached(actionId, [source], metadata))
             {
@@ -360,16 +365,24 @@ class PythonHandler : BaseLanguageHandler
                 continue;
             }
             
-            auto lintResult = Linter.lint([source], config.linter, pythonCmd, false);
+            auto lintResult = Linter.lint([source], config.linter, pythonCmd);
             bool success = lintResult.success;
             
             getCache().update(actionId, [source], [], metadata, success);
             
-            if (!success && lintResult.issues.length > 0)
+            if (!success && lintResult.hasIssues())
             {
                 Logger.warning("Lint issues in " ~ source ~ ":");
-                foreach (issue; lintResult.issues[0 .. min(3, $)])
-                    Logger.warning("  " ~ issue);
+                if (!lintResult.errors.empty)
+                {
+                    foreach (error; lintResult.errors[0 .. min(3, $)])
+                        Logger.warning("  Error: " ~ error);
+                }
+                if (!lintResult.warnings.empty)
+                {
+                    foreach (warning; lintResult.warnings[0 .. min(3, $)])
+                        Logger.warning("  Warning: " ~ warning);
+                }
             }
         }
     }
@@ -389,7 +402,7 @@ class PythonHandler : BaseLanguageHandler
         metadata["pythonVersion"] = PyTools.getPythonVersion(pythonCmd);
         metadata["typeChecker"] = config.typeCheck.checker.to!string;
         
-        auto actionId = ActionId(ActionType.TypeCheck, targetId);
+        auto actionId = ActionId(targetId, ActionType.Custom, FastHash.hashStrings(sources), "typecheck");
         actionId.inputHash = FastHash.hashStrings(sources);
         
         if (getCache().isCached(actionId, sources, metadata))
@@ -417,7 +430,7 @@ class PythonHandler : BaseLanguageHandler
         
         foreach (source; sources)
         {
-            auto actionId = ActionId(ActionType.Compile, targetId ~ ":" ~ source);
+            auto actionId = ActionId(targetId, ActionType.Compile, FastHash.hashFile(source), source);
             actionId.inputHash = FastHash.hashFile(source);
             
             string outputFile = source ~ "c";

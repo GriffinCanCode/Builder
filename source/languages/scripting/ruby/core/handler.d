@@ -47,15 +47,15 @@ class RubyHandler : BaseLanguageHandler
         
         string sourceDir = dirName(target.sources[0]);
         
-        if (config.gemManager == GemManager.Auto)
+        if (config.packageManager == RubyPackageManager.Auto)
         {
-            config.gemManager = GemManagerFactory.detectFromProject(sourceDir);
-            Logger.debugLog("Detected gem manager: " ~ config.gemManager.to!string);
+            config.packageManager = detectPackageManager(sourceDir);
+            Logger.debugLog("Detected package manager: " ~ config.packageManager.to!string);
         }
         
-        if (config.versionManager == VersionManager.Auto)
+        if (config.versionManager == RubyVersionManager.Auto)
         {
-            config.versionManager = VersionManagerDetector.detect(sourceDir);
+            config.versionManager = detectVersionManager(sourceDir);
             Logger.debugLog("Detected version manager: " ~ config.versionManager.to!string);
         }
     }
@@ -105,13 +105,14 @@ class RubyHandler : BaseLanguageHandler
             {
                 result.error = "Type checking warnings in strict mode:\n" ~ typeResult.warnings.join("\n");
                 return result;
-                }
             }
+        }
         
-        auto checkResult = SyntaxChecker.check(target.sources, rubyCmd);
-        if (!checkResult.success)
+        string[] checkErrors;
+        auto checkSuccess = SyntaxChecker.check(target.sources, checkErrors);
+        if (!checkSuccess)
         {
-            result.error = checkResult.error;
+            result.error = checkErrors.length > 0 ? checkErrors[0] : "Syntax check failed";
             return result;
         }
         
@@ -121,7 +122,9 @@ class RubyHandler : BaseLanguageHandler
             auto outputPath = outputs[0];
             auto mainFile = target.sources[0];
             
-            WrapperGenerator.generate(mainFile, outputPath, rubyCmd);
+            // Generate wrapper script
+            import std.file : write;
+            write(outputPath, "#!/usr/bin/env ruby\nrequire_relative '" ~ mainFile ~ "'\n");
         }
         
         result.success = true;
@@ -156,21 +159,24 @@ class RubyHandler : BaseLanguageHandler
             }
         }
         
-        auto checkResult = SyntaxChecker.check(target.sources, rubyCmd);
-        if (!checkResult.success)
+        string[] checkErrors2;
+        auto checkSuccess2 = SyntaxChecker.check(target.sources, checkErrors2);
+        if (!checkSuccess2)
         {
-            result.error = checkResult.error;
+            result.error = checkErrors2.length > 0 ? checkErrors2[0] : "Syntax check failed";
             return result;
         }
         
-        if (rubyConfig.buildGem)
+        if (rubyConfig.mode == RubyBuildMode.Gem)
         {
-            auto builder = GemBuilder(rubyConfig, config.root);
-            if (!builder.build())
+            auto builder = new GemBuilder();
+            auto buildResult = builder.build(target.sources, rubyConfig, target, config);
+            if (!buildResult.success)
             {
-                result.error = "Failed to build gem";
+                result.error = "Failed to build gem: " ~ buildResult.error;
                 return result;
             }
+            result.outputs = buildResult.outputs;
         }
         
         result.success = true;
@@ -230,13 +236,14 @@ class RubyHandler : BaseLanguageHandler
     {
         string rubyCmd = "ruby";
         
-        if (!config.rubyVersion.empty)
+        if (config.rubyVersion.major > 0)
         {
-            auto versionManager = VersionManagerFactory.create(config.versionManager);
-            if (versionManager.ensureVersion(config.rubyVersion, projectRoot))
+            auto versionManager = VersionManagerFactory.create(config.versionManager, projectRoot);
+            string versionStr = config.rubyVersion.toString();
+            if (versionManager.isVersionInstalled(versionStr))
             {
-                rubyCmd = versionManager.getRubyCommand(config.rubyVersion);
-                Logger.debugLog("Using Ruby version: " ~ config.rubyVersion);
+                rubyCmd = versionManager.getRubyPath(versionStr);
+                Logger.debugLog("Using Ruby version: " ~ versionStr);
             }
         }
         
@@ -245,15 +252,49 @@ class RubyHandler : BaseLanguageHandler
     
     private bool installDependencies(RubyConfig config, string projectRoot)
     {
-        auto gemManager = GemManagerFactory.create(config.gemManager);
+        auto packageManager = PackageManagerFactory.create(config.packageManager, projectRoot);
         
-        if (gemManager.hasDependencyFile(projectRoot))
-                {
+        if (packageManager.hasLockfile())
+        {
             Logger.info("Installing dependencies");
-            return gemManager.install(projectRoot, config.gemInstallArgs);
+            auto result = packageManager.installFromFile(buildPath(projectRoot, "Gemfile"));
+            return result.success;
         }
         
         return true;
+    }
+    
+    private RubyPackageManager detectPackageManager(string projectRoot)
+    {
+        if (exists(buildPath(projectRoot, "Gemfile")))
+            return RubyPackageManager.Bundler;
+        if (exists(buildPath(projectRoot, "*.gemspec")))
+            return RubyPackageManager.RubyGems;
+        return RubyPackageManager.Bundler;
+    }
+    
+    private RubyVersionManager detectVersionManager(string projectRoot)
+    {
+        auto versionFile = buildPath(projectRoot, ".ruby-version");
+        if (exists(versionFile))
+        {
+            import utils.security : execute;
+            auto checkRbenv = execute(["which", "rbenv"]);
+            if (checkRbenv.status == 0)
+                return RubyVersionManager.Rbenv;
+            
+            auto checkChruby = execute(["which", "chruby"]);
+            if (checkChruby.status == 0)
+                return RubyVersionManager.Chruby;
+        }
+        
+        if (exists(buildPath(projectRoot, ".rvmrc")))
+            return RubyVersionManager.RVM;
+        
+        if (exists(buildPath(projectRoot, ".tool-versions")))
+            return RubyVersionManager.ASDF;
+        
+        return RubyVersionManager.System;
     }
     
     private RubyTestFramework detectTestFramework(string projectRoot)
@@ -318,7 +359,7 @@ class RubyHandler : BaseLanguageHandler
     
     private auto typeCheckWithCache(in Target target, RubyConfig config)
     {
-        auto actionId = ActionId(ActionType.TypeCheck, target.name);
+        auto actionId = ActionId(target.name, ActionType.Custom, FastHash.hashStrings(target.sources), "typecheck");
         actionId.inputHash = FastHash.hashStrings(target.sources);
         
         string[string] metadata;

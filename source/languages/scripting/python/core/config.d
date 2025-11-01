@@ -237,6 +237,15 @@ struct TestConfig
     /// Fail if below minimum coverage
     bool failUnderCoverage = false;
     
+    /// Additional pytest arguments
+    string[] pytestArgs;
+    
+    /// Additional unittest arguments
+    string[] unittestArgs;
+    
+    /// Additional tox arguments
+    string[] toxArgs;
+    
     /// Run tests in parallel
     bool parallel = false;
     

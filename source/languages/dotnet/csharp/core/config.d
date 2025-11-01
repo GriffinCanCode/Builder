@@ -520,6 +520,12 @@ struct CSharpConfig
     /// Build mode
     CSharpBuildMode mode = CSharpBuildMode.Standard;
     
+    /// Parse from JSON (required by ConfigParsingMixin)
+    static CSharpConfig fromJSON(JSONValue json)
+    {
+        return parseCSharpConfigFromJSON(json);
+    }
+    
     /// Build tool
     CSharpBuildTool buildTool = CSharpBuildTool.Auto;
     

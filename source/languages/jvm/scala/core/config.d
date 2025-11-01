@@ -516,6 +516,12 @@ struct ScalaConfig
     /// Scala version
     ScalaVersionInfo versionInfo;
     
+    /// Parse from JSON (required by ConfigParsingMixin)
+    static ScalaConfig fromJSON(JSONValue json)
+    {
+        return parseScalaConfigFromJSON(json);
+    }
+    
     /// Build mode
     ScalaBuildMode mode = ScalaBuildMode.JAR;
     

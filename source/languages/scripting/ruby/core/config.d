@@ -241,6 +241,12 @@ struct RubyTestConfig
     /// Fail if below minimum coverage
     bool failUnderCoverage = false;
     
+    /// Additional minitest arguments
+    string[] minitestArgs;
+    
+    /// Additional RSpec arguments
+    string[] rspecArgs;
+    
     /// Run tests in parallel
     bool parallel = false;
     

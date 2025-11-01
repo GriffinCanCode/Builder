@@ -613,6 +613,12 @@ struct FSharpConfig
     /// Build mode
     FSharpBuildMode mode = FSharpBuildMode.Library;
     
+    /// Parse from JSON (required by ConfigParsingMixin)
+    static FSharpConfig fromJSON(JSONValue json)
+    {
+        return parseFSharpConfigFromJSON(json);
+    }
+    
     /// Build tool
     FSharpBuildTool buildTool = FSharpBuildTool.Auto;
     
