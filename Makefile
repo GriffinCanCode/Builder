@@ -1,6 +1,6 @@
 # Builder Makefile
 
-.PHONY: all build test clean install help tsan test-tsan
+.PHONY: all build test tests examples clean install help tsan test-tsan
 
 all: build
 
@@ -22,12 +22,22 @@ test:
 # Run tests with coverage
 test-coverage:
 	@echo "Running tests with coverage..."
-	@./run-tests.sh --coverage
+	@./tests/run-tests.sh --coverage
 
 # Run tests in parallel
 test-parallel:
 	@echo "Running tests in parallel..."
 	@dub test -- --parallel
+
+# Run full test suite with script
+tests:
+	@echo "Running full test suite..."
+	@./tests/run-tests.sh
+
+# Run all example projects
+examples:
+	@echo "Testing all example projects..."
+	@./examples/run-all-examples.sh
 
 # Clean build artifacts
 clean:
@@ -101,12 +111,14 @@ help:
 	@echo "Targets:"
 	@echo "  make build          - Build release version"
 	@echo "  make debug          - Build debug version"
-	@echo "  make test           - Run tests"
+	@echo "  make test           - Run tests (basic)"
+	@echo "  make tests          - Run full test suite"
 	@echo "  make test-coverage  - Run tests with coverage"
 	@echo "  make test-parallel  - Run tests in parallel"
 	@echo "  make test-tsan      - Run tests with Thread Sanitizer (requires LDC)"
 	@echo "  make tsan           - Build with Thread Sanitizer"
 	@echo "  make bench          - Run benchmarks"
+	@echo "  make examples       - Test all example projects"
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make install        - Install to /usr/local/bin"
 	@echo "  make uninstall      - Uninstall from system"
