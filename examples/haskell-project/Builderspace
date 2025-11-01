@@ -1,0 +1,12 @@
+name: haskell-project
+description: Example Haskell project using Builder
+
+# Workspace-level defaults
+defaults:
+  parallel: true
+  verbose: false
+
+# Shared environment variables
+env:
+  PROJECT_NAME: haskell-example
+

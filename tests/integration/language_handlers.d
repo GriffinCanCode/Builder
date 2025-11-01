@@ -35,6 +35,7 @@ import languages.compiled.nim;
 import languages.scripting.lua;
 import languages.scripting.r;
 import languages.web.css;
+import languages.compiled.haskell;
 
 /// Test fixture for language handler integration tests
 class LanguageHandlerFixture

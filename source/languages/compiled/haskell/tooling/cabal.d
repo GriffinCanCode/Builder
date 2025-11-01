@@ -1,0 +1,245 @@
+module languages.compiled.haskell.tooling.cabal;
+
+import std.stdio;
+import std.process;
+import std.file;
+import std.path;
+import std.algorithm;
+import std.array;
+import std.string;
+import std.conv;
+import languages.compiled.haskell.core.config;
+import config.schema.schema;
+import utils.logging.logger;
+
+/// Cabal build tool wrapper
+struct CabalWrapper
+{
+    /// Check if Cabal is available
+    static bool isAvailable() nothrow
+    {
+        try
+        {
+            auto result = execute(["cabal", "--version"]);
+            return result.status == 0;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+    
+    /// Get Cabal version
+    static string getVersion()
+    {
+        try
+        {
+            auto result = execute(["cabal", "--version"]);
+            if (result.status == 0)
+            {
+                // Output format: "cabal-install version X.Y.Z.W ..."
+                auto lines = result.output.lineSplitter.front;
+                auto parts = lines.split;
+                if (parts.length >= 3)
+                {
+                    return parts[2];
+                }
+                return lines;
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to get Cabal version: " ~ e.msg);
+        }
+        return "unknown";
+    }
+    
+    /// Build with Cabal
+    static LanguageBuildResult build(
+        in Target target,
+        in WorkspaceConfig config,
+        const HaskellConfig hsConfig
+    )
+    {
+        LanguageBuildResult result;
+        
+        if (!isAvailable())
+        {
+            result.error = "Cabal not found";
+            return result;
+        }
+        
+        // Ensure we have a cabal file
+        string cabalFile = hsConfig.cabalFile;
+        if (cabalFile.empty)
+        {
+            // Look for *.cabal in project root
+            auto cabalFiles = dirEntries(config.root, "*.cabal", SpanMode.shallow).array;
+            if (cabalFiles.empty)
+            {
+                result.error = "No .cabal file found. Run 'cabal init' to create one.";
+                return result;
+            }
+            cabalFile = cabalFiles[0].name;
+        }
+        
+        Logger.debugLog("Using Cabal file: " ~ cabalFile);
+        
+        // Update dependencies
+        if (!updateDependencies(config.root))
+        {
+            Logger.warning("Failed to update Cabal dependencies");
+        }
+        
+        // Build command based on mode
+        string[] args = ["cabal"];
+        
+        final switch (hsConfig.mode)
+        {
+            case HaskellBuildMode.Compile:
+            case HaskellBuildMode.Library:
+                args ~= "build";
+                break;
+            case HaskellBuildMode.Test:
+                args ~= "test";
+                break;
+            case HaskellBuildMode.Doc:
+                args ~= "haddock";
+                break;
+            case HaskellBuildMode.REPL:
+                result.error = "REPL mode not supported in build";
+                return result;
+            case HaskellBuildMode.Custom:
+                args ~= "build";
+                break;
+        }
+        
+        // Parallel jobs
+        if (hsConfig.parallel && hsConfig.jobs > 0)
+        {
+            args ~= "-j" ~ hsConfig.jobs.to!string;
+        }
+        else if (hsConfig.parallel)
+        {
+            args ~= "-j";
+        }
+        
+        // Optimization
+        final switch (hsConfig.optLevel)
+        {
+            case GHCOptLevel.O0: args ~= "--ghc-options=-O0"; break;
+            case GHCOptLevel.O1: args ~= "--ghc-options=-O1"; break;
+            case GHCOptLevel.O2: args ~= "--ghc-options=-O2"; break;
+        }
+        
+        // Additional GHC options
+        foreach (opt; hsConfig.ghcOptions)
+        {
+            args ~= "--ghc-options=" ~ opt;
+        }
+        
+        // Test options (for test mode)
+        if (hsConfig.mode == HaskellBuildMode.Test)
+        {
+            args ~= hsConfig.testOptions;
+        }
+        
+        // Execute build
+        Logger.debugLog("Running: " ~ args.join(" "));
+        
+        try
+        {
+            auto execResult = execute(args, null, Config.none, size_t.max, config.root);
+            
+            if (execResult.status == 0)
+            {
+                result.success = true;
+                
+                // Find output executables
+                string distDir = buildPath(config.root, "dist-newstyle");
+                if (exists(distDir))
+                {
+                    result.outputs = findBuiltExecutables(distDir);
+                }
+                
+                if (!execResult.output.empty)
+                {
+                    Logger.debugLog("Cabal output: " ~ execResult.output);
+                }
+            }
+            else
+            {
+                result.error = execResult.output;
+                Logger.error("Cabal build failed:");
+                Logger.error(execResult.output);
+            }
+        }
+        catch (Exception e)
+        {
+            result.error = "Cabal execution failed: " ~ e.msg;
+            Logger.error(result.error);
+        }
+        
+        return result;
+    }
+    
+    /// Update Cabal dependencies
+    static bool updateDependencies(string projectRoot)
+    {
+        try
+        {
+            auto result = execute(["cabal", "update"], null, Config.none, size_t.max, projectRoot);
+            return result.status == 0;
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to update Cabal dependencies: " ~ e.msg);
+            return false;
+        }
+    }
+    
+    /// Find built executables in dist directory
+    private static string[] findBuiltExecutables(string distDir)
+    {
+        string[] executables;
+        
+        try
+        {
+            // Look in dist-newstyle/build/*/ghc-*/package-*/x/executable/build/executable/
+            foreach (entry; dirEntries(distDir, SpanMode.depth))
+            {
+                if (entry.isFile)
+                {
+                    // Check if file is executable (has execute permissions)
+                    version (Posix)
+                    {
+                        import core.sys.posix.sys.stat;
+                        stat_t statbuf;
+                        if (stat(entry.name.toStringz, &statbuf) == 0)
+                        {
+                            if ((statbuf.st_mode & S_IXUSR) != 0)
+                            {
+                                executables ~= entry.name;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // On Windows, check for .exe extension
+                        if (extension(entry.name) == ".exe")
+                        {
+                            executables ~= entry.name;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to find executables: " ~ e.msg);
+        }
+        
+        return executables;
+    }
+}
+

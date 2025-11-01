@@ -41,6 +41,7 @@ shared static this()
     aliases[TargetLanguage.Zig] = ["zig"];
     aliases[TargetLanguage.Swift] = ["swift"];
     aliases[TargetLanguage.Ruby] = ["ruby", "rb"];
+    aliases[TargetLanguage.Perl] = ["perl", "pl"];
     aliases[TargetLanguage.PHP] = ["php"];
     aliases[TargetLanguage.Scala] = ["scala"];
     aliases[TargetLanguage.Elixir] = ["elixir", "ex"];
@@ -49,6 +50,9 @@ shared static this()
     aliases[TargetLanguage.R] = ["r"];
     aliases[TargetLanguage.CSS] = ["css"];
     aliases[TargetLanguage.Protobuf] = ["protobuf", "proto"];
+    aliases[TargetLanguage.OCaml] = ["ocaml", "ml"];
+    aliases[TargetLanguage.Haskell] = ["haskell", "hs"];
+    aliases[TargetLanguage.Elm] = ["elm"];
     aliases[TargetLanguage.Generic] = ["generic"];
     
     languageAliases = cast(immutable) aliases;
@@ -117,6 +121,11 @@ shared static this()
     // Ruby
     extensions[".rb"] = TargetLanguage.Ruby;
     
+    // Perl
+    extensions[".pl"] = TargetLanguage.Perl;
+    extensions[".pm"] = TargetLanguage.Perl;
+    extensions[".t"] = TargetLanguage.Perl;
+    
     // PHP
     extensions[".php"] = TargetLanguage.PHP;
     
@@ -146,6 +155,20 @@ shared static this()
     
     // Protocol Buffers
     extensions[".proto"] = TargetLanguage.Protobuf;
+    
+    // OCaml
+    extensions[".ml"] = TargetLanguage.OCaml;
+    extensions[".mli"] = TargetLanguage.OCaml;
+    extensions[".mll"] = TargetLanguage.OCaml;
+    extensions[".mly"] = TargetLanguage.OCaml;
+    
+    // Haskell
+    extensions[".hs"] = TargetLanguage.Haskell;
+    extensions[".lhs"] = TargetLanguage.Haskell;
+    extensions[".hsc"] = TargetLanguage.Haskell;
+    
+    // Elm
+    extensions[".elm"] = TargetLanguage.Elm;
     
     extensionMap = cast(immutable) extensions;
 }

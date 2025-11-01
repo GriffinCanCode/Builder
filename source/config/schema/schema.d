@@ -216,6 +216,7 @@ enum TargetLanguage
     Zig,
     Swift,
     Ruby,
+    Perl,
     PHP,
     Scala,
     Elixir,
@@ -224,6 +225,9 @@ enum TargetLanguage
     R,
     CSS,
     Protobuf,
+    OCaml,
+    Haskell,
+    Elm,
     Generic
 }
 

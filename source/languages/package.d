@@ -14,6 +14,7 @@ module languages;
 ///   cpp.d        - C++ language support
 ///   csharp/      - C# language support (modular - dotnet, MSBuild, Native AOT, formatters, analyzers)
 ///   ruby.d       - Ruby language support
+///   perl/        - Perl language support (modular - scripts, modules, CPAN, prove)
 ///   php/         - PHP language support (modular)
 ///   r/           - R language support (modular - scripts, packages, Shiny, RMarkdown)
 ///   swift/       - Swift language support (modular - SPM, Xcode, cross-compilation)
@@ -23,7 +24,10 @@ module languages;
 ///   lua/         - Lua language support (modular - runtimes, LuaRocks, LuaJIT, formatters, linters, testers)
 ///   nim/         - Nim language support (modular)
 ///   zig.d        - Zig language support
+///   haskell/     - Haskell language support (modular - GHC, Cabal, Stack, HLint, Ormolu)
+///   ocaml/       - OCaml language support (modular - dune, ocamlopt, ocamlc, opam)
 ///   protobuf/    - Protocol Buffers support (modular - protoc, buf, code generation)
+///   elm/         - Elm language support (functional, web, compiles to JavaScript)
 ///
 /// Usage:
 ///   import languages;
@@ -42,6 +46,7 @@ public import languages.jvm;
 public import languages.compiled.cpp;
 public import languages.dotnet;
 public import languages.scripting.ruby;
+public import languages.scripting.perl;
 public import languages.scripting.php;
 public import languages.scripting.r;
 public import languages.compiled.swift;
@@ -49,4 +54,5 @@ public import languages.scripting.elixir;
 public import languages.scripting.lua;
 public import languages.compiled.nim;
 public import languages.compiled.zig;
+public import languages.compiled.haskell;
 

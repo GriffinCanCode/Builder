@@ -1,0 +1,64 @@
+// Haskell Project Example
+// Demonstrates Haskell compilation with Builder
+
+target("hello-ghc") {
+    type: executable;
+    language: haskell;
+    sources: ["Main.hs"];
+    langConfig: {
+        "haskell": "{
+            \"buildTool\": \"ghc\",
+            \"optLevel\": \"2\",
+            \"warnings\": true,
+            \"extensions\": [\"OverloadedStrings\"],
+            \"ghcOptions\": [\"-Wall\"]
+        }"
+    };
+    output: "hello-ghc";
+}
+
+target("hello-lint") {
+    type: executable;
+    language: haskell;
+    sources: ["Main.hs"];
+    langConfig: {
+        "haskell": "{
+            \"buildTool\": \"ghc\",
+            \"hlint\": false,
+            \"ormolu\": false,
+            \"optLevel\": \"2\"
+        }"
+    };
+    output: "hello-lint";
+}
+
+// Cabal-based build (if you have a .cabal file)
+// target("hello-cabal") {
+//     type: executable;
+//     language: haskell;
+//     sources: ["Main.hs"];
+//     langConfig: {
+//         "haskell": "{
+//             \"buildTool\": \"cabal\",
+//             \"optLevel\": \"2\",
+//             \"parallel\": true,
+//             \"haddock\": true
+//         }"
+//     };
+//     output: "hello-cabal";
+// }
+
+// Stack-based build (if you have stack.yaml)
+// target("hello-stack") {
+//     type: executable;
+//     language: haskell;
+//     sources: ["Main.hs"];
+//     langConfig: {
+//         "haskell": "{
+//             \"buildTool\": \"stack\",
+//             \"optLevel\": \"2\",
+//             \"resolver\": \"lts-21.22\"
+//         }"
+//     };
+//     output: "hello-stack";
+// }

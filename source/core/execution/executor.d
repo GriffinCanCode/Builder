@@ -26,12 +26,15 @@ import languages.dotnet.csharp;
 import languages.compiled.zig;
 import languages.compiled.swift;
 import languages.scripting.ruby;
+import languages.scripting.perl : PerlHandler;
 import languages.scripting.php;
 import languages.jvm.scala;
 import languages.scripting.elixir;
 import languages.compiled.nim;
 import languages.scripting.lua;
 import languages.scripting.r;
+import languages.compiled.haskell;
+import languages.compiled.ocaml;
 import languages.compiled.protobuf;
 import utils.logging.logger;
 import utils.logging.structured;
@@ -145,12 +148,15 @@ final class BuildExecutor
         handlers[TargetLanguage.Zig] = new ZigHandler();
         handlers[TargetLanguage.Swift] = new SwiftHandler();
         handlers[TargetLanguage.Ruby] = new RubyHandler();
+        handlers[TargetLanguage.Perl] = new PerlHandler();
         handlers[TargetLanguage.PHP] = new PHPHandler();
         handlers[TargetLanguage.Scala] = new ScalaHandler();
         handlers[TargetLanguage.Elixir] = new ElixirHandler();
         handlers[TargetLanguage.Nim] = new NimHandler();
         handlers[TargetLanguage.Lua] = new LuaHandler();
         handlers[TargetLanguage.R] = new RHandler();
+        handlers[TargetLanguage.Haskell] = new HaskellHandler();
+        handlers[TargetLanguage.OCaml] = new OCamlHandler();
         handlers[TargetLanguage.Protobuf] = new ProtobufHandler();
     }
     

@@ -8,6 +8,7 @@ module languages.compiled;
 ///   - Rust (with cargo and rustc support)
 ///   - Nim
 ///   - Zig
+///   - OCaml (dune, ocamlopt, ocamlc support)
 ///   - Protocol Buffers (protoc/buf compiler support)
 ///
 
@@ -16,5 +17,6 @@ public import languages.compiled.d;
 public import languages.compiled.rust;
 public import languages.compiled.nim;
 public import languages.compiled.zig;
+public import languages.compiled.ocaml;
 public import languages.compiled.protobuf;
 
