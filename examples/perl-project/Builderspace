@@ -1,0 +1,6 @@
+# Builderspace for Perl Project
+
+workspace perl_example {
+    root = "."
+}
+

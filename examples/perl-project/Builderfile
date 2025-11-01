@@ -1,0 +1,86 @@
+# Builderfile for Perl Project
+# Demonstrates Perl language support in Builder
+
+# Main executable target
+target perl_app {
+    type = "executable"
+    language = "perl"
+    sources = ["main.pl"]
+    deps = [":greeter_lib"]
+    outputPath = "perl-app"
+}
+
+# Library target
+target greeter_lib {
+    type = "library"
+    language = "perl"
+    sources = ["lib/Greeter.pm"]
+    
+    langConfig = {
+        "perl": {
+            "mode": "module",
+            "strict": true,
+            "warnings": true,
+            "documentation": {
+                "generator": "pod2html",
+                "outputDir": "doc"
+            }
+        }
+    }
+}
+
+# Test target
+target tests {
+    type = "test"
+    language = "perl"
+    sources = ["t/*.t"]
+    deps = [":greeter_lib"]
+    
+    langConfig = {
+        "perl": {
+            "test": {
+                "framework": "prove",
+                "testPaths": ["t/"],
+                "prove": {
+                    "verbose": true,
+                    "lib": true,
+                    "recurse": true,
+                    "color": true
+                }
+            },
+            "includeDirs": ["lib"]
+        }
+    }
+}
+
+# Advanced example with dependencies and formatting
+target advanced {
+    type = "executable"
+    language = "perl"
+    sources = ["main.pl", "lib/**/*.pm"]
+    
+    langConfig = {
+        "perl": {
+            "mode": "application",
+            "packageManager": "cpanm",
+            "installDeps": false,  // Set to true to auto-install
+            
+            // Example dependencies (commented out to avoid requiring cpanm)
+            // "modules": [
+            //     {"name": "JSON::XS"},
+            //     {"name": "DBI"},
+            //     {"name": "DBD::SQLite", "optional": true}
+            // ],
+            
+            "format": {
+                "formatter": "perltidy",
+                "autoFormat": false
+            },
+            
+            "strict": true,
+            "warnings": true,
+            "includeDirs": ["lib"]
+        }
+    }
+}
+
