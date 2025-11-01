@@ -17,10 +17,25 @@ import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.security.validation;
+import core.caching.action;
 
-/// Builder using build.zig build system
+/// Builder using build.zig build system with action-level caching
 class BuildZigBuilder : ZigBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/zig-build", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     ZigCompileResult build(
         const string[] sources,
         ZigConfig config,
@@ -56,6 +71,60 @@ class BuildZigBuilder : ZigBuilder
         {
             Logger.debugLog("Building project: " ~ project.name ~ 
                          (project.version_.empty ? "" : " v" ~ project.version_));
+        }
+        
+        // Collect all source files for caching
+        string[] inputFiles = [buildZigPath];
+        
+        // Add all Zig source files in src/
+        string srcDir = buildPath(workDir, "src");
+        if (exists(srcDir) && isDir(srcDir))
+        {
+            foreach (entry; dirEntries(srcDir, "*.zig", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["optimize"] = config.optimize.to!string;
+        metadata["target"] = config.target.isCross() ? config.target.toTargetFlag() : "native";
+        metadata["cpuFeatures"] = config.target.cpuFeatures.to!string;
+        metadata["steps"] = config.buildZig.steps.join(" ");
+        metadata["prefix"] = config.buildZig.prefix;
+        metadata["options"] = config.buildZig.options.keys.sort().map!(k => k ~ "=" ~ config.buildZig.options[k]).join(",");
+        metadata["sysroot"] = config.buildZig.sysroot;
+        metadata["useSystemLinker"] = config.buildZig.useSystemLinker.to!string;
+        metadata["targetFlags"] = target.flags.join(" ");
+        
+        // Create action ID for build.zig build
+        ActionId actionId;
+        actionId.targetId = project.name.empty ? baseName(workDir) : project.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = "build_zig";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Determine outputs
+        string outputDir = config.buildZig.prefix.empty ? 
+                          buildPath(workDir, config.outputDir) :
+                          config.buildZig.prefix;
+        
+        string[] outputs = collectOutputs(outputDir, target);
+        if (outputs.empty)
+        {
+            // Try common output locations
+            outputs = findDefaultOutputs(workDir, config, target);
+        }
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata) && !outputs.empty && exists(outputs[0]))
+        {
+            Logger.debugLog("  [Cached] build.zig build: " ~ workDir);
+            result.success = true;
+            result.outputs = outputs;
+            result.outputHash = FastHash.hashFile(outputs[0]);
+            return result;
         }
         
         // Build command
@@ -154,33 +223,23 @@ class BuildZigBuilder : ZigBuilder
         // Execute build
         auto res = execute(cmd, env, Config.none, size_t.max, workDir);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "zig build failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
-        
-        // Determine outputs
-        string outputDir = config.buildZig.prefix.empty ? 
-                          buildPath(workDir, config.outputDir) :
-                          config.buildZig.prefix;
-        
-        string[] outputs = collectOutputs(outputDir, target);
-        
-        if (outputs.empty)
-        {
-            // Try common output locations
-            outputs = findDefaultOutputs(workDir, config, target);
-        }
-        
-        result.success = true;
-        result.outputs = outputs;
-        
-        // Hash outputs
-        if (!outputs.empty && exists(outputs[0]))
-            result.outputHash = FastHash.hashFile(outputs[0]);
-        else
-            result.outputHash = FastHash.hashStrings(sources);
         
         // Parse warnings from output
         foreach (line; res.output.lineSplitter)
@@ -191,6 +250,34 @@ class BuildZigBuilder : ZigBuilder
                 result.hadWarnings = true;
             }
         }
+        
+        // Re-collect outputs after build (they should exist now)
+        if (outputs.empty)
+        {
+            outputs = collectOutputs(outputDir, target);
+            if (outputs.empty)
+            {
+                outputs = findDefaultOutputs(workDir, config, target);
+            }
+        }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            inputFiles,
+            outputs,
+            metadata,
+            true
+        );
+        
+        result.success = true;
+        result.outputs = outputs;
+        
+        // Hash outputs
+        if (!outputs.empty && exists(outputs[0]))
+            result.outputHash = FastHash.hashFile(outputs[0]);
+        else
+            result.outputHash = FastHash.hashStrings(sources);
         
         return result;
     }

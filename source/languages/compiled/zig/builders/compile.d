@@ -15,10 +15,25 @@ import languages.compiled.zig.builders.base;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Builder using direct zig compile commands
+/// Builder using direct zig compile commands with action-level caching
 class CompileBuilder : ZigBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/zig", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     ZigCompileResult build(
         const string[] sources,
         ZigConfig config,
@@ -118,6 +133,57 @@ class CompileBuilder : ZigBuilder
         
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
+        
+        // For multi-file projects, compile incrementally with caching
+        if (sources.length > 1)
+        {
+            return compileIncremental(sources, config, target, workspace, outputPath, outputDir);
+        }
+        
+        // Single file compilation with caching
+        return compileDirect(sources, config, target, workspace, outputPath, outputDir);
+    }
+    
+    /// Direct compilation with action-level caching
+    private ZigCompileResult compileDirect(
+        const string[] sources,
+        ZigConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
+        string outputPath,
+        string outputDir
+    )
+    {
+        ZigCompileResult result;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["outputType"] = config.outputType.to!string;
+        metadata["optimize"] = config.optimize.to!string;
+        metadata["linkMode"] = config.linkMode.to!string;
+        metadata["strip"] = config.strip.to!string;
+        metadata["target"] = config.target.toTargetFlag();
+        metadata["cpuFeatures"] = config.target.cpuFeatures.to!string;
+        metadata["lto"] = config.lto.to!string;
+        metadata["pic"] = config.pic.to!string;
+        metadata["cflags"] = config.cflags.join(" ");
+        
+        // Create action ID for compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, sources, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Zig compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
         
         // Build command based on output type
         string[] cmd;
@@ -334,15 +400,23 @@ class CompileBuilder : ZigBuilder
         // Execute compilation
         auto res = execute(cmd, env);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Compilation failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                sources,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
-        
-        result.success = true;
-        result.outputs = [outputPath];
-        result.outputHash = FastHash.hashFile(outputPath);
         
         // Parse warnings
         foreach (line; res.output.lineSplitter)
@@ -354,6 +428,330 @@ class CompileBuilder : ZigBuilder
             }
         }
         
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            sources,
+            [outputPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
+        result.outputs = [outputPath];
+        result.outputHash = FastHash.hashFile(outputPath);
+        
+        return result;
+    }
+    
+    /// Incremental compilation with per-file caching
+    private ZigCompileResult compileIncremental(
+        const string[] sources,
+        ZigConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
+        string outputPath,
+        string outputDir
+    )
+    {
+        ZigCompileResult result;
+        
+        // Create object directory for intermediate files
+        string objDir = buildPath(outputDir, ".zig-obj");
+        if (!exists(objDir))
+            mkdirRecurse(objDir);
+        
+        // Compile each source file separately
+        string[] objectFiles;
+        foreach (source; sources)
+        {
+            auto objResult = compileObject(source, config, target, workspace, objDir);
+            if (!objResult.success)
+            {
+                result.error = objResult.error;
+                result.warnings ~= objResult.warnings;
+                result.hadWarnings = result.hadWarnings || objResult.hadWarnings;
+                return result;
+            }
+            
+            objectFiles ~= objResult.outputs;
+            result.warnings ~= objResult.warnings;
+            result.hadWarnings = result.hadWarnings || objResult.hadWarnings;
+        }
+        
+        // Link all object files
+        auto linkResult = linkObjects(objectFiles, outputPath, config, target, workspace);
+        if (!linkResult.success)
+        {
+            result.error = linkResult.error;
+            return result;
+        }
+        
+        result.success = true;
+        result.outputs = [outputPath];
+        result.outputHash = FastHash.hashFile(outputPath);
+        
+        return result;
+    }
+    
+    /// Compile individual source file to object with caching
+    private ZigCompileResult compileObject(
+        string source,
+        ZigConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
+        string objDir
+    )
+    {
+        ZigCompileResult result;
+        
+        // Generate object file path
+        string objName = baseName(source, extension(source)) ~ ".o";
+        string objPath = buildPath(objDir, objName);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["optimize"] = config.optimize.to!string;
+        metadata["target"] = config.target.toTargetFlag();
+        metadata["cpuFeatures"] = config.target.cpuFeatures.to!string;
+        metadata["cflags"] = config.cflags.join(" ");
+        
+        // Create action ID for object compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = baseName(source);
+        actionId.inputHash = FastHash.hashFile(source);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, [source], metadata) && exists(objPath))
+        {
+            Logger.debugLog("  [Cached] " ~ source);
+            result.success = true;
+            result.outputs = [objPath];
+            return result;
+        }
+        
+        // Build zig command for object compilation
+        string[] cmd = ["zig", "build-obj"];
+        cmd ~= source;
+        cmd ~= ["-femit-bin=" ~ objPath];
+        
+        // Add optimization mode
+        final switch (config.optimize)
+        {
+            case OptMode.Debug: cmd ~= "-ODebug"; break;
+            case OptMode.ReleaseSafe: cmd ~= "-OReleaseSafe"; break;
+            case OptMode.ReleaseFast: cmd ~= "-OReleaseFast"; break;
+            case OptMode.ReleaseSmall: cmd ~= "-OReleaseSmall"; break;
+        }
+        
+        // Add target for cross-compilation
+        if (config.target.isCross())
+        {
+            cmd ~= "-target";
+            cmd ~= config.target.toTargetFlag();
+        }
+        
+        // Add CPU features
+        if (config.target.cpuFeatures == CpuFeature.Native)
+        {
+            cmd ~= "-mcpu=native";
+        }
+        else if (config.target.cpuFeatures == CpuFeature.Custom && !config.target.customFeatures.empty)
+        {
+            cmd ~= "-mcpu=" ~ config.target.customFeatures;
+        }
+        
+        // Add C flags
+        cmd ~= config.cflags.map!(f => "-cflags " ~ f).array;
+        
+        Logger.debugLog("Compiling: " ~ source);
+        
+        // Prepare environment
+        string[string] env;
+        foreach (key, value; environment.toAA())
+            env[key] = value;
+        
+        // Add custom environment variables
+        foreach (key, value; config.env)
+            env[key] = value;
+        
+        auto res = execute(cmd, env);
+        
+        bool success = (res.status == 0);
+        
+        if (!success)
+        {
+            result.error = "Object compilation failed for " ~ source ~ ": " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Parse warnings
+        foreach (line; res.output.lineSplitter)
+        {
+            if (line.canFind("warning:"))
+            {
+                result.warnings ~= line.strip;
+                result.hadWarnings = true;
+            }
+        }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            [source],
+            [objPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
+        result.outputs = [objPath];
+        
+        return result;
+    }
+    
+    /// Link object files with caching
+    private ZigCompileResult linkObjects(
+        string[] objectFiles,
+        string outputPath,
+        ZigConfig config,
+        const Target target,
+        const WorkspaceConfig workspace
+    )
+    {
+        ZigCompileResult result;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["outputType"] = config.outputType.to!string;
+        metadata["linkMode"] = config.linkMode.to!string;
+        metadata["strip"] = config.strip.to!string;
+        metadata["target"] = config.target.toTargetFlag();
+        metadata["lto"] = config.lto.to!string;
+        metadata["sysLibs"] = config.sysLibs.join(" ");
+        
+        // Create action ID for linking
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Link;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(objectFiles);
+        
+        // Check if linking is cached
+        if (actionCache.isCached(actionId, objectFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Linking: " ~ outputPath);
+            result.success = true;
+            return result;
+        }
+        
+        // Determine zig command based on output type
+        string[] cmd;
+        final switch (config.outputType)
+        {
+            case OutputType.Exe: cmd = ["zig", "build-exe"]; break;
+            case OutputType.Lib: cmd = ["zig", "build-lib"]; break;
+            case OutputType.Dylib: cmd = ["zig", "build-lib", "-dynamic"]; break;
+            case OutputType.Obj: cmd = ["zig", "build-obj"]; break;
+        }
+        
+        // Add object files
+        cmd ~= objectFiles;
+        
+        // Output path
+        cmd ~= ["-femit-bin=" ~ outputPath];
+        
+        // Add target
+        if (config.target.isCross())
+        {
+            cmd ~= "-target";
+            cmd ~= config.target.toTargetFlag();
+        }
+        
+        // Add link mode
+        if (config.linkMode == LinkMode.Static)
+        {
+            version(OSX)
+            {
+                Logger.debugLog("Skipping -static flag on macOS (not supported with libc)");
+            }
+            else
+            {
+                cmd ~= "-static";
+            }
+        }
+        
+        // Add strip mode
+        final switch (config.strip)
+        {
+            case StripMode.None: break;
+            case StripMode.Debug: cmd ~= "-fstrip"; break;
+            case StripMode.All: cmd ~= "-fstrip"; break;
+        }
+        
+        // Add LTO
+        if (config.lto)
+            cmd ~= "-flto";
+        
+        // Add system libraries
+        foreach (lib; config.sysLibs)
+        {
+            cmd ~= "-l" ~ lib;
+        }
+        
+        Logger.debugLog("Linking: " ~ outputPath);
+        
+        // Prepare environment
+        string[string] env;
+        foreach (key, value; environment.toAA())
+            env[key] = value;
+        
+        // Add custom environment variables
+        foreach (key, value; config.env)
+            env[key] = value;
+        
+        auto res = execute(cmd, env);
+        
+        bool success = (res.status == 0);
+        
+        if (!success)
+        {
+            result.error = "Linking failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                objectFiles,
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            objectFiles,
+            [outputPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
         return result;
     }
     

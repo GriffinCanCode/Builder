@@ -14,10 +14,25 @@ import languages.compiled.swift.managers.spm;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Swift Package Manager builder
+/// Swift Package Manager builder with action-level caching
 class SPMBuilder : SwiftBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/swift-spm", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     SwiftBuildResult build(
         in string[] sources,
         in SwiftConfig config,
@@ -163,6 +178,60 @@ class SPMBuilder : SwiftBuilder
         if (config.enableTestability)
             args ~= ["--enable-testability"];
         
+        // Collect all source files for caching
+        string[] inputFiles;
+        string packagePath = config.packagePath.empty ? "." : config.packagePath;
+        string manifestPath = buildPath(packagePath, "Package.swift");
+        
+        if (exists(manifestPath))
+            inputFiles ~= manifestPath;
+        
+        // Add all Swift source files in Sources/
+        string sourcesDir = buildPath(packagePath, "Sources");
+        if (exists(sourcesDir) && isDir(sourcesDir))
+        {
+            foreach (entry; dirEntries(sourcesDir, "*.swift", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["mode"] = config.mode.to!string;
+        metadata["buildConfig"] = config.buildConfig.to!string;
+        metadata["product"] = config.product;
+        metadata["target"] = config.target;
+        metadata["arch"] = config.arch;
+        metadata["triple"] = config.triple;
+        metadata["sdk"] = config.sdk;
+        metadata["swiftFlags"] = config.buildSettings.swiftFlags.join(" ");
+        metadata["linkerFlags"] = config.buildSettings.linkerFlags.join(" ");
+        metadata["sanitizer"] = config.sanitizer.to!string;
+        metadata["args"] = args.join(" ");
+        
+        // Create action ID for SPM build
+        ActionId actionId;
+        actionId.targetId = baseName(packagePath);
+        actionId.type = config.mode == SPMBuildMode.Test ? ActionType.Test : ActionType.Package;
+        actionId.subId = "spm_" ~ config.mode.to!string;
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Get output directory
+        auto outputs = getBuildOutputs(config, workspace);
+        
+        // Check if build is cached (only for Build mode, not Test/Run)
+        if (config.mode == SPMBuildMode.Build && 
+            actionCache.isCached(actionId, inputFiles, metadata) && 
+            !outputs.empty && exists(outputs[0]))
+        {
+            Logger.debugLog("  [Cached] SPM build: " ~ packagePath);
+            result.success = true;
+            result.outputs = outputs;
+            result.outputHash = FastHash.hashFile(outputs[0]);
+            return result;
+        }
+        
         // Run appropriate command based on mode
         auto runner = new SwiftBuildRunner(config.packagePath);
         
@@ -236,10 +305,25 @@ class SPMBuilder : SwiftBuilder
                 break;
         }
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Swift build failed: " ~ res.output;
             parseWarnings(res.output, result);
+            
+            // Update cache with failure (only for Build mode)
+            if (config.mode == SPMBuildMode.Build)
+            {
+                actionCache.update(
+                    actionId,
+                    inputFiles,
+                    [],
+                    metadata,
+                    false
+                );
+            }
+            
             return result;
         }
         
@@ -247,7 +331,6 @@ class SPMBuilder : SwiftBuilder
         parseWarnings(res.output, result);
         
         // Get build outputs
-        auto outputs = getBuildOutputs(config, workspace);
         result.outputs = outputs;
         
         // Calculate hash
@@ -258,6 +341,18 @@ class SPMBuilder : SwiftBuilder
         else
         {
             result.outputHash = FastHash.hashStrings(sources);
+        }
+        
+        // Update cache with success (only for Build mode)
+        if (config.mode == SPMBuildMode.Build)
+        {
+            actionCache.update(
+                actionId,
+                inputFiles,
+                outputs,
+                metadata,
+                true
+            );
         }
         
         result.success = true;
@@ -294,7 +389,7 @@ class SPMBuilder : SwiftBuilder
         }
     }
     
-    private string[] getBuildOutputs(in SwiftConfig config, in WorkspaceConfig workspace)
+    private string[] getBuildOutputs(in SwiftConfig config, WorkspaceConfig workspace)
     {
         string[] outputs;
         

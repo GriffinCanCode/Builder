@@ -15,10 +15,25 @@ import languages.compiled.swift.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Direct swiftc compiler builder
+/// Direct swiftc compiler builder with action-level caching
 class SwiftcBuilder : SwiftBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/swift", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     SwiftBuildResult build(
         in string[] sources,
         in SwiftConfig config,
@@ -35,6 +50,58 @@ class SwiftcBuilder : SwiftBuilder
         
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
+        
+        // For multi-file projects, compile incrementally with caching
+        if (sources.length > 1 && config.incrementalCompilation)
+        {
+            return compileIncremental(sources, config, target, workspace, outputPath, outputDir);
+        }
+        
+        // Single pass compilation with caching
+        return compileDirect(sources, config, target, workspace, outputPath, outputDir);
+    }
+    
+    /// Direct compilation with action-level caching
+    private SwiftBuildResult compileDirect(
+        in string[] sources,
+        in SwiftConfig config,
+        in Target target,
+        in WorkspaceConfig workspace,
+        string outputPath,
+        string outputDir
+    )
+    {
+        SwiftBuildResult result;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildConfig"] = config.buildConfig.to!string;
+        metadata["optimization"] = config.optimization.to!string;
+        metadata["projectType"] = config.projectType.to!string;
+        metadata["libraryType"] = config.libraryType.to!string;
+        metadata["languageVersion"] = getLanguageVersionString(config.languageVersion);
+        metadata["triple"] = config.triple;
+        metadata["sdk"] = config.sdk;
+        metadata["swiftFlags"] = config.buildSettings.swiftFlags.join(" ");
+        metadata["linkerFlags"] = config.buildSettings.linkerFlags.join(" ");
+        metadata["wholeModule"] = config.wholeModuleOptimization.to!string;
+        
+        // Create action ID for compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, sources, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Swift compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
         
         // Build command
         string[] cmd = [config.swiftcPath.empty ? "swiftc" : config.swiftcPath];
@@ -216,20 +283,317 @@ class SwiftcBuilder : SwiftBuilder
         
         auto res = execute(cmd, config.env);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "swiftc failed: " ~ res.output;
             parseWarnings(res.output, result);
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                sources,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
         // Parse warnings
         parseWarnings(res.output, result);
         
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            sources,
+            [outputPath],
+            metadata,
+            true
+        );
+        
         result.success = true;
-        result.outputs = outputs;
+        result.outputs = [outputPath];
         result.outputHash = FastHash.hashFile(outputPath);
         
+        return result;
+    }
+    
+    /// Incremental compilation with per-file caching
+    private SwiftBuildResult compileIncremental(
+        in string[] sources,
+        in SwiftConfig config,
+        in Target target,
+        in WorkspaceConfig workspace,
+        string outputPath,
+        string outputDir
+    )
+    {
+        SwiftBuildResult result;
+        
+        // Create object directory for intermediate files
+        string objDir = buildPath(outputDir, ".swift-obj");
+        if (!exists(objDir))
+            mkdirRecurse(objDir);
+        
+        // Compile each source file separately
+        string[] objectFiles;
+        foreach (source; sources)
+        {
+            auto objResult = compileSource(source, config, target, workspace, objDir);
+            if (!objResult.success)
+            {
+                result.error = objResult.error;
+                result.warnings ~= objResult.warnings;
+                return result;
+            }
+            
+            objectFiles ~= objResult.outputs;
+            result.warnings ~= objResult.warnings;
+        }
+        
+        // Link all object files
+        auto linkResult = linkObjects(objectFiles, outputPath, config, target);
+        if (!linkResult.success)
+        {
+            result.error = linkResult.error;
+            return result;
+        }
+        
+        result.success = true;
+        result.outputs = [outputPath];
+        result.outputHash = FastHash.hashFile(outputPath);
+        
+        return result;
+    }
+    
+    /// Compile individual source file with caching
+    private SwiftBuildResult compileSource(
+        string source,
+        in SwiftConfig config,
+        in Target target,
+        in WorkspaceConfig workspace,
+        string objDir
+    )
+    {
+        SwiftBuildResult result;
+        
+        // Generate object file path
+        string objName = baseName(source, extension(source)) ~ ".o";
+        string objPath = buildPath(objDir, objName);
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildConfig"] = config.buildConfig.to!string;
+        metadata["optimization"] = config.optimization.to!string;
+        metadata["languageVersion"] = getLanguageVersionString(config.languageVersion);
+        metadata["triple"] = config.triple;
+        metadata["sdk"] = config.sdk;
+        metadata["swiftFlags"] = config.buildSettings.swiftFlags.join(" ");
+        
+        // Create action ID for source compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = baseName(source);
+        actionId.inputHash = FastHash.hashFile(source);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, [source], metadata) && exists(objPath))
+        {
+            Logger.debugLog("  [Cached] " ~ source);
+            result.success = true;
+            result.outputs = [objPath];
+            return result;
+        }
+        
+        // Build swiftc command for source compilation
+        string[] cmd = [config.swiftcPath.empty ? "swiftc" : config.swiftcPath];
+        
+        // Emit object file
+        cmd ~= ["-c", source];
+        cmd ~= ["-o", objPath];
+        
+        // Configuration flags
+        final switch (config.buildConfig)
+        {
+            case SwiftBuildConfig.Debug:
+                cmd ~= ["-g"];
+                break;
+            case SwiftBuildConfig.Release:
+                final switch (config.optimization)
+                {
+                    case SwiftOptimization.None: cmd ~= ["-Onone"]; break;
+                    case SwiftOptimization.Speed: cmd ~= ["-O"]; break;
+                    case SwiftOptimization.Size: cmd ~= ["-Osize"]; break;
+                    case SwiftOptimization.Unchecked: cmd ~= ["-Ounchecked"]; break;
+                }
+                break;
+            case SwiftBuildConfig.Custom:
+                break;
+        }
+        
+        // Swift language version
+        string langVersion = getLanguageVersionString(config.languageVersion);
+        if (!langVersion.empty)
+            cmd ~= ["-swift-version", langVersion];
+        
+        // Target triple
+        if (!config.triple.empty)
+            cmd ~= ["-target", config.triple];
+        
+        // SDK
+        if (!config.sdk.empty)
+            cmd ~= ["-sdk", config.sdk];
+        
+        // Module name
+        if (!config.product.empty)
+            cmd ~= ["-module-name", config.product];
+        
+        // Custom Swift flags
+        cmd ~= config.buildSettings.swiftFlags;
+        
+        Logger.debugLog("Compiling: " ~ source);
+        
+        auto res = execute(cmd, config.env);
+        
+        bool success = (res.status == 0);
+        
+        if (!success)
+        {
+            result.error = "Compilation failed for " ~ source ~ ": " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Parse warnings
+        parseWarnings(res.output, result);
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            [source],
+            [objPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
+        result.outputs = [objPath];
+        
+        return result;
+    }
+    
+    /// Link object files with caching
+    private SwiftBuildResult linkObjects(
+        string[] objectFiles,
+        string outputPath,
+        in SwiftConfig config,
+        in Target target
+    )
+    {
+        SwiftBuildResult result;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["projectType"] = config.projectType.to!string;
+        metadata["libraryType"] = config.libraryType.to!string;
+        metadata["triple"] = config.triple;
+        metadata["linkerFlags"] = config.buildSettings.linkerFlags.join(" ");
+        metadata["linkedLibraries"] = config.buildSettings.linkedLibraries.join(" ");
+        
+        // Create action ID for linking
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Link;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(objectFiles);
+        
+        // Check if linking is cached
+        if (actionCache.isCached(actionId, objectFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Linking: " ~ outputPath);
+            result.success = true;
+            return result;
+        }
+        
+        // Build swiftc link command
+        string[] cmd = [config.swiftcPath.empty ? "swiftc" : config.swiftcPath];
+        
+        // Output
+        cmd ~= ["-o", outputPath];
+        
+        // Object files
+        cmd ~= objectFiles;
+        
+        // Target triple
+        if (!config.triple.empty)
+            cmd ~= ["-target", config.triple];
+        
+        // Framework paths
+        version(OSX)
+        {
+            foreach (framework; config.buildSettings.linkedFrameworks)
+            {
+                cmd ~= ["-framework", framework];
+            }
+        }
+        
+        // Linked libraries
+        foreach (lib; config.buildSettings.linkedLibraries)
+        {
+            cmd ~= ["-l" ~ lib];
+        }
+        
+        // Linker flags
+        foreach (flag; config.buildSettings.linkerFlags)
+        {
+            cmd ~= ["-Xlinker", flag];
+        }
+        
+        Logger.debugLog("Linking: " ~ outputPath);
+        
+        auto res = execute(cmd, config.env);
+        
+        bool success = (res.status == 0);
+        
+        if (!success)
+        {
+            result.error = "Linking failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                objectFiles,
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            objectFiles,
+            [outputPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
         return result;
     }
     

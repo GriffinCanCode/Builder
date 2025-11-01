@@ -13,10 +13,25 @@ import languages.compiled.rust.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action;
 
-/// Direct rustc builder - compiles without cargo
+/// Direct rustc builder - compiles without cargo with action-level caching
 class RustcBuilder : RustBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/rust", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     RustCompileResult build(
         in string[] sources,
         in RustConfig config,
@@ -101,14 +116,83 @@ class RustcBuilder : RustBuilder
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
         
+        // For multi-file projects, compile incrementally with caching
+        if (sources.length > 1)
+        {
+            // Create .rlib directory for intermediate objects
+            string rlibDir = buildPath(outputDir, ".rlib");
+            if (!exists(rlibDir))
+                mkdirRecurse(rlibDir);
+            
+            // Compile each module separately
+            string[] compiledModules;
+            foreach (source; sources)
+            {
+                auto moduleResult = compileModule(source, config, target, workspace, rlibDir);
+                if (!moduleResult.success)
+                {
+                    result.error = moduleResult.error;
+                    result.hadWarnings = result.hadWarnings || moduleResult.hadWarnings;
+                    result.warnings ~= moduleResult.warnings;
+                    return result;
+                }
+                
+                compiledModules ~= moduleResult.outputs;
+                result.warnings ~= moduleResult.warnings;
+                result.hadWarnings = result.hadWarnings || moduleResult.hadWarnings;
+            }
+            
+            // Link all modules
+            auto linkResult = linkModules(compiledModules, outputPath, config, target);
+            if (!linkResult.success)
+            {
+                result.error = linkResult.error;
+                return result;
+            }
+            
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            
+            return result;
+        }
+        
+        // Single file compilation - direct compilation with caching
+        string entryPoint = config.entry.empty ? sources[0] : config.entry;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["crateType"] = crateTypeToString(config.crateType);
+        metadata["edition"] = editionToString(config.edition);
+        metadata["release"] = config.release.to!string;
+        metadata["optLevel"] = config.release ? optLevelToString(config.optLevel) : "0";
+        metadata["debugInfo"] = config.debugInfo.to!string;
+        metadata["lto"] = ltoModeToString(config.lto);
+        metadata["target"] = config.target;
+        metadata["rustcFlags"] = config.rustcFlags.join(" ");
+        
+        // Create action ID for compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = baseName(entryPoint);
+        actionId.inputHash = FastHash.hashFile(entryPoint);
+        
+        // Check if compilation is cached
+        if (actionCache.isCached(actionId, [entryPoint], metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Rustc compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
+        
         // Build rustc command
         string[] cmd = ["rustc"];
         
         // Entry point
-        if (!config.entry.empty)
-            cmd ~= [config.entry];
-        else
-            cmd ~= [sources[0]];
+        cmd ~= [entryPoint];
         
         // Output
         cmd ~= ["-o", outputPath];
@@ -143,16 +227,6 @@ class RustcBuilder : RustBuilder
         if (!config.target.empty)
             cmd ~= ["--target", config.target];
         
-        // Add library paths for additional sources
-        if (sources.length > 1)
-        {
-            foreach (source; sources[1 .. $])
-            {
-                string dir = dirName(source);
-                cmd ~= ["-L", dir];
-            }
-        }
-        
         // Add rustc flags
         cmd ~= config.rustcFlags;
         
@@ -166,14 +240,35 @@ class RustcBuilder : RustBuilder
         // Execute compilation
         auto res = execute(cmd, env);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Rustc compilation failed:\n" ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                [entryPoint],
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
         // Parse warnings
         parseRustcOutput(res.output, result);
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            [entryPoint],
+            [outputPath],
+            metadata,
+            true
+        );
         
         result.success = true;
         result.outputs = [outputPath];
@@ -183,6 +278,204 @@ class RustcBuilder : RustBuilder
         else
             result.outputHash = FastHash.hashString(res.output);
         
+        return result;
+    }
+    
+    /// Compile individual module with caching
+    private RustCompileResult compileModule(
+        string source,
+        in RustConfig config,
+        in Target target,
+        in WorkspaceConfig workspace,
+        string rlibDir
+    )
+    {
+        RustCompileResult result;
+        
+        // Generate output path for .rlib
+        string moduleName = baseName(source, extension(source));
+        string rlibPath = buildPath(rlibDir, moduleName ~ ".rlib");
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["edition"] = editionToString(config.edition);
+        metadata["release"] = config.release.to!string;
+        metadata["optLevel"] = config.release ? optLevelToString(config.optLevel) : "0";
+        metadata["target"] = config.target;
+        metadata["rustcFlags"] = config.rustcFlags.join(" ");
+        
+        // Create action ID for module compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = baseName(source);
+        actionId.inputHash = FastHash.hashFile(source);
+        
+        // Check if module compilation is cached
+        if (actionCache.isCached(actionId, [source], metadata) && exists(rlibPath))
+        {
+            Logger.debugLog("  [Cached] " ~ source);
+            result.success = true;
+            result.outputs = [rlibPath];
+            return result;
+        }
+        
+        // Build rustc command for module compilation
+        string[] cmd = ["rustc"];
+        cmd ~= [source];
+        cmd ~= ["-o", rlibPath];
+        cmd ~= ["--crate-type", "rlib"];
+        cmd ~= ["--edition", editionToString(config.edition)];
+        
+        if (config.release)
+            cmd ~= ["-C", "opt-level=" ~ optLevelToString(config.optLevel)];
+        else
+            cmd ~= ["-C", "opt-level=0"];
+        
+        if (!config.target.empty)
+            cmd ~= ["--target", config.target];
+        
+        cmd ~= config.rustcFlags;
+        
+        Logger.debugLog("Compiling module: " ~ source);
+        
+        // Set environment variables
+        string[string] env = null;
+        if (!config.env.empty)
+            env = cast(string[string])config.env.dup;
+        
+        auto res = execute(cmd, env);
+        
+        bool success = (res.status == 0);
+        
+        if (!success)
+        {
+            result.error = "Module compilation failed for " ~ source ~ ": " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Parse warnings
+        parseRustcOutput(res.output, result);
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            [source],
+            [rlibPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
+        result.outputs = [rlibPath];
+        
+        return result;
+    }
+    
+    /// Link compiled modules with caching
+    private RustCompileResult linkModules(
+        string[] modules,
+        string outputPath,
+        in RustConfig config,
+        in Target target
+    )
+    {
+        RustCompileResult result;
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["crateType"] = crateTypeToString(config.crateType);
+        metadata["release"] = config.release.to!string;
+        metadata["lto"] = ltoModeToString(config.lto);
+        metadata["target"] = config.target;
+        metadata["rustcFlags"] = config.rustcFlags.join(" ");
+        
+        // Create action ID for linking
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Link;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(modules);
+        
+        // Check if linking is cached
+        if (actionCache.isCached(actionId, modules, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Linking: " ~ outputPath);
+            result.success = true;
+            return result;
+        }
+        
+        // Build link command
+        string[] cmd = ["rustc"];
+        cmd ~= ["--crate-type", crateTypeToString(config.crateType)];
+        cmd ~= ["-o", outputPath];
+        cmd ~= ["--edition", editionToString(config.edition)];
+        
+        // Add compiled modules as external crates
+        foreach (mod_; modules)
+        {
+            string dir = dirName(mod_);
+            cmd ~= ["-L", dir];
+        }
+        
+        if (config.release)
+            cmd ~= ["-C", "opt-level=" ~ optLevelToString(config.optLevel)];
+        
+        if (config.lto != LtoMode.Off)
+            cmd ~= ["-C", "lto=" ~ ltoModeToString(config.lto)];
+        
+        if (!config.target.empty)
+            cmd ~= ["--target", config.target];
+        
+        cmd ~= config.rustcFlags;
+        
+        Logger.debugLog("Linking: " ~ outputPath);
+        
+        // Set environment variables
+        string[string] env = null;
+        if (!config.env.empty)
+            env = cast(string[string])config.env.dup;
+        
+        auto res = execute(cmd, env);
+        
+        bool success = (res.status == 0);
+        
+        if (!success)
+        {
+            result.error = "Linking failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                modules,
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            modules,
+            [outputPath],
+            metadata,
+            true
+        );
+        
+        result.success = true;
         return result;
     }
     
