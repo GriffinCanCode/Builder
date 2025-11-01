@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import languages.base.base;
+import languages.base.mixins;
 import languages.dotnet.csharp.core.config;
 import languages.dotnet.csharp.managers;
 import languages.dotnet.csharp.tooling.detection;
@@ -21,48 +22,27 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig;
 
 /// C# build handler with action-level caching
 class CSharpHandler : BaseLanguageHandler
 {
-    private ActionCache actionCache;
+    mixin CachingHandlerMixin!"csharp";
+    mixin ConfigParsingMixin!(CSharpConfig, "parseCSharpConfig", ["csharp", "csConfig"]);
+    mixin SimpleBuildOrchestrationMixin!(CSharpConfig, "parseCSharpConfig");
     
-    this()
+    private void enhanceConfigFromProject(
+        ref CSharpConfig config,
+        in Target target,
+        in WorkspaceConfig workspace
+    )
     {
-        auto cacheConfig = ActionCacheConfig.fromEnvironment();
-        actionCache = new ActionCache(".builder-cache/actions/csharp", cacheConfig);
-    }
-    
-    ~this()
-    {
-        import core.memory : GC;
-        if (actionCache && !GC.inFinalizer())
-        {
-            try
-            {
-                actionCache.close();
-            }
-            catch (Exception) {}
-        }
-    }
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
-    {
-        LanguageBuildResult result;
-        
-        Logger.debugLog("Building C# target: " ~ target.name);
-        
-        // Parse C# configuration
-        CSharpConfig csConfig = parseCSharpConfig(target);
-        
         // Detect and enhance configuration from project structure
-        BuildToolFactory.enhanceConfigFromProject(csConfig, config.root);
+        BuildToolFactory.enhanceConfigFromProject(config, workspace.root);
         
         // Validate .NET installation
-        if (!DotNetToolDetection.isDotNetAvailable() && csConfig.buildTool != CSharpBuildTool.CSC)
+        if (!DotNetToolDetection.isDotNetAvailable() && config.buildTool != CSharpBuildTool.CSC)
         {
-            result.error = "dotnet CLI not found. Please install .NET SDK.";
-            return result;
+            Logger.warning("dotnet CLI not found. Please install .NET SDK.");
         }
         
         // Check .NET version
@@ -75,32 +55,13 @@ class CSharpHandler : BaseLanguageHandler
         {
             Logger.info("Using .NET " ~ dotnetVersion);
         }
-        
-        // Build based on target type
-        final switch (target.type)
-        {
-            case TargetType.Executable:
-                result = buildExecutable(target, config, csConfig);
-                break;
-            case TargetType.Library:
-                result = buildLibrary(target, config, csConfig);
-                break;
-            case TargetType.Test:
-                result = runTests(target, config, csConfig);
-                break;
-            case TargetType.Custom:
-                result = buildCustom(target, config, csConfig);
-                break;
-        }
-        
-        return result;
     }
     
     override string[] getOutputs(in Target target, in WorkspaceConfig config)
     {
         string[] outputs;
         
-        CSharpConfig csConfig = parseCSharpConfig(target);
+        auto csConfig = parseCSharpConfig(target);
         
         if (!target.outputPath.empty)
         {
@@ -205,7 +166,7 @@ class CSharpHandler : BaseLanguageHandler
         }
         
         // Build using appropriate builder with action cache
-        auto builder = CSharpBuilderFactory.create(csConfig.mode, csConfig, actionCache);
+        auto builder = CSharpBuilderFactory.create(csConfig.mode, csConfig, getCache());
         
         if (!builder.isAvailable())
         {

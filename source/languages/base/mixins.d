@@ -103,6 +103,8 @@ mixin template OutputResolutionMixin(TConfig, string configParserName, string de
 /// Usage: mixin BuildOrchestrationMixin!(PyConfig, "parsePyConfig", "string");
 mixin template BuildOrchestrationMixin(TConfig, string configParserName, ContextType...)
 {
+    import std.conv : to;
+    
     static if (ContextType.length == 0)
     {
         // No additional context needed
@@ -187,7 +189,7 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
         private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
         private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
         private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ");
-        private LanguageBuildResult buildCustom(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ", " ~ ContextType[0].stringof ~ ")
+        private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, " ~ TConfig.stringof ~ " langConfig, " ~ ContextType[0].stringof ~ " context)
         {
             LanguageBuildResult result;
             result.success = true;
@@ -203,6 +205,8 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
 /// Simplified orchestration for handlers without additional context
 mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
 {
+    import std.conv : to;
+    
     mixin("protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -234,7 +238,7 @@ mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
     private LanguageBuildResult buildExecutable(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
     private LanguageBuildResult buildLibrary(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
     private LanguageBuildResult runTests(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ");
-    private LanguageBuildResult buildCustom(in Target, in WorkspaceConfig, " ~ TConfig.stringof ~ ")
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, " ~ TConfig.stringof ~ " langConfig)
     {
         LanguageBuildResult result;
         result.success = true;
