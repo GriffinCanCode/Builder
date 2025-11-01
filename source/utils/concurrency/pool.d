@@ -98,17 +98,19 @@ final class ThreadPool
         
         synchronized (jobMutex)
         {
+            // Clear old jobs first to allow GC
+            jobs.length = 0;
             jobs.reserve(items.length);
-            jobs.length = items.length;
+            
             atomicStore(pendingJobs, items.length);
             atomicStore(nextJobIndex, cast(size_t)0);
             
+            // Create new Job objects (heap-allocated) to avoid dangling pointers
             foreach (i, ref item; items)
             {
-                jobs[i].id = i;
-                // Use a helper function to properly capture by value
-                jobs[i].work = makeWork(i, item, results, func);
-                atomicStore(jobs[i].completed, false);
+                auto job = new Job(i);
+                job.work = makeWork(i, item, results, func);
+                jobs ~= job;
             }
             
             jobAvailable.notifyAll();
@@ -155,16 +157,19 @@ final class ThreadPool
         
         synchronized (jobMutex)
         {
+            // Clear old jobs first to allow GC
+            jobs.length = 0;
             jobs.reserve(items.length);
-            jobs.length = items.length;
+            
             atomicStore(pendingJobs, items.length);
             atomicStore(nextJobIndex, cast(size_t)0);
             
+            // Create new Job objects (heap-allocated) to avoid dangling pointers
             foreach (i, ref item; items)
             {
-                jobs[i].id = i;
-                jobs[i].work = makeForEachWork(item, func);
-                atomicStore(jobs[i].completed, false);
+                auto job = new Job(i);
+                job.work = makeForEachWork(item, func);
+                jobs ~= job;
             }
             
             jobAvailable.notifyAll();
@@ -239,13 +244,14 @@ final class ThreadPool
     /// Get next job for worker (internal method)
     /// 
     /// Safety: This function is @trusted because:
-    /// 1. Returns pointer to job array element (valid while locked)
+    /// 1. Returns Job class reference (heap-allocated, stable pointer)
     /// 2. synchronized block ensures exclusive access
     /// 3. Atomic operations for thread-safe index access
     /// 4. Bounds checking prevents invalid array access
     /// 5. CAS operation ensures only one worker claims each job
+    /// 6. Job is a class, so reference remains valid even if jobs array is reallocated
     @trusted
-    Job* nextJob()
+    Job nextJob()
     {
         synchronized (jobMutex)
         {
@@ -264,7 +270,7 @@ final class ThreadPool
                 if (cas(&nextJobIndex, idx, idx + 1))
                 {
                     if (!atomicLoad(jobs[idx].completed))
-                        return &jobs[idx];
+                        return jobs[idx];  // Return class reference, not pointer
                 }
             }
             
@@ -348,12 +354,13 @@ private final class Worker
     /// 2. Job execution is isolated per worker
     /// 3. Exception handling prevents thread crashes
     /// 4. Proper cleanup via pool.completeJob()
+    /// 5. Job is a class (heap-allocated), so reference remains valid
     @trusted
     private void run()
     {
         while (pool.isRunning())
         {
-            scope job = pool.nextJob();
+            auto job = pool.nextJob();  // Get Job class reference
             
             if (job is null)
                 break;
@@ -376,11 +383,18 @@ private final class Worker
 
 /// Job structure for work distribution
 /// Thread-safe: completed flag is accessed atomically
-private struct Job
+/// Class (not struct) to avoid dangling pointers when jobs array is reallocated
+private final class Job
 {
     size_t id;
     void delegate() work;
     shared bool completed;  // Atomic access for thread-safe completion checking
+    
+    this(size_t id) @safe nothrow
+    {
+        this.id = id;
+        atomicStore(this.completed, false);
+    }
 }
 
 
