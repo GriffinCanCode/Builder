@@ -13,10 +13,13 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache;
 
 /// Fat JAR builder for Kotlin (includes all dependencies)
 class FatJARBuilder : KotlinBuilder
 {
+    this(ActionCache cache = null) {}
+    
     override KotlinBuildResult build(
         in string[] sources,
         in KotlinConfig config,

@@ -15,10 +15,31 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig;
 
-/// Kotlin build handler - main orchestrator
+/// Kotlin build handler with action-level caching
 class KotlinHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/kotlin", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -146,7 +167,7 @@ class KotlinHandler : BaseLanguageHandler
         // Delegate to appropriate builder based on mode
         import languages.jvm.kotlin.tooling.builders;
         
-        auto builder = KotlinBuilderFactory.create(ktConfig.mode, ktConfig);
+        auto builder = KotlinBuilderFactory.create(ktConfig.mode, ktConfig, actionCache);
         if (builder is null)
         {
             LanguageBuildResult result;

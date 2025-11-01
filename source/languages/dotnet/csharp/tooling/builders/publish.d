@@ -17,6 +17,9 @@ import utils.logging.logger;
 /// Publish builder for single-file, R2R, and trimmed builds
 class PublishBuilder : CSharpBuilder
 {
+    import core.caching.action : ActionCache;
+    this(ActionCache cache = null) {}
+    
     override BuildResult build(
         in string[] sources,
         in CSharpConfig config,

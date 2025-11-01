@@ -5,6 +5,7 @@ import std.file;
 import std.path;
 import std.range;
 import std.algorithm;
+import std.conv;
 import languages.dotnet.csharp.tooling.builders.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.managers.dotnet;
@@ -13,10 +14,26 @@ import analysis.targets.spec;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Standard builder using dotnet build
+/// Standard builder using dotnet build with action-level caching
 class StandardBuilder : CSharpBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/csharp", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
+    
     override BuildResult build(
         in string[] sources,
         in CSharpConfig config,
@@ -28,18 +45,84 @@ class StandardBuilder : CSharpBuilder
         
         Logger.info("Building with standard builder");
         
-        // Use dotnet build
-        if (!DotNetOps.build(workspaceConfig.root, config))
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildTool"] = "dotnet";
+        metadata["configuration"] = config.configuration;
+        metadata["framework"] = config.framework.targetFramework;
+        metadata["platform"] = config.platform;
+        metadata["flags"] = config.dotnet.additionalArgs.join(" ");
+        
+        // Collect input files
+        string[] inputFiles = sources.dup;
+        
+        // Add project file if exists
+        foreach (csproj; ["*.csproj", target.name ~ ".csproj"])
         {
-            result.error = "Build failed";
-            return result;
+            auto projFiles = dirEntries(workspaceConfig.root, csproj, SpanMode.shallow, false).array;
+            if (!projFiles.empty)
+            {
+                inputFiles ~= projFiles[0].name;
+                break;
+            }
         }
         
-        // Find outputs
+        // Determine output path
         auto outputDir = config.outputPath.empty ? 
             buildPath(workspaceConfig.options.outputDir, config.configuration) : 
             config.outputPath;
         
+        // Create action ID for dotnet build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = "dotnet-build";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            // Find outputs
+            if (exists(outputDir) && isDir(outputDir))
+            {
+                foreach (entry; dirEntries(outputDir, SpanMode.shallow))
+                {
+                    if (entry.name.endsWith(".dll") || entry.name.endsWith(".exe"))
+                    {
+                        result.outputs ~= entry.name;
+                    }
+                }
+            }
+            
+            if (result.outputs.length > 0)
+            {
+                Logger.debugLog("  [Cached] dotnet build: " ~ result.outputs[0]);
+                result.success = true;
+                result.outputHash = FastHash.hashFile(result.outputs[0]);
+                return result;
+            }
+        }
+        
+        // Use dotnet build
+        bool success = DotNetOps.build(workspaceConfig.root, config);
+        
+        if (!success)
+        {
+            result.error = "Build failed";
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
+            
+            return result;
+        }
+        
+        // Find outputs
         if (exists(outputDir) && isDir(outputDir))
         {
             // Find DLL or EXE
@@ -56,10 +139,28 @@ class StandardBuilder : CSharpBuilder
         {
             result.success = true;
             result.outputHash = FastHash.hashFile(result.outputs[0]);
+            
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                inputFiles,
+                result.outputs,
+                metadata,
+                true
+            );
         }
         else
         {
             result.error = "No outputs found";
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
         }
         
         return result;

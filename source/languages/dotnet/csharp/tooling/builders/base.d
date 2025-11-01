@@ -4,6 +4,7 @@ import std.string;
 import languages.dotnet.csharp.core.config;
 import analysis.targets.spec;
 import config.schema.schema;
+import core.caching.action : ActionCache;
 
 /// Build result structure
 struct BuildResult
@@ -42,8 +43,8 @@ interface CSharpBuilder
 /// Builder factory
 struct CSharpBuilderFactory
 {
-    /// Create appropriate builder for build mode
-    static CSharpBuilder create(CSharpBuildMode mode, CSharpConfig config)
+    /// Create appropriate builder for build mode with action cache
+    static CSharpBuilder create(CSharpBuildMode mode, CSharpConfig config, ActionCache cache = null)
     {
         import languages.dotnet.csharp.tooling.builders.standard;
         import languages.dotnet.csharp.tooling.builders.publish;
@@ -53,18 +54,18 @@ struct CSharpBuilderFactory
         {
             case CSharpBuildMode.Standard:
             case CSharpBuildMode.Compile:
-                return new StandardBuilder();
+                return new StandardBuilder(cache);
             
             case CSharpBuildMode.SingleFile:
             case CSharpBuildMode.ReadyToRun:
             case CSharpBuildMode.Trimmed:
-                return new PublishBuilder();
+                return new PublishBuilder(cache);
             
             case CSharpBuildMode.NativeAOT:
-                return new AOTBuilder();
+                return new AOTBuilder(cache);
             
             case CSharpBuildMode.NuGet:
-                return new StandardBuilder(); // NuGet packing is handled separately
+                return new StandardBuilder(cache); // NuGet packing is handled separately
         }
     }
 }

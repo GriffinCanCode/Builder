@@ -7,16 +7,32 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
 import languages.jvm.kotlin.tooling.builders.base;
 import languages.jvm.kotlin.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Standard JAR builder for Kotlin
+/// Standard JAR builder for Kotlin with action-level caching
 class JARBuilder : KotlinBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/kotlin", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     override KotlinBuildResult build(
         in string[] sources,
         in KotlinConfig config,
@@ -103,6 +119,39 @@ class JARBuilder : KotlinBuilder
             }
         }
         
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildTool"] = "gradle";
+        metadata["flags"] = target.flags.join(" ");
+        metadata["projectDir"] = projectDir;
+        metadata["languageVersion"] = config.languageVersion.toString();
+        metadata["jvmTarget"] = config.jvmTarget.toString();
+        
+        // Collect all input files
+        string[] inputFiles = sources.dup;
+        auto buildFile = buildPath(projectDir, "build.gradle.kts");
+        if (!exists(buildFile))
+            buildFile = buildPath(projectDir, "build.gradle");
+        if (exists(buildFile))
+            inputFiles ~= buildFile;
+        
+        // Create action ID for Gradle build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = "gradle-jar";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if Gradle build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Gradle JAR: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
+        
         bool success = GradleOps.jar(projectDir, true);
         
         if (success)
@@ -123,10 +172,28 @@ class JARBuilder : KotlinBuilder
                     result.outputHash = FastHash.hashFile(jars[0]);
                 }
             }
+            
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                inputFiles,
+                result.outputs,
+                metadata,
+                true
+            );
         }
         else
         {
             result.error = "Gradle JAR build failed";
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
         }
         
         return result;
@@ -156,6 +223,36 @@ class JARBuilder : KotlinBuilder
             }
         }
         
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildTool"] = "maven";
+        metadata["flags"] = target.flags.join(" ");
+        metadata["projectDir"] = projectDir;
+        metadata["skipTests"] = config.maven.skipTests.to!string;
+        
+        // Collect all input files
+        string[] inputFiles = sources.dup;
+        auto pomFile = buildPath(projectDir, "pom.xml");
+        if (exists(pomFile))
+            inputFiles ~= pomFile;
+        
+        // Create action ID for Maven build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = "maven-jar";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if Maven build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Maven JAR: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
+        
         bool success = MavenOps.package_(projectDir, config.maven.skipTests);
         
         if (success)
@@ -177,10 +274,28 @@ class JARBuilder : KotlinBuilder
                     result.outputHash = FastHash.hashFile(jars[0]);
                 }
             }
+            
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                inputFiles,
+                result.outputs,
+                metadata,
+                true
+            );
         }
         else
         {
             result.error = "Maven package failed";
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                inputFiles,
+                [],
+                metadata,
+                false
+            );
         }
         
         return result;
@@ -196,44 +311,119 @@ class JARBuilder : KotlinBuilder
     {
         KotlinBuildResult result;
         
-        // Compile with kotlinc
-        auto cmd = ["kotlinc"];
+        // Create temp directory for class files
+        string outputDir = dirName(outputPath);
+        auto tempClassDir = buildPath(outputDir, ".kotlin-classes-" ~ target.name.replace(":", "-"));
+        if (!exists(tempClassDir))
+            mkdirRecurse(tempClassDir);
         
-        // Add language version
-        if (config.languageVersion.major > 0)
-            cmd ~= ["-language-version", config.languageVersion.toString()];
-        
-        // Add API version
-        if (config.apiVersion.major > 0)
-            cmd ~= ["-api-version", config.apiVersion.toString()];
-        
-        // Add JVM target
-        if (config.platform == KotlinPlatform.JVM)
+        // Per-file compilation with caching
+        auto compileResult = compileSourcesPerFile(sources, config, target, workspace, tempClassDir);
+        if (!compileResult.success)
         {
-            cmd ~= ["-jvm-target", config.jvmTarget.toString()];
+            // Clean up temp directory
+            if (exists(tempClassDir))
+                rmdirRecurse(tempClassDir);
+            return compileResult;
         }
         
-        // Include runtime for executables
-        if (config.packaging.includeRuntime && target.type == TargetType.Executable)
-        {
-            cmd ~= ["-include-runtime"];
-        }
+        // Package into JAR with caching
+        auto packageResult = packageToJAR(tempClassDir, outputPath, config, target);
         
-        // Add classpath if dependencies exist
-        if (!target.deps.empty || !config.classpath.empty)
+        // Clean up temp directory
+        if (exists(tempClassDir))
+            rmdirRecurse(tempClassDir);
+        
+        return packageResult;
+    }
+    
+    /// Compile Kotlin sources per-file with action-level caching
+    private KotlinBuildResult compileSourcesPerFile(
+        const string[] sources,
+        const KotlinConfig config,
+        const Target target,
+        const WorkspaceConfig workspace,
+        string outputDir
+    )
+    {
+        KotlinBuildResult result;
+        result.success = true;
+        
+        // Build classpath
+        string[] classpaths = config.classpath.dup;
+        foreach (dep; target.deps)
         {
-            string[] classpaths = config.classpath.dup;
-            
-            // Add dependency outputs
-            foreach (dep; target.deps)
+            auto depTarget = workspace.findTarget(dep);
+            if (depTarget !is null && !depTarget.outputPath.empty)
             {
-                auto depTarget = workspace.findTarget(dep);
-                if (depTarget !is null && !depTarget.outputPath.empty)
+                classpaths ~= buildPath(workspace.options.outputDir, depTarget.outputPath);
+            }
+        }
+        
+        // Build common metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = "kotlinc";
+        metadata["languageVersion"] = config.languageVersion.toString();
+        metadata["apiVersion"] = config.apiVersion.toString();
+        metadata["jvmTarget"] = config.jvmTarget.toString();
+        metadata["flags"] = (target.flags ~ config.compilerFlags).join(" ");
+        metadata["classpath"] = classpaths.join(":");
+        metadata["progressive"] = config.progressive.to!string;
+        
+        // Compile each source file
+        foreach (source; sources)
+        {
+            // Create action ID for this compilation
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Compile;
+            actionId.subId = baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Expected output (Kotlin creates .class files from .kt)
+            auto className = baseName(source, ".kt") ~ "Kt.class";
+            auto classFile = buildPath(outputDir, className);
+            
+            // Check if this compilation is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                // Check if class file exists (might be in subdirectory)
+                bool classExists = false;
+                if (exists(outputDir))
                 {
-                    classpaths ~= buildPath(workspace.options.outputDir, depTarget.outputPath);
+                    foreach (entry; dirEntries(outputDir, "*.class", SpanMode.depth))
+                    {
+                        if (entry.name.indexOf(baseName(source, ".kt")) >= 0)
+                        {
+                            classExists = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (classExists)
+                {
+                    Logger.debugLog("  [Cached] " ~ source);
+                    continue;
                 }
             }
             
+            // Build compile command for this file
+            string[] cmd = ["kotlinc"];
+            
+            // Add language version
+            if (config.languageVersion.major > 0)
+                cmd ~= ["-language-version", config.languageVersion.toString()];
+            
+            // Add API version
+            if (config.apiVersion.major > 0)
+                cmd ~= ["-api-version", config.apiVersion.toString()];
+            
+            // Add JVM target
+            if (config.platform == KotlinPlatform.JVM)
+                cmd ~= ["-jvm-target", config.jvmTarget.toString()];
+            
+            // Add classpath
             if (!classpaths.empty)
             {
                 version(Windows)
@@ -241,57 +431,178 @@ class JARBuilder : KotlinBuilder
                 else
                     cmd ~= ["-classpath", classpaths.join(":")];
             }
+            
+            // Add compiler flags
+            cmd ~= target.flags;
+            cmd ~= config.compilerFlags;
+            
+            // Enable progressive mode
+            if (config.progressive)
+                cmd ~= ["-progressive"];
+            
+            // Enable explicit API mode
+            if (config.explicitApi)
+                cmd ~= ["-Xexplicit-api=strict"];
+            
+            // Warnings
+            if (config.allWarnings)
+                cmd ~= ["-Xall-warnings"];
+            if (config.warningsAsErrors)
+                cmd ~= ["-Werror"];
+            
+            // Add source file
+            cmd ~= [source];
+            
+            // Specify output directory
+            cmd ~= ["-d", outputDir];
+            
+            Logger.debugLog("Compiling: " ~ source);
+            
+            // Execute compilation
+            auto res = execute(cmd);
+            
+            bool success = (res.status == 0);
+            
+            // Collect output files
+            string[] outputs;
+            if (success && exists(outputDir))
+            {
+                foreach (entry; dirEntries(outputDir, "*.class", SpanMode.depth))
+                {
+                    if (entry.name.indexOf(baseName(source, ".kt")) >= 0)
+                        outputs ~= entry.name;
+                }
+            }
+            
+            if (!success)
+            {
+                result.success = false;
+                result.error = "Compilation failed for " ~ source ~ ": " ~ res.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    [source],
+                    [],
+                    metadata,
+                    false
+                );
+                
+                return result;
+            }
+            
+            // Capture warnings
+            if (!res.output.empty)
+            {
+                result.warnings ~= "In " ~ source ~ ": " ~ res.output;
+            }
+            
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                [source],
+                outputs,
+                metadata,
+                true
+            );
         }
         
-        // Add compiler flags
-        cmd ~= target.flags;
-        cmd ~= config.compilerFlags;
+        return result;
+    }
+    
+    /// Package class files into JAR with action-level caching
+    private KotlinBuildResult packageToJAR(
+        string classDir,
+        string outputPath,
+        const KotlinConfig config,
+        const Target target
+    )
+    {
+        KotlinBuildResult result;
         
-        // Enable progressive mode
-        if (config.progressive)
-            cmd ~= ["-progressive"];
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["operation"] = "jar-package";
+        metadata["includeRuntime"] = config.packaging.includeRuntime.to!string;
+        metadata["manifest"] = config.packaging.manifest;
         
-        // Enable explicit API mode
-        if (config.explicitApi)
-            cmd ~= ["-Xexplicit-api=strict"];
+        // Collect all class files as inputs
+        string[] classFiles;
+        if (exists(classDir))
+        {
+            foreach (entry; dirEntries(classDir, "*.class", SpanMode.depth))
+                classFiles ~= entry.name;
+        }
         
-        // Warnings
-        if (config.allWarnings)
-            cmd ~= ["-Xall-warnings"];
-        if (config.warningsAsErrors)
-            cmd ~= ["-Werror"];
+        if (classFiles.empty)
+        {
+            result.error = "No class files found to package";
+            return result;
+        }
         
-        // Verbose
-        if (config.verbose)
-            cmd ~= ["-verbose"];
+        // Create action ID for packaging
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(classFiles);
         
-        // Add sources
-        cmd ~= sources;
+        // Check if packaging is cached
+        if (actionCache.isCached(actionId, classFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] JAR package: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
         
-        // Specify output
-        cmd ~= ["-d", outputPath];
+        // Build jar command
+        string[] cmd = ["jar", "cf", outputPath];
         
-        Logger.debugLog("Executing: " ~ cmd.join(" "));
+        // Add manifest if specified
+        if (!config.packaging.manifest.empty && exists(config.packaging.manifest))
+            cmd = ["jar", "cfm", outputPath, config.packaging.manifest];
         
+        // Add class files
+        cmd ~= ["-C", classDir, "."];
+        
+        Logger.debugLog("Packaging JAR: " ~ outputPath);
+        Logger.debugLog("  Command: " ~ cmd.join(" "));
+        
+        // Execute jar command
         auto res = execute(cmd);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
-            result.error = "kotlinc failed: " ~ res.output;
+            result.error = "JAR packaging failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                classFiles,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
         result.success = true;
         result.outputs = [outputPath];
+        result.outputHash = FastHash.hashFile(outputPath);
         
-        if (exists(outputPath))
-        {
-            result.outputHash = FastHash.hashFile(outputPath);
-        }
-        else
-        {
-            result.outputHash = FastHash.hashStrings(sources);
-        }
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            classFiles,
+            [outputPath],
+            metadata,
+            true
+        );
         
         return result;
     }

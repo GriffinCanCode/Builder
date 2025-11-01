@@ -15,10 +15,31 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig;
 
-/// F# build handler - main orchestrator
+/// F# build handler with action-level caching
 class FSharpHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/fsharp", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -205,6 +226,56 @@ class FSharpHandler : BaseLanguageHandler
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
         
+        // Build metadata for cache validation
+        import core.caching.action : ActionId, ActionType;
+        
+        string[string] metadata;
+        metadata["buildTool"] = "dotnet";
+        metadata["configuration"] = fsConfig.dotnet.configuration;
+        metadata["framework"] = fsConfig.dotnet.framework.identifier;
+        metadata["runtime"] = fsConfig.dotnet.runtime;
+        
+        // Collect input files
+        string[] inputFiles = target.sources.dup;
+        
+        // Add project file if exists
+        string projectFile;
+        foreach (source; target.sources)
+        {
+            if (source.endsWith(".fsproj"))
+            {
+                projectFile = source;
+                break;
+            }
+        }
+        
+        if (projectFile.empty)
+        {
+            auto fsprojFiles = dirEntries(".", "*.fsproj", SpanMode.shallow, false).array;
+            if (!fsprojFiles.empty)
+            {
+                projectFile = fsprojFiles[0].name;
+                inputFiles ~= projectFile;
+            }
+        }
+        
+        // Create action ID for dotnet build
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = "dotnet-fsharp-build";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] dotnet F# build: " ~ outputPath);
+            result.success = true;
+            result.outputs = outputs;
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
+        
         // Build command
         string[] cmd = ["dotnet", "build"];
         
@@ -283,9 +354,53 @@ class FSharpHandler : BaseLanguageHandler
         // Execute build
         auto res = execute(cmd);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        // Collect input files again for cache update
+        string[] inputFiles = target.sources.dup;
+        string projectFile;
+        foreach (source; target.sources)
+        {
+            if (source.endsWith(".fsproj"))
+            {
+                projectFile = source;
+                break;
+            }
+        }
+        if (projectFile.empty)
+        {
+            auto fsprojFiles = dirEntries(".", "*.fsproj", SpanMode.shallow, false).array;
+            if (!fsprojFiles.empty)
+            {
+                projectFile = fsprojFiles[0].name;
+                inputFiles ~= projectFile;
+            }
+        }
+        
+        import core.caching.action : ActionId, ActionType;
+        ActionId actionId2;
+        actionId2.targetId = target.name;
+        actionId2.type = ActionType.Package;
+        actionId2.subId = "dotnet-fsharp-build";
+        actionId2.inputHash = FastHash.hashStrings(inputFiles);
+        
+        string[string] metadata2;
+        metadata2["buildTool"] = "dotnet";
+        metadata2["configuration"] = fsConfig.dotnet.configuration;
+        
+        if (!success)
         {
             result.error = "dotnet build failed: " ~ res.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId2,
+                inputFiles,
+                [],
+                metadata2,
+                false
+            );
+            
             return result;
         }
         
@@ -296,6 +411,15 @@ class FSharpHandler : BaseLanguageHandler
             result.outputHash = FastHash.hashFile(outputPath);
         else
             result.outputHash = FastHash.hashStrings(target.sources.dup);
+        
+        // Update cache with success
+        actionCache.update(
+            actionId2,
+            inputFiles,
+            outputs,
+            metadata2,
+            true
+        );
         
         return result;
     }
@@ -363,6 +487,34 @@ class FSharpHandler : BaseLanguageHandler
         
         if (!exists(outputDir))
             mkdirRecurse(outputDir);
+        
+        // Build metadata for cache validation
+        import core.caching.action : ActionId, ActionType;
+        
+        string[string] metadata;
+        metadata["compiler"] = "fsc";
+        metadata["mode"] = fsConfig.mode.to!string;
+        metadata["optimize"] = fsConfig.optimize.to!string;
+        metadata["debug"] = fsConfig.debug_.to!string;
+        metadata["tailcalls"] = fsConfig.tailcalls.to!string;
+        metadata["flags"] = (target.flags ~ fsConfig.compilerFlags).join(" ");
+        
+        // Create action ID for fsc build (build-level since F# requires ordered compilation)
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "fsc-build";
+        actionId.inputHash = FastHash.hashStrings(target.sources);
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, target.sources, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] fsc build: " ~ outputPath);
+            result.success = true;
+            result.outputs = outputs;
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
         
         // Build command
         string[] cmd = ["fsc"];
@@ -450,15 +602,59 @@ class FSharpHandler : BaseLanguageHandler
         // Execute compilation
         auto res = execute(cmd);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "fsc failed: " ~ res.output;
+            
+            // Update cache with failure
+            import core.caching.action : ActionId, ActionType;
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Compile;
+            actionId.subId = "fsc-build";
+            actionId.inputHash = FastHash.hashStrings(target.sources);
+            
+            string[string] metadata;
+            metadata["compiler"] = "fsc";
+            metadata["mode"] = fsConfig.mode.to!string;
+            metadata["optimize"] = fsConfig.optimize.to!string;
+            
+            actionCache.update(
+                actionId,
+                target.sources,
+                [],
+                metadata,
+                false
+            );
+            
             return result;
         }
         
         result.success = true;
         result.outputs = outputs;
         result.outputHash = FastHash.hashFile(outputPath);
+        
+        // Update cache with success
+        import core.caching.action : ActionId, ActionType;
+        ActionId actionId2;
+        actionId2.targetId = target.name;
+        actionId2.type = ActionType.Compile;
+        actionId2.subId = "fsc-build";
+        actionId2.inputHash = FastHash.hashStrings(target.sources);
+        
+        string[string] metadata2;
+        metadata2["compiler"] = "fsc";
+        metadata2["mode"] = fsConfig.mode.to!string;
+        
+        actionCache.update(
+            actionId2,
+            target.sources,
+            outputs,
+            metadata2,
+            true
+        );
         
         return result;
     }

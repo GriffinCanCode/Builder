@@ -18,6 +18,9 @@ import utils.logging.logger;
 /// Scala.js builder - compiles Scala to JavaScript
 class ScalaJSBuilder : ScalaBuilder
 {
+    import core.caching.action : ActionCache;
+    this(ActionCache cache = null) {}
+    
     override ScalaBuildResult build(
         in string[] sources,
         in ScalaConfig config,

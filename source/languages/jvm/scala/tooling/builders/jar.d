@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.conv;
 import languages.jvm.scala.tooling.builders.base;
 import languages.jvm.scala.core.config;
 import languages.jvm.scala.tooling.detection;
@@ -15,10 +16,25 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Standard JAR builder using scalac
+/// Standard JAR builder using scalac with action-level caching
 class JARBuilder : ScalaBuilder
 {
+    private ActionCache actionCache;
+    
+    this(ActionCache cache = null)
+    {
+        if (cache is null)
+        {
+            auto cacheConfig = ActionCacheConfig.fromEnvironment();
+            actionCache = new ActionCache(".builder-cache/actions/scala", cacheConfig);
+        }
+        else
+        {
+            actionCache = cache;
+        }
+    }
     override ScalaBuildResult build(
         in string[] sources,
         in ScalaConfig config,
@@ -97,43 +113,122 @@ class JARBuilder : ScalaBuilder
         ref ScalaBuildResult result
     )
     {
-        // Build scalac command
-        string[] cmd = [ScalaToolDetection.getScalacCommand()];
-        
-        // Output directory
-        cmd ~= ["-d", outputDir];
-        
-        // Classpath
+        // Build classpath
         string cp = buildClasspath(target, workspace);
-        if (!cp.empty)
-            cmd ~= ["-classpath", cp];
         
-        // Add compiler options
-        cmd ~= buildCompilerOptions(config);
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = "scalac";
+        metadata["version"] = config.version_.toString();
+        metadata["target"] = config.target.to!string;
+        metadata["flags"] = (target.flags ~ buildCompilerOptions(config)).join(" ");
+        metadata["classpath"] = cp;
         
-        // Add target flags
-        cmd ~= target.flags;
-        
-        // Add sources
-        cmd ~= sources;
-        
-        Logger.debugLog("Scalac command: " ~ cmd.join(" "));
-        
-        // Execute compilation
-        auto compileRes = execute(cmd);
-        
-        if (compileRes.status != 0)
+        // Compile each source file with per-file caching
+        foreach (source; sources)
         {
-            result.error = "Scala compilation failed:\n" ~ compileRes.output;
-            result.compilerMessages ~= compileRes.output;
-            return false;
-        }
-        
-        // Capture warnings
-        if (!compileRes.output.empty)
-        {
-            result.warnings ~= compileRes.output;
-            result.compilerMessages ~= compileRes.output;
+            // Create action ID for this compilation
+            ActionId actionId;
+            actionId.targetId = target.name;
+            actionId.type = ActionType.Compile;
+            actionId.subId = baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if this compilation is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                // Check if class files exist
+                bool classExists = false;
+                if (exists(outputDir))
+                {
+                    auto baseName_ = baseName(source, ".scala");
+                    foreach (entry; dirEntries(outputDir, "*.class", SpanMode.depth))
+                    {
+                        if (entry.name.indexOf(baseName_) >= 0)
+                        {
+                            classExists = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (classExists)
+                {
+                    Logger.debugLog("  [Cached] " ~ source);
+                    continue;
+                }
+            }
+            
+            // Build scalac command for this file
+            string[] cmd = [ScalaToolDetection.getScalacCommand()];
+            
+            // Output directory
+            cmd ~= ["-d", outputDir];
+            
+            // Classpath
+            if (!cp.empty)
+                cmd ~= ["-classpath", cp];
+            
+            // Add compiler options
+            cmd ~= buildCompilerOptions(config);
+            
+            // Add target flags
+            cmd ~= target.flags;
+            
+            // Add this source file
+            cmd ~= [source];
+            
+            Logger.debugLog("Compiling: " ~ source);
+            
+            // Execute compilation
+            auto compileRes = execute(cmd);
+            
+            bool success = (compileRes.status == 0);
+            
+            // Collect output files
+            string[] outputs;
+            if (success && exists(outputDir))
+            {
+                auto baseName_ = baseName(source, ".scala");
+                foreach (entry; dirEntries(outputDir, "*.class", SpanMode.depth))
+                {
+                    if (entry.name.indexOf(baseName_) >= 0)
+                        outputs ~= entry.name;
+                }
+            }
+            
+            if (!success)
+            {
+                result.error = "Scala compilation failed for " ~ source ~ ":\n" ~ compileRes.output;
+                result.compilerMessages ~= compileRes.output;
+                
+                // Update cache with failure
+                actionCache.update(
+                    actionId,
+                    [source],
+                    [],
+                    metadata,
+                    false
+                );
+                
+                return false;
+            }
+            
+            // Capture warnings
+            if (!compileRes.output.empty)
+            {
+                result.warnings ~= "In " ~ source ~ ": " ~ compileRes.output;
+                result.compilerMessages ~= compileRes.output;
+            }
+            
+            // Update cache with success
+            actionCache.update(
+                actionId,
+                [source],
+                outputs,
+                metadata,
+                true
+            );
         }
         
         return true;
@@ -147,6 +242,39 @@ class JARBuilder : ScalaBuilder
         ref ScalaBuildResult result
     )
     {
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["operation"] = "jar-package";
+        metadata["targetType"] = target.type.to!string;
+        
+        // Collect all class files as inputs
+        string[] classFiles;
+        if (exists(classDir))
+        {
+            foreach (entry; dirEntries(classDir, "*.class", SpanMode.depth))
+                classFiles ~= entry.name;
+        }
+        
+        if (classFiles.empty)
+        {
+            result.error = "No class files found to package";
+            return false;
+        }
+        
+        // Create action ID for packaging
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Package;
+        actionId.subId = baseName(outputPath);
+        actionId.inputHash = FastHash.hashStrings(classFiles);
+        
+        // Check if packaging is cached
+        if (actionCache.isCached(actionId, classFiles, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] JAR package: " ~ outputPath);
+            return true;
+        }
+        
         // Build jar command
         string[] cmd = ["jar"];
         
@@ -180,11 +308,32 @@ class JARBuilder : ScalaBuilder
         // Execute jar packaging
         auto jarRes = execute(cmd);
         
-        if (jarRes.status != 0)
+        bool success = (jarRes.status == 0);
+        
+        if (!success)
         {
             result.error = "JAR creation failed:\n" ~ jarRes.output;
+            
+            // Update cache with failure
+            actionCache.update(
+                actionId,
+                classFiles,
+                [],
+                metadata,
+                false
+            );
+            
             return false;
         }
+        
+        // Update cache with success
+        actionCache.update(
+            actionId,
+            classFiles,
+            [outputPath],
+            metadata,
+            true
+        );
         
         return true;
     }

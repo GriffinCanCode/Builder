@@ -22,10 +22,31 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig;
 
-/// Scala build handler - modular and comprehensive
+/// Scala build handler with action-level caching
 class ScalaHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/scala", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -121,8 +142,8 @@ class ScalaHandler : BaseLanguageHandler
             }
         }
         
-        // Get appropriate builder
-        auto builder = ScalaBuilderFactory.createAuto(scalaConfig, config.root);
+        // Get appropriate builder with action cache
+        auto builder = ScalaBuilderFactory.createAuto(scalaConfig, config.root, actionCache);
         
         Logger.debugLog("Using builder: " ~ builder.name());
         

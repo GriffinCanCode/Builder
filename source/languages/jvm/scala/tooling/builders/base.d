@@ -3,6 +3,7 @@ module languages.jvm.scala.tooling.builders.base;
 import languages.jvm.scala.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import core.caching.action : ActionCache;
 
 /// Build result for Scala builds
 struct ScalaBuildResult
@@ -39,8 +40,8 @@ interface ScalaBuilder
 /// Factory for creating Scala builders
 class ScalaBuilderFactory
 {
-    /// Create builder based on build mode
-    static ScalaBuilder create(ScalaBuildMode mode, ScalaConfig config)
+    /// Create builder based on build mode with action cache
+    static ScalaBuilder create(ScalaBuildMode mode, ScalaConfig config, ActionCache cache = null)
     {
         import languages.jvm.scala.tooling.builders.jar;
         import languages.jvm.scala.tooling.builders.assembly;
@@ -51,45 +52,45 @@ class ScalaBuilderFactory
         final switch (mode)
         {
             case ScalaBuildMode.JAR:
-                return new JARBuilder();
+                return new JARBuilder(cache);
             
             case ScalaBuildMode.Assembly:
-                return new AssemblyBuilder();
+                return new AssemblyBuilder(cache);
             
             case ScalaBuildMode.NativeImage:
-                return new NativeImageBuilder();
+                return new NativeImageBuilder(cache);
             
             case ScalaBuildMode.ScalaJS:
-                return new ScalaJSBuilder();
+                return new ScalaJSBuilder(cache);
             
             case ScalaBuildMode.ScalaNative:
-                return new ScalaNativeBuilder();
+                return new ScalaNativeBuilder(cache);
             
             case ScalaBuildMode.Compile:
-                return new JARBuilder(); // Just compile, skip packaging
+                return new JARBuilder(cache); // Just compile, skip packaging
         }
     }
     
     /// Auto-detect best builder based on configuration and project
-    static ScalaBuilder createAuto(ScalaConfig config, string projectDir)
+    static ScalaBuilder createAuto(ScalaConfig config, string projectDir, ActionCache cache = null)
     {
         import languages.jvm.scala.tooling.detection;
         
         // Check for special build modes first
         if (ScalaToolDetection.usesScalaJS(projectDir))
-            return create(ScalaBuildMode.ScalaJS, config);
+            return create(ScalaBuildMode.ScalaJS, config, cache);
         
         if (ScalaToolDetection.usesScalaNative(projectDir))
-            return create(ScalaBuildMode.ScalaNative, config);
+            return create(ScalaBuildMode.ScalaNative, config, cache);
         
         if (ScalaToolDetection.usesGraalNative(projectDir))
-            return create(ScalaBuildMode.NativeImage, config);
+            return create(ScalaBuildMode.NativeImage, config, cache);
         
         if (ScalaToolDetection.usesSbtAssembly(projectDir))
-            return create(ScalaBuildMode.Assembly, config);
+            return create(ScalaBuildMode.Assembly, config, cache);
         
         // Default to JAR
-        return create(config.mode, config);
+        return create(config.mode, config, cache);
     }
 }
 

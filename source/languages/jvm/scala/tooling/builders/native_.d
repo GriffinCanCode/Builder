@@ -19,6 +19,9 @@ import utils.logging.logger;
 /// GraalVM native-image builder for Scala
 class NativeImageBuilder : ScalaBuilder
 {
+    import core.caching.action : ActionCache;
+    this(ActionCache cache = null) {}
+    
     override ScalaBuildResult build(
         in string[] sources,
         in ScalaConfig config,

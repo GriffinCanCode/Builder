@@ -19,6 +19,9 @@ import utils.logging.logger;
 /// Assembly (fat JAR) builder - packages all dependencies
 class AssemblyBuilder : ScalaBuilder
 {
+    import core.caching.action : ActionCache;
+    this(ActionCache cache = null) {}
+    
     override ScalaBuildResult build(
         in string[] sources,
         in ScalaConfig config,
