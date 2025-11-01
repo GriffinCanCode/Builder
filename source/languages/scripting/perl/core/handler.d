@@ -15,10 +15,32 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Perl build handler
+/// Perl build handler with action-level caching
 class PerlHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/perl", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -371,7 +393,7 @@ class PerlHandler : BaseLanguageHandler
         }
     }
     
-    /// Check syntax of Perl files
+    /// Check syntax of Perl files with action-level caching
     private bool checkSyntax(const string[] sources, const PerlConfig config, ref string[] errors)
     {
         string perlCmd = config.perlVersion.interpreterPath.empty ? "perl" : config.perlVersion.interpreterPath;
@@ -381,6 +403,26 @@ class PerlHandler : BaseLanguageHandler
         {
             if (!exists(source) || !isFile(source))
                 continue;
+            
+            // Build metadata for cache validation
+            string[string] metadata;
+            metadata["interpreter"] = perlCmd;
+            metadata["warnings"] = config.warnings.to!string;
+            metadata["includeDirs"] = config.includeDirs.join(",");
+            
+            // Create action ID for syntax check
+            ActionId actionId;
+            actionId.targetId = "syntax_check";
+            actionId.type = ActionType.Compile;
+            actionId.subId = baseName(source);
+            actionId.inputHash = FastHash.hashFile(source);
+            
+            // Check if syntax check is cached
+            if (actionCache.isCached(actionId, [source], metadata))
+            {
+                Logger.debugLog("  [Cached] Syntax check: " ~ source);
+                continue;
+            }
             
             // Build command
             string[] cmd = [perlCmd, "-c"];
@@ -397,10 +439,13 @@ class PerlHandler : BaseLanguageHandler
             
             cmd ~= source;
             
+            bool success = false;
             try
             {
                 auto res = execute(cmd);
-                if (res.status != 0)
+                success = (res.status == 0);
+                
+                if (!success)
                 {
                     errors ~= source ~ ": " ~ res.output;
                     allValid = false;
@@ -411,6 +456,15 @@ class PerlHandler : BaseLanguageHandler
                 errors ~= source ~ ": " ~ e.msg;
                 allValid = false;
             }
+            
+            // Update cache with syntax check result
+            actionCache.update(
+                actionId,
+                [source],
+                [],
+                metadata,
+                success
+            );
         }
         
         return allValid;
@@ -456,7 +510,7 @@ class PerlHandler : BaseLanguageHandler
         }
     }
     
-    /// Lint with Perl::Critic
+    /// Lint with Perl::Critic with action-level caching
     private LanguageBuildResult lintWithCritic(const string[] sources, const PerlConfig config)
     {
         LanguageBuildResult result;
@@ -478,6 +532,31 @@ class PerlHandler : BaseLanguageHandler
         }
         
         Logger.info("Linting Perl code with Perl::Critic");
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["severity"] = config.format.critic.severity.to!string;
+        metadata["verbose"] = config.format.critic.verbose.to!string;
+        metadata["theme"] = config.format.critic.theme;
+        metadata["include"] = config.format.critic.include.join(",");
+        metadata["exclude"] = config.format.critic.exclude.join(",");
+        if (exists(config.format.perlcriticrc))
+            metadata["profile"] = FastHash.hashFile(config.format.perlcriticrc);
+        
+        // Create action ID for perlcritic analysis
+        ActionId actionId;
+        actionId.targetId = "perlcritic";
+        actionId.type = ActionType.Custom;
+        actionId.subId = "analysis";
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if analysis is cached
+        if (actionCache.isCached(actionId, sources, metadata))
+        {
+            Logger.info("  [Cached] Perl::Critic analysis");
+            result.success = true;
+            return result;
+        }
         
         string[] cmd = ["perlcritic"];
         
@@ -504,26 +583,38 @@ class PerlHandler : BaseLanguageHandler
         
         cmd ~= sources;
         
+        bool success = false;
         try
         {
             auto res = execute(cmd);
-            if (res.status != 0)
+            success = (res.status == 0);
+            if (!success)
             {
                 result.error = res.output;
-                return result;
+            }
+            else
+            {
+                result.success = true;
             }
         }
         catch (Exception e)
         {
             result.error = e.msg;
-            return result;
         }
         
-        result.success = true;
+        // Update cache with analysis result
+        actionCache.update(
+            actionId,
+            sources,
+            [],
+            metadata,
+            success
+        );
+        
         return result;
     }
     
-    /// Install dependencies
+    /// Install dependencies with action-level caching
     private bool installDependencies(const PerlConfig config, string projectRoot)
     {
         PerlPackageManager pm = config.packageManager;
@@ -567,9 +658,35 @@ class PerlHandler : BaseLanguageHandler
         
         Logger.info("Installing dependencies with " ~ pmCmd);
         
-        // Install modules
+        // Install modules with per-module caching
         foreach (mod; config.modules)
         {
+            // Build metadata for cache validation
+            string[string] metadata;
+            metadata["packageManager"] = pmCmd;
+            metadata["useLocalLib"] = config.cpan.useLocalLib.to!string;
+            metadata["localLibDir"] = config.cpan.localLibDir;
+            metadata["version"] = mod.version_;
+            
+            // Add module with version if specified
+            string modSpec = mod.name;
+            if (!mod.version_.empty)
+                modSpec ~= "@" ~ mod.version_;
+            
+            // Create action ID for dependency installation
+            ActionId actionId;
+            actionId.targetId = "perl_deps";
+            actionId.type = ActionType.Package;
+            actionId.subId = mod.name;
+            actionId.inputHash = FastHash.hashString(modSpec);
+            
+            // Check if module installation is cached
+            if (actionCache.isCached(actionId, [], metadata))
+            {
+                Logger.debugLog("  [Cached] Module: " ~ modSpec);
+                continue;
+            }
+            
             string[] cmd = [pmCmd];
             
             // Add local::lib options
@@ -578,37 +695,43 @@ class PerlHandler : BaseLanguageHandler
                 cmd ~= ["-L", config.cpan.localLibDir];
             }
             
-            // Add module with version if specified
-            string modSpec = mod.name;
-            if (!mod.version_.empty)
-                modSpec ~= "@" ~ mod.version_;
-            
             cmd ~= modSpec;
             
             Logger.debugLog("Installing: " ~ modSpec);
             
+            bool success = false;
             try
             {
                 auto res = execute(cmd, null, Config.none, size_t.max, projectRoot);
-                if (res.status != 0)
+                success = (res.status == 0);
+                if (!success)
                 {
                     Logger.error("Failed to install " ~ modSpec ~ ": " ~ res.output);
                     if (!mod.optional)
+                    {
+                        actionCache.update(actionId, [], [], metadata, false);
                         return false;
+                    }
                 }
             }
             catch (Exception e)
             {
                 Logger.error("Failed to install " ~ modSpec ~ ": " ~ e.msg);
                 if (!mod.optional)
+                {
+                    actionCache.update(actionId, [], [], metadata, false);
                     return false;
+                }
             }
+            
+            // Update cache with installation result
+            actionCache.update(actionId, [], [], metadata, success);
         }
         
         return true;
     }
     
-    /// Run prove tests
+    /// Run prove tests with action-level caching
     private LanguageBuildResult runProveTests(
         const Target target,
         const PerlConfig config,
@@ -620,6 +743,59 @@ class PerlHandler : BaseLanguageHandler
         if (!isCommandAvailable("prove"))
         {
             result.error = "prove command not available";
+            return result;
+        }
+        
+        // Gather test files for cache validation
+        string[] testFiles;
+        if (!config.test.testPaths.empty)
+        {
+            foreach (testPath; config.test.testPaths)
+            {
+                auto fullPath = buildPath(projectRoot, testPath);
+                if (exists(fullPath) && isDir(fullPath))
+                {
+                    foreach (entry; dirEntries(fullPath, "*.t", SpanMode.depth))
+                    {
+                        testFiles ~= entry.name;
+                    }
+                }
+                else if (exists(fullPath) && isFile(fullPath))
+                {
+                    testFiles ~= fullPath;
+                }
+            }
+        }
+        else if (exists(buildPath(projectRoot, "t")))
+        {
+            foreach (entry; dirEntries(buildPath(projectRoot, "t"), "*.t", SpanMode.depth))
+            {
+                testFiles ~= entry.name;
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["verbose"] = config.test.prove.verbose.to!string;
+        metadata["lib"] = config.test.prove.lib.to!string;
+        metadata["recurse"] = config.test.prove.recurse.to!string;
+        metadata["parallel"] = config.test.parallel.to!string;
+        metadata["jobs"] = config.test.jobs.to!string;
+        metadata["includes"] = config.test.prove.includes.join(",");
+        
+        // Create action ID for test execution
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Test;
+        actionId.subId = "prove";
+        actionId.inputHash = FastHash.hashStrings(testFiles);
+        
+        // Check if test execution is cached
+        if (actionCache.isCached(actionId, testFiles, metadata))
+        {
+            Logger.info("  [Cached] Test execution: prove");
+            result.success = true;
+            result.outputHash = FastHash.hashStrings(target.sources);
             return result;
         }
         
@@ -664,23 +840,35 @@ class PerlHandler : BaseLanguageHandler
         
         Logger.info("Running tests with prove: " ~ cmd.join(" "));
         
+        bool success = false;
         try
         {
             auto res = execute(cmd, null, Config.none, size_t.max, projectRoot);
-            if (res.status != 0)
+            success = (res.status == 0);
+            
+            if (!success)
             {
                 result.error = "Tests failed:\n" ~ res.output;
-                return result;
             }
-            
-            result.success = true;
-            result.outputHash = FastHash.hashStrings(target.sources);
+            else
+            {
+                result.success = true;
+                result.outputHash = FastHash.hashStrings(target.sources);
+            }
         }
         catch (Exception e)
         {
             result.error = "Failed to run tests: " ~ e.msg;
-            return result;
         }
+        
+        // Update cache with test result
+        actionCache.update(
+            actionId,
+            testFiles,
+            [],
+            metadata,
+            success
+        );
         
         return result;
     }
@@ -778,18 +966,52 @@ class PerlHandler : BaseLanguageHandler
         return runProveTests(target, config, projectRoot);
     }
     
-    /// Run Module::Build
+    /// Run Module::Build with action-level caching
     private LanguageBuildResult runModuleBuild(string projectRoot)
     {
         LanguageBuildResult result;
         
         Logger.info("Building with Module::Build (Build.PL)");
         
+        string buildPL = buildPath(projectRoot, "Build.PL");
+        string[] inputFiles = [buildPL];
+        
+        // Add lib files
+        string libDir = buildPath(projectRoot, "lib");
+        if (exists(libDir))
+        {
+            foreach (entry; dirEntries(libDir, "*.pm", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildSystem"] = "Module::Build";
+        
+        // Create action ID
+        ActionId actionId;
+        actionId.targetId = baseName(projectRoot);
+        actionId.type = ActionType.Package;
+        actionId.subId = "module_build";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            Logger.info("  [Cached] Module::Build");
+            result.success = true;
+            return result;
+        }
+        
         // Run Build.PL
+        bool success = false;
         auto configRes = execute(["perl", "Build.PL"], null, Config.none, size_t.max, projectRoot);
         if (configRes.status != 0)
         {
             result.error = "Build.PL failed: " ~ configRes.output;
+            actionCache.update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
@@ -798,25 +1020,65 @@ class PerlHandler : BaseLanguageHandler
         if (buildRes.status != 0)
         {
             result.error = "Build failed: " ~ buildRes.output;
+            actionCache.update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
+        success = true;
         result.success = true;
+        
+        // Update cache with success
+        actionCache.update(actionId, inputFiles, [], metadata, success);
+        
         return result;
     }
     
-    /// Run ExtUtils::MakeMaker
+    /// Run ExtUtils::MakeMaker with action-level caching
     private LanguageBuildResult runMakeMaker(string projectRoot)
     {
         LanguageBuildResult result;
         
         Logger.info("Building with ExtUtils::MakeMaker (Makefile.PL)");
         
+        string makefilePL = buildPath(projectRoot, "Makefile.PL");
+        string[] inputFiles = [makefilePL];
+        
+        // Add lib files
+        string libDir = buildPath(projectRoot, "lib");
+        if (exists(libDir))
+        {
+            foreach (entry; dirEntries(libDir, "*.pm", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["buildSystem"] = "ExtUtils::MakeMaker";
+        
+        // Create action ID
+        ActionId actionId;
+        actionId.targetId = baseName(projectRoot);
+        actionId.type = ActionType.Package;
+        actionId.subId = "make_maker";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if build is cached
+        if (actionCache.isCached(actionId, inputFiles, metadata))
+        {
+            Logger.info("  [Cached] ExtUtils::MakeMaker");
+            result.success = true;
+            return result;
+        }
+        
         // Run Makefile.PL
+        bool success = false;
         auto configRes = execute(["perl", "Makefile.PL"], null, Config.none, size_t.max, projectRoot);
         if (configRes.status != 0)
         {
             result.error = "Makefile.PL failed: " ~ configRes.output;
+            actionCache.update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
@@ -825,10 +1087,16 @@ class PerlHandler : BaseLanguageHandler
         if (buildRes.status != 0)
         {
             result.error = "make failed: " ~ buildRes.output;
+            actionCache.update(actionId, inputFiles, [], metadata, false);
             return result;
         }
         
+        success = true;
         result.success = true;
+        
+        // Update cache with success
+        actionCache.update(actionId, inputFiles, [], metadata, success);
+        
         return result;
     }
     
@@ -880,7 +1148,7 @@ class PerlHandler : BaseLanguageHandler
         return result;
     }
     
-    /// Generate documentation
+    /// Generate documentation with action-level caching
     private void generateDocumentation(const string[] sources, const PerlConfig config, string projectRoot)
     {
         PerlDocGenerator generator = config.documentation.generator;
@@ -902,33 +1170,96 @@ class PerlHandler : BaseLanguageHandler
             
             auto baseName = source.baseName.stripExtension;
             
-            // Generate HTML
+            // Generate HTML with caching
             if (generator == PerlDocGenerator.Pod2HTML || generator == PerlDocGenerator.Both)
             {
                 string htmlOutput = buildPath(outputDir, baseName ~ ".html");
-                try
+                
+                // Build metadata for cache validation
+                string[string] htmlMetadata;
+                htmlMetadata["generator"] = "pod2html";
+                htmlMetadata["outputDir"] = outputDir;
+                
+                // Create action ID for HTML generation
+                ActionId htmlActionId;
+                htmlActionId.targetId = "pod_docs";
+                htmlActionId.type = ActionType.Custom;
+                htmlActionId.subId = baseName ~ "_html";
+                htmlActionId.inputHash = FastHash.hashFile(source);
+                
+                // Check if HTML generation is cached
+                if (actionCache.isCached(htmlActionId, [source], htmlMetadata) && exists(htmlOutput))
                 {
-                    execute(["pod2html", "--infile=" ~ source, "--outfile=" ~ htmlOutput]);
+                    Logger.debugLog("  [Cached] POD HTML: " ~ baseName);
                 }
-                catch (Exception e)
+                else
                 {
-                    Logger.warning("Failed to generate HTML docs for " ~ source);
+                    try
+                    {
+                        auto res = execute(["pod2html", "--infile=" ~ source, "--outfile=" ~ htmlOutput]);
+                        bool success = (res.status == 0);
+                        
+                        actionCache.update(
+                            htmlActionId,
+                            [source],
+                            [htmlOutput],
+                            htmlMetadata,
+                            success
+                        );
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.warning("Failed to generate HTML docs for " ~ source);
+                        actionCache.update(htmlActionId, [source], [], htmlMetadata, false);
+                    }
                 }
             }
             
-            // Generate man pages
+            // Generate man pages with caching
             if (generator == PerlDocGenerator.Pod2Man || generator == PerlDocGenerator.Both)
             {
                 if (config.documentation.generateMan)
                 {
                     string manOutput = buildPath(outputDir, baseName ~ "." ~ config.documentation.manSection.to!string);
-                    try
+                    
+                    // Build metadata for cache validation
+                    string[string] manMetadata;
+                    manMetadata["generator"] = "pod2man";
+                    manMetadata["manSection"] = config.documentation.manSection.to!string;
+                    manMetadata["outputDir"] = outputDir;
+                    
+                    // Create action ID for man page generation
+                    ActionId manActionId;
+                    manActionId.targetId = "pod_docs";
+                    manActionId.type = ActionType.Custom;
+                    manActionId.subId = baseName ~ "_man";
+                    manActionId.inputHash = FastHash.hashFile(source);
+                    
+                    // Check if man generation is cached
+                    if (actionCache.isCached(manActionId, [source], manMetadata) && exists(manOutput))
                     {
-                        execute(["pod2man", source, manOutput]);
+                        Logger.debugLog("  [Cached] POD man: " ~ baseName);
                     }
-                    catch (Exception e)
+                    else
                     {
-                        Logger.warning("Failed to generate man page for " ~ source);
+                        try
+                        {
+                            auto res = execute(["pod2man", source, manOutput]);
+                            bool success = (res.status == 0);
+                            
+                            actionCache.update(
+                                manActionId,
+                                [source],
+                                [manOutput],
+                                manMetadata,
+                                success
+                            );
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.warning("Failed to generate man page for " ~ source);
+                            actionCache.update(manActionId, [source], [], manMetadata, false);
+                        }
                     }
                 }
             }

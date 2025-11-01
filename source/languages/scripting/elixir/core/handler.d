@@ -18,10 +18,32 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Elixir build handler - comprehensive and modular
+/// Elixir build handler with action-level caching - comprehensive and modular
 class ElixirHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/elixir", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
     {
         LanguageBuildResult result;
@@ -180,8 +202,8 @@ class ElixirHandler : BaseLanguageHandler
             }
         }
         
-        // Build using appropriate builder
-        auto builder = BuilderFactory.create(elixirConfig.projectType, elixirConfig);
+        // Build using appropriate builder with action cache
+        auto builder = BuilderFactory.create(elixirConfig.projectType, elixirConfig, actionCache);
         
         if (!builder.isAvailable())
         {
@@ -279,8 +301,8 @@ class ElixirHandler : BaseLanguageHandler
             }
         }
         
-        // Build
-        auto builder = BuilderFactory.create(elixirConfig.projectType, elixirConfig);
+        // Build with action cache
+        auto builder = BuilderFactory.create(elixirConfig.projectType, elixirConfig, actionCache);
         auto buildResult = builder.build(target.sources, elixirConfig, target, config);
         
         result.success = buildResult.success;
@@ -644,11 +666,64 @@ class ElixirHandler : BaseLanguageHandler
         ElixirBuildResult buildResult
     ) @trusted
     {
-        // Run Dialyzer if configured (post-build for type checking)
+        // Run Dialyzer with PLT caching (post-build for type checking)
         if (config.dialyzer.enabled)
         {
             Logger.info("Running Dialyzer");
+            
+            // Cache Dialyzer PLT builds
+            string pltPath = buildPath(projectRoot, config.dialyzer.pltPath);
+            string[] dialyzerInputs;
+            
+            // Gather BEAM files for PLT
+            string beamDir = buildPath(projectRoot, "_build", envToString(config.env), "lib");
+            if (exists(beamDir))
+            {
+                foreach (entry; dirEntries(beamDir, "*.beam", SpanMode.depth))
+                {
+                    dialyzerInputs ~= entry.name;
+                }
+            }
+            
+            // Build metadata for PLT cache
+            string[string] pltMetadata;
+            pltMetadata["apps"] = config.dialyzer.apps.join(",");
+            pltMetadata["warnings"] = config.dialyzer.warnings.join(",");
+            pltMetadata["flags"] = config.dialyzer.flags.join(",");
+            
+            // Create action ID for PLT build
+            ActionId pltActionId;
+            pltActionId.targetId = baseName(projectRoot);
+            pltActionId.type = ActionType.Custom;
+            pltActionId.subId = "dialyzer_plt";
+            pltActionId.inputHash = FastHash.hashStrings(dialyzerInputs);
+            
+            // Check if PLT is cached
+            bool pltCached = false;
+            if (actionCache.isCached(pltActionId, dialyzerInputs, pltMetadata) && exists(pltPath))
+            {
+                Logger.info("  [Cached] Dialyzer PLT");
+                pltCached = true;
+            }
+            
             auto dialyzerResult = DialyzerChecker.check(config.dialyzer, mixCmd);
+            
+            // Update PLT cache if not cached
+            if (!pltCached && actionCache)
+            {
+                string[] pltOutputs;
+                if (exists(pltPath))
+                    pltOutputs ~= pltPath;
+                
+                actionCache.update(
+                    pltActionId,
+                    dialyzerInputs,
+                    pltOutputs,
+                    pltMetadata,
+                    dialyzerResult.success
+                );
+            }
+            
             if (dialyzerResult.hasWarnings())
             {
                 Logger.warning("Dialyzer warnings:");
@@ -670,11 +745,62 @@ class ElixirHandler : BaseLanguageHandler
             }
         }
         
-        // Generate documentation if configured
+        // Generate documentation with caching
         if (config.docs.enabled)
         {
             Logger.info("Generating documentation");
-            DocGenerator.generate(config.docs, mixCmd);
+            
+            // Gather source files for ExDoc cache
+            string[] docInputs;
+            string libDir = buildPath(projectRoot, "lib");
+            if (exists(libDir))
+            {
+                foreach (entry; dirEntries(libDir, "*.ex", SpanMode.depth))
+                {
+                    docInputs ~= entry.name;
+                }
+            }
+            
+            string mixExsPath = buildPath(projectRoot, config.project.mixExsPath);
+            if (exists(mixExsPath))
+                docInputs ~= mixExsPath;
+            
+            // Build metadata for ExDoc cache
+            string[string] docMetadata;
+            docMetadata["format"] = config.docs.format;
+            docMetadata["outputPath"] = config.docs.outputPath;
+            docMetadata["mainModule"] = config.docs.mainModule;
+            
+            // Create action ID for ExDoc generation
+            ActionId docActionId;
+            docActionId.targetId = baseName(projectRoot);
+            docActionId.type = ActionType.Custom;
+            docActionId.subId = "exdoc";
+            docActionId.inputHash = FastHash.hashStrings(docInputs);
+            
+            string docOutputDir = buildPath(projectRoot, config.docs.outputPath);
+            
+            // Check if ExDoc is cached
+            if (actionCache.isCached(docActionId, docInputs, docMetadata) && exists(docOutputDir))
+            {
+                Logger.info("  [Cached] ExDoc generation");
+            }
+            else
+            {
+                auto docResult = DocGenerator.generate(config.docs, mixCmd);
+                
+                string[] docOutputs;
+                if (exists(docOutputDir))
+                    docOutputs ~= docOutputDir;
+                
+                actionCache.update(
+                    docActionId,
+                    docInputs,
+                    docOutputs,
+                    docMetadata,
+                    docResult.success
+                );
+            }
         }
     }
     

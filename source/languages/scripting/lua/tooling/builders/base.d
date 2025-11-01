@@ -3,6 +3,7 @@ module languages.scripting.lua.tooling.builders.base;
 import languages.scripting.lua.core.config;
 import config.schema.schema;
 import analysis.targets.spec;
+import core.caching.action : ActionCache;
 
 /// Build result structure
 struct BuildResult
@@ -29,6 +30,9 @@ interface LuaBuilder
     
     /// Get builder name
     string name() const;
+    
+    /// Set action cache for this builder
+    void setActionCache(ActionCache cache);
 }
 
 /// Factory for creating appropriate Lua builders
@@ -50,7 +54,7 @@ class BuilderFactory
     /// What could go wrong:
     /// - Builder construction fails: D's `new` handles allocation failure
     /// - Invalid mode: prevented by final switch (compile-time check)
-    static LuaBuilder create(LuaBuildMode mode, LuaConfig config) @trusted
+    static LuaBuilder create(LuaBuildMode mode, LuaConfig config, ActionCache cache = null) @trusted
     {
         import languages.scripting.lua.tooling.builders.script;
         import languages.scripting.lua.tooling.builders.bytecode;
@@ -63,24 +67,36 @@ class BuilderFactory
                 // Check if LuaJIT should be used
                 if (config.luajit.enabled || config.runtime == LuaRuntime.LuaJIT)
                 {
-                    return new LuaJITBuilder();
+                    auto builder = new LuaJITBuilder();
+                    if (cache) builder.setActionCache(cache);
+                    return builder;
                 }
-                return new ScriptBuilder();
+                auto builder = new ScriptBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
                 
             case LuaBuildMode.Bytecode:
                 if (config.luajit.bytecode || config.runtime == LuaRuntime.LuaJIT)
                 {
-                    return new LuaJITBuilder();
+                    auto builder = new LuaJITBuilder();
+                    if (cache) builder.setActionCache(cache);
+                    return builder;
                 }
-                return new BytecodeBuilder();
+                auto builder = new BytecodeBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
                 
             case LuaBuildMode.Library:
                 // Libraries are just validated scripts
-                return new ScriptBuilder();
+                auto builder = new ScriptBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
                 
             case LuaBuildMode.Rock:
                 // Rock building uses script builder with LuaRocks
-                return new ScriptBuilder();
+                auto builder = new ScriptBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
         }
     }
 }

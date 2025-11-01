@@ -13,10 +13,18 @@ import config.schema.schema;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionId, ActionType;
 
-/// Bytecode builder - compiles Lua to bytecode using luac
+/// Bytecode builder with action-level caching - compiles Lua to bytecode using luac
 class BytecodeBuilder : LuaBuilder
 {
+    private ActionCache actionCache;
+    
+    override void setActionCache(ActionCache cache)
+    {
+        this.actionCache = cache;
+    }
+    
     override BuildResult build(
         in string[] sources,
         in LuaConfig config,
@@ -64,6 +72,98 @@ class BytecodeBuilder : LuaBuilder
             mkdirRecurse(outputDir);
         }
         
+        // Per-file bytecode caching for granular incremental builds
+        string[] perFileOutputs;
+        bool usePerFile = (sources.length > 1 && config.bytecode.perFile);
+        
+        if (usePerFile)
+        {
+            // Compile each source file individually with caching
+            Logger.debugLog("Compiling Lua sources to bytecode individually");
+            
+            foreach (source; sources)
+            {
+                // Build metadata for per-file cache
+                string[string] fileMetadata;
+                fileMetadata["compiler"] = luacCmd;
+                fileMetadata["optLevel"] = config.bytecode.optLevel.to!string;
+                fileMetadata["stripDebug"] = config.bytecode.stripDebug.to!string;
+                
+                // Create per-file action ID
+                ActionId fileActionId;
+                fileActionId.targetId = target.name;
+                fileActionId.type = ActionType.Compile;
+                fileActionId.subId = baseName(source);
+                fileActionId.inputHash = FastHash.hashFile(source);
+                
+                string fileOutput = buildPath(outputDir, baseName(source).stripExtension ~ ".luac");
+                
+                // Check if per-file compilation is cached
+                if (actionCache && actionCache.isCached(fileActionId, [source], fileMetadata) && exists(fileOutput))
+                {
+                    Logger.debugLog("  [Cached] Bytecode: " ~ baseName(source));
+                    perFileOutputs ~= fileOutput;
+                    continue;
+                }
+                
+                // Compile this file
+                string[] cmd = [luacCmd, "-o", fileOutput];
+                
+                if (config.bytecode.optLevel == BytecodeOptLevel.Full && config.bytecode.stripDebug)
+                    cmd ~= "-s";
+                
+                cmd ~= source;
+                
+                Logger.debugLog("Compiling: " ~ source);
+                auto res = execute(cmd);
+                bool success = (res.status == 0);
+                
+                if (!success)
+                {
+                    result.error = "Bytecode compilation failed for " ~ source ~ ": " ~ res.output;
+                    if (actionCache)
+                        actionCache.update(fileActionId, [source], [], fileMetadata, false);
+                    return result;
+                }
+                
+                perFileOutputs ~= fileOutput;
+                
+                // Update per-file cache
+                if (actionCache)
+                    actionCache.update(fileActionId, [source], [fileOutput], fileMetadata, true);
+            }
+            
+            result.success = true;
+            result.outputs = perFileOutputs;
+            result.outputHash = FastHash.hashStrings(sources);
+            return result;
+        }
+        
+        // Batch bytecode compilation (original behavior)
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["compiler"] = luacCmd;
+        metadata["optLevel"] = config.bytecode.optLevel.to!string;
+        metadata["stripDebug"] = config.bytecode.stripDebug.to!string;
+        metadata["listDeps"] = config.bytecode.listDeps.to!string;
+        
+        // Create action ID for bytecode compilation
+        ActionId actionId;
+        actionId.targetId = target.name;
+        actionId.type = ActionType.Compile;
+        actionId.subId = "bytecode";
+        actionId.inputHash = FastHash.hashStrings(sources);
+        
+        // Check if compilation is cached
+        if (actionCache && actionCache.isCached(actionId, sources, metadata) && exists(outputPath))
+        {
+            Logger.debugLog("  [Cached] Bytecode compilation: " ~ outputPath);
+            result.success = true;
+            result.outputs = [outputPath];
+            result.outputHash = FastHash.hashFile(outputPath);
+            return result;
+        }
+        
         // Build luac command
         string[] cmd = [luacCmd];
         
@@ -102,15 +202,30 @@ class BytecodeBuilder : LuaBuilder
         Logger.debugLog("Compiling bytecode: " ~ cmd.join(" "));
         auto res = execute(cmd);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Bytecode compilation failed: " ~ res.output;
+            
+            // Update cache with failure
+            if (actionCache)
+            {
+                actionCache.update(actionId, sources, [], metadata, false);
+            }
+            
             return result;
         }
         
         result.success = true;
         result.outputs = [outputPath];
         result.outputHash = FastHash.hashStrings(sources);
+        
+        // Update cache with success
+        if (actionCache)
+        {
+            actionCache.update(actionId, sources, [outputPath], metadata, true);
+        }
         
         return result;
     }

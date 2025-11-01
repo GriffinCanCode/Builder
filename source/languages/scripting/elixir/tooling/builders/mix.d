@@ -14,10 +14,18 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Mix project builder - standard OTP applications and libraries
+/// Mix project builder - standard OTP applications and libraries with action-level caching
 class MixProjectBuilder : ElixirBuilder
 {
+    private ActionCache actionCache;
+    
+    override void setActionCache(ActionCache cache)
+    {
+        this.actionCache = cache;
+    }
+    
     override ElixirBuildResult build(
         in string[] sources,
         in ElixirConfig config,
@@ -56,6 +64,78 @@ class MixProjectBuilder : ElixirBuilder
         foreach (key, value; config.env_)
             env[key] = value;
         
+        // Gather source files for cache validation
+        string[] inputFiles = [mixExsPath];
+        string[] moduleFiles;
+        string libDir = buildPath(workDir, "lib");
+        if (exists(libDir))
+        {
+            foreach (entry; dirEntries(libDir, "*.ex", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+                moduleFiles ~= entry.name;
+            }
+            foreach (entry; dirEntries(libDir, "*.exs", SpanMode.depth))
+            {
+                inputFiles ~= entry.name;
+                moduleFiles ~= entry.name;
+            }
+        }
+        
+        // Per-module compilation caching for granular incremental builds
+        bool anyModuleChanged = false;
+        foreach (modFile; moduleFiles)
+        {
+            string[string] modMetadata;
+            modMetadata["mixEnv"] = mixEnv;
+            modMetadata["debugInfo"] = config.debugInfo.to!string;
+            
+            ActionId modActionId;
+            modActionId.targetId = baseName(workDir);
+            modActionId.type = ActionType.Compile;
+            modActionId.subId = modFile.baseName;
+            modActionId.inputHash = FastHash.hashFile(modFile);
+            
+            if (!actionCache || !actionCache.isCached(modActionId, [modFile], modMetadata))
+            {
+                anyModuleChanged = true;
+                Logger.debugLog("  [Changed] Module: " ~ modFile.baseName);
+            }
+            else
+            {
+                Logger.debugLog("  [Cached] Module: " ~ modFile.baseName);
+            }
+        }
+        
+        // Build metadata for cache validation
+        string[string] metadata;
+        metadata["mixEnv"] = mixEnv;
+        metadata["verbose"] = config.verbose.to!string;
+        metadata["warningsAsErrors"] = config.warningsAsErrors.to!string;
+        metadata["debugInfo"] = config.debugInfo.to!string;
+        metadata["compilerOpts"] = config.compilerOpts.join(",");
+        
+        // Determine output paths
+        string buildDir = config.project.buildPath;
+        string outputDir = buildPath(buildDir, mixEnv, "lib");
+        
+        // Create action ID for Mix compile
+        ActionId actionId;
+        actionId.targetId = baseName(workDir);
+        actionId.type = ActionType.Compile;
+        actionId.subId = "mix_compile";
+        actionId.inputHash = FastHash.hashStrings(inputFiles);
+        
+        // Check if compilation is cached
+        if (actionCache && actionCache.isCached(actionId, inputFiles, metadata) && exists(outputDir))
+        {
+            Logger.info("  [Cached] Mix compilation: " ~ workDir);
+            result.success = true;
+            result.outputs ~= outputDir;
+            result.outputHash = FastHash.hashStrings(sources);
+            return result;
+        }
+        
         // Build Mix command
         string[] cmd = ["mix", "compile"];
         
@@ -80,12 +160,20 @@ class MixProjectBuilder : ElixirBuilder
         // Execute compilation
         auto res = execute(cmd, env, Config.none, size_t.max, workDir);
         
-        if (res.status != 0)
+        bool success = (res.status == 0);
+        
+        if (!success)
         {
             result.error = "Compilation failed: " ~ res.output;
             
             // Parse warnings from output
             result.warnings = parseCompilerWarnings(res.output);
+            
+            // Update cache with failure
+            if (actionCache)
+            {
+                actionCache.update(actionId, inputFiles, [], metadata, false);
+            }
             
             return result;
         }
@@ -93,17 +181,45 @@ class MixProjectBuilder : ElixirBuilder
         // Parse warnings even on success
         result.warnings = parseCompilerWarnings(res.output);
         
-        // Determine output paths
-        string buildDir = config.project.buildPath;
-        string outputDir = buildPath(buildDir, mixEnv, "lib");
-        
+        // Collect outputs
+        string[] outputs;
         if (exists(outputDir))
         {
+            outputs ~= outputDir;
             result.outputs ~= outputDir;
         }
         
         result.success = true;
         result.outputHash = FastHash.hashStrings(sources);
+        
+        // Update cache with success
+        if (actionCache)
+        {
+            actionCache.update(actionId, inputFiles, outputs, metadata, true);
+            
+            // Update per-module caches on successful compilation
+            foreach (modFile; moduleFiles)
+            {
+                string[string] modMetadata;
+                modMetadata["mixEnv"] = mixEnv;
+                modMetadata["debugInfo"] = config.debugInfo.to!string;
+                
+                ActionId modActionId;
+                modActionId.targetId = baseName(workDir);
+                modActionId.type = ActionType.Compile;
+                modActionId.subId = modFile.baseName;
+                modActionId.inputHash = FastHash.hashFile(modFile);
+                
+                // Determine module output (BEAM file)
+                string beamDir = buildPath(buildDir, mixEnv, "lib", baseName(workDir), "ebin");
+                string beamFile = buildPath(beamDir, modFile.baseName.stripExtension ~ ".beam");
+                string[] modOutputs;
+                if (exists(beamFile))
+                    modOutputs ~= beamFile;
+                
+                actionCache.update(modActionId, [modFile], modOutputs, modMetadata, true);
+            }
+        }
         
         // Compile protocols if requested
         if (config.compileProtocols)

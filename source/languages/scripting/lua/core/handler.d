@@ -23,10 +23,31 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process : isCommandAvailable;
+import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
-/// Lua language build handler - orchestrates all Lua build operations
+/// Lua language build handler with action-level caching - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler
 {
+    private ActionCache actionCache;
+    
+    this()
+    {
+        auto cacheConfig = ActionCacheConfig.fromEnvironment();
+        actionCache = new ActionCache(".builder-cache/actions/lua", cacheConfig);
+    }
+    
+    ~this()
+    {
+        import core.memory : GC;
+        if (actionCache && !GC.inFinalizer())
+        {
+            try
+            {
+                actionCache.close();
+            }
+            catch (Exception) {}
+        }
+    }
     /// Build implementation - orchestrates Lua compilation/execution
     /// 
     /// Safety: This function is @trusted because:
@@ -202,8 +223,9 @@ class LuaHandler : BaseLanguageHandler
             }
         }
         
-        // Select and run appropriate builder
+        // Select and run appropriate builder with action cache
         auto builder = selectBuilder(luaConfig);
+        builder.setActionCache(actionCache);
         auto buildResult = builder.build(target.sources, luaConfig, target, config);
         
         if (!buildResult.success)
@@ -275,8 +297,9 @@ class LuaHandler : BaseLanguageHandler
             }
         }
         
-        // Build library
+        // Build library with action cache
         auto builder = selectBuilder(luaConfig);
+        builder.setActionCache(actionCache);
         auto buildResult = builder.build(target.sources, luaConfig, target, config);
         
         result.success = buildResult.success;
@@ -316,14 +339,43 @@ class LuaHandler : BaseLanguageHandler
             Logger.debugLog("Auto-detected test framework: " ~ testFrameworkToString(luaConfig.test.framework));
         }
         
+        // Cache test framework initialization
+        string frameworkName = testFrameworkToString(luaConfig.test.framework);
+        string[string] initMetadata;
+        initMetadata["framework"] = frameworkName;
+        initMetadata["runtime"] = runtimeToString(luaConfig.runtime);
+        
+        ActionId initActionId;
+        initActionId.targetId = "lua_test_init";
+        initActionId.type = ActionType.Custom;
+        initActionId.subId = frameworkName;
+        initActionId.inputHash = FastHash.hashString(frameworkName);
+        
+        // Check if test framework initialization is cached
+        bool frameworkInitialized = false;
+        if (actionCache.isCached(initActionId, [], initMetadata))
+        {
+            Logger.debugLog("  [Cached] Test framework initialization: " ~ frameworkName);
+            frameworkInitialized = true;
+        }
+        
         // Select test runner
         auto tester = TesterFactory.create(luaConfig.test.framework, luaConfig);
         
         if (!tester.isAvailable())
         {
-            result.error = "Test framework '" ~ testFrameworkToString(luaConfig.test.framework) ~ 
+            result.error = "Test framework '" ~ frameworkName ~ 
                           "' is not available. Please install it.";
+            
+            // Cache the unavailability to avoid repeated checks
+            actionCache.update(initActionId, [], [], initMetadata, false);
             return result;
+        }
+        
+        // Cache successful initialization
+        if (!frameworkInitialized)
+        {
+            actionCache.update(initActionId, [], [], initMetadata, true);
         }
         
         // Run tests
@@ -512,34 +564,77 @@ class LuaHandler : BaseLanguageHandler
         
         if (!rockspecFile.empty)
         {
-            // Install dependencies from rockspec
-            Logger.info("Installing dependencies from rockspec: " ~ rockspecFile);
-            auto rockResult = manager.installDependencies(rockspecFile);
+            // Cache rockspec-based installations
+            string[string] rockspecMetadata;
+            rockspecMetadata["luarocks"] = "true";
+            rockspecMetadata["rockspecHash"] = FastHash.hashFile(rockspecFile);
             
-            if (!rockResult.success)
+            ActionId rockspecActionId;
+            rockspecActionId.targetId = "luarocks_deps";
+            rockspecActionId.type = ActionType.Package;
+            rockspecActionId.subId = baseName(rockspecFile);
+            rockspecActionId.inputHash = FastHash.hashFile(rockspecFile);
+            
+            // Check if rockspec installation is cached
+            if (actionCache.isCached(rockspecActionId, [rockspecFile], rockspecMetadata))
             {
-                result.error = rockResult.error;
-                return result;
+                Logger.info("  [Cached] LuaRocks dependencies from rockspec");
             }
-            
-            Logger.info("Successfully installed dependencies from rockspec");
+            else
+            {
+                // Install dependencies from rockspec
+                Logger.info("Installing dependencies from rockspec: " ~ rockspecFile);
+                auto rockResult = manager.installDependencies(rockspecFile);
+                
+                bool success = rockResult.success;
+                if (!success)
+                {
+                    result.error = rockResult.error;
+                    actionCache.update(rockspecActionId, [rockspecFile], [], rockspecMetadata, false);
+                    return result;
+                }
+                
+                Logger.info("Successfully installed dependencies from rockspec");
+                actionCache.update(rockspecActionId, [rockspecFile], [], rockspecMetadata, true);
+            }
         }
         else if (!config.luarocks.dependencies.empty)
         {
-            // Install specified rocks
+            // Install specified rocks with per-rock caching
             Logger.info("Installing " ~ config.luarocks.dependencies.length.to!string ~ " rocks");
             
             foreach (rock; config.luarocks.dependencies)
             {
+                // Cache individual rock installations
+                string[string] rockMetadata;
+                rockMetadata["luarocks"] = "true";
+                rockMetadata["rock"] = rock;
+                
+                ActionId rockActionId;
+                rockActionId.targetId = "luarocks_deps";
+                rockActionId.type = ActionType.Package;
+                rockActionId.subId = rock;
+                rockActionId.inputHash = FastHash.hashString(rock);
+                
+                // Check if rock installation is cached
+                if (actionCache.isCached(rockActionId, [], rockMetadata))
+                {
+                    Logger.debugLog("  [Cached] Rock: " ~ rock);
+                    continue;
+                }
+                
                 auto rockResult = manager.installRock(rock);
                 
-                if (!rockResult.success)
+                bool success = rockResult.success;
+                if (!success)
                 {
                     result.error = "Failed to install rock '" ~ rock ~ "': " ~ rockResult.error;
+                    actionCache.update(rockActionId, [], [], rockMetadata, false);
                     return result;
                 }
                 
                 Logger.info("Installed rock: " ~ rock);
+                actionCache.update(rockActionId, [], [], rockMetadata, true);
             }
         }
         else
@@ -801,7 +896,7 @@ class LuaHandler : BaseLanguageHandler
     /// Select appropriate builder based on config
     private LuaBuilder selectBuilder(LuaConfig config) @safe
     {
-        return BuilderFactory.create(config.mode, config);
+        return BuilderFactory.create(config.mode, config, actionCache);
     }
     
     /// Auto-detect test framework from project files

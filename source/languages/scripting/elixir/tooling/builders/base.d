@@ -9,6 +9,7 @@ import languages.base.base;
 import languages.scripting.elixir.core.config;
 import config.schema.schema;
 import analysis.targets.types;
+import core.caching.action : ActionCache;
 
 /// Base interface for Elixir builders
 interface ElixirBuilder
@@ -26,41 +27,56 @@ interface ElixirBuilder
     
     /// Get builder name
     string name() const;
+    
+    /// Set action cache for this builder
+    void setActionCache(ActionCache cache);
 }
 
 /// Builder factory - creates appropriate builder based on project type
 class BuilderFactory
 {
-    /// Create builder based on project type
-    static ElixirBuilder create(ElixirProjectType type, ElixirConfig config)
+    /// Create builder based on project type with optional action cache
+    static ElixirBuilder create(ElixirProjectType type, ElixirConfig config, ActionCache cache = null)
     {
         final switch (type)
         {
             case ElixirProjectType.Script:
                 import languages.scripting.elixir.tooling.builders.script;
-                return new ScriptBuilder();
+                auto builder = new ScriptBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
             
             case ElixirProjectType.MixProject:
             case ElixirProjectType.Library:
                 import languages.scripting.elixir.tooling.builders.mix;
-                return new MixProjectBuilder();
+                auto builder = new MixProjectBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
             
             case ElixirProjectType.Phoenix:
             case ElixirProjectType.PhoenixLiveView:
                 import languages.scripting.elixir.tooling.builders.phoenix;
-                return new PhoenixBuilder();
+                auto builder = new PhoenixBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
             
             case ElixirProjectType.Umbrella:
                 import languages.scripting.elixir.tooling.builders.umbrella;
-                return new UmbrellaBuilder();
+                auto builder = new UmbrellaBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
             
             case ElixirProjectType.Escript:
                 import languages.scripting.elixir.tooling.builders.escript;
-                return new EscriptBuilder();
+                auto builder = new EscriptBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
             
             case ElixirProjectType.Nerves:
                 import languages.scripting.elixir.tooling.builders.nerves;
-                return new NervesBuilder();
+                auto builder = new NervesBuilder();
+                if (cache) builder.setActionCache(cache);
+                return builder;
         }
     }
     
