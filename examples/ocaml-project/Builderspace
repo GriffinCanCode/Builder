@@ -1,0 +1,12 @@
+// Builderspace configuration for OCaml project
+
+workspace("ocaml-project") {
+    cacheDir: ".builder-cache";
+    outputDir: "bin";
+    parallel: true;
+    maxJobs: 4;
+    verbose: false;
+    incremental: true;
+}
+
+

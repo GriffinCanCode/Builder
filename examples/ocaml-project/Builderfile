@@ -1,0 +1,30 @@
+// OCaml Example Project
+// Demonstrates OCaml language support in Builder
+
+target("ocaml-app") {
+    type: executable;
+    language: ocaml;
+    sources: ["src/main.ml", "src/utils.ml"];
+    
+    config: {
+        "compiler": "auto",
+        "optimize": "2",
+        "runFormat": false,
+        "debugInfo": false,
+        "warnings": true
+    };
+}
+
+target("ocaml-bytecode") {
+    type: executable;
+    language: ocaml;
+    sources: ["src/main.ml", "src/utils.ml"];
+    
+    config: {
+        "compiler": "ocamlc",
+        "outputType": "bytecode",
+        "outputName": "ocaml-app-bytecode"
+    };
+}
+
+

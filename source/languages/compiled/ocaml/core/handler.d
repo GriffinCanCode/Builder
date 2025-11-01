@@ -264,6 +264,18 @@ class OCamlHandler : BaseLanguageHandler
             cmd ~= "-g";
         }
         
+        // Add source directories as include directories
+        bool[string] seenDirs;
+        foreach (source; mlFiles)
+        {
+            string dir = dirName(source);
+            if (dir !in seenDirs && dir != ".")
+            {
+                seenDirs[dir] = true;
+                cmd ~= ["-I", dir];
+            }
+        }
+        
         // Add include directories
         foreach (inc; ocamlConfig.includeDirs)
         {
@@ -303,8 +315,18 @@ class OCamlHandler : BaseLanguageHandler
         
         cmd ~= ["-o", outputPath];
         
-        // Add source files
-        cmd ~= mlFiles;
+        // Add source files in dependency order (utils before main)
+        string[] nonMainFiles;
+        string[] mainFiles;
+        foreach (file; mlFiles)
+        {
+            if (baseName(file).startsWith("main."))
+                mainFiles ~= file;
+            else
+                nonMainFiles ~= file;
+        }
+        cmd ~= nonMainFiles;
+        cmd ~= mainFiles;
         
         // Execute compilation
         try
@@ -378,6 +400,18 @@ class OCamlHandler : BaseLanguageHandler
             cmd ~= "-g";
         }
         
+        // Add source directories as include directories
+        bool[string] seenDirs;
+        foreach (source; mlFiles)
+        {
+            string dir = dirName(source);
+            if (dir !in seenDirs && dir != ".")
+            {
+                seenDirs[dir] = true;
+                cmd ~= ["-I", dir];
+            }
+        }
+        
         // Add include directories
         foreach (inc; ocamlConfig.includeDirs)
         {
@@ -421,8 +455,18 @@ class OCamlHandler : BaseLanguageHandler
         
         cmd ~= ["-o", outputPath];
         
-        // Add source files
-        cmd ~= mlFiles;
+        // Add source files in dependency order (utils before main)
+        string[] nonMainFiles;
+        string[] mainFiles;
+        foreach (file; mlFiles)
+        {
+            if (baseName(file).startsWith("main."))
+                mainFiles ~= file;
+            else
+                nonMainFiles ~= file;
+        }
+        cmd ~= nonMainFiles;
+        cmd ~= mainFiles;
         
         // Execute compilation
         try

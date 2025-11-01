@@ -185,12 +185,16 @@ class TargetInference
             case TargetLanguage.Zig:
             case TargetLanguage.Swift:
             case TargetLanguage.Ruby:
+            case TargetLanguage.Perl:
             case TargetLanguage.Elixir:
             case TargetLanguage.PHP:
             case TargetLanguage.Scala:
             case TargetLanguage.Nim:
             case TargetLanguage.Lua:
             case TargetLanguage.R:
+            case TargetLanguage.OCaml:
+            case TargetLanguage.Haskell:
+            case TargetLanguage.Elm:
             case TargetLanguage.CSS:
             case TargetLanguage.Protobuf:
             case TargetLanguage.Generic:
