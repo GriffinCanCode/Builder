@@ -2,11 +2,11 @@ module languages.compiled.haskell.analysis.cabal;
 
 import std.stdio;
 import std.file;
-import std.path;
+import std.string;
 import std.algorithm;
 import std.array;
-import std.string;
 import std.conv;
+import std.regex;
 import utils.logging.logger;
 
 /// Cabal package metadata
@@ -14,214 +14,286 @@ struct CabalMetadata
 {
     string name;
     string version_;
-    string synopsis;
-    string description;
     string license;
     string author;
     string maintainer;
     string category;
+    string synopsis;
+    string description;
     string homepage;
     string bugReports;
     string[] buildDepends;
+    string[] otherModules;
+    string[] exposedModules;
+    CabalExecutable[] executables;
+    CabalLibrary[] libraries;
+    CabalTestSuite[] testSuites;
+    
+    /// Parse cabal file from path
+    static CabalMetadata fromFile(string path)
+    {
+        if (!exists(path))
+        {
+            Logger.warning("Cabal file not found: " ~ path);
+            return CabalMetadata();
+        }
+        
+        try
+        {
+            string content = readText(path);
+            return parse(content);
+        }
+        catch (Exception e)
+        {
+            Logger.error("Failed to parse cabal file: " ~ e.msg);
+            return CabalMetadata();
+        }
+    }
+    
+    /// Parse cabal file content
+    static CabalMetadata parse(string content)
+    {
+        CabalMetadata meta;
+        
+        // Parse package metadata
+        meta.name = extractField(content, "name");
+        meta.version_ = extractField(content, "version");
+        meta.license = extractField(content, "license");
+        meta.author = extractField(content, "author");
+        meta.maintainer = extractField(content, "maintainer");
+        meta.category = extractField(content, "category");
+        meta.synopsis = extractField(content, "synopsis");
+        meta.description = extractField(content, "description");
+        meta.homepage = extractField(content, "homepage");
+        meta.bugReports = extractField(content, "bug-reports");
+        
+        // Parse build dependencies
+        meta.buildDepends = extractDependencies(content, "build-depends");
+        
+        // Parse library section
+        meta.libraries = parseLibraries(content);
+        
+        // Parse executable sections
+        meta.executables = parseExecutables(content);
+        
+        // Parse test suites
+        meta.testSuites = parseTestSuites(content);
+        
+        // Extract exposed and other modules
+        meta.exposedModules = extractModuleList(content, "exposed-modules");
+        meta.otherModules = extractModuleList(content, "other-modules");
+        
+        return meta;
+    }
+}
+
+/// Cabal executable configuration
+struct CabalExecutable
+{
+    string name;
+    string mainIs;
+    string[] buildDepends;
+    string[] otherModules;
+    string hsSourceDirs;
+    string defaultLanguage;
+}
+
+/// Cabal library configuration
+struct CabalLibrary
+{
     string[] exposedModules;
     string[] otherModules;
-    string[] executables;
-    string[] testSuites;
-    string ghcVersion;
+    string[] buildDepends;
+    string hsSourceDirs;
+    string defaultLanguage;
 }
 
-/// Parse a .cabal file
-CabalMetadata parseCabalFile(string filepath)
+/// Cabal test suite configuration
+struct CabalTestSuite
 {
-    CabalMetadata meta;
-    
-    if (!exists(filepath))
-    {
-        Logger.warning("Cabal file not found: " ~ filepath);
-        return meta;
-    }
-    
-    try
-    {
-        auto content = readText(filepath);
-        return parseCabalContent(content);
-    }
-    catch (Exception e)
-    {
-        Logger.warning("Failed to parse Cabal file: " ~ e.msg);
-        return meta;
-    }
+    string name;
+    string type;
+    string mainIs;
+    string[] buildDepends;
+    string[] otherModules;
+    string hsSourceDirs;
 }
 
-/// Parse Cabal file content
-CabalMetadata parseCabalContent(string content)
+/// Extract a simple field value
+private string extractField(string content, string fieldName)
 {
-    CabalMetadata meta;
+    auto pattern = regex(`^` ~ fieldName ~ `\s*:\s*(.+?)$`, "mi");
+    auto match = matchFirst(content, pattern);
     
-    string currentSection = "";
+    if (!match.empty && match.length >= 2)
+        return match[1].strip;
     
-    foreach (line; content.lineSplitter)
+    return "";
+}
+
+/// Extract multi-line field value
+private string extractMultilineField(string content, string fieldName)
+{
+    auto pattern = regex(`^` ~ fieldName ~ `\s*:\s*(.+?)(?=^\S|\z)`, "msi");
+    auto match = matchFirst(content, pattern);
+    
+    if (!match.empty && match.length >= 2)
     {
-        string trimmed = line.strip;
+        // Join continuation lines
+        string value = match[1];
+        value = value.replaceAll(regex(`\s+`), " ");
+        return value.strip;
+    }
+    
+    return "";
+}
+
+/// Extract dependencies from build-depends field
+private string[] extractDependencies(string content, string fieldName)
+{
+    string[] deps;
+    
+    auto pattern = regex(`^` ~ fieldName ~ `\s*:\s*(.+?)(?=^\S|\z)`, "msi");
+    auto match = matchFirst(content, pattern);
+    
+    if (!match.empty && match.length >= 2)
+    {
+        string depStr = match[1];
+        // Remove newlines and normalize spaces
+        depStr = depStr.replaceAll(regex(`\s+`), " ");
         
-        // Skip comments and empty lines
-        if (trimmed.empty || trimmed.startsWith("--"))
-            continue;
+        // Split by comma
+        auto depParts = depStr.split(",");
         
-        // Check for section headers
-        if (trimmed.startsWith("library"))
+        foreach (dep; depParts)
         {
-            currentSection = "library";
-            continue;
+            dep = dep.strip;
+            if (!dep.empty)
+            {
+                // Extract package name (before version constraints)
+                auto nameMatch = matchFirst(dep, regex(`^([\w-]+)`));
+                if (!nameMatch.empty)
+                    deps ~= nameMatch[1];
+            }
         }
-        else if (trimmed.startsWith("executable "))
-        {
-            currentSection = "executable";
-            auto exeName = trimmed["executable ".length .. $].strip;
-            meta.executables ~= exeName;
-            continue;
-        }
-        else if (trimmed.startsWith("test-suite "))
-        {
-            currentSection = "test-suite";
-            auto testName = trimmed["test-suite ".length .. $].strip;
-            meta.testSuites ~= testName;
-            continue;
-        }
+    }
+    
+    return deps;
+}
+
+/// Extract module list
+private string[] extractModuleList(string content, string fieldName)
+{
+    string[] modules;
+    
+    auto pattern = regex(`^` ~ fieldName ~ `\s*:\s*(.+?)(?=^\S|\z)`, "msi");
+    auto match = matchFirst(content, pattern);
+    
+    if (!match.empty && match.length >= 2)
+    {
+        string modStr = match[1];
+        // Remove newlines and normalize spaces
+        modStr = modStr.replaceAll(regex(`\s+`), " ");
         
-        // Parse field: value pairs
-        auto colonPos = trimmed.indexOf(":");
-        if (colonPos > 0)
+        // Split by comma or whitespace
+        modules = modStr.split(regex(`[,\s]+`))
+            .filter!(m => !m.empty)
+            .array;
+    }
+    
+    return modules;
+}
+
+/// Parse library sections
+private CabalLibrary[] parseLibraries(string content)
+{
+    CabalLibrary[] libs;
+    
+    // Match library section
+    auto libPattern = regex(`^library\s*$(.+?)(?=^(?:executable|test-suite|benchmark|\z))`, "msi");
+    
+    foreach (match; matchAll(content, libPattern))
+    {
+        if (match.length >= 2)
         {
-            string field = trimmed[0 .. colonPos].strip.toLower;
-            string value = trimmed[colonPos + 1 .. $].strip;
+            string section = match[1];
             
-            switch (field)
-            {
-                case "name":
-                    meta.name = value;
-                    break;
-                case "version":
-                    meta.version_ = value;
-                    break;
-                case "synopsis":
-                    meta.synopsis = value;
-                    break;
-                case "description":
-                    meta.description = value;
-                    break;
-                case "license":
-                    meta.license = value;
-                    break;
-                case "author":
-                    meta.author = value;
-                    break;
-                case "maintainer":
-                    meta.maintainer = value;
-                    break;
-                case "category":
-                    meta.category = value;
-                    break;
-                case "homepage":
-                    meta.homepage = value;
-                    break;
-                case "bug-reports":
-                    meta.bugReports = value;
-                    break;
-                case "build-depends":
-                    meta.buildDepends ~= parseDependencyList(value);
-                    break;
-                case "exposed-modules":
-                    meta.exposedModules ~= parseModuleList(value);
-                    break;
-                case "other-modules":
-                    meta.otherModules ~= parseModuleList(value);
-                    break;
-                default:
-                    break;
-            }
-        }
-        // Handle multi-line continuations (indented lines)
-        else if (line.startsWith(" ") || line.startsWith("\t"))
-        {
-            // This is a continuation of the previous field
-            // For build-depends, exposed-modules, etc.
-            string value = trimmed;
+            CabalLibrary lib;
+            lib.exposedModules = extractModuleList(section, "exposed-modules");
+            lib.otherModules = extractModuleList(section, "other-modules");
+            lib.buildDepends = extractDependencies(section, "build-depends");
+            lib.hsSourceDirs = extractField(section, "hs-source-dirs");
+            lib.defaultLanguage = extractField(section, "default-language");
             
-            if (currentSection == "library" || currentSection == "executable")
-            {
-                // Try to detect what field this continues
-                if (value.canFind(","))
-                {
-                    // Likely a dependency or module list
-                    meta.buildDepends ~= parseDependencyList(value);
-                }
-            }
+            libs ~= lib;
         }
     }
     
-    return meta;
+    return libs;
 }
 
-/// Parse comma-separated dependency list
-private string[] parseDependencyList(string deps)
+/// Parse executable sections
+private CabalExecutable[] parseExecutables(string content)
 {
-    string[] result;
+    CabalExecutable[] execs;
     
-    foreach (dep; deps.split(","))
+    // Match executable sections
+    auto execPattern = regex(`^executable\s+(\S+)\s*$(.+?)(?=^(?:executable|library|test-suite|benchmark|\z))`, "msi");
+    
+    foreach (match; matchAll(content, execPattern))
     {
-        string trimmed = dep.strip;
-        if (trimmed.empty)
-            continue;
-        
-        // Extract package name (ignore version constraints)
-        auto parts = trimmed.split;
-        if (parts.length > 0)
+        if (match.length >= 3)
         {
-            result ~= parts[0];
+            string name = match[1].strip;
+            string section = match[2];
+            
+            CabalExecutable exec;
+            exec.name = name;
+            exec.mainIs = extractField(section, "main-is");
+            exec.buildDepends = extractDependencies(section, "build-depends");
+            exec.otherModules = extractModuleList(section, "other-modules");
+            exec.hsSourceDirs = extractField(section, "hs-source-dirs");
+            exec.defaultLanguage = extractField(section, "default-language");
+            
+            execs ~= exec;
         }
     }
     
-    return result;
+    return execs;
 }
 
-/// Parse comma-separated module list
-private string[] parseModuleList(string modules)
+/// Parse test suite sections
+private CabalTestSuite[] parseTestSuites(string content)
 {
-    string[] result;
+    CabalTestSuite[] tests;
     
-    foreach (mod; modules.split(","))
+    // Match test-suite sections
+    auto testPattern = regex(`^test-suite\s+(\S+)\s*$(.+?)(?=^(?:executable|library|test-suite|benchmark|\z))`, "msi");
+    
+    foreach (match; matchAll(content, testPattern))
     {
-        string trimmed = mod.strip;
-        if (!trimmed.empty)
+        if (match.length >= 3)
         {
-            result ~= trimmed;
+            string name = match[1].strip;
+            string section = match[2];
+            
+            CabalTestSuite test;
+            test.name = name;
+            test.type = extractField(section, "type");
+            test.mainIs = extractField(section, "main-is");
+            test.buildDepends = extractDependencies(section, "build-depends");
+            test.otherModules = extractModuleList(section, "other-modules");
+            test.hsSourceDirs = extractField(section, "hs-source-dirs");
+            
+            tests ~= test;
         }
     }
     
-    return result;
+    return tests;
 }
 
-/// Find all .cabal files in a directory
-string[] findCabalFiles(string projectRoot)
+/// Parse cabal file and return metadata
+CabalMetadata parseCabalFile(string path)
 {
-    string[] cabalFiles;
-    
-    try
-    {
-        foreach (entry; dirEntries(projectRoot, "*.cabal", SpanMode.shallow))
-        {
-            if (entry.isFile)
-            {
-                cabalFiles ~= entry.name;
-            }
-        }
-    }
-    catch (Exception e)
-    {
-        Logger.warning("Failed to search for Cabal files: " ~ e.msg);
-    }
-    
-    return cabalFiles;
+    return CabalMetadata.fromFile(path);
 }
-

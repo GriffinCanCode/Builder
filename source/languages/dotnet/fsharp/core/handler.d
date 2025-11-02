@@ -10,7 +10,7 @@ import std.string;
 import std.conv;
 import languages.base.base;
 import languages.base.mixins;
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;
@@ -647,19 +647,43 @@ class FSharpHandler : BaseLanguageHandler
     {
         LanguageBuildResult result;
         
-        // TODO: Custom build commands not currently supported in target schema
-        // if (!target.commands.empty)
-        // {
-        //     foreach (cmd; target.commands)
-        //     {
-        //         auto res = executeShell(cmd);
-        //         if (res.status != 0)
-        //         {
-        //             result.error = "Command failed: " ~ cmd ~ "\n" ~ res.output;
-        //             return result;
-        //         }
-        //     }
-        // }
+        // Custom build commands via langConfig
+        // For custom builds, users can specify commands in langConfig["fsharp"] as JSON
+        // Example: { "customCommands": ["dotnet tool run paket", "dotnet fsi build.fsx"] }
+        if ("fsharp" in target.langConfig)
+        {
+            import std.json : parseJSON, JSONType;
+            import std.process : executeShell;
+            
+            try
+            {
+                auto json = parseJSON(target.langConfig["fsharp"]);
+                if ("customCommands" in json)
+                {
+                    auto commandsJson = json["customCommands"];
+                    if (commandsJson.type == JSONType.array)
+                    {
+                        foreach (cmd; commandsJson.array)
+                        {
+                            string command = cmd.str;
+                            Logger.info("Executing custom command: " ~ command);
+                            
+                            auto res = executeShell(command);
+                            if (res.status != 0)
+                            {
+                                result.error = "Custom command failed: " ~ command ~ "\n" ~ res.output;
+                                return result;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                result.error = "Failed to parse custom commands: " ~ e.msg;
+                return result;
+            }
+        }
         
         result.success = true;
         result.outputs = getOutputs(target, config);

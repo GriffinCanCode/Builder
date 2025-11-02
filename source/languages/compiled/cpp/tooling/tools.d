@@ -12,6 +12,30 @@ import languages.compiled.cpp.core.config;
 import languages.compiled.cpp.tooling.toolchain;
 import utils.logging.logger;
 
+/// Convert CppStandard enum to compiler flag
+private string cppStandardToFlag(CppStandard std)
+{
+    final switch (std)
+    {
+        case CppStandard.Cpp98: return "c++98";
+        case CppStandard.Cpp03: return "c++03";
+        case CppStandard.Cpp11: return "c++11";
+        case CppStandard.Cpp14: return "c++14";
+        case CppStandard.Cpp17: return "c++17";
+        case CppStandard.Cpp20: return "c++20";
+        case CppStandard.Cpp23: return "c++23";
+        case CppStandard.Cpp26: return "c++26";
+        case CppStandard.GnuCpp98: return "gnu++98";
+        case CppStandard.GnuCpp03: return "gnu++03";
+        case CppStandard.GnuCpp11: return "gnu++11";
+        case CppStandard.GnuCpp14: return "gnu++14";
+        case CppStandard.GnuCpp17: return "gnu++17";
+        case CppStandard.GnuCpp20: return "gnu++20";
+        case CppStandard.GnuCpp23: return "gnu++23";
+        case CppStandard.GnuCpp26: return "gnu++26";
+    }
+}
+
 /// Result from static analysis tool
 struct AnalysisResult
 {
@@ -96,7 +120,7 @@ class ClangTidy
             }
             
             // Add standard
-            cmd ~= ["--", "-std=c++17"]; // TODO: Use config.cppStandard
+            cmd ~= ["--", "-std=" ~ cppStandardToFlag(config.cppStandard)];
             
             Logger.debugLog("Analyzing: " ~ source);
             
@@ -169,7 +193,7 @@ class CppCheck
             "cppcheck",
             "--enable=all",
             "--inconclusive",
-            "--std=c++17", // TODO: Use config.cppStandard
+            "--std=" ~ cppStandardToFlag(config.cppStandard),
             "--quiet"
         ];
         

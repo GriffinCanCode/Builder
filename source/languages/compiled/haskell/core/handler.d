@@ -14,7 +14,7 @@ import languages.compiled.haskell.core.config;
 import languages.compiled.haskell.tooling.ghc;
 import languages.compiled.haskell.tooling.cabal;
 import languages.compiled.haskell.tooling.stack;
-// import languages.compiled.haskell.analysis.cabal : parseCabalFile;  // TODO: Implement cabal analysis
+import languages.compiled.haskell.analysis.cabal : parseCabalFile;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;

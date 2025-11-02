@@ -12,6 +12,7 @@ import config.schema.schema;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.builders.base;
 import languages.scripting.r.analysis.dependencies;
+import languages.scripting.r.managers.packages;
 import utils.files.hash;
 import utils.logging.logger;
 
@@ -46,7 +47,20 @@ class RPackageBuilder : RBuilder
             if (!deps.empty)
             {
                 Logger.info("Package has " ~ deps.length.to!string ~ " dependencies");
-                // TODO: Install dependencies if needed
+                auto installResult = installPackages(deps, rConfig.packageManager, rCmd, packageRoot, rConfig);
+                
+                if (!installResult.success)
+                {
+                    Logger.warning("Failed to install some dependencies: " ~ installResult.error);
+                    if (!installResult.failedPackages.empty)
+                    {
+                        Logger.warning("Failed packages: " ~ installResult.failedPackages.join(", "));
+                    }
+                }
+                else
+                {
+                    Logger.info("Successfully installed " ~ installResult.installedPackages.length.to!string ~ " dependencies");
+                }
             }
         }
         

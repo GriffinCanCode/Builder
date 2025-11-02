@@ -8,6 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.conv;
+import std.regex;
 import languages.jvm.scala.tooling.builders.base;
 import languages.jvm.scala.core.config;
 import languages.jvm.scala.tooling.detection;
@@ -433,9 +434,72 @@ class JARBuilder : ScalaBuilder
     
     private string detectMainClass(string classDir, const ScalaConfig config)
     {
-        // TODO: Scan class files for main method
-        // For now, return empty string
+        import std.file : dirEntries, SpanMode;
+        import std.algorithm : endsWith;
+        
+        Logger.debugLog("Scanning for main class in: " ~ classDir);
+        
+        // Search for .class files
+        foreach (entry; dirEntries(classDir, SpanMode.depth))
+        {
+            if (!entry.isFile || !entry.name.endsWith(".class"))
+                continue;
+            
+            // Get class name from path
+            string relPath = entry.name[classDir.length + 1 .. $];
+            if (relPath.startsWith("./"))
+                relPath = relPath[2 .. $];
+            
+            // Convert path to class name (remove .class and replace / with .)
+            string className = relPath[0 .. $ - 6].replace("/", ".").replace("\\", ".");
+            
+            // Skip inner classes and anonymous classes (containing $)
+            if (className.indexOf('$') >= 0)
+                continue;
+            
+            // Check if this class has a main method
+            if (hasMainMethod(className, classDir))
+            {
+                Logger.debugLog("Found main class: " ~ className);
+                return className;
+            }
+        }
+        
+        Logger.debugLog("No main class detected");
         return "";
+    }
+    
+    /// Check if a class has a public static void main(String[]) method
+    private bool hasMainMethod(string className, string classDir)
+    {
+        import std.regex;
+        
+        try
+        {
+            // Use javap to inspect the class
+            auto result = execute(["javap", "-cp", classDir, "-public", className]);
+            
+            if (result.status == 0)
+            {
+                // Look for main method signature (both Java and Scala styles)
+                // Java: public static void main(java.lang.String[])
+                // Scala: public static void main(java.lang.String[])
+                auto javaMainRe = regex(`public\s+static\s+void\s+main\s*\(\s*java\.lang\.String\s*\[\s*\]\s*\)`);
+                if (!matchFirst(result.output, javaMainRe).empty)
+                    return true;
+                
+                // Scala App trait style (extends scala.App)
+                auto scalaAppRe = regex(`extends\s+scala\.App`);
+                if (!matchFirst(result.output, scalaAppRe).empty)
+                    return true;
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.debugLog("Error checking class " ~ className ~ ": " ~ e.msg);
+        }
+        
+        return false;
     }
     
     private void createManifest(string path, string mainClass)

@@ -8,6 +8,7 @@ import std.array;
 import std.algorithm;
 import std.json;
 import std.conv;
+import utils.files.xml;
 import utils.logging.logger;
 
 /// NuGet package manager operations
@@ -109,17 +110,16 @@ struct NuGetOps
         try
         {
             auto content = readText(configPath);
-            // TODO: XML parsing needs std.xml or alternative library
-            // For now, simple regex parsing as a workaround
-            import std.regex;
-            import std.string : splitLines;
-            auto packageRe = regex(`<package\s+id="([^"]+)"\s+version="([^"]+)"`);
-            foreach (line; content.splitLines())
+            auto elements = extractElements(content, "package");
+            
+            foreach (elem; elements)
             {
-                auto match = line.matchFirst(packageRe);
-                if (!match.empty)
+                string id = elem.attr("id");
+                string version_ = elem.attr("version");
+                
+                if (!id.empty && !version_.empty)
                 {
-                    packages[match[1]] = match[2];
+                    packages[id] = version_;
                 }
             }
         }

@@ -109,23 +109,41 @@ class DependencyResolver
                 break;
             case TargetLanguage.CSharp:
             case TargetLanguage.FSharp:
+                target = resolveDotNetImport(importName);
+                break;
             case TargetLanguage.Swift:
-                target = "";  // TODO: Implement .NET language resolution
+                target = resolveSwiftImport(importName);
                 break;
             case TargetLanguage.Zig:
             case TargetLanguage.Nim:
                 target = resolveCppImport(importName);  // Use C++ resolution for compiled languages
                 break;
             case TargetLanguage.Ruby:
+                target = resolveRubyImport(importName);
+                break;
             case TargetLanguage.Perl:
+                target = resolvePerlImport(importName);
+                break;
             case TargetLanguage.PHP:
+                target = resolvePHPImport(importName);
+                break;
             case TargetLanguage.Elixir:
+                target = resolveElixirImport(importName);
+                break;
             case TargetLanguage.Lua:
+                target = resolveLuaImport(importName);
+                break;
             case TargetLanguage.R:
+                target = resolveRImport(importName);
+                break;
             case TargetLanguage.OCaml:
+                target = resolveOCamlImport(importName);
+                break;
             case TargetLanguage.Haskell:
+                target = resolveHaskellImport(importName);
+                break;
             case TargetLanguage.Elm:
-                target = "";  // TODO: Implement scripting language resolution
+                target = resolveElmImport(importName);
                 break;
             case TargetLanguage.CSS:
                 target = "";  // CSS has no imports to resolve
@@ -263,6 +281,209 @@ class DependencyResolver
     private string resolveJavaImport(string importName)
     {
         // Convert Java import to target
+        
+        auto parts = importName.split(".");
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace(".", "/")))
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolveDotNetImport(string importName)
+    {
+        // Convert C#/F# namespace/using to target
+        // e.g., "MyApp.Services" -> "//src/Services:services"
+        
+        auto parts = importName.split(".");
+        
+        foreach (ref target; config.targets)
+        {
+            // Check if namespace matches target structure
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace(".", "/")) || 
+                    source.canFind(importName.replace(".", "\\")))
+                    return target.name;
+            }
+            
+            // Check if target name matches namespace
+            if (parts.length > 0 && target.name.canFind(parts[$ - 1]))
+                return target.name;
+        }
+        
+        return "";
+    }
+    
+    private string resolveSwiftImport(string importName)
+    {
+        // Convert Swift import to target
+        // e.g., "import MyModule" -> look for MyModule target
+        
+        foreach (ref target; config.targets)
+        {
+            if (target.name.canFind(importName))
+                return target.name;
+        }
+        
+        return "";
+    }
+    
+    private string resolveRubyImport(string importName)
+    {
+        // Convert Ruby require to target
+        // e.g., require 'my_lib' -> //lib:my_lib
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace("_", "/")) ||
+                    source.baseName.stripExtension == importName)
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolvePerlImport(string importName)
+    {
+        // Convert Perl use/require to target
+        // e.g., use MyModule::Utils -> //lib/MyModule:Utils
+        
+        auto parts = importName.split("::");
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace("::", "/")))
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolvePHPImport(string importName)
+    {
+        // Convert PHP namespace/use to target
+        // e.g., App\Services\MyService -> //src/Services:myservice
+        
+        auto parts = importName.split("\\");
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace("\\", "/")))
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolveElixirImport(string importName)
+    {
+        // Convert Elixir alias/import to target
+        // e.g., MyApp.Services.Auth -> //lib/services:auth
+        
+        auto parts = importName.split(".");
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                string snakeCase = importName.replace(".", "_").toLower;
+                if (source.canFind(snakeCase))
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolveLuaImport(string importName)
+    {
+        // Convert Lua require to target
+        // e.g., require("my.module") -> //lua/my:module
+        
+        auto parts = importName.split(".");
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace(".", "/")))
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolveRImport(string importName)
+    {
+        // Convert R library() call to target
+        // e.g., library(mypackage) -> //R:mypackage
+        
+        foreach (ref target; config.targets)
+        {
+            if (target.name.canFind(importName))
+                return target.name;
+        }
+        
+        return "";
+    }
+    
+    private string resolveOCamlImport(string importName)
+    {
+        // Convert OCaml open/module to target
+        // e.g., open MyModule -> //src:MyModule
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.baseName.stripExtension.toLower == importName.toLower)
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolveHaskellImport(string importName)
+    {
+        // Convert Haskell import to target
+        // e.g., import Data.Utils -> //src/Data:Utils
+        
+        auto parts = importName.split(".");
+        
+        foreach (ref target; config.targets)
+        {
+            foreach (source; target.sources)
+            {
+                if (source.canFind(importName.replace(".", "/")))
+                    return target.name;
+            }
+        }
+        
+        return "";
+    }
+    
+    private string resolveElmImport(string importName)
+    {
+        // Convert Elm import to target
+        // e.g., import MyModule.Utils -> //src/MyModule:Utils
         
         auto parts = importName.split(".");
         

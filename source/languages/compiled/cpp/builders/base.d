@@ -95,10 +95,14 @@ class CppBuilderFactory
                     return ninja;
                 return new DirectBuilder(config, cache);
             case BuildSystem.Bazel:
+                import languages.compiled.cpp.builders.bazel;
+                return new BazelBuilder(config);
             case BuildSystem.Meson:
+                import languages.compiled.cpp.builders.meson;
+                return new MesonBuilder(config);
             case BuildSystem.Xmake:
-                // TODO: Implement these build systems
-                return new DirectBuilder(config, cache);
+                import languages.compiled.cpp.builders.xmake;
+                return new XmakeBuilder(config);
         }
     }
     

@@ -3,7 +3,6 @@ module tests.unit.core.executor;
 import std.stdio;
 import std.algorithm;
 import std.array;
-<<<<<<< Updated upstream
 import std.conv;
 import std.parallelism;
 import std.datetime.stopwatch;
@@ -18,10 +17,6 @@ import core.graph.graph;
 import core.caching.cache;
 import core.execution.executor;
 import config.schema.schema;
-=======
-import core.graph;
-import config.schema;
->>>>>>> Stashed changes
 import tests.harness;
 import tests.fixtures;
 import tests.mocks;
@@ -31,7 +26,6 @@ unittest
     writeln("\x1b[36m[TEST]\x1b[0m core.executor - Simple sequential execution");
     
     auto graph = new BuildGraph();
-<<<<<<< Updated upstream
     auto workspace = new WorkspaceConfig();
     workspace.root = ".";
     
@@ -45,7 +39,6 @@ unittest
     
     // This is a basic smoke test - actual execution requires language handlers
     writeln("\x1b[32m  ✓ Sequential execution setup works\x1b[0m");
-=======
     
     // Create independent targets that can build in parallel
     auto target1 = TargetBuilder.create("parallel-1")
@@ -78,7 +71,6 @@ unittest
     Assert.isTrue(readyNodes.all!(n => n.isReady()));
     
     writeln("\x1b[32m  ✓ Parallel execution readiness verified\x1b[0m");
->>>>>>> Stashed changes
 }
 
 unittest
@@ -87,7 +79,6 @@ unittest
     
     auto graph = new BuildGraph();
     
-<<<<<<< Updated upstream
     // Create independent targets that can run in parallel
     foreach (i; 0 .. 5)
     {
@@ -101,7 +92,6 @@ unittest
     Assert.equal(ready.length, 5, "All independent nodes should be ready");
     
     writeln("\x1b[32m  ✓ Parallel ready node detection works\x1b[0m");
-=======
     // Create chain where failure should stop execution
     auto lib = TargetBuilder.create("lib")
         .withType(TargetType.Library)
@@ -124,7 +114,6 @@ unittest
     Assert.isFalse(graph.nodes["app"].isReady());
     
     writeln("\x1b[32m  ✓ Fail-fast behavior verified\x1b[0m");
->>>>>>> Stashed changes
 }
 
 unittest
@@ -133,7 +122,6 @@ unittest
     
     auto graph = new BuildGraph();
     
-<<<<<<< Updated upstream
     auto lib = TargetBuilder.create("lib").build();
     auto app = TargetBuilder.create("app").build();
     
@@ -158,7 +146,6 @@ unittest
     Assert.equal(ready3[0].id, "app");
     
     writeln("\x1b[32m  ✓ Dependency ordering enforced correctly\x1b[0m");
-=======
     // Create dependency tree with distinct waves:
     // Wave 0: lib1, lib2 (depth 0)
     // Wave 1: middleware (depth 1)
@@ -208,7 +195,6 @@ unittest
     Assert.equal(wave2[0].id, "app");
     
     writeln("\x1b[32m  ✓ Wave-based scheduling verified\x1b[0m");
->>>>>>> Stashed changes
 }
 
 // ==================== CONCURRENT EXECUTION TESTS ====================
@@ -446,9 +432,7 @@ unittest
     writeln("\x1b[32m  ✓ Atomic status transitions work\x1b[0m");
 }
 
-// TEMPORARILY DISABLED: Concurrent cache test has threading issues
-// TODO: Fix FastHashCache thread safety
-version(none)
+// FastHashCache is now thread-safe with proper mutex synchronization
 unittest
 {
     writeln("\x1b[36m[TEST]\x1b[0m core.executor - Concurrent cache access");
