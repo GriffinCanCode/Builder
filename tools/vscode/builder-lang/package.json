@@ -1,15 +1,19 @@
 {
   "name": "builder-lang",
   "displayName": "Builder Language Support",
-  "description": "Syntax highlighting and language support for Builder configuration files",
-  "version": "1.0.0",
+  "description": "Complete language support for Builder configuration files with LSP",
+  "version": "2.0.0",
   "publisher": "builder",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.75.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": [
+    "onLanguage:builder"
+  ],
+  "main": "./extension.js",
   "contributes": {
     "languages": [
       {
@@ -45,7 +49,35 @@
         "label": "Builder Icons",
         "path": "./fileicons/builder-icon-theme.json"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Builder",
+      "properties": {
+        "builder.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Builder Language Server Protocol support"
+        },
+        "builder.lsp.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Trace communication between VS Code and the language server"
+        },
+        "builder.lsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to builder-lsp executable (leave empty for auto-detection)"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0"
   }
 }
-

@@ -1,6 +1,6 @@
 # Builder Makefile
 
-.PHONY: all build test tests examples clean install help tsan test-tsan
+.PHONY: all build build-lsp test tests examples clean install install-lsp help tsan test-tsan extension
 
 all: build
 
@@ -8,6 +8,14 @@ all: build
 build:
 	@echo "Building Builder..."
 	@dub build --build=release
+
+# Build LSP server
+build-lsp:
+	@echo "Building Builder LSP server..."
+	@dub build --config=lsp --build=release
+
+# Build both builder and LSP server
+build-all: build build-lsp
 
 # Build debug version
 debug:
@@ -55,10 +63,24 @@ install: build
 	@cp bin/builder /usr/local/bin/
 	@echo "Installed successfully!"
 
+# Install LSP server
+install-lsp: build-lsp
+	@echo "Installing Builder LSP to /usr/local/bin..."
+	@cp bin/builder-lsp /usr/local/bin/
+	@echo "LSP server installed successfully!"
+
+# Install both builder and LSP server
+install-all: build-all
+	@echo "Installing to /usr/local/bin..."
+	@cp bin/builder /usr/local/bin/
+	@cp bin/builder-lsp /usr/local/bin/
+	@echo "Installed successfully!"
+
 # Uninstall from system
 uninstall:
 	@echo "Uninstalling..."
 	@rm -f /usr/local/bin/builder
+	@rm -f /usr/local/bin/builder-lsp
 	@echo "Uninstalled successfully!"
 
 # Run benchmarks
@@ -104,28 +126,48 @@ docs-clean:
 	@rm -rf docs/api
 	@echo "Documentation cleaned"
 
+# Package VS Code extension with LSP server
+extension: build-lsp
+	@echo "Packaging VS Code extension..."
+	@mkdir -p tools/vscode/builder-lang/bin
+	@cp bin/builder-lsp tools/vscode/builder-lang/bin/
+	@cd tools/vscode/builder-lang && npm install && npx vsce package
+	@echo "Extension packaged: tools/vscode/builder-lang/builder-lang-*.vsix"
+
+# Install VS Code extension (requires builder to be built)
+install-extension: extension
+	@echo "Installing VS Code extension..."
+	@code --install-extension tools/vscode/builder-lang/builder-lang-*.vsix
+	@echo "Extension installed! Reload VS Code to activate."
+
 # Show help
 help:
 	@echo "Builder Makefile"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make build          - Build release version"
-	@echo "  make debug          - Build debug version"
-	@echo "  make test           - Run tests (basic)"
-	@echo "  make tests          - Run full test suite"
-	@echo "  make test-coverage  - Run tests with coverage"
-	@echo "  make test-parallel  - Run tests in parallel"
-	@echo "  make test-tsan      - Run tests with Thread Sanitizer (requires LDC)"
-	@echo "  make tsan           - Build with Thread Sanitizer"
-	@echo "  make bench          - Run benchmarks"
-	@echo "  make examples       - Test all example projects"
-	@echo "  make clean          - Clean build artifacts"
-	@echo "  make install        - Install to /usr/local/bin"
-	@echo "  make uninstall      - Uninstall from system"
-	@echo "  make fmt            - Format code"
-	@echo "  make docs           - Generate DDoc documentation"
-	@echo "  make docs-open      - Generate and open documentation"
-	@echo "  make docs-serve     - Serve documentation on localhost:8000"
-	@echo "  make docs-clean     - Clean documentation"
-	@echo "  make help           - Show this help"
+	@echo "  make build             - Build release version"
+	@echo "  make build-lsp         - Build LSP server"
+	@echo "  make build-all         - Build both builder and LSP server"
+	@echo "  make debug             - Build debug version"
+	@echo "  make test              - Run tests (basic)"
+	@echo "  make tests             - Run full test suite"
+	@echo "  make test-coverage     - Run tests with coverage"
+	@echo "  make test-parallel     - Run tests in parallel"
+	@echo "  make test-tsan         - Run tests with Thread Sanitizer (requires LDC)"
+	@echo "  make tsan              - Build with Thread Sanitizer"
+	@echo "  make bench             - Run benchmarks"
+	@echo "  make examples          - Test all example projects"
+	@echo "  make clean             - Clean build artifacts"
+	@echo "  make install           - Install builder to /usr/local/bin"
+	@echo "  make install-lsp       - Install LSP server to /usr/local/bin"
+	@echo "  make install-all       - Install both builder and LSP server"
+	@echo "  make uninstall         - Uninstall from system"
+	@echo "  make extension         - Package VS Code extension with LSP"
+	@echo "  make install-extension - Build and install VS Code extension"
+	@echo "  make fmt               - Format code"
+	@echo "  make docs              - Generate DDoc documentation"
+	@echo "  make docs-open         - Generate and open documentation"
+	@echo "  make docs-serve        - Serve documentation on localhost:8000"
+	@echo "  make docs-clean        - Clean documentation"
+	@echo "  make help              - Show this help"
 

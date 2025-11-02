@@ -1,6 +1,9 @@
+**/*.ts
 .vscode/**
-.vscode-test/**
 node_modules/**
 .gitignore
-*.vsix
-
+.editorconfig
+tsconfig.json
+webpack.config.js
+**/*.map
+**/.eslintrc.json

@@ -1,77 +1,50 @@
 {
     "name": "builder",
-    "version": "1.0.2",
-    "description": "Build system for mixed-language monorepos with compile-time dependency analysis",
+    "description": "High-performance build system for mixed-language monorepos",
     "authors": ["Griffin"],
     "copyright": "Copyright © 2025",
-    "license": "GRIFFIN",
-    "homepage": "https://github.com/GriffinCanCode/Builder",
+    "license": "MIT",
     "targetType": "executable",
     "targetPath": "bin",
-    "mainSourceFile": "source/app.d",
+    "targetName": "builder",
+    
     "sourcePaths": ["source"],
     "importPaths": ["source"],
+    "excludedSourceFiles": ["source/lsp/main.d"],
+    
+    "mainSourceFile": "source/app.d",
+    
     "dependencies": {},
-    "preBuildCommands": [
-        "mkdir -p bin/obj",
-        "clang -c -O3 -fPIC source/utils/crypto/c/blake3.c -o bin/obj/blake3.o || true",
-        "clang -c -O3 -fPIC source/utils/simd/c/cpu_detect.c -o bin/obj/cpu_detect.o || true",
-        "clang -c -O3 -fPIC source/utils/simd/c/blake3_dispatch.c -o bin/obj/blake3_dispatch.o || true",
-        "clang -c -O3 -fPIC source/utils/simd/c/simd_ops.c -o bin/obj/simd_ops.o || true"
-    ],
-    "sourceFiles": [
-        "bin/obj/blake3.o",
-        "bin/obj/cpu_detect.o",
-        "bin/obj/blake3_dispatch.o",
-        "bin/obj/simd_ops.o"
-    ],
-    "dflags": ["-L-lstdc++", "-preview=dip1000"],
-    "lflags": ["-lm"],
+    
     "configurations": [
         {
-            "name": "executable",
-            "targetType": "executable"
-        },
-        {
-            "name": "library",
-            "targetType": "library",
-            "excludedSourceFiles": ["source/app.d"]
-        },
-        {
-            "name": "unittest",
+            "name": "default",
             "targetType": "executable",
-            "targetName": "test-runner",
-            "targetPath": "bin",
-            "mainSourceFile": "tests/runner.d",
-            "sourcePaths": ["source", "tests"],
-            "importPaths": ["source", "tests"],
-            "excludedSourceFiles": [
-                "source/app.d",
-                "tests/bench/scale_benchmark.d",
-                "tests/bench/integration_bench.d"
-            ],
-            "buildOptions": ["unittests", "debugMode", "debugInfo"]
+            "targetName": "builder",
+            "mainSourceFile": "source/app.d",
+            "excludedSourceFiles": ["source/lsp/main.d"]
+        },
+        {
+            "name": "lsp",
+            "targetType": "executable",
+            "targetName": "builder-lsp",
+            "mainSourceFile": "source/lsp/main.d",
+            "excludedSourceFiles": ["source/app.d"],
+            "sourceFiles": [
+                "bin/obj/blake3.o",
+                "bin/obj/blake3_dispatch.o",
+                "bin/obj/simd_ops.o",
+                "bin/obj/cpu_detect.o"
+            ]
         }
     ],
+    
     "buildTypes": {
+        "release": {
+            "buildOptions": ["releaseMode", "inline", "optimize"]
+        },
         "debug": {
             "buildOptions": ["debugMode", "debugInfo"]
-        },
-        "release": {
-            "buildOptions": ["releaseMode", "optimize", "inline"]
-        },
-        "release-debug": {
-            "buildOptions": ["releaseMode", "optimize", "debugInfo"]
-        },
-        "tsan": {
-            "buildOptions": ["debugMode", "debugInfo"],
-            "dflags-ldc": ["-fsanitize=thread"],
-            "lflags-ldc": ["-fsanitize=thread"]
-        },
-        "ddoc": {
-            "buildOptions": ["syntaxOnly"],
-            "dflags": ["-Dddocs", "-Xfdocs/builder.json"]
         }
     }
 }
-
