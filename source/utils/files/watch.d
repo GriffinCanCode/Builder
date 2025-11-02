@@ -108,7 +108,7 @@ final class FSEventsWatcher : IFileWatcher
     private bool _active;
     private string _watchPath;
     
-    bool isAvailable() const pure nothrow @system
+    bool isAvailable() const nothrow @system
     {
         version(OSX)
         {
@@ -133,7 +133,7 @@ final class FSEventsWatcher : IFileWatcher
     {
         if (!exists(path) || !isDir(path))
         {
-            auto error = new FileError(path, "Directory not found", ErrorCode.FileNotFound);
+            auto error = new IOError(path, "Directory not found", ErrorCode.FileNotFound);
             return WatchResult.err(error);
         }
         
@@ -226,7 +226,7 @@ final class FSEventsWatcher : IFileWatcher
         }
     }
     
-    private static FileEventKind inferEventKind(string path) pure nothrow @system
+    private static FileEventKind inferEventKind(string path) nothrow @system
     {
         try
         {
@@ -259,7 +259,7 @@ final class INotifyWatcher : IFileWatcher
     {
         if (!exists(path) || !isDir(path))
         {
-            auto error = new FileError(path, "Directory not found", ErrorCode.FileNotFound);
+            auto error = new IOError(path, "Directory not found", ErrorCode.FileNotFound);
             return WatchResult.err(error);
         }
         
@@ -389,7 +389,7 @@ final class KQueueWatcher : IFileWatcher
     {
         if (!exists(path) || !isDir(path))
         {
-            auto error = new FileError(path, "Directory not found", ErrorCode.FileNotFound);
+            auto error = new IOError(path, "Directory not found", ErrorCode.FileNotFound);
             return WatchResult.err(error);
         }
         
@@ -437,13 +437,8 @@ final class KQueueWatcher : IFileWatcher
         {
             try
             {
-                import core.sys.posix.fcntl : open, O_RDONLY, O_EVTONLY;
-                import core.sys.posix.unistd : close;
-                
                 // Use kevent command-line tool for simplicity
                 // Native kqueue implementation would require C bindings
-                import std.process : pipeProcess, Redirect, wait;
-                
                 // Fallback to polling if kevent tool not available
                 auto pollingWatcher = new PollingWatcher();
                 pollingWatcher.watch(_watchPath, config, callback);
@@ -483,7 +478,7 @@ final class PollingWatcher : IFileWatcher
     {
         if (!exists(path) || !isDir(path))
         {
-            auto error = new FileError(path, "Directory not found", ErrorCode.FileNotFound);
+            auto error = new IOError(path, "Directory not found", ErrorCode.FileNotFound);
             return WatchResult.err(error);
         }
         

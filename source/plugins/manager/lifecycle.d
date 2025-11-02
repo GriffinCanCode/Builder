@@ -1,7 +1,9 @@
 module plugins.manager.lifecycle;
 
 import std.algorithm : filter, map;
+import std.algorithm.searching : canFind;
 import std.array : array;
+import std.conv : to;
 import std.datetime.stopwatch : StopWatch;
 import plugins.protocol;
 import plugins.manager.registry;
@@ -31,7 +33,7 @@ class LifecycleManager {
             return Ok!BuildError();
         }
         
-        Logger.debug_("Executing pre-build hooks for " ~ plugins.length.to!string ~ " plugins");
+        Logger.debugLog("Executing pre-build hooks for " ~ plugins.length.to!string ~ " plugins");
         
         foreach (plugin; plugins) {
             auto sw = StopWatch();
@@ -65,7 +67,7 @@ class LifecycleManager {
                 return Result!BuildError.err(err);
             }
             
-            Logger.debug_("Pre-build hook completed: " ~ plugin.name ~ " (" ~ 
+            Logger.debugLog("Pre-build hook completed: " ~ plugin.name ~ " (" ~ 
                 sw.peek().total!"msecs".to!string ~ "ms)");
         }
         
@@ -87,7 +89,7 @@ class LifecycleManager {
             return Ok!BuildError();
         }
         
-        Logger.debug_("Executing post-build hooks for " ~ plugins.length.to!string ~ " plugins");
+        Logger.debugLog("Executing post-build hooks for " ~ plugins.length.to!string ~ " plugins");
         
         foreach (plugin; plugins) {
             auto sw = StopWatch();
@@ -124,7 +126,7 @@ class LifecycleManager {
                 Logger.warning("Post-build hook reported failure: " ~ plugin.name);
             }
             
-            Logger.debug_("Post-build hook completed: " ~ plugin.name ~ " (" ~ 
+            Logger.debugLog("Post-build hook completed: " ~ plugin.name ~ " (" ~ 
                 sw.peek().total!"msecs".to!string ~ "ms)");
         }
         

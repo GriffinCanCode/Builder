@@ -88,8 +88,8 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!DistributedError(
-                new NetworkError("Failed to send: " ~ e.msg));
+            return Result!DistributedError.err(
+                cast(DistributedError)new NetworkError("Failed to send: " ~ e.msg));
         }
     }
     
@@ -288,6 +288,26 @@ final class HttpTransport : Transport
                     return Err!(Envelope!T, DistributedError)(
                         new NetworkError("Type mismatch: expected HeartBeat"));
                 auto result = deserializeHeartBeat(payloadData);
+                if (result.isErr)
+                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                envelope.payload = result.unwrap();
+            }
+            else static if (is(T == StealRequest))
+            {
+                if (payloadType != 4)
+                    return Err!(Envelope!T, DistributedError)(
+                        new NetworkError("Type mismatch: expected StealRequest"));
+                auto result = deserializeStealRequest(payloadData);
+                if (result.isErr)
+                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                envelope.payload = result.unwrap();
+            }
+            else static if (is(T == StealResponse))
+            {
+                if (payloadType != 5)
+                    return Err!(Envelope!T, DistributedError)(
+                        new NetworkError("Type mismatch: expected StealResponse"));
+                auto result = deserializeStealResponse(payloadData);
                 if (result.isErr)
                     return Err!(Envelope!T, DistributedError)(result.unwrapErr());
                 envelope.payload = result.unwrap();
@@ -496,6 +516,39 @@ final class HttpTransport : Transport
         return buffer;
     }
     
+    /// Deserialize StealRequest
+    private Result!(StealRequest, DistributedError) deserializeStealRequest(const ubyte[] data) @system
+    {
+        import std.bitmanip : read;
+        
+        if (data.length < 17)
+            return Err!(StealRequest, DistributedError)(
+                new NetworkError("StealRequest data too short"));
+        
+        try
+        {
+            ubyte[] mutableData = cast(ubyte[])data.dup;
+            
+            StealRequest req;
+            
+            auto thiefSlice = mutableData[0 .. 8];
+            req.thief = WorkerId(thiefSlice.read!ulong());
+            
+            auto victimSlice = mutableData[8 .. 16];
+            req.victim = WorkerId(victimSlice.read!ulong());
+            
+            auto prioritySlice = mutableData[16 .. 17];
+            req.minPriority = cast(Priority)prioritySlice.read!ubyte();
+            
+            return Ok!(StealRequest, DistributedError)(req);
+        }
+        catch (Exception e)
+        {
+            return Err!(StealRequest, DistributedError)(
+                new NetworkError("Failed to deserialize StealRequest: " ~ e.msg));
+        }
+    }
+    
     /// Serialize StealResponse
     private ubyte[] serializeStealResponse(StealResponse resp) @trusted
     {
@@ -512,6 +565,45 @@ final class HttpTransport : Transport
         return buffer;
     }
     
+    /// Deserialize StealResponse
+    private Result!(StealResponse, DistributedError) deserializeStealResponse(const ubyte[] data) @system
+    {
+        import std.bitmanip : read;
+        
+        if (data.length < 17)
+            return Err!(StealResponse, DistributedError)(
+                new NetworkError("StealResponse data too short"));
+        
+        try
+        {
+            ubyte[] mutableData = cast(ubyte[])data.dup;
+            
+            StealResponse resp;
+            
+            auto victimSlice = mutableData[0 .. 8];
+            resp.victim = WorkerId(victimSlice.read!ulong());
+            
+            auto thiefSlice = mutableData[8 .. 16];
+            resp.thief = WorkerId(thiefSlice.read!ulong());
+            
+            auto hasWorkSlice = mutableData[16 .. 17];
+            resp.hasWork = hasWorkSlice.read!ubyte() != 0;
+            
+            if (resp.hasWork && data.length > 17)
+            {
+                // ActionRequest deserialization would go here
+                // For now, just leave as default
+            }
+            
+            return Ok!(StealResponse, DistributedError)(resp);
+        }
+        catch (Exception e)
+        {
+            return Err!(StealResponse, DistributedError)(
+                new NetworkError("Failed to deserialize StealResponse: " ~ e.msg));
+        }
+    }
+    
     /// Serialize Shutdown
     private ubyte[] serializeShutdown(Shutdown cmd) @trusted
     {
@@ -523,6 +615,15 @@ final class HttpTransport : Transport
         
         return buffer;
     }
+}
+
+// Explicit template instantiations to ensure linking works
+private void instantiateTransportTemplates()
+{
+    HttpTransport t = new HttpTransport("localhost", 0);
+    t.send!StealRequest(WorkerId(0), StealRequest.init);
+    t.send!HeartBeat(WorkerId(0), HeartBeat.init);
+    t.receive!StealResponse(1.seconds);
 }
 
 /// Transport factory

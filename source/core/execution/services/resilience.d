@@ -177,6 +177,13 @@ final class ResilienceService : IResilienceService
     }
 }
 
+// Explicit template instantiations to ensure linking works
+private void instantiateResilienceTemplates()
+{
+    ResilienceService s = new ResilienceService(false, false);
+    s.withRetry!string("test", () => Ok!(string, BuildError)("test"), RetryPolicy());
+}
+
 /// Null resilience service for testing/disabled resilience
 final class NullResilienceService : IResilienceService
 {

@@ -49,6 +49,15 @@ struct SemanticVersion {
         }
     }
     
+    /// Compare versions
+    int opCmp(SemanticVersion other) const pure nothrow @nogc @safe {
+        if (major != other.major)
+            return major - other.major;
+        if (minor != other.minor)
+            return minor - other.minor;
+        return patch - other.patch;
+    }
+    
     /// Compare versions (for >= checks)
     bool opBinary(string op)(SemanticVersion other) const pure nothrow @nogc @safe
         if (op == ">=" || op == ">" || op == "<=" || op == "<" || op == "==") 

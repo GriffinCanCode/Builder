@@ -4,6 +4,7 @@ import std.process : pipeProcess, Redirect, wait, kill, ProcessPipes;
 import std.stdio : File;
 import std.string : strip;
 import std.conv : to;
+import std.range : empty;
 import core.time : seconds, Duration;
 import std.datetime.stopwatch : StopWatch;
 import plugins.protocol;

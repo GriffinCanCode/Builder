@@ -186,7 +186,8 @@ struct SecureExecutor
     ref typeof(this) hermetic(SandboxSpec spec) @system return
     {
         this.useHermetic = true;
-        this.hermeticSpec = new SandboxSpec(spec);
+        this.hermeticSpec = new SandboxSpec;
+        *this.hermeticSpec = spec;
         return this;
     }
     
@@ -212,7 +213,8 @@ struct SecureExecutor
         if (specResult.isOk)
         {
             this.useHermetic = true;
-            this.hermeticSpec = new SandboxSpec(specResult.unwrap());
+            this.hermeticSpec = new SandboxSpec;
+            *this.hermeticSpec = specResult.unwrap();
         }
         
         return this;

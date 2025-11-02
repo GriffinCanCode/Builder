@@ -406,7 +406,8 @@ struct HookResult {
                 if (targetResult.isErr)
                     return Err!(HookResult, BuildError)(targetResult.unwrapErr());
                 auto target = targetResult.unwrap();
-                result.modifiedTarget = new PluginTarget(target);
+                result.modifiedTarget = new PluginTarget;
+                *result.modifiedTarget = target;
             }
             
             return Ok!(HookResult, BuildError)(result);

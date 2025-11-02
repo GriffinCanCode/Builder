@@ -142,11 +142,11 @@ class PluginRegistry : IPluginRegistry {
 
 /// Null plugin registry for testing
 class NullPluginRegistry : IPluginRegistry {
-    Result!BuildError refresh() @safe {
+    Result!BuildError refresh() @system {
         return Ok!BuildError();
     }
     
-    Result!(PluginInfo, BuildError) get(string name) @safe {
+    Result!(PluginInfo, BuildError) get(string name) @system {
         auto err = new PluginError(
             "Plugin not found: " ~ name,
             ErrorCode.ToolNotFound
