@@ -730,52 +730,82 @@ struct HelpCommand
         terminal.writeln();
         
         string[] description = [
-            "Execute powerful graph queries to explore target relationships,",
-            "dependencies, and project structure. Similar to Bazel query."
+            "Execute powerful bldrquery DSL to explore dependency graphs.",
+            "Bazel-compatible with advanced extensions for path analysis,",
+            "set operations, regex filtering, and multiple output formats."
         ];
-        terminal.writeln(formatter.formatBox("builder query <expression>", description));
+        terminal.writeln(formatter.formatBox("builder query <expression> [--format=type]", description));
         terminal.writeln();
         
         printSectionHeader("USAGE");
         terminal.writeColored("  builder query", Color.Cyan, Style.Bold);
         terminal.write(" ");
         terminal.writeColored("'<expression>'", Color.Yellow);
+        terminal.write(" ");
+        terminal.writeColored("[--format=pretty|list|json|dot]", Color.BrightBlack);
         terminal.writeln();
         terminal.writeln();
         
-        printSectionHeader("QUERY SYNTAX");
-        printTargetSyntax("//...", "All targets in the workspace");
-        printTargetSyntax("//path/...", "All targets under path");
-        printTargetSyntax("//path:target", "Specific target");
-        printTargetSyntax("//path:*", "All targets in directory");
+        printSectionHeader("DEPENDENCY QUERIES");
+        printTargetSyntax("deps(expr)", "All transitive dependencies");
+        printTargetSyntax("deps(expr, depth)", "Dependencies up to depth");
+        printTargetSyntax("rdeps(expr)", "Reverse dependencies");
+        printTargetSyntax("rdeps(expr, depth)", "Reverse deps up to depth");
         terminal.writeln();
-        printTargetSyntax("deps(expr)", "Direct dependencies of expr");
-        printTargetSyntax("deps(expr, depth)", "Dependencies up to depth levels");
-        printTargetSyntax("rdeps(expr)", "Reverse deps (what depends on expr)");
-        printTargetSyntax("allpaths(from, to)", "All paths between two targets");
-        printTargetSyntax("kind(type, expr)", "Filter by target type");
-        printTargetSyntax("attr(name, value, expr)", "Filter by attribute");
+        
+        printSectionHeader("PATH QUERIES");
+        printTargetSyntax("allpaths(from, to)", "All paths between targets");
+        printTargetSyntax("somepath(from, to)", "Any single path (faster)");
+        printTargetSyntax("shortest(from, to)", "Shortest path using BFS");
+        terminal.writeln();
+        
+        printSectionHeader("FILTERING");
+        printTargetSyntax("kind(type, expr)", "Filter by type (executable, library, test)");
+        printTargetSyntax("attr(name, value, expr)", "Filter by exact attribute match");
+        printTargetSyntax("filter(attr, regex, expr)", "Filter using regex pattern");
+        terminal.writeln();
+        
+        printSectionHeader("SET OPERATIONS");
+        printTargetSyntax("expr1 + expr2", "Union (all targets in either)");
+        printTargetSyntax("expr1 & expr2", "Intersection (targets in both)");
+        printTargetSyntax("expr1 - expr2", "Difference (targets in A not B)");
+        terminal.writeln();
+        
+        printSectionHeader("UTILITIES");
+        printTargetSyntax("siblings(expr)", "Targets in same directory");
+        printTargetSyntax("buildfiles(pattern)", "Find Builderfiles");
+        printTargetSyntax("let(var, val, body)", "Variable binding");
+        terminal.writeln();
+        
+        printSectionHeader("OUTPUT FORMATS");
+        printTargetSyntax("--format=pretty", "Human-readable with colors (default)");
+        printTargetSyntax("--format=list", "Newline-separated target names");
+        printTargetSyntax("--format=json", "Machine-readable JSON");
+        printTargetSyntax("--format=dot", "GraphViz DOT format");
         terminal.writeln();
         
         printSectionHeader("EXAMPLES");
         printExample("builder query '//...'", "List all targets");
-        printExample("builder query 'deps(//src:app)'", "Show all dependencies");
-        printExample("builder query 'deps(//src:app, 1)'", "Show only direct dependencies");
-        printExample("builder query 'rdeps(//lib:utils)'", "Show what depends on utils");
-        printExample("builder query 'kind(binary, //...)'", "Find all binary targets");
+        printExample("builder query 'deps(//src:app)'", "All dependencies");
+        printExample("builder query 'rdeps(//lib:utils) & kind(test, //...)'", "Tests depending on utils");
+        printExample("builder query 'shortest(//a:x, //b:y)'", "Shortest path");
+        printExample("builder query '//src/... - //src/test/...'", "Source without tests");
+        printExample("builder query 'deps(//...) --format=json'", "Export to JSON");
         terminal.writeln();
         
         printSectionHeader("USE CASES");
         printFeature("Explore dependency relationships");
-        printFeature("Find unused targets (no rdeps)");
-        printFeature("Identify build bottlenecks");
-        printFeature("Analyze impact of changes");
+        printFeature("Find critical paths in build graph");
+        printFeature("Identify unused or orphaned targets");
+        printFeature("Analyze test coverage (rdeps of src from tests)");
         printFeature("Debug circular dependencies");
+        printFeature("Export data for external analysis tools");
         terminal.writeln();
         
         printSectionHeader("SEE ALSO");
         printSeeAlso("builder graph", "Visualize full dependency graph");
         printSeeAlso("builder infer", "Preview auto-detected targets");
+        printSeeAlso("docs/features/bldrquery.md", "Complete query language reference");
         terminal.writeln();
     }
     

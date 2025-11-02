@@ -32,4 +32,5 @@ public import core.caching.policies.eviction;
 public import core.telemetry;
 public import core.services.services;
 public import core.shutdown.shutdown;
+public import core.query;
 

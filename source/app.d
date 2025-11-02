@@ -117,12 +117,23 @@ void main(string[] args)
                 if (args.length < 3)
                 {
                     Logger.error("Query expression required");
-                    Logger.info("Usage: builder query '<expression>'");
+                    Logger.info("Usage: builder query '<expression>' [--format=pretty|list|json|dot]");
                     Logger.info("Example: builder query 'deps(//...)'");
+                    Logger.info("         builder query 'rdeps(//lib:utils)' --format=json");
                 }
                 else
                 {
-                    QueryCommand.execute(args[2]);
+                    // Parse format flag if present
+                    string outputFormat = "pretty";
+                    foreach (arg; args[3 .. $])
+                    {
+                        if (arg.startsWith("--format="))
+                        {
+                            outputFormat = arg[9 .. $];
+                            break;
+                        }
+                    }
+                    QueryCommand.execute(args[2], outputFormat);
                 }
                 break;
             case "telemetry":
