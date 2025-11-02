@@ -6,6 +6,7 @@ import std.conv;
 import core.graph.graph;
 import core.execution.engine;
 import core.services;
+import core.shutdown;
 import core.telemetry;
 import config.parsing.parser;
 import analysis.inference.analyzer;
@@ -20,6 +21,13 @@ enum VERSION = "1.0.0";
 
 void main(string[] args)
 {
+    // Initialize shutdown coordinator for explicit cleanup
+    auto shutdownGuard = ShutdownGuard.create();
+    scope(exit) ShutdownCoordinator.instance().shutdown();
+    
+    // Install signal handlers for graceful shutdown on SIGINT/SIGTERM
+    installSignalHandlers();
+    
     // SIMD now auto-initializes on first use (see utils.simd.dispatch)
     Logger.initialize();
     
@@ -143,6 +151,10 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @syste
     
     // Create services with dependency injection
     auto services = new BuildServices(config, config.options);
+    
+    // Register cache for explicit cleanup
+    auto coordinator = ShutdownCoordinator.instance();
+    coordinator.registerCache(services.cache);
     
     // Set render mode
     immutable renderMode = parseRenderMode(modeStr);
@@ -271,6 +283,10 @@ void graphCommand(in string target) @system
         // Create services (lightweight for analysis-only operation)
         auto services = new BuildServices(config, config.options);
         
+        // Register cache for explicit cleanup
+        auto coordinator = ShutdownCoordinator.instance();
+        coordinator.registerCache(services.cache);
+        
         // Analyze with error recovery
         auto graphResult = services.analyzer.analyze(target);
         if (graphResult.isErr)
@@ -359,6 +375,10 @@ void resumeCommand(in string modeStr) @system
     
     // Create services with dependency injection
     auto services = new BuildServices(config, config.options);
+    
+    // Register cache for explicit cleanup
+    auto coordinator = ShutdownCoordinator.instance();
+    coordinator.registerCache(services.cache);
     
     // Set render mode
     immutable renderMode = parseRenderMode(modeStr);

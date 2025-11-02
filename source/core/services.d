@@ -308,10 +308,17 @@ final class BuildServices
     }
     
     /// Cleanup and shutdown services
+    /// Explicitly flushes all caches and persists state before termination
     void shutdown()
     {
         // Flush any pending output
         flush();
+        
+        // Explicitly close cache - don't rely on destructor
+        if (_cache !is null)
+        {
+            _cache.close();
+        }
         
         // Save telemetry
         saveTelemetry();

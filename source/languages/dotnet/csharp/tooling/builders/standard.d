@@ -15,6 +15,7 @@ import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
 import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.shutdown : ShutdownCoordinator;
 
 /// Standard builder using dotnet build with action-level caching
 class StandardBuilder : CSharpBuilder
@@ -27,6 +28,10 @@ class StandardBuilder : CSharpBuilder
         {
             auto cacheConfig = ActionCacheConfig.fromEnvironment();
             actionCache = new ActionCache(".builder-cache/actions/csharp", cacheConfig);
+            
+            // Register with shutdown coordinator for explicit cleanup
+            auto coordinator = ShutdownCoordinator.instance();
+            coordinator.registerCache(actionCache);
         }
         else
         {

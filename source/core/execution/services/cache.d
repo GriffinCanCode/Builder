@@ -2,6 +2,7 @@ module core.execution.services.cache;
 
 import core.caching.cache : BuildCache, CacheConfig;
 import core.caching.action : ActionCache, ActionCacheConfig, ActionId;
+import core.shutdown : ShutdownCoordinator;
 import errors;
 
 /// Unified cache statistics for service layer
@@ -73,6 +74,11 @@ final class CacheService : ICacheService
         // Initialize action cache
         auto actionCacheConfig = ActionCacheConfig.fromEnvironment();
         this.actionCache = new ActionCache(cacheDir ~ "/actions", actionCacheConfig);
+        
+        // Register with shutdown coordinator for explicit cleanup
+        auto coordinator = ShutdownCoordinator.instance();
+        coordinator.registerCache(this.buildCache);
+        coordinator.registerCache(this.actionCache);
     }
     
     // Constructor for dependency injection (testing)

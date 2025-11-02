@@ -14,6 +14,7 @@ import utils.logging.logger : Logger;
 mixin template CachingHandlerMixin(string languageName)
 {
     import core.caching.action : ActionCache, ActionCacheConfig;
+    import core.shutdown : ShutdownCoordinator;
     
     private ActionCache actionCache;
     
@@ -21,6 +22,10 @@ mixin template CachingHandlerMixin(string languageName)
     {
         auto cacheConfig = ActionCacheConfig.fromEnvironment();
         actionCache = new ActionCache(".builder-cache/actions/" ~ languageName, cacheConfig);
+        
+        // Register with shutdown coordinator for explicit cleanup
+        auto coordinator = ShutdownCoordinator.instance();
+        coordinator.registerCache(actionCache);
     }
     
     ~this()
