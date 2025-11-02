@@ -88,7 +88,7 @@ final class ArtifactManager
             Logger.debugLog("Downloaded output: " ~ artifactId.toString());
         }
         
-        return Result!BuildError.ok(cast(BuildError)null);
+        return Ok!BuildError();
     }
     
     /// Read artifact from filesystem

@@ -342,19 +342,20 @@ final class TestCache
     
     /// Compute content hash for test
     /// Includes test code, dependencies, and configuration
-    /// Uses central HashUtils for consistency
+    /// Uses FastHash for consistency
     static string computeContentHash(
         string testCode,
         string[] dependencies,
         string config
     ) @trusted
     {
-        return HashUtils.hashString(testCode ~ dependencies.join("") ~ config);
+        import utils.files.hash : FastHash;
+        return FastHash.hashString(testCode ~ dependencies.join("") ~ config);
     }
     
     /// Compute environment hash (hermetic verification)
     /// Includes environment variables, system info, tool versions
-    /// Uses central HashUtils for consistency
+    /// Uses FastHash for consistency
     static string computeEnvHash(
         string[string] envVars,
         string toolVersions
@@ -362,6 +363,7 @@ final class TestCache
     {
         import std.algorithm : sort;
         import std.array : join;
+        import utils.files.hash : FastHash;
         
         // Sort env vars for deterministic hash
         auto keys = envVars.keys.sort().array;
@@ -371,7 +373,7 @@ final class TestCache
             envString ~= key ~ "=" ~ envVars[key] ~ "\n";
         }
         
-        return HashUtils.hashString(envString ~ toolVersions);
+        return FastHash.hashString(envString ~ toolVersions);
     }
 }
 

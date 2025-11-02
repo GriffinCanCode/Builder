@@ -109,16 +109,31 @@ struct EvictionPolicy
         }
         else
         {
-            // CacheEntry (original)
-            size += entry.targetId.length;
-            size += entry.buildHash.length;
-            size += entry.metadataHash.length;
-            
-            foreach (source, hash; entry.sourceHashes)
-                size += source.length + hash.length;
-            
-            foreach (dep, hash; entry.depHashes)
-                size += dep.length + hash.length;
+            // TestCacheEntry or other entry type
+            static if (__traits(hasMember, T, "targetId"))
+            {
+                size += entry.targetId.length;
+                size += entry.buildHash.length;
+                size += entry.metadataHash.length;
+                
+                foreach (source, hash; entry.sourceHashes)
+                    size += source.length + hash.length;
+                
+                foreach (dep, hash; entry.depHashes)
+                    size += dep.length + hash.length;
+            }
+            else static if (__traits(hasMember, T, "testId"))
+            {
+                // TestCacheEntry
+                size += entry.testId.length;
+                size += entry.contentHash.length;
+                size += entry.envHash.length;
+            }
+            else
+            {
+                // Unknown entry type, estimate based on result
+                size += 256;  // Reasonable default
+            }
         }
         
         return size;

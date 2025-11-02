@@ -168,7 +168,7 @@ final class RemoteExecutionService
         synchronized (mutex)
         {
             if (atomicLoad(running))
-                return Result!BuildError.ok(cast(BuildError)null);
+                return Ok!BuildError();
             
             Logger.info("Starting remote execution service...");
             

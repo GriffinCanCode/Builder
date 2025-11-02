@@ -257,20 +257,21 @@ final class TestExecutor
             }
         }
         
-        // Launch workers
-        import std.parallelism : task;
+        // Launch workers manually (task() doesn't work with nested functions)
+        import core.thread : Thread;
+        import core.time : msecs;
+        Thread[] workers;
         foreach (workerId; 0 .. parallelism)
         {
-            auto t = task!executeShardWorker(workerId);
-            t.executeInNewThread();
+            auto t = new Thread(() => executeShardWorker(workerId));
+            t.start();
+            workers ~= t;
         }
         
         // Wait for completion
-        while (!shardCoord.isComplete())
+        foreach (worker; workers)
         {
-            import core.thread : Thread;
-            import core.time : msecs;
-            Thread.sleep(10.msecs);
+            worker.join();
         }
         
         return results;

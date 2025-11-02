@@ -138,7 +138,7 @@ final class WorkerProvisioner
             return Result!BuildError.err(error);
         }
         
-        return Result!BuildError.ok(cast(BuildError)null);
+        return Ok!BuildError();
     }
     
     /// Get provisioning statistics
