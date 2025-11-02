@@ -95,6 +95,12 @@ builder build //path/to:target
 # Build with specific CLI mode
 builder build --mode interactive
 
+# Run all tests
+builder test
+
+# Run specific test with JUnit output
+builder test //path:target --junit results.xml
+
 # Resume failed build (with checkpointing)
 builder resume
 

@@ -4,7 +4,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import core.graph.graph;
-import core.execution.engine;
+import core.execution.core.engine;
 import core.services.services;
 import core.shutdown.shutdown;
 import core.telemetry;
@@ -84,6 +84,10 @@ void main(string[] args)
                 {
                     buildCommand(target, showGraph, mode);
                 }
+                break;
+            case "test":
+                import core.stdc.stdlib : exit;
+                exit(TestCommand.execute(args));
                 break;
             case "watch":
                 watchCommand(target, clearScreen, showGraph, mode, verbose, debounceMs);
@@ -351,8 +355,8 @@ void graphCommand(in string target) @system
 /// Resume command handler - continues build from checkpoint (refactored with DI)
 void resumeCommand(in string modeStr) @system
 {
-    import core.execution.checkpoint : CheckpointManager;
-    import core.execution.resume : ResumePlanner, ResumeConfig;
+    import core.execution.recovery.checkpoint : CheckpointManager;
+    import core.execution.recovery.resume : ResumePlanner, ResumeConfig;
     
     Logger.info("Checking for build checkpoint...");
     

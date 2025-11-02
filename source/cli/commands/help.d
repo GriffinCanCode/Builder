@@ -68,6 +68,7 @@ struct HelpCommand
         // Core commands
         printSectionHeader("CORE COMMANDS");
         printCommand("build", "[target]", "Build all targets or a specific target");
+        printCommand("test", "[target]", "Run test targets with reporting");
         printCommand("watch", "[target]", "Watch for changes and rebuild automatically");
         printCommand("resume", "", "Resume a failed build from checkpoint");
         printCommand("clean", "", "Remove build artifacts and cache");
@@ -288,6 +289,9 @@ struct HelpCommand
             case "build":
                 showBuildHelp();
                 break;
+            case "test":
+                showTestHelp();
+                break;
             case "watch":
                 WatchCommand.showHelp();
                 break;
@@ -328,6 +332,75 @@ struct HelpCommand
                 terminal.write(" to see available commands.");
                 terminal.writeln();
         }
+    }
+    
+    private static void showTestHelp()
+    {
+        terminal.writeln();
+        
+        string[] description = [
+            "Run test targets with comprehensive reporting and CI/CD integration.",
+            "Supports test discovery, filtering, and JUnit XML output."
+        ];
+        terminal.writeln(formatter.formatBox("builder test [target]", description));
+        terminal.writeln();
+        
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder test", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[options]", Color.Yellow);
+        terminal.write(" ");
+        terminal.writeColored("[target]", Color.Green);
+        terminal.writeln();
+        terminal.writeln();
+        
+        printSectionHeader("OPTIONS");
+        printOption("-v, --verbose", "Show detailed test output");
+        printOption("-q, --quiet", "Minimal output (errors only)");
+        printOption("--show-passed", "Display passed tests");
+        printOption("--fail-fast", "Stop on first test failure");
+        printOption("--filter PATTERN", "Filter tests by pattern");
+        printOption("--junit [PATH]", "Generate JUnit XML report");
+        printOption("--coverage", "Generate coverage report (future)");
+        printOption("-m, --mode <MODE>", "Set CLI rendering mode");
+        terminal.writeln();
+        
+        printSectionHeader("EXAMPLES");
+        printExample("builder test", "Run all tests");
+        printExample("builder test --verbose", "Run with detailed output");
+        printExample("builder test //path:target", "Run specific test target");
+        printExample("builder test --filter unit", "Filter by pattern");
+        printExample("builder test --junit report.xml", "Generate JUnit XML");
+        printExample("builder test --fail-fast", "Stop on first failure");
+        terminal.writeln();
+        
+        printSectionHeader("TEST DISCOVERY");
+        printListItem("Automatically finds all targets with type: test");
+        printListItem("Supports pattern matching and filtering");
+        printListItem("Works with zero-config projects");
+        printListItem("Caches test results for faster reruns");
+        terminal.writeln();
+        
+        printSectionHeader("JUNIT XML INTEGRATION");
+        printFeature("Compatible with Jenkins, GitHub Actions, GitLab CI");
+        printFeature("Captures test case details and timing");
+        printFeature("Includes failure messages and stack traces");
+        printFeature("Supports nested test suites");
+        terminal.writeln();
+        
+        printSectionHeader("FEATURES");
+        printFeature("Test result caching for unchanged tests");
+        printFeature("Parallel test execution");
+        printFeature("Comprehensive test statistics");
+        printFeature("Multi-language test framework support");
+        printFeature("Test case and suite reporting");
+        terminal.writeln();
+        
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder build", "Build targets");
+        printSeeAlso("builder query", "Query test targets");
+        printSeeAlso("builder watch", "Continuous testing");
+        terminal.writeln();
     }
     
     private static void showBuildHelp()
