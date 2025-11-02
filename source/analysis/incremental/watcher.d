@@ -5,6 +5,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.conv;
+import core.time : Duration, msecs;
 import utils.files.watch;
 import utils.logging.logger;
 import analysis.incremental.analyzer;
@@ -36,9 +37,9 @@ final class AnalysisWatcher
     {
         if (active)
         {
-            auto error = new BuildError(
+            auto error = new WatchError(
                 "Watcher already active",
-                ErrorCode.InvalidState
+                ErrorCode.WatchError
             );
             return Result!BuildError.err(error);
         }

@@ -58,7 +58,13 @@ final class AnalysisCache
                 auto analysis = deserializeAnalysis(data);
                 
                 hitCount++;
-                return Result!(FileAnalysis*, BuildError).ok(new FileAnalysis(analysis));
+                auto result = new FileAnalysis();
+                result.path = analysis.path;
+                result.imports = analysis.imports;
+                result.contentHash = analysis.contentHash;
+                result.hasErrors = analysis.hasErrors;
+                result.errors = analysis.errors;
+                return Result!(FileAnalysis*, BuildError).ok(result);
             }
             catch (Exception e)
             {

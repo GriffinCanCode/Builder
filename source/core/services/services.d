@@ -9,6 +9,7 @@ import core.caching.targets.cache;
 import core.telemetry;
 import core.telemetry.distributed.tracing;
 import utils.logging.structured;
+import utils.logging.logger;
 import utils.simd.capabilities;
 import config.schema.schema;
 import config.parsing.parser;

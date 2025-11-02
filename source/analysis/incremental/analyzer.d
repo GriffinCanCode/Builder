@@ -26,6 +26,7 @@ final class IncrementalAnalyzer
     private AnalysisCache cache;
     private FileChangeTracker tracker;
     private DependencyAnalyzer fullAnalyzer;
+    private WorkspaceConfig _config;
     
     // Metrics
     private size_t filesReanalyzed;
@@ -34,6 +35,7 @@ final class IncrementalAnalyzer
     
     this(WorkspaceConfig config, string cacheDir = ".builder-cache") @system
     {
+        this._config = config;
         this.cache = new AnalysisCache(buildPath(cacheDir, "analysis"));
         this.tracker = new FileChangeTracker();
         this.fullAnalyzer = new DependencyAnalyzer(config, cacheDir);
@@ -147,17 +149,16 @@ final class IncrementalAnalyzer
         result.dependencies = fullAnalyzer.resolveImports(
             allImports,
             target.language,
-            fullAnalyzer.config
+            _config
         );
         
         // Add explicit dependencies
         foreach (dep; target.deps)
         {
-            auto resolver = fullAnalyzer.resolver;
-            auto resolved = resolver.resolve(dep, target.name);
-            if (!resolved.empty && !result.dependencies.canFind!(d => d.targetName == resolved))
+            // Dependencies are already resolved by the full analyzer
+            if (!result.dependencies.canFind!(d => d.targetName == dep))
             {
-                result.dependencies ~= Dependency.direct(resolved, dep);
+                result.dependencies ~= Dependency.direct(dep, dep);
             }
         }
         
