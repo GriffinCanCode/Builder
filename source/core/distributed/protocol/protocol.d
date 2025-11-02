@@ -1,9 +1,10 @@
 module core.distributed.protocol.protocol;
 
-import std.datetime : Duration, SysTime, Clock, seconds;
+import std.datetime : Duration, SysTime, Clock, seconds, dur;
 import std.conv : to;
 import std.digest : toHexString;
 import std.bitmanip : write, read;
+import std.string : toLower;
 import errors;
 
 /// Protocol version for compatibility checking
@@ -69,7 +70,7 @@ struct ActionId
     
     string toString() const @trusted
     {
-        return toHexString(hash[]).toLower;
+        return toHexString(hash[]).toLower();
     }
     
     bool opEquals(const ActionId other) const pure nothrow @safe @nogc
@@ -77,7 +78,7 @@ struct ActionId
         return hash == other.hash;
     }
     
-    size_t toHash() const pure nothrow @safe @nogc
+    size_t toHash() const pure nothrow @trusted @nogc
     {
         // Use first 8 bytes as hash
         return *cast(size_t*)hash.ptr;
@@ -174,7 +175,7 @@ struct Capabilities
     }
     
     /// Deserialize from binary
-    static Result!(Capabilities, BuildError) deserialize(const ubyte[] data) pure @system
+    static Result!(Capabilities, BuildError) deserialize(const ubyte[] data) @system
     {
         if (data.length < 1)
             return Err!(Capabilities, BuildError)(
@@ -183,46 +184,57 @@ struct Capabilities
         Capabilities caps;
         size_t offset = 0;
         
+        // Make a mutable copy for read operations
+        ubyte[] mutableData = cast(ubyte[])data.dup;
+        
         try
         {
             // Flags
-            immutable flags = data[offset .. offset + 1].read!ubyte();
+            auto flagSlice = mutableData[offset .. offset + 1];
+            immutable flags = flagSlice.read!ubyte();
             offset += 1;
             caps.network = (flags & 0x01) != 0;
             caps.writeHome = (flags & 0x02) != 0;
             caps.writeTmp = (flags & 0x04) != 0;
             
             // Read paths
-            immutable readCount = data[offset .. offset + 4].read!uint();
+            auto readCountSlice = mutableData[offset .. offset + 4];
+            immutable readCount = readCountSlice.read!uint();
             offset += 4;
             caps.readPaths.reserve(readCount);
             foreach (_; 0 .. readCount)
             {
-                immutable len = data[offset .. offset + 4].read!uint();
+                auto lenSlice = mutableData[offset .. offset + 4];
+                immutable len = lenSlice.read!uint();
                 offset += 4;
                 caps.readPaths ~= cast(string)data[offset .. offset + len];
                 offset += len;
             }
             
             // Write paths
-            immutable writeCount = data[offset .. offset + 4].read!uint();
+            auto writeCountSlice = mutableData[offset .. offset + 4];
+            immutable writeCount = writeCountSlice.read!uint();
             offset += 4;
             caps.writePaths.reserve(writeCount);
             foreach (_; 0 .. writeCount)
             {
-                immutable len = data[offset .. offset + 4].read!uint();
+                auto lenSlice2 = mutableData[offset .. offset + 4];
+                immutable len = lenSlice2.read!uint();
                 offset += 4;
                 caps.writePaths ~= cast(string)data[offset .. offset + len];
                 offset += len;
             }
             
             // Resource limits
-            caps.maxCpu = data[offset .. offset + 8].read!ulong();
+            auto cpuSlice = mutableData[offset .. offset + 8];
+            caps.maxCpu = cpuSlice.read!ulong();
             offset += 8;
-            caps.maxMemory = data[offset .. offset + 8].read!ulong();
+            auto memSlice = mutableData[offset .. offset + 8];
+            caps.maxMemory = memSlice.read!ulong();
             offset += 8;
-            immutable timeoutMs = data[offset .. offset + 8].read!long();
-            caps.timeout = timeoutMs.msecs;
+            auto timeSlice = mutableData[offset .. offset + 8];
+            immutable timeoutMs = timeSlice.read!long();
+            caps.timeout = dur!"msecs"(timeoutMs);
             
             return Ok!(Capabilities, BuildError)(caps);
         }

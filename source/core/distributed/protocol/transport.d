@@ -6,7 +6,8 @@ import std.conv : to;
 import std.string : split, strip;
 import std.algorithm.searching : startsWith;
 import core.distributed.protocol.protocol;
-import errors;
+import core.distributed.protocol.protocol : NetworkError;
+import errors : BuildError, Result, Ok, Err;
 
 /// Transport layer interface (pluggable implementation)
 interface Transport
@@ -54,7 +55,7 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            DistributedError err = new protocol.NetworkError("Failed to connect: " ~ e.msg);
+            DistributedError err = new NetworkError("Failed to connect: " ~ e.msg);
             return Result!DistributedError.err(err);
         }
     }

@@ -1,4 +1,4 @@
-module core.telemetry.export.exporter;
+module core.telemetry.exporting.exporter;
 
 import std.array : appender, Appender, replicate;
 import std.conv : to;

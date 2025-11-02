@@ -63,7 +63,7 @@ public import core.telemetry.persistence;
 public import core.telemetry.analytics;
 
 // Data Export
-public import core.telemetry.export;
+public import core.telemetry.exporting;
 
 // Runtime Monitoring
 public import core.telemetry.monitoring;

@@ -1,4 +1,4 @@
-module core.telemetry.export;
+module core.telemetry.exporting;
 
 /// Data export subsystem
 /// 
@@ -8,5 +8,5 @@ module core.telemetry.export;
 /// Components:
 /// - TelemetryExporter: Multi-format data export
 
-public import core.telemetry.export.exporter;
+public import core.telemetry.exporting.exporter;
 

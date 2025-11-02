@@ -7,7 +7,8 @@ import std.random : uniform;
 import core.sync.mutex : Mutex;
 import core.atomic;
 import core.distributed.protocol.protocol;
-import errors : BuildError, DistributedError, Result, Ok, Err;
+import core.distributed.protocol.protocol : DistributedError;
+import errors : BuildError, Result, Ok, Err;
 import utils.logging.logger;
 
 /// Peer worker information for work-stealing

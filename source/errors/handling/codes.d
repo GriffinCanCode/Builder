@@ -59,6 +59,10 @@ enum ErrorCode
     CacheUnauthorized,
     CacheTooLarge,
     CacheTimeout,
+    CacheWriteFailed,
+    CacheInUse,
+    CacheDeleteFailed,
+    CacheGCFailed,
     NetworkError,
     
     // IO errors (5000-5999)
@@ -234,6 +238,10 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.CacheDisabled:
         case ErrorCode.CacheUnauthorized:
         case ErrorCode.CacheTooLarge:
+        case ErrorCode.CacheWriteFailed:
+        case ErrorCode.CacheInUse:
+        case ErrorCode.CacheDeleteFailed:
+        case ErrorCode.CacheGCFailed:
         case ErrorCode.FileNotFound:
         case ErrorCode.FileReadFailed:
         case ErrorCode.FileWriteFailed:
@@ -340,6 +348,10 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.CacheUnauthorized: return "Cache authentication failed";
         case ErrorCode.CacheTooLarge: return "Artifact exceeds maximum size";
         case ErrorCode.CacheTimeout: return "Cache operation timed out";
+        case ErrorCode.CacheWriteFailed: return "Failed to write to cache";
+        case ErrorCode.CacheInUse: return "Cache is in use by another process";
+        case ErrorCode.CacheDeleteFailed: return "Failed to delete cache entry";
+        case ErrorCode.CacheGCFailed: return "Cache garbage collection failed";
         case ErrorCode.NetworkError: return "Network communication error";
         case ErrorCode.FileNotFound: return "File not found";
         case ErrorCode.FileReadFailed: return "Failed to read file";

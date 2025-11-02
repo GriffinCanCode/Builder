@@ -24,7 +24,7 @@ class JUnitExporter
     }
     
     /// Export test results to JUnit XML format
-    Result!(void, BuildError) export_(const TestResult[] results) @system
+    Result!BuildError export_(const TestResult[] results) @system
     {
         try
         {
@@ -146,7 +146,7 @@ class JUnitExporter
 }
 
 /// Helper function to export test results
-Result!(void, BuildError) exportJUnit(const TestResult[] results, string outputPath) @system
+Result!BuildError exportJUnit(const TestResult[] results, string outputPath) @system
 {
     auto exporter = new JUnitExporter(outputPath);
     return exporter.export_(results);

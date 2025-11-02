@@ -6,10 +6,10 @@ import std.random : uniform;
 import core.atomic;
 import core.thread : Thread;
 import core.distributed.protocol.protocol;
-import core.distributed.protocol.protocol : NetworkError;
+import core.distributed.protocol.protocol : NetworkError, DistributedError;
 import core.distributed.protocol.transport;
 import core.distributed.worker.peers;
-import errors : BuildError, DistributedError, Result, Ok, Err;
+import errors : BuildError, Result, Ok, Err;
 import utils.logging.logger;
 
 /// Work-stealing strategy

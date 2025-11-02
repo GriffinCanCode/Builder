@@ -359,6 +359,18 @@ struct FastHash
         return Blake3.hashHex(content);
     }
     
+    /// Hash byte array
+    static string hashBytes(const ubyte[] data)
+    {
+        return Blake3.hashHex(cast(string)data);
+    }
+    
+    /// Compute hash of data (alias for hashString for consistency)
+    static string compute(const ubyte[] data)
+    {
+        return hashBytes(data);
+    }
+    
     /// Hash multiple strings together
     /// 
     /// Safety: This function is @system because:

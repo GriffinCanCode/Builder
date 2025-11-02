@@ -7,7 +7,8 @@ import std.array : array;
 import std.datetime : Clock, SysTime, Duration;
 import core.sync.mutex : Mutex;
 import core.distributed.protocol.protocol;
-import errors;
+import core.distributed.protocol.protocol : DistributedError;
+import errors : BuildError, Result, Ok, Err;
 
 /// Artifact store interface
 interface ArtifactStore
