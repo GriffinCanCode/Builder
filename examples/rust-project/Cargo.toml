@@ -2,7 +2,7 @@
 name = "rust-demo"
 version = "0.1.0"
 edition = "2021"
-authors = ["Builder Team"]
+authors = ["Griffin <griffincancode@gmail.com>"]
 description = "Rust demonstration project for Builder"
 license = "MIT"
 

@@ -69,8 +69,8 @@ Create a file `Formula/builder-plugin-myplugin.rb`:
 ```ruby
 class BuilderPluginMyplugin < Formula
   desc "My plugin for Builder"
-  homepage "https://github.com/yourusername/builder-plugin-myplugin"
-  url "https://github.com/yourusername/builder-plugin-myplugin/archive/v1.0.0.tar.gz"
+  homepage "https://github.com/GriffinCanCode/builder-plugin-myplugin"
+  url "https://github.com/GriffinCanCode/builder-plugin-myplugin/archive/v1.0.0.tar.gz"
   sha256 "YOUR_SHA256_HERE"
   license "MIT"
 

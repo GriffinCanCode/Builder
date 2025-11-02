@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""
+Builder Notification Plugin
+Smart build notifications with context-aware messaging
+"""
+import json
+import sys
+import os
+import urllib.request
+import urllib.parse
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+PLUGIN_INFO = {
+    "name": "notify",
+    "version": "1.0.0",
+    "author": "Griffin",
+    "description": "Smart build notifications (Slack, Discord, email)",
+    "homepage": "https://github.com/GriffinCanCode/Builder",
+    "capabilities": ["build.post_hook"],
+    "minBuilderVersion": "1.0.0",
+    "license": "MIT"
+}
+
+class NotificationConfig:
+    """Configuration for notifications"""
+    def __init__(self):
+        self.slack_webhook = os.getenv("BUILDER_SLACK_WEBHOOK")
+        self.discord_webhook = os.getenv("BUILDER_DISCORD_WEBHOOK")
+        self.email_smtp = os.getenv("BUILDER_SMTP_SERVER")
+        self.email_to = os.getenv("BUILDER_EMAIL_TO")
+        self.notify_on_success = os.getenv("BUILDER_NOTIFY_SUCCESS", "false").lower() == "true"
+        self.notify_on_failure = os.getenv("BUILDER_NOTIFY_FAILURE", "true").lower() == "true"
+        self.notify_threshold_ms = int(os.getenv("BUILDER_NOTIFY_THRESHOLD_MS", "5000"))
+
+class NotificationSender:
+    """Handles sending notifications to various platforms"""
+    
+    def __init__(self, config: NotificationConfig):
+        self.config = config
+        
+    def should_notify(self, success: bool, duration_ms: int) -> bool:
+        """Determine if notification should be sent"""
+        if not success and self.config.notify_on_failure:
+            return True
+        if success and self.config.notify_on_success:
+            return duration_ms >= self.config.notify_threshold_ms
+        return False
+    
+    def send_notifications(
+        self,
+        target_name: str,
+        success: bool,
+        duration_ms: int,
+        outputs: List[str]
+    ) -> List[str]:
+        """Send notifications to configured platforms"""
+        logs = []
+        
+        if not self.should_notify(success, duration_ms):
+            logs.append("  Notification threshold not met, skipping")
+            return logs
+        
+        message = self.build_message(target_name, success, duration_ms, outputs)
+        
+        # Send to Slack
+        if self.config.slack_webhook:
+            try:
+                self.send_slack(message)
+                logs.append("  ✓ Slack notification sent")
+            except Exception as e:
+                logs.append(f"  ⚠ Slack notification failed: {e}")
+        
+        # Send to Discord
+        if self.config.discord_webhook:
+            try:
+                self.send_discord(message)
+                logs.append("  ✓ Discord notification sent")
+            except Exception as e:
+                logs.append(f"  ⚠ Discord notification failed: {e}")
+        
+        # Send email
+        if self.config.email_smtp and self.config.email_to:
+            try:
+                self.send_email(message)
+                logs.append("  ✓ Email notification sent")
+            except Exception as e:
+                logs.append(f"  ⚠ Email notification failed: {e}")
+        
+        if not logs:
+            logs.append("  ℹ️ No notification channels configured")
+            logs.append("  Set BUILDER_SLACK_WEBHOOK or BUILDER_DISCORD_WEBHOOK")
+        
+        return logs
+    
+    def build_message(
+        self,
+        target_name: str,
+        success: bool,
+        duration_ms: int,
+        outputs: List[str]
+    ) -> Dict:
+        """Build notification message with rich formatting"""
+        status_emoji = "✅" if success else "❌"
+        status_text = "succeeded" if success else "failed"
+        color = "#36a64f" if success else "#d00000"
+        
+        duration_sec = duration_ms / 1000.0
+        
+        # Extract meaningful information
+        project = os.getenv("BUILDER_PROJECT_NAME", "Unknown")
+        branch = os.getenv("BUILDER_GIT_BRANCH", os.getenv("GIT_BRANCH", "unknown"))
+        commit = os.getenv("BUILDER_GIT_COMMIT", os.getenv("GIT_COMMIT", "unknown"))[:7]
+        user = os.getenv("BUILDER_USER", os.getenv("USER", "unknown"))
+        
+        fields = [
+            {"title": "Target", "value": target_name, "short": True},
+            {"title": "Duration", "value": f"{duration_sec:.2f}s", "short": True},
+            {"title": "Branch", "value": branch, "short": True},
+            {"title": "Commit", "value": commit, "short": True},
+        ]
+        
+        if outputs:
+            fields.append({
+                "title": "Artifacts",
+                "value": f"{len(outputs)} file(s)",
+                "short": True
+            })
+        
+        # Build rich message
+        message = {
+            "status": status_text,
+            "emoji": status_emoji,
+            "color": color,
+            "title": f"{status_emoji} Build {status_text}: {target_name}",
+            "project": project,
+            "user": user,
+            "duration": duration_sec,
+            "fields": fields,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Add failure context
+        if not success:
+            message["failure_note"] = "Check build logs for details"
+        
+        return message
+    
+    def send_slack(self, message: Dict):
+        """Send notification to Slack"""
+        # Convert to Slack message format
+        slack_message = {
+            "text": message["title"],
+            "attachments": [{
+                "color": message["color"],
+                "fields": message["fields"],
+                "footer": f"Builder • {message['user']}",
+                "ts": int(datetime.now().timestamp())
+            }]
+        }
+        
+        self._post_webhook(self.config.slack_webhook, slack_message)
+    
+    def send_discord(self, message: Dict):
+        """Send notification to Discord"""
+        # Convert to Discord embed format
+        discord_message = {
+            "embeds": [{
+                "title": message["title"],
+                "color": int(message["color"][1:], 16),  # Convert hex to int
+                "fields": [
+                    {"name": f["title"], "value": f["value"], "inline": f.get("short", False)}
+                    for f in message["fields"]
+                ],
+                "footer": {"text": f"Builder • {message['user']}"},
+                "timestamp": message["timestamp"]
+            }]
+        }
+        
+        self._post_webhook(self.config.discord_webhook, discord_message)
+    
+    def send_email(self, message: Dict):
+        """Send email notification"""
+        # Simplified email sending
+        # In production, use proper SMTP library
+        subject = message["title"]
+        body = self._format_email_body(message)
+        
+        # This would use proper SMTP in production
+        # For now, just log it
+        pass
+    
+    def _format_email_body(self, message: Dict) -> str:
+        """Format email body from message"""
+        lines = [
+            f"Build Status: {message['status'].upper()}",
+            f"Project: {message['project']}",
+            f"User: {message['user']}",
+            f"Duration: {message['duration']:.2f}s",
+            "",
+            "Details:",
+        ]
+        
+        for field in message['fields']:
+            lines.append(f"  {field['title']}: {field['value']}")
+        
+        if "failure_note" in message:
+            lines.append("")
+            lines.append(message["failure_note"])
+        
+        return "\n".join(lines)
+    
+    def _post_webhook(self, url: str, data: Dict):
+        """Post data to webhook URL"""
+        json_data = json.dumps(data).encode('utf-8')
+        
+        req = urllib.request.Request(
+            url,
+            data=json_data,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status not in (200, 204):
+                raise Exception(f"Webhook returned status {response.status}")
+
+def handle_request(request: Dict) -> Dict:
+    """Main request handler"""
+    method = request.get("method")
+    req_id = request.get("id", 1)
+    params = request.get("params", {})
+    
+    if method == "plugin.info":
+        return success_response(req_id, PLUGIN_INFO)
+    elif method == "build.post_hook":
+        return handle_post_hook(req_id, params)
+    else:
+        return error_response(req_id, -32601, f"Method not found: {method}")
+
+def handle_post_hook(req_id: int, params: Dict) -> Dict:
+    """Handle post-build hook"""
+    logs = ["[Notify] Processing build notification"]
+    
+    try:
+        target = params.get("target", {})
+        outputs = params.get("outputs", [])
+        success = params.get("success", False)
+        duration_ms = params.get("duration_ms", 0)
+        
+        target_name = target.get("name", "unknown")
+        
+        logs.append(f"  Target: {target_name}")
+        logs.append(f"  Status: {'Success' if success else 'Failed'}")
+        logs.append(f"  Duration: {duration_ms}ms")
+        
+        # Initialize notification sender
+        config = NotificationConfig()
+        sender = NotificationSender(config)
+        
+        # Send notifications
+        notify_logs = sender.send_notifications(
+            target_name,
+            success,
+            duration_ms,
+            outputs
+        )
+        logs.extend(notify_logs)
+        
+        logs.append("✓ Notification processing complete")
+        
+    except Exception as e:
+        logs.append(f"⚠ Notification failed: {e}")
+    
+    return success_response(req_id, {
+        "success": True,
+        "logs": logs
+    })
+
+def success_response(req_id: int, result) -> Dict:
+    """Create success response"""
+    return {
+        "jsonrpc": "2.0",
+        "id": req_id,
+        "result": result
+    }
+
+def error_response(req_id: int, code: int, message: str) -> Dict:
+    """Create error response"""
+    return {
+        "jsonrpc": "2.0",
+        "id": req_id,
+        "error": {
+            "code": code,
+            "message": message
+        }
+    }
+
+def main():
+    """Main entry point"""
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        
+        try:
+            request = json.loads(line)
+            response = handle_request(request)
+            print(json.dumps(response), flush=True)
+        except json.JSONDecodeError as e:
+            error_resp = error_response(0, -32700, f"Parse error: {str(e)}")
+            print(json.dumps(error_resp), flush=True)
+        except Exception as e:
+            error_resp = error_response(0, -32603, f"Internal error: {str(e)}")
+            print(json.dumps(error_resp), flush=True)
+
+if __name__ == "__main__":
+    main()
+

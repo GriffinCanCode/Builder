@@ -721,7 +721,7 @@ string[] suggestFixes(const BuildError error)
             suggestions ~= "This is likely a bug in Builder";
             suggestions ~= "Please report this issue with logs attached";
             suggestions ~= "Try running with --verbose for more details";
-            suggestions ~= "Report at: github.com/yourproject/builder/issues";
+            suggestions ~= "Report at: github.com/GriffinCanCode/Builder/issues";
             break;
             
         case ErrorCode.NotImplemented:
@@ -776,6 +776,307 @@ string[] suggestFixes(const BuildError error)
             suggestions ~= "Check trace exporter configuration";
             suggestions ~= "Verify network connectivity if using remote exporter";
             suggestions ~= "Check exporter logs for details";
+            break;
+            
+        // Cache errors (new)
+        case ErrorCode.CacheNotFound:
+            suggestions ~= "The requested artifact is not in the cache";
+            suggestions ~= "Run a full build to populate the cache";
+            break;
+            
+        case ErrorCode.CacheDisabled:
+            suggestions ~= "Enable remote cache in your configuration";
+            suggestions ~= "Configure cache endpoints in Builderfile";
+            break;
+            
+        case ErrorCode.CacheUnauthorized:
+            suggestions ~= "Check cache authentication credentials";
+            suggestions ~= "Verify API keys or tokens are valid";
+            break;
+            
+        case ErrorCode.CacheTooLarge:
+            suggestions ~= "Reduce artifact size or increase cache limits";
+            suggestions ~= "Consider splitting large artifacts";
+            break;
+            
+        case ErrorCode.CacheTimeout:
+            suggestions ~= "Increase cache operation timeout";
+            suggestions ~= "Check network connectivity to cache server";
+            break;
+            
+        case ErrorCode.CacheWriteFailed:
+            suggestions ~= "Check cache server status";
+            suggestions ~= "Verify write permissions";
+            break;
+            
+        case ErrorCode.CacheInUse:
+            suggestions ~= "Wait for other process to finish using cache";
+            suggestions ~= "Check for stale lock files";
+            break;
+            
+        case ErrorCode.CacheDeleteFailed:
+            suggestions ~= "Manually delete cache entries";
+            suggestions ~= "Check file permissions";
+            break;
+            
+        case ErrorCode.CacheGCFailed:
+            suggestions ~= "Manually run cache cleanup";
+            suggestions ~= "Check available disk space";
+            break;
+            
+        case ErrorCode.NetworkError:
+            suggestions ~= "Check network connectivity";
+            suggestions ~= "Verify firewall settings";
+            break;
+            
+        // Distributed build errors
+        case ErrorCode.DistributedError:
+            suggestions ~= "Check distributed build configuration";
+            suggestions ~= "Verify all nodes are reachable";
+            break;
+            
+        case ErrorCode.CoordinatorNotFound:
+            suggestions ~= "Start the build coordinator";
+            suggestions ~= "Check coordinator address configuration";
+            break;
+            
+        case ErrorCode.CoordinatorTimeout:
+            suggestions ~= "Check coordinator availability";
+            suggestions ~= "Increase timeout value";
+            break;
+            
+        case ErrorCode.WorkerTimeout:
+            suggestions ~= "Check worker node status";
+            suggestions ~= "Increase worker timeout";
+            break;
+            
+        case ErrorCode.WorkerFailed:
+            suggestions ~= "Check worker logs for errors";
+            suggestions ~= "Restart failed workers";
+            break;
+            
+        case ErrorCode.ActionSchedulingFailed:
+            suggestions ~= "Check scheduler configuration";
+            suggestions ~= "Verify available resources";
+            break;
+            
+        case ErrorCode.SandboxError:
+            suggestions ~= "Check sandbox configuration";
+            suggestions ~= "Verify required permissions";
+            break;
+            
+        case ErrorCode.ArtifactTransferFailed:
+            suggestions ~= "Check network connectivity";
+            suggestions ~= "Retry the transfer";
+            break;
+            
+        // Plugin errors
+        case ErrorCode.PluginError:
+            suggestions ~= "Check plugin logs for details";
+            suggestions ~= "Verify plugin configuration";
+            break;
+            
+        case ErrorCode.PluginNotFound:
+            suggestions ~= "Install the required plugin";
+            suggestions ~= "Check plugin name and version";
+            break;
+            
+        case ErrorCode.PluginLoadFailed:
+            suggestions ~= "Verify plugin binary is valid";
+            suggestions ~= "Check plugin dependencies";
+            break;
+            
+        case ErrorCode.PluginCrashed:
+            suggestions ~= "Check plugin logs for crash details";
+            suggestions ~= "Report issue to plugin maintainer";
+            break;
+            
+        case ErrorCode.PluginTimeout:
+            suggestions ~= "Increase plugin timeout value";
+            suggestions ~= "Check plugin performance";
+            break;
+            
+        case ErrorCode.PluginInvalidResponse:
+            suggestions ~= "Update plugin to latest version";
+            suggestions ~= "Check plugin compatibility";
+            break;
+            
+        case ErrorCode.PluginProtocolError:
+            suggestions ~= "Verify plugin protocol version";
+            suggestions ~= "Update plugin or builder";
+            break;
+            
+        case ErrorCode.PluginVersionMismatch:
+            suggestions ~= "Update plugin to compatible version";
+            suggestions ~= "Check version requirements";
+            break;
+            
+        case ErrorCode.PluginCapabilityMissing:
+            suggestions ~= "Use a plugin that supports this capability";
+            suggestions ~= "Check plugin documentation";
+            break;
+            
+        case ErrorCode.PluginValidationFailed:
+            suggestions ~= "Fix plugin configuration errors";
+            suggestions ~= "Check plugin schema";
+            break;
+            
+        case ErrorCode.PluginExecutionFailed:
+            suggestions ~= "Check plugin logs for error details";
+            suggestions ~= "Verify plugin inputs are correct";
+            break;
+            
+        case ErrorCode.InvalidMessage:
+            suggestions ~= "Check message format";
+            suggestions ~= "Verify protocol version";
+            break;
+            
+        case ErrorCode.ToolNotFound:
+            suggestions ~= "Install the required tool";
+            suggestions ~= "Add tool to PATH";
+            break;
+            
+        case ErrorCode.IncompatibleVersion:
+            suggestions ~= "Update to compatible version";
+            suggestions ~= "Check version requirements";
+            break;
+            
+        // LSP errors
+        case ErrorCode.LSPError:
+            suggestions ~= "Check LSP server logs";
+            suggestions ~= "Restart LSP server";
+            break;
+            
+        case ErrorCode.LSPInitializationFailed:
+            suggestions ~= "Check LSP server configuration";
+            suggestions ~= "Verify workspace setup";
+            break;
+            
+        case ErrorCode.LSPInvalidRequest:
+            suggestions ~= "Check LSP client implementation";
+            suggestions ~= "Verify request format";
+            break;
+            
+        case ErrorCode.LSPMethodNotFound:
+            suggestions ~= "Check LSP server capabilities";
+            suggestions ~= "Update LSP server version";
+            break;
+            
+        case ErrorCode.LSPInvalidParams:
+            suggestions ~= "Verify request parameters";
+            suggestions ~= "Check LSP protocol specification";
+            break;
+            
+        case ErrorCode.LSPDocumentNotFound:
+            suggestions ~= "Ensure document is opened in editor";
+            suggestions ~= "Check document URI format";
+            break;
+            
+        case ErrorCode.LSPParseError:
+            suggestions ~= "Check document syntax";
+            suggestions ~= "Verify language support";
+            break;
+            
+        case ErrorCode.LSPServerCrashed:
+            suggestions ~= "Restart LSP server";
+            suggestions ~= "Check server logs for crash details";
+            break;
+            
+        case ErrorCode.LSPTimeout:
+            suggestions ~= "Increase LSP timeout value";
+            suggestions ~= "Check server responsiveness";
+            break;
+            
+        case ErrorCode.LSPInvalidPosition:
+            suggestions ~= "Check position coordinates";
+            suggestions ~= "Verify document length";
+            break;
+            
+        case ErrorCode.LSPWorkspaceNotInitialized:
+            suggestions ~= "Initialize LSP workspace";
+            suggestions ~= "Check workspace configuration";
+            break;
+            
+        // Watch mode errors
+        case ErrorCode.WatchError:
+            suggestions ~= "Check watch mode configuration";
+            suggestions ~= "Restart watch mode";
+            break;
+            
+        case ErrorCode.WatcherInitFailed:
+            suggestions ~= "Check file system permissions";
+            suggestions ~= "Verify inotify limits on Linux";
+            break;
+            
+        case ErrorCode.WatcherNotSupported:
+            suggestions ~= "File watching not supported on this platform";
+            suggestions ~= "Use manual rebuild instead";
+            break;
+            
+        case ErrorCode.WatcherCrashed:
+            suggestions ~= "Restart watch mode";
+            suggestions ~= "Check system resources";
+            break;
+            
+        case ErrorCode.FileWatchFailed:
+            suggestions ~= "Check file permissions";
+            suggestions ~= "Verify file exists";
+            break;
+            
+        case ErrorCode.DebounceError:
+            suggestions ~= "Check debounce configuration";
+            suggestions ~= "Adjust debounce timeout";
+            break;
+            
+        case ErrorCode.TooManyWatchTargets:
+            suggestions ~= "Reduce number of watched files";
+            suggestions ~= "Increase system watch limits";
+            break;
+            
+        // Config errors
+        case ErrorCode.ConfigError:
+            suggestions ~= "Check configuration format";
+            suggestions ~= "Verify all required fields";
+            break;
+            
+        case ErrorCode.InvalidWorkspace:
+            suggestions ~= "Initialize workspace with 'builder init'";
+            suggestions ~= "Check workspace configuration";
+            break;
+            
+        case ErrorCode.InvalidTarget:
+            suggestions ~= "Verify target configuration";
+            suggestions ~= "Check target schema";
+            break;
+            
+        case ErrorCode.InvalidInput:
+            suggestions ~= "Check input format";
+            suggestions ~= "Verify input values";
+            break;
+            
+        case ErrorCode.SchemaValidationFailed:
+            suggestions ~= "Check configuration against schema";
+            suggestions ~= "Fix validation errors";
+            break;
+            
+        case ErrorCode.DeprecatedField:
+            suggestions ~= "Update configuration to use new fields";
+            suggestions ~= "Check migration guide";
+            break;
+            
+        case ErrorCode.RequiredFieldMissing:
+            suggestions ~= "Add required field to configuration";
+            suggestions ~= "Check schema documentation";
+            break;
+            
+        case ErrorCode.DuplicateTarget:
+            suggestions ~= "Remove duplicate target definition";
+            suggestions ~= "Use unique target names";
+            break;
+            
+        case ErrorCode.ConfigConflict:
+            suggestions ~= "Resolve conflicting configuration options";
+            suggestions ~= "Check configuration documentation";
             break;
     }
     

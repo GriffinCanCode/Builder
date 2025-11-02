@@ -69,7 +69,7 @@ sub farewell {
 
 =head1 AUTHOR
 
-Builder Team
+Griffin
 
 =head1 LICENSE
 

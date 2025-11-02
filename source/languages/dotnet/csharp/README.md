@@ -291,7 +291,7 @@ target("my-package") {
                 \"packageId\": \"MyCompany.MyLibrary\",
                 \"packageVersion\": \"1.0.0\",
                 \"packageLicense\": \"MIT\",
-                \"packageAuthors\": [\"Your Name\"],
+                \"packageAuthors\": [\"Griffin\"],
                 \"symbols\": true
             }
         }"

@@ -1,119 +1,204 @@
 #!/usr/bin/env python3
 """
-Demo Builder Plugin - Shows basic plugin capabilities
-
-This plugin demonstrates:
-- Pre-build hooks
-- Post-build hooks
-- JSON-RPC protocol
+Builder Plugin Demo
+Demonstrates Builder plugin capabilities with hooks and JSON-RPC protocol
 """
-
 import json
 import sys
+import os
+from datetime import datetime
+from pathlib import Path
 
 PLUGIN_INFO = {
     "name": "demo",
     "version": "1.0.0",
-    "author": "Builder Team",
-    "description": "Demo plugin showing Builder plugin capabilities",
+    "author": "Griffin",
+    "description": "Demo plugin showcasing Builder plugin capabilities",
     "homepage": "https://github.com/GriffinCanCode/Builder",
-    "capabilities": ["build.pre_hook", "build.post_hook"],
+    "capabilities": [
+        "build.pre_hook",
+        "build.post_hook",
+        "artifact.process"
+    ],
     "minBuilderVersion": "1.0.0",
     "license": "MIT"
 }
 
+def log_to_file(message):
+    """Log debug messages to file for troubleshooting"""
+    log_path = Path.home() / ".builder" / "plugin-demo.log"
+    log_path.parent.mkdir(exist_ok=True)
+    with open(log_path, 'a') as f:
+        f.write(f"{datetime.now().isoformat()} {message}\n")
+
 def handle_request(request):
-    """Handle JSON-RPC request"""
-    method = request["method"]
-    req_id = request["id"]
+    """Main request handler"""
+    method = request.get("method")
+    req_id = request.get("id", 1)
+    params = request.get("params", {})
+    
+    log_to_file(f"Handling method: {method}")
     
     if method == "plugin.info":
         return success_response(req_id, PLUGIN_INFO)
     elif method == "build.pre_hook":
-        return handle_pre_hook(request)
+        return handle_pre_hook(req_id, params)
     elif method == "build.post_hook":
-        return handle_post_hook(request)
+        return handle_post_hook(req_id, params)
+    elif method == "artifact.process":
+        return handle_artifact_process(req_id, params)
     else:
         return error_response(req_id, -32601, f"Method not found: {method}")
 
-def handle_pre_hook(request):
-    """Pre-build hook - runs before build starts"""
-    req_id = request["id"]
-    params = request.get("params", {})
+def handle_pre_hook(req_id, params):
+    """Handle pre-build hook"""
     target = params.get("target", {})
+    workspace = params.get("workspace", {})
+    
+    target_name = target.get("name", "unknown")
+    target_type = target.get("type", "unknown")
     
     logs = [
-        f"Pre-build hook running for target: {target.get('name', 'unknown')}",
-        f"Target type: {target.get('type', 'unknown')}",
-        f"Language: {target.get('language', 'unknown')}",
+        f"Pre-build hook executing for target: {target_name}",
+        f"Target type: {target_type}",
+        f"Workspace root: {workspace.get('root', 'unknown')}",
+        "Checking dependencies...",
+        "Environment validated",
         "✓ Pre-build checks passed"
     ]
     
     return success_response(req_id, {
         "success": True,
-        "logs": logs
+        "logs": logs,
+        "modified_target": None,
+        "artifacts": []
     })
 
-def handle_post_hook(request):
-    """Post-build hook - runs after build completes"""
-    req_id = request["id"]
-    params = request.get("params", {})
+def handle_post_hook(req_id, params):
+    """Handle post-build hook"""
     target = params.get("target", {})
-    build_success = params.get("success", False)
-    duration_ms = params.get("duration_ms", 0)
     outputs = params.get("outputs", [])
+    success = params.get("success", False)
+    duration_ms = params.get("duration_ms", 0)
     
-    status = "✓ SUCCESS" if build_success else "✗ FAILED"
+    target_name = target.get("name", "unknown")
     
     logs = [
-        f"Post-build hook running for target: {target.get('name', 'unknown')}",
-        f"Build status: {status}",
+        f"Post-build hook executing for target: {target_name}",
+        f"Build {'succeeded' if success else 'failed'}",
         f"Duration: {duration_ms}ms",
-        f"Outputs: {len(outputs)} files"
+        f"Outputs: {len(outputs)} artifact(s)"
     ]
     
     if outputs:
         logs.append("Generated artifacts:")
-        for output in outputs:
-            logs.append(f"  • {output}")
+        for output in outputs[:5]:  # Show first 5
+            logs.append(f"  - {output}")
+    
+    if success:
+        logs.append("✓ Post-build processing complete")
+    else:
+        logs.append("⚠ Build failed, skipping artifact processing")
     
     return success_response(req_id, {
         "success": True,
-        "logs": logs
+        "logs": logs,
+        "artifacts": []
+    })
+
+def handle_artifact_process(req_id, params):
+    """Handle artifact processing"""
+    artifacts = params.get("artifacts", [])
+    config = params.get("config", {})
+    
+    logs = [
+        f"Processing {len(artifacts)} artifact(s)",
+        "Analyzing artifact metadata...",
+    ]
+    
+    processed = []
+    for artifact in artifacts:
+        path = artifact.get("path", "")
+        artifact_type = artifact.get("type", "unknown")
+        
+        logs.append(f"  Processing: {path} (type: {artifact_type})")
+        
+        # Simulate processing
+        if os.path.exists(path):
+            size = os.path.getsize(path)
+            logs.append(f"    Size: {size} bytes")
+            processed.append({
+                "path": path,
+                "type": artifact_type,
+                "metadata": {
+                    "size": size,
+                    "processed": True
+                }
+            })
+    
+    logs.append(f"✓ Processed {len(processed)} artifact(s)")
+    
+    return success_response(req_id, {
+        "success": True,
+        "logs": logs,
+        "artifacts": processed
     })
 
 def success_response(req_id, result):
-    """Create JSON-RPC success response"""
+    """Create success response"""
     return {
         "jsonrpc": "2.0",
         "id": req_id,
         "result": result
     }
 
-def error_response(req_id, code, message):
-    """Create JSON-RPC error response"""
+def error_response(req_id, code, message, data=None):
+    """Create error response"""
+    error = {
+        "code": code,
+        "message": message
+    }
+    if data:
+        error["data"] = data
+    
     return {
         "jsonrpc": "2.0",
         "id": req_id,
-        "error": {
-            "code": code,
-            "message": message
-        }
+        "error": error
     }
 
 def main():
-    """Main loop - read requests from stdin, write responses to stdout"""
-    for line in sys.stdin:
-        try:
-            request = json.loads(line)
-            response = handle_request(request)
-            print(json.dumps(response))
-            sys.stdout.flush()
-        except Exception as e:
-            error = error_response(0, -32603, f"Internal error: {str(e)}")
-            print(json.dumps(error))
-            sys.stdout.flush()
+    """Main entry point"""
+    log_to_file("Plugin started")
+    
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            
+            try:
+                request = json.loads(line)
+                log_to_file(f"Request: {request.get('method')}")
+                
+                response = handle_request(request)
+                
+                print(json.dumps(response), flush=True)
+                log_to_file(f"Response sent for {request.get('method')}")
+                
+            except json.JSONDecodeError as e:
+                error_resp = error_response(0, -32700, f"Parse error: {str(e)}")
+                print(json.dumps(error_resp), flush=True)
+                log_to_file(f"Parse error: {e}")
+            except Exception as e:
+                error_resp = error_response(0, -32603, f"Internal error: {str(e)}")
+                print(json.dumps(error_resp), flush=True)
+                log_to_file(f"Internal error: {e}")
+    except KeyboardInterrupt:
+        log_to_file("Plugin interrupted")
+    except Exception as e:
+        log_to_file(f"Fatal error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
-

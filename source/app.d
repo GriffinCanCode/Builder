@@ -338,7 +338,7 @@ void graphCommand(in string target) @system
         Logger.error("Stack trace:");
         Logger.error(e.toString());
         Logger.error("\nThis is a bug in Builder. Please report it at:");
-        Logger.error("https://github.com/your-org/builder/issues");
+        Logger.error("https://github.com/GriffinCanCode/Builder/issues");
         exit(1);
     }
     catch (Error e)
@@ -347,7 +347,7 @@ void graphCommand(in string target) @system
         Logger.error("Stack trace:");
         Logger.error(e.toString());
         Logger.error("\nThis is a critical bug in Builder. Please report it at:");
-        Logger.error("https://github.com/your-org/builder/issues");
+        Logger.error("https://github.com/GriffinCanCode/Builder/issues");
         exit(139); // SIGSEGV exit code
     }
 }

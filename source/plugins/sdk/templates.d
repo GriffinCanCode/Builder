@@ -162,9 +162,9 @@ import std.json;
 struct PluginInfo {
     string name = "` ~ name ~ `";
     string version_ = "1.0.0";
-    string author = "Your Name";
+    string author = "Griffin";
     string description = "` ~ name ~ ` plugin for Builder";
-    string homepage = "https://github.com/yourusername/builder-plugin-` ~ name ~ `";
+    string homepage = "https://github.com/GriffinCanCode/builder-plugin-` ~ name ~ `";
     string[] capabilities = ["build.pre_hook", "build.post_hook"];
     string minBuilderVersion = "1.0.0";
     string license = "MIT";
@@ -262,7 +262,7 @@ private string getDubJsonTemplate(string name) pure @safe {
     return `{
     "name": "builder-plugin-` ~ name ~ `",
     "description": "Builder plugin: ` ~ name ~ `",
-    "authors": ["Your Name"],
+    "authors": ["Griffin"],
     "license": "MIT",
     "targetType": "executable",
     "targetName": "builder-plugin-` ~ name ~ `",
@@ -285,9 +285,9 @@ import sys
 PLUGIN_INFO = {
     "name": "` ~ name ~ `",
     "version": "1.0.0",
-    "author": "Your Name",
+    "author": "Griffin",
     "description": "` ~ name ~ ` plugin for Builder",
-    "homepage": "https://github.com/yourusername/builder-plugin-` ~ name ~ `",
+    "homepage": "https://github.com/GriffinCanCode/builder-plugin-` ~ name ~ `",
     "capabilities": ["build.pre_hook", "build.post_hook"],
     "minBuilderVersion": "1.0.0",
     "license": "MIT"
@@ -407,9 +407,9 @@ func handleInfo(id int64) map[string]interface{} {
     info := PluginInfo{
         Name:              "` ~ name ~ `",
         Version:           "1.0.0",
-        Author:            "Your Name",
+        Author:            "Griffin",
         Description:       "` ~ name ~ ` plugin for Builder",
-        Homepage:          "https://github.com/yourusername/builder-plugin-` ~ name ~ `",
+        Homepage:          "https://github.com/GriffinCanCode/builder-plugin-` ~ name ~ `",
         Capabilities:      []string{"build.pre_hook", "build.post_hook"},
         MinBuilderVersion: "1.0.0",
         License:           "MIT",
@@ -466,7 +466,7 @@ func writeError(code int, message string) {
 }
 
 private string getGoModTemplate(string name) pure @safe {
-    return `module github.com/yourusername/builder-plugin-` ~ name ~ `
+    return `module github.com/GriffinCanCode/builder-plugin-` ~ name ~ `
 
 go 1.21
 `;
@@ -530,9 +530,9 @@ fn handle_info(id: i64) -> Value {
     let info = PluginInfo {
         name: "` ~ name ~ `".to_string(),
         version: "1.0.0".to_string(),
-        author: "Your Name".to_string(),
+        author: "Griffin".to_string(),
         description: "` ~ name ~ ` plugin for Builder".to_string(),
-        homepage: "https://github.com/yourusername/builder-plugin-` ~ name ~ `".to_string(),
+        homepage: "https://github.com/GriffinCanCode/builder-plugin-` ~ name ~ `".to_string(),
         capabilities: vec!["build.pre_hook".to_string(), "build.post_hook".to_string()],
         min_builder_version: "1.0.0".to_string(),
         license: "MIT".to_string(),

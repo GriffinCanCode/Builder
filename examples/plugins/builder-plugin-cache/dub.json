@@ -1,0 +1,16 @@
+{
+    "name": "builder-plugin-cache",
+    "description": "Intelligent cache warming plugin for Builder",
+    "authors": ["Griffin"],
+    "license": "MIT",
+    "targetType": "executable",
+    "targetName": "builder-plugin-cache",
+    "sourcePaths": ["source"],
+    "importPaths": ["source"],
+    "buildTypes": {
+        "release": {
+            "buildOptions": ["releaseMode", "inline", "optimize"]
+        }
+    }
+}
+
