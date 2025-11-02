@@ -4,17 +4,19 @@ module utils.simd;
 /// Hardware-agnostic SIMD optimizations with runtime dispatch
 /// 
 /// Architecture:
-///   detection.d - CPU feature detection (AVX2/AVX-512/NEON/SSE)
-///   dispatch.d  - Runtime dispatch to optimal BLAKE3 SIMD implementation
-///   ops.d       - SIMD-accelerated memory operations
-///   hash.d      - Specialized hash comparison operations
-///   bench.d     - Comprehensive SIMD benchmarking suite
+///   detection.d    - CPU feature detection (AVX2/AVX-512/NEON/SSE)
+///   dispatch.d     - Runtime dispatch to optimal BLAKE3 SIMD implementation
+///   ops.d          - SIMD-accelerated memory operations
+///   hash.d         - Specialized hash comparison operations
+///   capabilities.d - SIMD service (eliminates global state)
+///   context.d      - Context-aware SIMD operations
+///   bench.d        - Comprehensive SIMD benchmarking suite
 ///
 /// Features:
 ///   - Runtime CPU detection (no compile-time only paths)
 ///   - Fallback chain: AVX-512 → AVX2 → SSE4.1 → SSE2 → Portable
 ///   - ARM support: NEON → Portable
-///   - Thread-safe singleton pattern for CPU detection
+///   - Context-based capabilities (no global state)
 ///   - Zero-copy dispatch through function pointers
 ///   - Constant-time comparisons for security
 ///   - Batch hash validation for performance
@@ -25,12 +27,29 @@ module utils.simd;
 ///   - Chunking: 3-8x faster with vectorized rolling hash
 ///   - Batch Hash Validation: 3-5x faster for multiple comparisons
 ///
-/// Usage:
+/// Modern Usage (Context-Based - Recommended):
 ///   import utils.simd;
 ///   
-///   // Automatic optimal selection
+///   // Initialize capabilities at startup (done by BuildServices)
+///   auto caps = SIMDCapabilities.detect();
+///   auto simdCtx = createSIMDContext(caps);
+///   
+///   // Use context for parallel operations
+///   auto results = simdCtx.mapParallel(data, (x) => x * 2);
+///   auto hashes = simdCtx.hashBatch(byteArrays);
+///   
+///   // Pass through BuildContext
+///   BuildContext ctx;
+///   ctx.simd = caps;
+///   if (ctx.hasSIMD()) {
+///       // SIMD-accelerated operations
+///   }
+///
+/// Legacy Usage (Global State - Deprecated):
+///   import utils.simd;
+///   
+///   // CPU detection
 ///   CPU.printInfo();                      // Show CPU capabilities
-///   auto hash = Blake3.hashHex("data");   // Uses SIMD automatically
 ///   
 ///   // SIMD memory operations
 ///   SIMDOps.copy(dest, src);              // Fast memcpy
@@ -39,14 +58,12 @@ module utils.simd;
 ///   // Specialized hash operations
 ///   SIMDHash.equals(hashA, hashB);        // Fast comparison
 ///   SIMDHash.constantTimeEquals(a, b);    // Timing-attack resistant
-///   SIMDHash.batchEquals(hashesA, hashesB); // Parallel validation
-///   
-///   // Benchmarking
-///   SIMDBench.compareAll();               // Compare all implementations
 
 public import utils.simd.detection;
 public import utils.simd.dispatch;
 public import utils.simd.ops;
 public import utils.simd.hash;
+public import utils.simd.capabilities;
+public import utils.simd.context;
 public import utils.simd.bench;
 

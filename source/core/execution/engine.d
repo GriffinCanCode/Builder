@@ -14,6 +14,7 @@ import core.execution.services;
 import cli.events.events;
 import core.telemetry.tracing : Span, SpanKind, SpanStatus;
 import utils.logging.logger;
+import utils.simd.capabilities;
 import errors;
 
 /// Thin orchestration layer for build execution
@@ -40,6 +41,7 @@ final class ExecutionEngine
     private IObservabilityService observability;
     private IResilienceService resilience;
     private IHandlerRegistry handlers;
+    private SIMDCapabilities simdCaps;
     
     private shared size_t activeTasks;
     private shared size_t failedTasks;
@@ -52,7 +54,8 @@ final class ExecutionEngine
         ICacheService cache,
         IObservabilityService observability,
         IResilienceService resilience,
-        IHandlerRegistry handlers
+        IHandlerRegistry handlers,
+        SIMDCapabilities simdCaps = null
     ) @trusted
     {
         this.graph = graph;
@@ -62,6 +65,7 @@ final class ExecutionEngine
         this.observability = observability;
         this.resilience = resilience;
         this.handlers = handlers;
+        this.simdCaps = simdCaps;
         
         atomicStore(activeTasks, cast(size_t)0);
         atomicStore(failedTasks, cast(size_t)0);
@@ -83,6 +87,10 @@ final class ExecutionEngine
         scheduling.shutdown();
         cache.close();
         observability.flush();
+        
+        // Shutdown SIMD capabilities
+        if (simdCaps !is null)
+            simdCaps.shutdown();
     }
     
     /// Execute the build
@@ -374,10 +382,11 @@ final class ExecutionEngine
             auto compileSpan = observability.startSpan("compile", SpanKind.Internal, targetSpan);
             observability.setSpanAttribute(compileSpan, "target.sources_count", target.sources.length.to!string);
             
-            // Create build context with action recorder
+            // Create build context with action recorder and SIMD capabilities
             BuildContext buildContext;
             buildContext.target = target;
             buildContext.config = config;
+            buildContext.simd = simdCaps;
             buildContext.recorder = (actionId, inputs, outputs, metadata, success) {
                 cache.recordAction(actionId, inputs, outputs, metadata, success);
             };

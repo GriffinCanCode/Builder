@@ -6,6 +6,7 @@ import analysis.targets.types;
 import core.telemetry.tracing;
 import core.caching.action;
 import utils.logging.structured;
+import utils.simd.capabilities;
 import errors;
 
 /// Action recording callback for fine-grained caching
@@ -13,17 +14,25 @@ import errors;
 alias ActionRecorder = void delegate(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success);
 
 /// Build context with action-level caching support
+/// Extended to include SIMD capabilities for hardware-accelerated operations
 struct BuildContext
 {
     Target target;
     WorkspaceConfig config;
     ActionRecorder recorder;  // Optional action recorder
+    SIMDCapabilities simd;    // SIMD capabilities (null if not available)
     
     /// Record an action for fine-grained caching
     void recordAction(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success)
     {
         if (recorder !is null)
             recorder(actionId, inputs, outputs, metadata, success);
+    }
+    
+    /// Check if SIMD acceleration is available
+    bool hasSIMD() const pure nothrow
+    {
+        return simd !is null && simd.active;
     }
 }
 

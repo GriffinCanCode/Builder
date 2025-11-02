@@ -8,6 +8,7 @@ import core.caching.cache;
 import core.telemetry;
 import core.telemetry.tracing;
 import utils.logging.structured;
+import utils.simd.capabilities;
 import config.schema.schema;
 import config.parsing.parser;
 import analysis.inference.analyzer;
@@ -35,12 +36,16 @@ final class BuildServices
     private bool _telemetryEnabled;
     private Tracer _tracer;
     private StructuredLogger _structuredLogger;
+    private SIMDCapabilities _simdCapabilities;
     
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
     {
         this._config = config;
         this._renderMode = RenderMode.Auto;
+        
+        // Initialize SIMD capabilities early (detect hardware once)
+        this._initializeSIMD();
         
         // Initialize observability (tracing and structured logging)
         this._initializeObservability();
@@ -72,6 +77,43 @@ final class BuildServices
             fields["cache_dir"] = options.cacheDir;
             fields["telemetry_enabled"] = this._telemetryEnabled.to!string;
             this._structuredLogger.info("Build services initialized", fields);
+        }
+    }
+    
+    /// Initialize SIMD capabilities (hardware detection and dispatch)
+    /// Called once at service initialization to eliminate repeated detection
+    private void _initializeSIMD() @system
+    {
+        import std.process : environment;
+        import std.parallelism : totalCPUs;
+        
+        try
+        {
+            // Check if SIMD should be disabled via environment
+            auto simdDisabled = environment.get("BUILDER_SIMD_DISABLED", "0");
+            if (simdDisabled == "1" || simdDisabled == "true")
+            {
+                // Create minimal capabilities (portable mode)
+                this._simdCapabilities = SIMDCapabilities.createMock();
+                return;
+            }
+            
+            // Detect hardware and initialize SIMD dispatch
+            // Thread pool size can be customized via environment
+            auto poolSize = environment.get("BUILDER_SIMD_THREADS", "0");
+            size_t threads = 0;
+            if (poolSize.length > 0)
+            {
+                import std.conv : to;
+                try { threads = poolSize.to!size_t; } catch (Exception) { threads = 0; }
+            }
+            
+            this._simdCapabilities = SIMDCapabilities.detect(threads);
+        }
+        catch (Exception e)
+        {
+            // Fallback to mock capabilities if detection fails
+            this._simdCapabilities = SIMDCapabilities.createMock();
         }
     }
     
@@ -113,6 +155,7 @@ final class BuildServices
             string[string] fields;
             fields["exporter"] = exporterType;
             fields["output"] = (exporterType == "console") ? "console" : outputFile;
+            fields["simd.level"] = this._simdCapabilities !is null ? this._simdCapabilities.implName : "unknown";
             this._structuredLogger.debug_("Distributed tracing enabled (default)", fields);
         }
         else
@@ -162,6 +205,9 @@ final class BuildServices
     
     /// Check if telemetry is enabled
     @property bool telemetryEnabled() { return _telemetryEnabled; }
+    
+    /// Get SIMD capabilities
+    @property SIMDCapabilities simdCapabilities() { return _simdCapabilities; }
     
     /// Set render mode for UI
     void setRenderMode(RenderMode mode)
@@ -219,7 +265,7 @@ final class BuildServices
         auto handlers = new HandlerRegistry();
         handlers.initialize();
         
-        // Create execution engine
+        // Create execution engine with SIMD capabilities
         return new ExecutionEngine(
             graph,
             _config,
@@ -227,7 +273,8 @@ final class BuildServices
             cacheService,
             observability,
             resilience,
-            handlers
+            handlers,
+            _simdCapabilities
         );
     }
     
@@ -268,6 +315,10 @@ final class BuildServices
         
         // Save telemetry
         saveTelemetry();
+        
+        // Shutdown SIMD capabilities
+        if (_simdCapabilities !is null)
+            _simdCapabilities.shutdown();
     }
 }
 
