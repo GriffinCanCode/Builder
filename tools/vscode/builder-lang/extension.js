@@ -4,12 +4,28 @@ const fs = require('fs');
 const { LanguageClient, TransportKind } = require('vscode-languageclient/node');
 
 let client;
+let statusBarItem;
 
 /**
  * Activate the Builder Language Server extension
  */
 async function activate(context) {
     console.log('Builder Language Server extension activating...');
+
+    // Create status bar button for building (always show, even if LSP isn't available)
+    statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    statusBarItem.command = 'builder.build';
+    // Use package icon - represents building blocks
+    statusBarItem.text = '$(package) Builder';
+    statusBarItem.tooltip = 'Run Builder build';
+    statusBarItem.show();
+    context.subscriptions.push(statusBarItem);
+
+    // Register the build command
+    const buildCommand = vscode.commands.registerCommand('builder.build', async () => {
+        await runBuild();
+    });
+    context.subscriptions.push(buildCommand);
 
     // Check if LSP is enabled
     const config = vscode.workspace.getConfiguration('builder');
@@ -77,12 +93,91 @@ async function activate(context) {
 }
 
 /**
+ * Run Builder build in the workspace
+ */
+async function runBuild() {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+    }
+
+    // Find builder executable
+    const builderExecutable = findBuilderExecutable();
+    if (!builderExecutable) {
+        vscode.window.showErrorMessage('Builder executable not found. Please install Builder first.');
+        return;
+    }
+
+    // Show output channel
+    const outputChannel = vscode.window.createOutputChannel('Builder Build');
+    outputChannel.clear();
+    outputChannel.show(true);
+    outputChannel.appendLine('Running Builder build...');
+    outputChannel.appendLine('');
+
+    // Update status bar to show building
+    if (statusBarItem) {
+        statusBarItem.text = '$(sync~spin) Building...';
+    }
+
+    try {
+        // Run builder command
+        const terminal = vscode.window.createTerminal({
+            name: 'Builder Build',
+            cwd: workspaceFolder.uri.fsPath
+        });
+        terminal.show();
+        terminal.sendText(`${builderExecutable}`);
+
+        if (statusBarItem) {
+            statusBarItem.text = '$(tools) Builder';
+        }
+    } catch (error) {
+        outputChannel.appendLine(`Error: ${error.message}`);
+        vscode.window.showErrorMessage(`Builder build failed: ${error.message}`);
+        if (statusBarItem) {
+            statusBarItem.text = '$(tools) Builder';
+        }
+    }
+}
+
+/**
+ * Find the builder executable
+ */
+function findBuilderExecutable() {
+    // Check if builder is in PATH
+    const pathExecutable = findInPath('builder');
+    if (pathExecutable) {
+        return pathExecutable;
+    }
+
+    // Check common installation locations
+    const commonPaths = [
+        '/usr/local/bin/builder',
+        '/opt/homebrew/bin/builder',
+        path.join(process.env.HOME, '.local', 'bin', 'builder')
+    ];
+
+    for (const commonPath of commonPaths) {
+        if (fs.existsSync(commonPath)) {
+            return commonPath;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Deactivate the extension and stop the language server
  */
 async function deactivate() {
     if (client) {
         console.log('Stopping Builder Language Server...');
         await client.stop();
+    }
+    if (statusBarItem) {
+        statusBarItem.dispose();
     }
 }
 

@@ -1,27 +1,43 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background with gradient -->
+  <!-- Modern gradient background -->
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#5B9FED;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#3B7FCD;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#357ABD;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E5F9E;stop-opacity:1" />
     </linearGradient>
+    <!-- Subtle inner shadow effect -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+      <feOffset dx="0" dy="1" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
   
+  <!-- Background with rounded corners -->
   <rect width="32" height="32" rx="6" fill="url(#bg)"/>
   
-  <!-- Building blocks stacked -->
-  <g transform="translate(6, 6)">
+  <!-- Building blocks stacked with improved spacing and shadows -->
+  <g transform="translate(6, 6)" filter="url(#shadow)">
     <!-- Top block -->
-    <rect x="8" y="0" width="12" height="5" rx="1" fill="#FFFFFF"/>
+    <rect x="8" y="0" width="12" height="5" rx="1.2" fill="#FFFFFF"/>
     
     <!-- Middle left block -->
-    <rect x="0" y="7" width="8" height="5" rx="1" fill="#FFFFFF" opacity="0.85"/>
+    <rect x="0" y="7" width="8" height="5" rx="1.2" fill="#FFFFFF" opacity="0.9"/>
     
     <!-- Middle right block -->
-    <rect x="10" y="7" width="10" height="5" rx="1" fill="#FFFFFF" opacity="0.85"/>
+    <rect x="10" y="7" width="10" height="5" rx="1.2" fill="#FFFFFF" opacity="0.9"/>
     
     <!-- Bottom block -->
-    <rect x="4" y="14" width="16" height="6" rx="1" fill="#FFFFFF"/>
+    <rect x="4" y="14" width="16" height="6" rx="1.2" fill="#FFFFFF"/>
   </g>
+  
+  <!-- Subtle highlight on top edge -->
+  <rect x="0" y="0" width="32" height="2" rx="6" fill="white" opacity="0.15"/>
 </svg>
-
