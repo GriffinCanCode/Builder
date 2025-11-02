@@ -51,7 +51,7 @@ struct KotlinDependency
     string group;
     string artifact;
     string version_;
-    string scope = "implementation";
+    string scope_ = "implementation";
     bool optional = false;
     string[] exclusions;
 }

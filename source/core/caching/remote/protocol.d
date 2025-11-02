@@ -1,6 +1,7 @@
 module core.caching.remote.protocol;
 
 import std.datetime : SysTime, Duration;
+import core.time : seconds;
 import std.conv : to;
 import errors;
 

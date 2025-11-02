@@ -147,6 +147,6 @@ struct KotlinBuildConfig
     bool allWarningsAsErrors = false;
     bool suppressWarnings = false;
     bool verbose = false;
-    bool debug = false;
+    bool debugMode = false;
 }
 

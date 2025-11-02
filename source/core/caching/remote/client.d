@@ -112,7 +112,7 @@ final class RemoteCacheClient
     }
     
     /// Store artifact in remote cache
-    Result!(void, BuildError) put(string contentHash, const(ubyte)[] data) @trusted
+    Result!BuildError put(string contentHash, const(ubyte)[] data) @trusted
     {
         if (!config.enabled())
         {
@@ -120,7 +120,7 @@ final class RemoteCacheClient
                 "Remote cache not configured",
                 ErrorCode.CacheDisabled
             );
-            return Err!(void, BuildError)(error);
+            return Err!BuildError(error);
         }
         
         // Check size limit
@@ -130,7 +130,7 @@ final class RemoteCacheClient
                 "Artifact exceeds maximum size",
                 ErrorCode.CacheTooLarge
             );
-            return Err!(void, BuildError)(error);
+            return Err!BuildError(error);
         }
         
         immutable startTime = Clock.currStdTime();

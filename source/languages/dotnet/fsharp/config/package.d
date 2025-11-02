@@ -6,7 +6,7 @@ module languages.dotnet.fsharp.config;
 /// Each module handles one aspect of F# configuration.
 
 import std.json;
-import analysis.targets.types;
+import config.schema.schema : Target;
 
 public import languages.dotnet.fsharp.config.build;
 public import languages.dotnet.fsharp.config.dependency;

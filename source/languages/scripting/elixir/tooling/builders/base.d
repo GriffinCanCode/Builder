@@ -11,6 +11,14 @@ import config.schema.schema;
 import analysis.targets.types;
 import core.caching.action : ActionCache;
 
+/// Build result structure
+struct ElixirBuildResult
+{
+    bool success;
+    string[] outputs;
+    string[] errors;
+}
+
 /// Base interface for Elixir builders
 interface ElixirBuilder
 {

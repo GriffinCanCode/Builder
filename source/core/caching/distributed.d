@@ -167,14 +167,14 @@ final class DistributedCache
         }
     }
     
-    private Result!(void, BuildError) pullFromRemote(string targetHash, string targetId) @trusted
+    private Result!BuildError pullFromRemote(string targetHash, string targetId) @trusted
     {
         try
         {
             // Fetch artifact from remote
             auto fetchResult = remoteCache.get(targetHash);
             if (fetchResult.isErr)
-                return Err!(void, BuildError)(fetchResult.unwrapErr());
+                return Err!BuildError(fetchResult.unwrapErr());
             
             auto artifactData = fetchResult.unwrap();
             
@@ -187,7 +187,7 @@ final class DistributedCache
             
             write(artifactPath, artifactData);
             
-            return Ok!(void, BuildError)();
+            return Ok!BuildError();
         }
         catch (Exception e)
         {
@@ -195,7 +195,7 @@ final class DistributedCache
                 "Failed to pull from remote cache: " ~ e.msg,
                 ErrorCode.CacheLoadFailed
             );
-            return Err!(void, BuildError)(error);
+            return Err!BuildError(error);
         }
     }
     

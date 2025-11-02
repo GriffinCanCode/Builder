@@ -54,13 +54,13 @@ final class WatchModeService
     }
     
     /// Start watch mode
-    Result!(void, BuildError) start(string target = "") @system
+    Result!BuildError start(string target = "") @system
     {
         // Parse workspace configuration
         auto configResult = ConfigParser.parseWorkspace(_workspaceRoot);
         if (configResult.isErr)
         {
-            return Result!(void, BuildError).err(configResult.unwrapErr());
+            return Result!BuildError.err(configResult.unwrapErr());
         }
         
         _config = configResult.unwrap();
@@ -96,7 +96,7 @@ final class WatchModeService
         
         if (watchResult.isErr)
         {
-            return Result!(void, BuildError).err(watchResult.unwrapErr());
+            return Result!BuildError.err(watchResult.unwrapErr());
         }
         
         // Keep running until interrupted
@@ -105,7 +105,7 @@ final class WatchModeService
             Thread.sleep(100.msecs);
         }
         
-        return Result!(void, BuildError).ok();
+        return Result!BuildError.ok();
     }
     
     /// Stop watch mode

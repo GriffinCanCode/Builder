@@ -54,15 +54,15 @@ final class HttpTransport
     }
     
     /// Execute PUT request
-    Result!(void, BuildError) put(string contentHash, const(ubyte)[] data) @trusted
+    Result!BuildError put(string contentHash, const(ubyte)[] data) @trusted
     {
         immutable path = "/artifacts/" ~ encode(contentHash);
         auto result = executeRequest("PUT", path, data);
         
         if (result.isErr)
-            return Err!(void, BuildError)(result.unwrapErr());
+            return Err!BuildError(result.unwrapErr());
         
-        return Ok!(void, BuildError)();
+        return Ok!BuildError();
     }
     
     /// Execute HEAD request
@@ -87,15 +87,15 @@ final class HttpTransport
     }
     
     /// Execute DELETE request
-    Result!(void, BuildError) remove(string contentHash) @trusted
+    Result!BuildError remove(string contentHash) @trusted
     {
         immutable path = "/artifacts/" ~ encode(contentHash);
         auto result = executeRequest("DELETE", path, null);
         
         if (result.isErr)
-            return Err!(void, BuildError)(result.unwrapErr());
+            return Err!BuildError(result.unwrapErr());
         
-        return Ok!(void, BuildError)();
+        return Ok!BuildError();
     }
     
     private Result!(ubyte[], BuildError) executeRequest(

@@ -6,6 +6,7 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
+import languages.scripting.elixir.tooling.builders.base;
 import languages.scripting.elixir.tooling.builders.mix;
 import languages.scripting.elixir.config;
 import config.schema.schema;

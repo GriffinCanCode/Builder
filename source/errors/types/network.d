@@ -1,18 +1,30 @@
 module errors.types.network;
 
-import errors.base;
+import errors.types.types;
 import errors.handling.codes;
 import errors.types.context;
 
 /// Network communication error
 /// Used for remote cache, HTTP requests, and network-related failures
-final class NetworkError : BuildError
+final class NetworkError : BaseBuildError
 {
     /// Constructor with message
     this(string message, ErrorCode code = ErrorCode.NetworkError,
-         string file = __FILE__, size_t line = __LINE__) @safe
+         string file = __FILE__, size_t line = __LINE__) @trusted
     {
-        super(message, code, ErrorCategory.System, file, line);
+        super(code, message);
+        addContext(ErrorContext("file", file));
+        addContext(ErrorContext("line", line.to!string));
+    }
+    
+    override ErrorCategory category() const pure nothrow
+    {
+        return ErrorCategory.System;
+    }
+    
+    override bool recoverable() const pure nothrow
+    {
+        return false;
     }
     
     /// Add host information
@@ -39,6 +51,7 @@ final class NetworkError : BuildError
     
     private import std.string : format;
     private import std.datetime : Duration;
+    private import std.conv : to;
 }
 
 
