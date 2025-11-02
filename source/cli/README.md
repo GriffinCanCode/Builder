@@ -12,11 +12,20 @@ The CLI package provides an event-driven rendering system for beautiful and info
 - **format.d** - Message formatting and styling
 - **render.d** - Main rendering coordinator
 
+### Interactive Input
+- **input/prompt.d** - Interactive prompts with arrow key navigation
+  - Select menus
+  - Confirmation prompts
+  - Text input
+  - Multi-select with checkboxes
+
 ### Commands
+- **commands/wizard.d** - Interactive project setup wizard
 - **commands/init.d** - Initialize Builderfile with auto-detection
 - **commands/infer.d** - Preview auto-detected targets (dry-run)
 - **commands/telemetry.d** - Build analytics and performance insights
 - **commands/help.d** - Comprehensive help system for all commands
+- **commands/query.d** - Query targets and dependencies
 
 ## Usage
 

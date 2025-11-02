@@ -11,4 +11,5 @@ public import cli.commands.infer;
 public import cli.commands.telemetry;
 public import cli.commands.help;
 public import cli.commands.query;
+public import cli.commands.wizard;
 

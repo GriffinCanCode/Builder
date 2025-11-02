@@ -3,13 +3,34 @@ module cli.commands.help;
 import std.stdio;
 import std.string : toLower;
 import utils.logging.logger;
+import cli.control.terminal;
+import cli.display.format;
+import languages.registry : LanguageCategory, getLanguageCategoryList;
 
 /// Help command - provides detailed documentation for Builder commands
 struct HelpCommand
 {
+    private static Terminal terminal;
+    private static Formatter formatter;
+    private static bool initialized = false;
+    
+    /// Initialize terminal and formatter
+    private static void init()
+    {
+        if (!initialized)
+        {
+            auto caps = Capabilities.detect();
+            terminal = Terminal(caps);
+            formatter = Formatter(caps);
+            initialized = true;
+        }
+    }
+    
     /// Execute the help command
     static void execute(string command = "")
     {
+        init();
+        
         if (command.length == 0)
         {
             showGeneralHelp();
@@ -18,84 +39,232 @@ struct HelpCommand
         {
             showCommandHelp(command.toLower());
         }
+        
+        terminal.flush();
     }
     
     /// Show general help overview
     private static void showGeneralHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                    Builder - Mixed-Language Build System                 ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("Builder is a modern, zero-configuration build system that automatically");
-        writeln("detects and builds projects in multiple languages with intelligent");
-        writeln("dependency management and caching.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder <command> [options] [arguments]");
-        writeln();
+        // Title box
+        string[] titleContent = [
+            "Builder is a modern, zero-configuration build system that automatically",
+            "detects and builds projects in multiple languages with intelligent",
+            "dependency management and caching."
+        ];
+        terminal.writeln(formatter.formatBox("Builder - Mixed-Language Build System", titleContent));
+        terminal.writeln();
         
-        writeln("CORE COMMANDS:");
-        writeln("  build [target]        Build all targets or a specific target");
-        writeln("  resume                Resume a failed build from checkpoint");
-        writeln("  clean                 Remove build artifacts and cache");
-        writeln("  graph [target]        Visualize dependency graph");
-        writeln("  query <expression>    Query targets and dependencies");
-        writeln();
+        // Usage section
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder", Color.Cyan, Style.Bold);
+        terminal.write(" <command> [options] [arguments]");
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("PROJECT SETUP:");
-        writeln("  init                  Initialize Builderfile with auto-detection");
-        writeln("  infer                 Preview auto-detected targets (dry-run)");
-        writeln();
+        // Core commands
+        printSectionHeader("CORE COMMANDS");
+        printCommand("build", "[target]", "Build all targets or a specific target");
+        printCommand("resume", "", "Resume a failed build from checkpoint");
+        printCommand("clean", "", "Remove build artifacts and cache");
+        printCommand("graph", "[target]", "Visualize dependency graph");
+        printCommand("query", "<expression>", "Query targets and dependencies");
+        terminal.writeln();
         
-        writeln("MONITORING & TOOLS:");
-        writeln("  telemetry             View build analytics and performance insights");
-        writeln("  install-extension     Install Builder VS Code extension");
-        writeln();
+        // Project setup
+        printSectionHeader("PROJECT SETUP");
+        printCommand("wizard", "", "Project setup wizard");
+        printCommand("init", "", "Initialize Builderfile with auto-detection");
+        printCommand("infer", "", "Preview auto-detected targets (dry-run)");
+        terminal.writeln();
         
-        writeln("INFORMATION:");
-        writeln("  help [command]        Show detailed help for a command");
-        writeln();
+        // Monitoring & tools
+        printSectionHeader("MONITORING & TOOLS");
+        printCommand("telemetry", "", "View build analytics and performance insights");
+        printCommand("install-extension", "", "Install Builder VS Code extension");
+        terminal.writeln();
         
-        writeln("GLOBAL OPTIONS:");
-        writeln("  -v, --verbose         Enable verbose output");
-        writeln("  -g, --graph           Show dependency graph during build");
-        writeln("  -m, --mode <MODE>     CLI mode: auto, interactive, plain, verbose, quiet");
-        writeln();
+        // Information
+        printSectionHeader("INFORMATION");
+        printCommand("help", "[command]", "Show detailed help for a command");
+        terminal.writeln();
         
-        writeln("ZERO-CONFIG MODE:");
-        writeln("  Builder can automatically detect and build projects without a Builderfile.");
-        writeln("  Simply run 'builder build' in any supported project directory!");
-        writeln();
+        // Global options
+        printSectionHeader("GLOBAL OPTIONS");
+        printOption("-v, --verbose", "Enable verbose output");
+        printOption("-g, --graph", "Show dependency graph during build");
+        printOption("-m, --mode <MODE>", "CLI mode: auto, interactive, plain, verbose, quiet");
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder build                    # Auto-detect and build all targets");
-        writeln("  builder init                     # Create Builderfile from project structure");
-        writeln("  builder build //path/to:target   # Build specific target");
-        writeln("  builder graph                    # Show complete dependency graph");
-        writeln("  builder telemetry                # View build performance analytics");
-        writeln("  builder help build               # Show detailed help for build command");
-        writeln();
+        // Zero-config mode highlight
+        printHighlight("⚡ ZERO-CONFIG MODE", 
+            "Builder can automatically detect and build projects without a Builderfile.\n" ~
+            "  Simply run 'builder build' in any supported project directory!");
+        terminal.writeln();
         
-        writeln("For detailed help on any command, run:");
-        writeln("  builder help <command>");
-        writeln();
+        // Examples
+        printSectionHeader("EXAMPLES");
+        printExample("builder build", "Auto-detect and build all targets");
+        printExample("builder init", "Create Builderfile from project structure");
+        printExample("builder build //path/to:target", "Build specific target");
+        printExample("builder graph", "Show complete dependency graph");
+        printExample("builder telemetry", "View build performance analytics");
+        printExample("builder help build", "Show detailed help for build command");
+        terminal.writeln();
         
-        writeln("SUPPORTED LANGUAGES:");
-        writeln("  Compiled:   C, C++, D, Zig, Rust, Go, Nim");
-        writeln("  JVM:        Java, Kotlin, Scala, Groovy, Clojure");
-        writeln("  .NET:       C#, F#, VB.NET");
-        writeln("  Scripting:  Python, Ruby, Perl, PHP, Lua, R");
-        writeln("  Web:        JavaScript, TypeScript, React, Vue, Angular");
-        writeln();
+        terminal.writeColored("For detailed help on any command, run: ", Color.Cyan);
+        terminal.writeColored("builder help <command>", Color.Yellow, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("DOCUMENTATION:");
-        writeln("  README:     See README.md for getting started");
-        writeln("  Docs:       Check docs/ directory for comprehensive guides");
-        writeln("  Examples:   Explore examples/ directory for sample projects");
-        writeln();
+        // Supported languages - dynamically generated from registry
+        printSectionHeader("SUPPORTED LANGUAGES");
+        printLanguages("Compiled", getLanguageCategoryList(LanguageCategory.Compiled));
+        printLanguages("JVM", getLanguageCategoryList(LanguageCategory.JVM));
+        printLanguages(".NET", getLanguageCategoryList(LanguageCategory.DotNet));
+        printLanguages("Scripting", getLanguageCategoryList(LanguageCategory.Scripting));
+        printLanguages("Web", getLanguageCategoryList(LanguageCategory.Web));
+        terminal.writeln();
+        
+        // Documentation
+        printSectionHeader("DOCUMENTATION");
+        printDocLink("README", "See README.md for getting started");
+        printDocLink("Docs", "Check docs/ directory for comprehensive guides");
+        printDocLink("Examples", "Explore examples/ directory for sample projects");
+        terminal.writeln();
+    }
+    
+    /// Print a section header with styling
+    private static void printSectionHeader(string header)
+    {
+        terminal.writeColored(header ~ ":", Color.Cyan, Style.Bold);
+        terminal.writeln();
+    }
+    
+    /// Print a command with colored formatting
+    private static void printCommand(string cmd, string args, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(cmd, Color.Green, Style.Bold);
+        if (args.length > 0)
+        {
+            terminal.write(" ");
+            terminal.writeColored(args, Color.Yellow);
+        }
+        
+        import std.string : leftJustify;
+        auto padding = 25 - (cmd.length + args.length);
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(description);
+        terminal.writeln();
+    }
+    
+    /// Print an option with colored formatting
+    private static void printOption(string opt, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(opt, Color.Yellow, Style.Bold);
+        
+        import std.string : leftJustify;
+        auto padding = 30 - opt.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(description);
+        terminal.writeln();
+    }
+    
+    /// Print a highlighted section with icon
+    private static void printHighlight(string title, string content)
+    {
+        terminal.writeColored(title, Color.BrightYellow, Style.Bold);
+        terminal.writeln();
+        terminal.writeColored("  " ~ content, Color.Yellow);
+        terminal.writeln();
+    }
+    
+    /// Print an example command
+    private static void printExample(string cmd, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(cmd, Color.BrightCyan, Style.Bold);
+        
+        import std.string : leftJustify;
+        auto padding = 40 - cmd.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.writeColored("# " ~ description, Color.BrightBlack);
+        terminal.writeln();
+    }
+    
+    /// Print language category with languages
+    private static void printLanguages(string category, string languages)
+    {
+        terminal.write("  ");
+        terminal.writeColored(category ~ ":", Color.Magenta, Style.Bold);
+        
+        import std.string : leftJustify;
+        auto padding = 15 - category.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(languages);
+        terminal.writeln();
+    }
+    
+    /// Print documentation link
+    private static void printDocLink(string label, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(label ~ ":", Color.Blue, Style.Bold);
+        
+        import std.string : leftJustify;
+        auto padding = 15 - label.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(description);
+        terminal.writeln();
     }
     
     /// Show help for a specific command
@@ -118,6 +287,9 @@ struct HelpCommand
             case "query":
                 showQueryHelp();
                 break;
+            case "wizard":
+                showWizardHelp();
+                break;
             case "init":
                 showInitHelp();
                 break;
@@ -135,562 +307,632 @@ struct HelpCommand
                 break;
             default:
                 Logger.error("Unknown command: " ~ command);
-                writeln("Run 'builder help' to see available commands.");
+                terminal.write("Run ");
+                terminal.writeColored("'builder help'", Color.Cyan, Style.Bold);
+                terminal.write(" to see available commands.");
+                terminal.writeln();
         }
     }
     
     private static void showBuildHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                           builder build [target]                          ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Build all targets in the workspace or a specific target. Builder");
-        writeln("  automatically detects project structure and builds without configuration.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder build [options] [target]");
-        writeln();
+        string[] description = [
+            "Build all targets in the workspace or a specific target. Builder",
+            "automatically detects project structure and builds without configuration."
+        ];
+        terminal.writeln(formatter.formatBox("builder build [target]", description));
+        terminal.writeln();
         
-        writeln("OPTIONS:");
-        writeln("  -v, --verbose         Show detailed build output");
-        writeln("  -g, --graph           Display dependency graph before building");
-        writeln("  -m, --mode <MODE>     Set CLI rendering mode");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder build", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[options]", Color.Yellow);
+        terminal.write(" ");
+        terminal.writeColored("[target]", Color.Green);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("RENDER MODES:");
-        writeln("  auto                  Auto-detect best mode (default)");
-        writeln("  interactive           Rich, real-time progress display");
-        writeln("  plain                 Simple text output for CI/CD");
-        writeln("  verbose               Detailed output with all commands");
-        writeln("  quiet                 Minimal output (errors only)");
-        writeln();
+        printSectionHeader("OPTIONS");
+        printOption("-v, --verbose", "Show detailed build output");
+        printOption("-g, --graph", "Display dependency graph before building");
+        printOption("-m, --mode <MODE>", "Set CLI rendering mode");
+        terminal.writeln();
         
-        writeln("TARGET SYNTAX:");
-        writeln("  //path/to:target      Absolute target reference");
-        writeln("  :target               Target in current directory");
-        writeln("  //path/to:*           All targets in directory");
-        writeln();
+        printSectionHeader("RENDER MODES");
+        printRenderMode("auto", "Auto-detect best mode (default)");
+        printRenderMode("interactive", "Rich, real-time progress display");
+        printRenderMode("plain", "Simple text output for CI/CD");
+        printRenderMode("verbose", "Detailed output with all commands");
+        printRenderMode("quiet", "Minimal output (errors only)");
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder build                    # Build all targets");
-        writeln("  builder build -v                 # Build with verbose output");
-        writeln("  builder build --graph            # Show graph, then build");
-        writeln("  builder build //src:myapp        # Build specific target");
-        writeln("  builder build -m plain           # Use plain mode for CI");
-        writeln("  builder build -m interactive     # Rich interactive mode");
-        writeln();
+        printSectionHeader("TARGET SYNTAX");
+        printTargetSyntax("//path/to:target", "Absolute target reference");
+        printTargetSyntax(":target", "Target in current directory");
+        printTargetSyntax("//path/to:*", "All targets in directory");
+        terminal.writeln();
         
-        writeln("ZERO-CONFIG:");
-        writeln("  If no Builderfile exists, Builder will:");
-        writeln("  1. Scan the project directory");
-        writeln("  2. Detect languages and frameworks");
-        writeln("  3. Infer build targets automatically");
-        writeln("  4. Build without any configuration!");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder build", "Build all targets");
+        printExample("builder build -v", "Build with verbose output");
+        printExample("builder build --graph", "Show graph, then build");
+        printExample("builder build //src:myapp", "Build specific target");
+        printExample("builder build -m plain", "Use plain mode for CI");
+        printExample("builder build -m interactive", "Rich interactive mode");
+        terminal.writeln();
         
-        writeln("FEATURES:");
-        writeln("  • Parallel builds with intelligent scheduling");
-        writeln("  • BLAKE3-based content hashing for fast caching");
-        writeln("  • Automatic checkpoint creation for recovery");
-        writeln("  • Build telemetry and performance tracking");
-        writeln("  • Multi-language and mixed-language projects");
-        writeln();
+        printSectionHeader("ZERO-CONFIG");
+        terminal.write("  If no Builderfile exists, Builder will:");
+        terminal.writeln();
+        printListItem("Scan the project directory");
+        printListItem("Detect languages and frameworks");
+        printListItem("Infer build targets automatically");
+        printListItem("Build without any configuration!");
+        terminal.writeln();
         
-        writeln("SEE ALSO:");
-        writeln("  builder resume        Resume from checkpoint");
-        writeln("  builder graph         Visualize dependencies");
-        writeln("  builder telemetry     View build analytics");
-        writeln();
+        printSectionHeader("FEATURES");
+        printFeature("Parallel builds with intelligent scheduling");
+        printFeature("BLAKE3-based content hashing for fast caching");
+        printFeature("Automatic checkpoint creation for recovery");
+        printFeature("Build telemetry and performance tracking");
+        printFeature("Multi-language and mixed-language projects");
+        terminal.writeln();
+        
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder resume", "Resume from checkpoint");
+        printSeeAlso("builder graph", "Visualize dependencies");
+        printSeeAlso("builder telemetry", "View build analytics");
+        terminal.writeln();
+    }
+    
+    /// Print a render mode option
+    private static void printRenderMode(string mode, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(mode, Color.Magenta, Style.Bold);
+        
+        auto padding = 20 - mode.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(description);
+        terminal.writeln();
+    }
+    
+    /// Print a target syntax example
+    private static void printTargetSyntax(string syntax, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(syntax, Color.Green, Style.Bold);
+        
+        auto padding = 25 - syntax.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(description);
+        terminal.writeln();
+    }
+    
+    /// Print a numbered list item
+    private static void printListItem(string text)
+    {
+        terminal.write("  ");
+        terminal.writeColored("•", Color.Cyan);
+        terminal.write(" ");
+        terminal.write(text);
+        terminal.writeln();
+    }
+    
+    /// Print a feature with bullet point
+    private static void printFeature(string text)
+    {
+        terminal.write("  ");
+        terminal.writeColored("✓", Color.Green);
+        terminal.write(" ");
+        terminal.write(text);
+        terminal.writeln();
+    }
+    
+    /// Print a "see also" reference
+    private static void printSeeAlso(string cmd, string description)
+    {
+        terminal.write("  ");
+        terminal.writeColored(cmd, Color.BrightCyan, Style.Bold);
+        
+        auto padding = 25 - cmd.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.write(description);
+        terminal.writeln();
     }
     
     private static void showResumeHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                             builder resume                                ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Resume a failed build from the last checkpoint. Builder automatically");
-        writeln("  saves checkpoints during builds, allowing you to continue from where");
-        writeln("  a build failed without rebuilding already-completed targets.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder resume [options]");
-        writeln();
+        string[] description = [
+            "Resume a failed build from the last checkpoint. Builder automatically",
+            "saves checkpoints during builds, allowing you to continue from where",
+            "a build failed without rebuilding already-completed targets."
+        ];
+        terminal.writeln(formatter.formatBox("builder resume", description));
+        terminal.writeln();
         
-        writeln("OPTIONS:");
-        writeln("  -m, --mode <MODE>     Set CLI rendering mode");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder resume", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[options]", Color.Yellow);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("HOW IT WORKS:");
-        writeln("  1. Builder saves a checkpoint after each successful target build");
-        writeln("  2. If a build fails, the checkpoint is preserved");
-        writeln("  3. 'builder resume' loads the checkpoint and continues from there");
-        writeln("  4. Completed targets are skipped automatically");
-        writeln();
+        printSectionHeader("OPTIONS");
+        printOption("-m, --mode <MODE>", "Set CLI rendering mode");
+        terminal.writeln();
         
-        writeln("CHECKPOINT VALIDATION:");
-        writeln("  Builder validates that:");
-        writeln("  • Project structure hasn't changed significantly");
-        writeln("  • Target dependencies remain the same");
-        writeln("  • Checkpoint is compatible with current configuration");
-        writeln();
+        printSectionHeader("HOW IT WORKS");
+        terminal.write("  ");
+        terminal.writeColored("1.", Color.BrightCyan);
+        terminal.write(" Builder saves a checkpoint after each successful target build");
+        terminal.writeln();
+        terminal.write("  ");
+        terminal.writeColored("2.", Color.BrightCyan);
+        terminal.write(" If a build fails, the checkpoint is preserved");
+        terminal.writeln();
+        terminal.write("  ");
+        terminal.writeColored("3.", Color.BrightCyan);
+        terminal.write(" 'builder resume' loads the checkpoint and continues from there");
+        terminal.writeln();
+        terminal.write("  ");
+        terminal.writeColored("4.", Color.BrightCyan);
+        terminal.write(" Completed targets are skipped automatically");
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder resume                   # Resume last failed build");
-        writeln("  builder resume -m verbose        # Resume with detailed output");
-        writeln();
+        printSectionHeader("CHECKPOINT VALIDATION");
+        terminal.write("  Builder validates that:");
+        terminal.writeln();
+        printFeature("Project structure hasn't changed significantly");
+        printFeature("Target dependencies remain the same");
+        printFeature("Checkpoint is compatible with current configuration");
+        terminal.writeln();
         
-        writeln("NOTES:");
-        writeln("  • Checkpoints are stored in .builder-cache/");
-        writeln("  • Use 'builder clean' to remove checkpoints");
-        writeln("  • Checkpoints are automatically invalidated when dependencies change");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder resume", "Resume last failed build");
+        printExample("builder resume -m verbose", "Resume with detailed output");
+        terminal.writeln();
         
-        writeln("SEE ALSO:");
-        writeln("  builder build         Start a new build");
-        writeln("  builder clean         Remove cache and checkpoints");
-        writeln();
+        printSectionHeader("NOTES");
+        printListItem("Checkpoints are stored in .builder-cache/");
+        printListItem("Use 'builder clean' to remove checkpoints");
+        printListItem("Checkpoints are automatically invalidated when dependencies change");
+        terminal.writeln();
+        
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder build", "Start a new build");
+        printSeeAlso("builder clean", "Remove cache and checkpoints");
+        terminal.writeln();
     }
     
     private static void showCleanHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                             builder clean                                 ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Remove all build artifacts, cache files, and checkpoints. This forces");
-        writeln("  a complete rebuild on the next build command.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder clean");
-        writeln();
+        string[] description = [
+            "Remove all build artifacts, cache files, and checkpoints. This forces",
+            "a complete rebuild on the next build command."
+        ];
+        terminal.writeln(formatter.formatBox("builder clean", description));
+        terminal.writeln();
         
-        writeln("WHAT GETS REMOVED:");
-        writeln("  .builder-cache/       Build cache and checkpoints");
-        writeln("  bin/                  Compiled binaries and artifacts");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder clean", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("WHEN TO USE:");
-        writeln("  • After major project restructuring");
-        writeln("  • To free up disk space");
-        writeln("  • When cache appears corrupted");
-        writeln("  • To force complete rebuild");
-        writeln("  • When checkpoint validation fails");
-        writeln();
+        printSectionHeader("WHAT GETS REMOVED");
+        terminal.write("  ");
+        terminal.writeColored(".builder-cache/", Color.Yellow, Style.Bold);
+        terminal.write("       Build cache and checkpoints");
+        terminal.writeln();
+        terminal.write("  ");
+        terminal.writeColored("bin/", Color.Yellow, Style.Bold);
+        terminal.write("                  Compiled binaries and artifacts");
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder clean                    # Clean everything");
-        writeln("  builder clean && builder build   # Clean then rebuild");
-        writeln();
+        printSectionHeader("WHEN TO USE");
+        printFeature("After major project restructuring");
+        printFeature("To free up disk space");
+        printFeature("When cache appears corrupted");
+        printFeature("To force complete rebuild");
+        printFeature("When checkpoint validation fails");
+        terminal.writeln();
         
-        writeln("NOTES:");
-        writeln("  • Source files are never touched");
-        writeln("  • Telemetry data is preserved");
-        writeln("  • Operation cannot be undone");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder clean", "Clean everything");
+        printExample("builder clean && builder build", "Clean then rebuild");
+        terminal.writeln();
+        
+        printSectionHeader("NOTES");
+        printListItem("Source files are never touched");
+        printListItem("Telemetry data is preserved");
+        printListItem("Operation cannot be undone");
+        terminal.writeln();
     }
     
     private static void showGraphHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                           builder graph [target]                          ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Visualize the dependency graph for all targets or a specific target.");
-        writeln("  Shows build order, dependencies, and target relationships.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder graph [target]");
-        writeln();
+        string[] description = [
+            "Visualize the dependency graph for all targets or a specific target.",
+            "Shows build order, dependencies, and target relationships."
+        ];
+        terminal.writeln(formatter.formatBox("builder graph [target]", description));
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder graph                    # Show complete dependency graph");
-        writeln("  builder graph //src:myapp        # Show dependencies for specific target");
-        writeln("  builder graph :lib               # Show dependencies for local target");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder graph", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[target]", Color.Green);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("GRAPH OUTPUT INCLUDES:");
-        writeln("  • Target names and types");
-        writeln("  • Dependency relationships");
-        writeln("  • Build order (topological sort)");
-        writeln("  • Parallel build opportunities");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder graph", "Show complete dependency graph");
+        printExample("builder graph //src:myapp", "Show dependencies for specific target");
+        printExample("builder graph :lib", "Show dependencies for local target");
+        terminal.writeln();
         
-        writeln("USE CASES:");
-        writeln("  • Understanding project structure");
-        writeln("  • Debugging build issues");
-        writeln("  • Identifying circular dependencies");
-        writeln("  • Planning incremental builds");
-        writeln("  • Optimizing build parallelization");
-        writeln();
+        printSectionHeader("GRAPH OUTPUT INCLUDES");
+        printFeature("Target names and types");
+        printFeature("Dependency relationships");
+        printFeature("Build order (topological sort)");
+        printFeature("Parallel build opportunities");
+        terminal.writeln();
         
-        writeln("NOTES:");
-        writeln("  • Graph generation is fast and doesn't build anything");
-        writeln("  • Works with both Builderfile and zero-config projects");
-        writeln("  • Can be combined with build: 'builder build --graph'");
-        writeln();
+        printSectionHeader("USE CASES");
+        printFeature("Understanding project structure");
+        printFeature("Debugging build issues");
+        printFeature("Identifying circular dependencies");
+        printFeature("Planning incremental builds");
+        printFeature("Optimizing build parallelization");
+        terminal.writeln();
         
-        writeln("SEE ALSO:");
-        writeln("  builder build --graph    Show graph before building");
-        writeln("  builder infer            Preview auto-detected targets");
-        writeln("  builder query            Query targets and dependencies");
-        writeln();
+        printSectionHeader("NOTES");
+        printListItem("Graph generation is fast and doesn't build anything");
+        printListItem("Works with both Builderfile and zero-config projects");
+        printListItem("Can be combined with build: 'builder build --graph'");
+        terminal.writeln();
+        
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder build --graph", "Show graph before building");
+        printSeeAlso("builder infer", "Preview auto-detected targets");
+        printSeeAlso("builder query", "Query targets and dependencies");
+        terminal.writeln();
     }
     
     private static void showQueryHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                        builder query <expression>                         ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Execute powerful graph queries to explore target relationships,");
-        writeln("  dependencies, and project structure. Similar to Bazel query.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder query '<expression>'");
-        writeln();
+        string[] description = [
+            "Execute powerful graph queries to explore target relationships,",
+            "dependencies, and project structure. Similar to Bazel query."
+        ];
+        terminal.writeln(formatter.formatBox("builder query <expression>", description));
+        terminal.writeln();
         
-        writeln("QUERY SYNTAX:");
-        writeln("  //...                    All targets in the workspace");
-        writeln("  //path/...               All targets under path");
-        writeln("  //path:target            Specific target");
-        writeln("  //path:*                 All targets in directory");
-        writeln();
-        writeln("  deps(expr)               Direct dependencies of expr");
-        writeln("  deps(expr, depth)        Dependencies up to depth levels");
-        writeln("  rdeps(expr)              Reverse deps (what depends on expr)");
-        writeln("  allpaths(from, to)       All paths between two targets");
-        writeln("  kind(type, expr)         Filter by target type");
-        writeln("  attr(name, value, expr)  Filter by attribute");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder query", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("'<expression>'", Color.Yellow);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder query '//...'");
-        writeln("    # List all targets");
-        writeln();
-        writeln("  builder query 'deps(//src:app)'");
-        writeln("    # Show all dependencies of //src:app");
-        writeln();
-        writeln("  builder query 'deps(//src:app, 1)'");
-        writeln("    # Show only direct dependencies");
-        writeln();
-        writeln("  builder query 'rdeps(//lib:utils)'");
-        writeln("    # Show what depends on //lib:utils");
-        writeln();
-        writeln("  builder query 'kind(binary, //...)'");
-        writeln("    # Find all binary targets");
-        writeln();
-        writeln("  builder query 'allpaths(//src:app, //lib:core)'");
-        writeln("    # Show all dependency paths from app to core");
-        writeln();
+        printSectionHeader("QUERY SYNTAX");
+        printTargetSyntax("//...", "All targets in the workspace");
+        printTargetSyntax("//path/...", "All targets under path");
+        printTargetSyntax("//path:target", "Specific target");
+        printTargetSyntax("//path:*", "All targets in directory");
+        terminal.writeln();
+        printTargetSyntax("deps(expr)", "Direct dependencies of expr");
+        printTargetSyntax("deps(expr, depth)", "Dependencies up to depth levels");
+        printTargetSyntax("rdeps(expr)", "Reverse deps (what depends on expr)");
+        printTargetSyntax("allpaths(from, to)", "All paths between two targets");
+        printTargetSyntax("kind(type, expr)", "Filter by target type");
+        printTargetSyntax("attr(name, value, expr)", "Filter by attribute");
+        terminal.writeln();
         
-        writeln("TARGET TYPES:");
-        writeln("  binary, library, test, custom, and language-specific types");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder query '//...'", "List all targets");
+        printExample("builder query 'deps(//src:app)'", "Show all dependencies");
+        printExample("builder query 'deps(//src:app, 1)'", "Show only direct dependencies");
+        printExample("builder query 'rdeps(//lib:utils)'", "Show what depends on utils");
+        printExample("builder query 'kind(binary, //...)'", "Find all binary targets");
+        terminal.writeln();
         
-        writeln("USE CASES:");
-        writeln("  • Explore dependency relationships");
-        writeln("  • Find unused targets (no rdeps)");
-        writeln("  • Identify build bottlenecks");
-        writeln("  • Analyze impact of changes");
-        writeln("  • Audit target types and structure");
-        writeln("  • Debug circular dependencies");
-        writeln();
+        printSectionHeader("USE CASES");
+        printFeature("Explore dependency relationships");
+        printFeature("Find unused targets (no rdeps)");
+        printFeature("Identify build bottlenecks");
+        printFeature("Analyze impact of changes");
+        printFeature("Debug circular dependencies");
+        terminal.writeln();
         
-        writeln("NOTES:");
-        writeln("  • Query expressions should be quoted in shell");
-        writeln("  • Queries are fast - only analyze graph, don't build");
-        writeln("  • Works with both Builderfile and zero-config projects");
-        writeln("  • Results are sorted alphabetically");
-        writeln();
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder graph", "Visualize full dependency graph");
+        printSeeAlso("builder infer", "Preview auto-detected targets");
+        terminal.writeln();
+    }
+    
+    private static void showWizardHelp()
+    {
+        terminal.writeln();
         
-        writeln("SEE ALSO:");
-        writeln("  builder graph            Visualize full dependency graph");
-        writeln("  builder infer            Preview auto-detected targets");
-        writeln();
+        string[] description = [
+            "Interactive wizard for setting up a Builder project. Guides you through",
+            "language selection, project structure, and configuration options."
+        ];
+        terminal.writeln(formatter.formatBox("builder wizard", description));
+        terminal.writeln();
+        
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder wizard", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
+        
+        printSectionHeader("WHAT IT DOES");
+        terminal.write("  The wizard will:");
+        terminal.writeln();
+        printFeature("Auto-detect existing project structure");
+        printFeature("Ask about language and framework");
+        printFeature("Configure project structure type");
+        printFeature("Set up package manager preferences");
+        printFeature("Enable/disable caching and remote execution");
+        printFeature("Generate Builderfile, Builderspace, and .builderignore");
+        terminal.writeln();
+        
+        printSectionHeader("INTERACTIVE FEATURES");
+        printFeature("Arrow key navigation for selections");
+        printFeature("Smart defaults based on detection");
+        printFeature("Vim-style shortcuts (j/k for navigation)");
+        printFeature("Confirmation before overwriting existing files");
+        terminal.writeln();
+        
+        printSectionHeader("EXAMPLES");
+        printExample("builder wizard", "Start interactive setup");
+        printExample("cd my-project && builder wizard", "Set up specific project");
+        terminal.writeln();
+        
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder init", "Non-interactive initialization");
+        printSeeAlso("builder infer", "Preview auto-detection");
+        terminal.writeln();
     }
     
     private static void showInitHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                              builder init                                 ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Initialize a new Builder project by creating a Builderfile, Builderspace,");
-        writeln("  and .builderignore based on automatic project detection.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder init [options]");
-        writeln();
+        string[] description = [
+            "Initialize a new Builder project by creating a Builderfile, Builderspace,",
+            "and .builderignore based on automatic project detection."
+        ];
+        terminal.writeln(formatter.formatBox("builder init", description));
+        terminal.writeln();
         
-        writeln("GENERATED FILES:");
-        writeln("  Builderfile           Build configuration with detected targets");
-        writeln("  Builderspace          Workspace-level configuration");
-        writeln("  .builderignore        Patterns to exclude from scanning");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder init", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[options]", Color.Yellow);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("DETECTION FEATURES:");
-        writeln("  • Automatic language detection (20+ languages)");
-        writeln("  • Framework detection (React, Vue, Spring Boot, etc.)");
-        writeln("  • Manifest file parsing (package.json, Cargo.toml, etc.)");
-        writeln("  • Dependency inference");
-        writeln("  • Project structure analysis");
-        writeln();
+        printSectionHeader("GENERATED FILES");
+        printDocLink("Builderfile", "Build configuration with detected targets");
+        printDocLink("Builderspace", "Workspace-level configuration");
+        printDocLink(".builderignore", "Patterns to exclude from scanning");
+        terminal.writeln();
         
-        writeln("WHAT HAPPENS:");
-        writeln("  1. Scans project directory recursively");
-        writeln("  2. Detects languages and confidence levels");
-        writeln("  3. Identifies frameworks and tools");
-        writeln("  4. Generates appropriate build targets");
-        writeln("  5. Creates .builderignore with language-specific patterns");
-        writeln("  6. Shows preview of generated files");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder init", "Initialize in current directory");
+        printExample("cd my-project && builder init", "Initialize in specific directory");
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder init                     # Initialize in current directory");
-        writeln("  cd my-project && builder init    # Initialize in specific directory");
-        writeln();
-        
-        writeln("AFTER INITIALIZATION:");
-        writeln("  1. Review and customize the generated Builderfile");
-        writeln("  2. Adjust .builderignore if needed");
-        writeln("  3. Run 'builder build' to build your project");
-        writeln();
-        
-        writeln("NOTES:");
-        writeln("  • Existing files are not overwritten");
-        writeln("  • Use --force flag to overwrite (if implemented)");
-        writeln("  • Generated files are meant to be edited");
-        writeln();
-        
-        writeln("SEE ALSO:");
-        writeln("  builder infer         Preview detection without creating files");
-        writeln("  builder build         Build after initialization");
-        writeln();
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder wizard", "Interactive setup with guided prompts");
+        printSeeAlso("builder infer", "Preview detection without creating files");
+        printSeeAlso("builder build", "Build after initialization");
+        terminal.writeln();
     }
     
     private static void showInferHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                             builder infer                                 ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Preview what targets would be automatically detected and inferred from");
-        writeln("  your project structure without creating any files. This is a dry-run");
-        writeln("  of Builder's zero-config detection system.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder infer");
-        writeln();
+        string[] description = [
+            "Preview what targets would be automatically detected and inferred from",
+            "your project structure without creating any files. Dry-run of zero-config."
+        ];
+        terminal.writeln(formatter.formatBox("builder infer", description));
+        terminal.writeln();
         
-        writeln("OUTPUT SHOWS:");
-        writeln("  • Detected target names and types");
-        writeln("  • Programming languages");
-        writeln("  • Source files for each target");
-        writeln("  • Language-specific configuration");
-        writeln("  • Build commands that would be used");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder infer", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("USE CASES:");
-        writeln("  • Verify Builder can detect your project");
-        writeln("  • See what targets would be created");
-        writeln("  • Compare detection with manual Builderfile");
-        writeln("  • Debug detection issues");
-        writeln("  • Understand zero-config behavior");
-        writeln();
+        printSectionHeader("OUTPUT SHOWS");
+        printFeature("Detected target names and types");
+        printFeature("Programming languages");
+        printFeature("Source files for each target");
+        printFeature("Language-specific configuration");
+        printFeature("Build commands that would be used");
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder infer                    # Show inferred targets");
-        writeln("  builder infer > targets.txt      # Save to file");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder infer", "Show inferred targets");
+        printExample("builder infer > targets.txt", "Save to file");
+        terminal.writeln();
         
-        writeln("NEXT STEPS:");
-        writeln("  builder build         Build using auto-detected targets");
-        writeln("  builder init          Create Builderfile from inference");
-        writeln();
-        
-        writeln("NOTES:");
-        writeln("  • No files are created or modified");
-        writeln("  • Results show what 'builder build' would use");
-        writeln("  • Helps verify project is compatible with zero-config");
-        writeln();
-        
-        writeln("SEE ALSO:");
-        writeln("  builder init          Generate Builderfile from detection");
-        writeln("  builder build         Build using zero-config");
-        writeln();
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder wizard", "Interactive setup wizard");
+        printSeeAlso("builder init", "Generate Builderfile from detection");
+        printSeeAlso("builder build", "Build using zero-config");
+        terminal.writeln();
     }
     
     private static void showTelemetryHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                          builder telemetry [cmd]                          ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  View build analytics, performance insights, and telemetry data collected");
-        writeln("  during builds. Helps identify bottlenecks and track build performance");
-        writeln("  over time.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder telemetry [subcommand]");
-        writeln();
+        string[] description = [
+            "View build analytics, performance insights, and telemetry data collected",
+            "during builds. Helps identify bottlenecks and track build performance."
+        ];
+        terminal.writeln(formatter.formatBox("builder telemetry [cmd]", description));
+        terminal.writeln();
         
-        writeln("SUBCOMMANDS:");
-        writeln("  summary               Comprehensive analytics report (default)");
-        writeln("  recent [n]            Show last n builds (default: 10)");
-        writeln("  export                Export data as JSON");
-        writeln("  clear                 Remove all telemetry data");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder telemetry", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[subcommand]", Color.Yellow);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("SUMMARY METRICS:");
-        writeln("  • Total builds and success rate");
-        writeln("  • Average build duration");
-        writeln("  • Cache hit rates");
-        writeln("  • Slowest targets and bottlenecks");
-        writeln("  • Performance trends");
-        writeln("  • Regression detection");
-        writeln();
+        printSectionHeader("SUBCOMMANDS");
+        printCommand("summary", "", "Comprehensive analytics report (default)");
+        printCommand("recent", "[n]", "Show last n builds (default: 10)");
+        printCommand("export", "", "Export data as JSON");
+        printCommand("clear", "", "Remove all telemetry data");
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder telemetry                # Show summary");
-        writeln("  builder telemetry recent 20      # Show last 20 builds");
-        writeln("  builder telemetry export > data.json");
-        writeln("  builder telemetry clear          # Remove all data");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder telemetry", "Show summary");
+        printExample("builder telemetry recent 20", "Show last 20 builds");
+        printExample("builder telemetry export > data.json", "Export to file");
+        printExample("builder telemetry clear", "Remove all data");
+        terminal.writeln();
         
-        writeln("DATA COLLECTION:");
-        writeln("  • Build duration and timestamps");
-        writeln("  • Target execution times");
-        writeln("  • Cache hit/miss statistics");
-        writeln("  • Success/failure rates");
-        writeln("  • System resource usage");
-        writeln();
+        printSectionHeader("PRIVACY");
+        printListItem("All data stored locally in .builder-cache/telemetry/");
+        printListItem("No data sent to external servers");
+        printListItem("Can be disabled in workspace configuration");
+        terminal.writeln();
         
-        writeln("PRIVACY:");
-        writeln("  • All data stored locally in .builder-cache/telemetry/");
-        writeln("  • No data sent to external servers");
-        writeln("  • Can be disabled in workspace configuration");
-        writeln();
-        
-        writeln("USE CASES:");
-        writeln("  • Identify build bottlenecks");
-        writeln("  • Track build performance over time");
-        writeln("  • Detect performance regressions");
-        writeln("  • Optimize build configurations");
-        writeln("  • Generate build reports for CI/CD");
-        writeln();
-        
-        writeln("SEE ALSO:");
-        writeln("  builder build         Builds collect telemetry data");
-        writeln("  builder clean         Does NOT clear telemetry");
-        writeln();
+        printSectionHeader("SEE ALSO");
+        printSeeAlso("builder build", "Builds collect telemetry data");
+        terminal.writeln();
     }
     
     private static void showInstallExtensionHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                      builder install-extension                            ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Install the Builder VS Code extension for syntax highlighting,");
-        writeln("  autocompletion, and other IDE features for Builderfile editing.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder install-extension");
-        writeln();
+        string[] description = [
+            "Install the Builder VS Code extension for syntax highlighting,",
+            "autocompletion, and other IDE features for Builderfile editing."
+        ];
+        terminal.writeln(formatter.formatBox("builder install-extension", description));
+        terminal.writeln();
         
-        writeln("FEATURES:");
-        writeln("  • Syntax highlighting for Builderfile and Builderspace");
-        writeln("  • Code completion for target types and commands");
-        writeln("  • Validation and error checking");
-        writeln("  • Snippets for common patterns");
-        writeln("  • Documentation on hover");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder install-extension", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("REQUIREMENTS:");
-        writeln("  • Visual Studio Code must be installed");
-        writeln("  • 'code' command must be available in PATH");
-        writeln();
+        printSectionHeader("FEATURES");
+        printFeature("Syntax highlighting for Builderfile and Builderspace");
+        printFeature("Code completion for target types and commands");
+        printFeature("Validation and error checking");
+        printFeature("Snippets for common patterns");
+        printFeature("Documentation on hover");
+        terminal.writeln();
         
-        writeln("WHAT IT DOES:");
-        writeln("  1. Locates the Builder extension package");
-        writeln("  2. Verifies VS Code installation");
-        writeln("  3. Installs extension using VS Code CLI");
-        writeln("  4. Confirms successful installation");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder install-extension", "Install VS Code extension");
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder install-extension        # Install VS Code extension");
-        writeln();
-        
-        writeln("MANUAL INSTALLATION:");
-        writeln("  If automatic installation fails:");
-        writeln("  1. Locate tools/vscode/builder-lang-*.vsix");
-        writeln("  2. Open VS Code");
-        writeln("  3. Go to Extensions view");
-        writeln("  4. Click '...' menu → Install from VSIX");
-        writeln("  5. Select the .vsix file");
-        writeln();
-        
-        writeln("NOTES:");
-        writeln("  • Requires VS Code 1.60.0 or higher");
-        writeln("  • Extension updates must be installed manually");
-        writeln();
+        printSectionHeader("NOTES");
+        printListItem("Requires VS Code 1.60.0 or higher");
+        printListItem("Extension updates must be installed manually");
+        terminal.writeln();
     }
     
     private static void showHelpHelp()
     {
-        writeln();
-        writeln("╔══════════════════════════════════════════════════════════════════════════╗");
-        writeln("║                          builder help [command]                           ║");
-        writeln("╚══════════════════════════════════════════════════════════════════════════╝");
-        writeln();
-        writeln("DESCRIPTION:");
-        writeln("  Display help information for Builder commands.");
-        writeln();
+        terminal.writeln();
         
-        writeln("USAGE:");
-        writeln("  builder help [command]");
-        writeln();
+        string[] description = [
+            "Display help information for Builder commands."
+        ];
+        terminal.writeln(formatter.formatBox("builder help [command]", description));
+        terminal.writeln();
         
-        writeln("EXAMPLES:");
-        writeln("  builder help                     # Show general help");
-        writeln("  builder help build               # Help for build command");
-        writeln("  builder help telemetry           # Help for telemetry command");
-        writeln();
+        printSectionHeader("USAGE");
+        terminal.writeColored("  builder help", Color.Cyan, Style.Bold);
+        terminal.write(" ");
+        terminal.writeColored("[command]", Color.Yellow);
+        terminal.writeln();
+        terminal.writeln();
         
-        writeln("AVAILABLE COMMANDS:");
-        writeln("  build, resume, clean, graph, query, init, infer, telemetry,");
-        writeln("  install-extension, help");
-        writeln();
+        printSectionHeader("EXAMPLES");
+        printExample("builder help", "Show general help");
+        printExample("builder help build", "Help for build command");
+        printExample("builder help telemetry", "Help for telemetry command");
+        terminal.writeln();
+        
+        printSectionHeader("AVAILABLE COMMANDS");
+        terminal.write("  ");
+        terminal.writeColored("build", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("resume", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("clean", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("graph", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("query", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("wizard", Color.Green);
+        terminal.writeln();
+        terminal.write("  ");
+        terminal.writeColored("init", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("infer", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("telemetry", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("install-extension", Color.Green);
+        terminal.write(", ");
+        terminal.writeColored("help", Color.Green);
+        terminal.writeln();
+        terminal.writeln();
     }
 }
 

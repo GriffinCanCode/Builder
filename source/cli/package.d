@@ -10,6 +10,7 @@ module cli;
 ///   stream.d    - Multi-stream output management
 ///   format.d    - Message formatting & styling
 ///   render.d    - Main rendering coordinator
+///   input.d     - Interactive prompts & user input
 ///
 /// Usage:
 ///   auto renderer = RendererFactory.create();
@@ -23,4 +24,5 @@ public import cli.output.progress;
 public import cli.output.stream;
 public import cli.display.format;
 public import cli.display.render;
+public import cli.input;
 
