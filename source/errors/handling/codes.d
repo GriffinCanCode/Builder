@@ -41,6 +41,7 @@ enum ErrorCode
     MissingField,
     InvalidFieldValue,
     InvalidGlob,
+    InvalidConfiguration,
     
     // Analysis errors (3000-3999)
     AnalysisFailed = 3000,
@@ -84,6 +85,8 @@ enum ErrorCode
     ValidationFailed,
     UnsupportedLanguage,
     MissingCompiler,
+    MacroExpansionFailed,
+    MacroLoadFailed,
     
     // System errors (8000-8999)
     ProcessSpawnFailed = 8000,

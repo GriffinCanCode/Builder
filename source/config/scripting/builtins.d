@@ -309,7 +309,9 @@ private Result!(Value, BuildError) builtinGlob(Value[] args) @system
     try
     {
         auto pattern = args[0].asString();
-        auto files = expandGlob(pattern);
+        import utils.files.glob : GlobMatcher;
+        import std.file : getcwd;
+        auto files = GlobMatcher.match([pattern], getcwd());
         auto result = files.map!(f => Value.makeString(f)).array;
         return ok(Value.makeArray(result));
     }

@@ -153,9 +153,11 @@ Target[] generateTargets(T)(T[] items, Target delegate(T) fn) pure @system
 /// Glob-based target generation
 Target[] targetsFromGlob(string pattern, TargetType type, string language) @system
 {
-    import utils.files.glob;
+    import utils.files.glob : GlobMatcher;
+    import std.file : getcwd;
+    import std.path : baseName, stripExtension;
     
-    auto files = expandGlob(pattern);
+    auto files = GlobMatcher.match([pattern], getcwd());
     return files.map!(file =>
         TargetBuilder.create(file.baseName.stripExtension)
             .type(type)

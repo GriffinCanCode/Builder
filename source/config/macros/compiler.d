@@ -208,7 +208,21 @@ class MacroExecutor
                 target.type = targetJson["type"].str.to!TargetType;
                 
                 if ("language" in targetJson)
-                    target.language = targetJson["language"].str;
+                    import std.conv : to;
+                    import std.uni : toLower;
+                    auto langStr = targetJson["language"].str.toLower();
+                    switch (langStr)
+                    {
+                        case "d": target.language = TargetLanguage.D; break;
+                        case "python": case "py": target.language = TargetLanguage.Python; break;
+                        case "javascript": case "js": target.language = TargetLanguage.JavaScript; break;
+                        case "typescript": case "ts": target.language = TargetLanguage.TypeScript; break;
+                        case "go": target.language = TargetLanguage.Go; break;
+                        case "rust": case "rs": target.language = TargetLanguage.Rust; break;
+                        case "cpp": case "c++": case "cxx": target.language = TargetLanguage.Cpp; break;
+                        case "c": target.language = TargetLanguage.C; break;
+                        default: target.language = TargetLanguage.Generic; break;
+                    }
                 
                 if ("sources" in targetJson)
                 {

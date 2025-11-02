@@ -83,10 +83,11 @@ Target[] generateMicroservices(T)(T[] services)
 /// Generate test targets for each source file
 Target[] generateTestTargets(string pattern, string testSuffix = "_test") @system
 {
-    import utils.files.glob;
+    import utils.files.glob : GlobMatcher;
     import std.path;
+    import std.file : getcwd;
     
-    auto sourceFiles = expandGlob(pattern);
+    auto sourceFiles = GlobMatcher.match([pattern], getcwd());
     
     return sourceFiles.map!(file =>
         test(
@@ -151,8 +152,8 @@ struct TargetTemplate
             .type(type)
             .language(language)
             .sources([sources])
-            .flags(commonFlags)
-            .env(commonEnv)
+            .flags(commonFlags.dup)
+            .env(commonEnv.dup)
             .build();
         
         // Apply overrides
