@@ -33,24 +33,24 @@ class Evaluator
     /// Evaluate expression value from AST
     Result!(Value, BuildError) evaluate(ExpressionValue expr) @system
     {
-        final switch (expr.type)
+        final switch (expr.kind)
         {
-            case ExpressionType.String:
+            case ExpressionValue.Kind.String:
                 return Result!(Value, BuildError).ok(
-                    Value.makeString(evaluateStringInterpolation(expr.stringValue))
+                    Value.makeString(evaluateStringInterpolation(expr.stringValue.value))
                 );
             
-            case ExpressionType.Number:
-                return Result!(Value, BuildError).ok(Value.makeNumber(expr.numberValue));
+            case ExpressionValue.Kind.Number:
+                return Result!(Value, BuildError).ok(Value.makeNumber(expr.numberValue.value));
             
-            case ExpressionType.Identifier:
-                return evaluateIdentifier(expr.identifierValue);
+            case ExpressionValue.Kind.Identifier:
+                return evaluateIdentifier(expr.identifierValue.name);
             
-            case ExpressionType.Array:
-                return evaluateArray(expr.arrayValue);
+            case ExpressionValue.Kind.Array:
+                return evaluateArray(expr.arrayValue.elements);
             
-            case ExpressionType.Map:
-                return evaluateMap(expr.mapValue);
+            case ExpressionValue.Kind.Map:
+                return evaluateMap(expr.mapValue.pairs);
         }
     }
     
@@ -371,16 +371,16 @@ class Evaluator
     /// Get type information for expression (without evaluation)
     Result!(ScriptTypeInfo, BuildError) inferType(ExpressionValue expr) @system
     {
-        final switch (expr.type)
+        final switch (expr.kind)
         {
-            case ExpressionType.String:
+            case ExpressionValue.Kind.String:
                 return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.String));
             
-            case ExpressionType.Number:
+            case ExpressionValue.Kind.Number:
                 return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Number));
             
-            case ExpressionType.Identifier:
-                auto name = expr.identifierValue;
+            case ExpressionValue.Kind.Identifier:
+                auto name = expr.identifierValue.name;
                 if (name == "true" || name == "false")
                     return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
                 if (name == "null")
@@ -394,12 +394,12 @@ class Evaluator
                 auto value = lookupResult.unwrap();
                 return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(value.type()));
             
-            case ExpressionType.Array:
+            case ExpressionValue.Kind.Array:
                 // Infer element type from first element
-                if (expr.arrayValue.empty)
+                if (expr.arrayValue.elements.empty)
                     return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.array(ValueType.Null));
                 
-                auto firstType = inferType(expr.arrayValue[0]);
+                auto firstType = inferType(expr.arrayValue.elements[0]);
                 if (firstType.isErr)
                     return firstType;
                 
@@ -407,7 +407,7 @@ class Evaluator
                     ScriptTypeInfo.array(firstType.unwrap().valueType)
                 );
             
-            case ExpressionType.Map:
+            case ExpressionValue.Kind.Map:
                 // Maps are dynamically typed
                 return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Map));
         }

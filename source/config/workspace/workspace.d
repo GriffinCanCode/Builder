@@ -5,6 +5,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import config.parsing.lexer;
+import config.parsing.exprparser;
 import config.workspace.ast;
 import config.schema.schema;
 import errors;
@@ -215,130 +216,22 @@ struct WorkspaceParser
         return Ok!(WorkspaceField, BuildError)(WorkspaceField(fieldName, value, line, col));
     }
     
-    /// Parse expression (reuse from DSL parser)
+    /// Parse expression - delegates to unified ExprParser (single source of truth)
     private Result!(ExpressionValue, BuildError) parseExpression()
     {
-        auto token = peek();
+        // Create expression parser starting from current position
+        auto exprParser = new ExprParser(tokens[current .. $], filePath);
         
-        switch (token.type)
+        // Parse and convert to ExpressionValue
+        auto result = exprParser.parseAsExpressionValue();
+        
+        if (result.isOk)
         {
-            case TokenType.String:
-                advance();
-                return Ok!(ExpressionValue, BuildError)(
-                    ExpressionValue.fromString(token.value, token.line, token.column)
-                );
-            
-            case TokenType.Number:
-                advance();
-                long num = token.value.to!long;
-                return Ok!(ExpressionValue, BuildError)(
-                    ExpressionValue.fromNumber(num, token.line, token.column)
-                );
-            
-            case TokenType.Identifier:
-                advance();
-                return Ok!(ExpressionValue, BuildError)(
-                    ExpressionValue.fromIdentifier(token.value, token.line, token.column)
-                );
-            
-            case TokenType.LeftBracket:
-                return parseArray();
-            
-            case TokenType.LeftBrace:
-                return parseMap();
-            
-            default:
-                return error!(ExpressionValue)("Expected expression value");
-        }
-    }
-    
-    /// Parse array literal
-    private Result!(ExpressionValue, BuildError) parseArray()
-    {
-        size_t line = peek().line;
-        size_t col = peek().column;
-        
-        advance(); // [
-        
-        ExpressionValue[] elements;
-        
-        while (!check(TokenType.RightBracket) && !isAtEnd())
-        {
-            auto elemResult = parseExpression();
-            if (elemResult.isErr)
-                return Err!(ExpressionValue, BuildError)(elemResult.unwrapErr());
-            
-            elements ~= elemResult.unwrap();
-            
-            if (!check(TokenType.RightBracket))
-            {
-                if (!match(TokenType.Comma))
-                {
-                    return error!(ExpressionValue)("Expected ',' or ']' in array");
-                }
-            }
+            // Advance current position by how many tokens were consumed
+            current += exprParser.position();
         }
         
-        if (!match(TokenType.RightBracket))
-        {
-            return error!(ExpressionValue)("Expected ']' to close array");
-        }
-        
-        return Ok!(ExpressionValue, BuildError)(
-            ExpressionValue.fromArray(elements, line, col)
-        );
-    }
-    
-    /// Parse map literal
-    private Result!(ExpressionValue, BuildError) parseMap()
-    {
-        size_t line = peek().line;
-        size_t col = peek().column;
-        
-        advance(); // {
-        
-        ExpressionValue[string] pairs;
-        
-        while (!check(TokenType.RightBrace) && !isAtEnd())
-        {
-            // Parse key (must be string)
-            if (!check(TokenType.String))
-            {
-                return error!(ExpressionValue)("Expected string key in map");
-            }
-            
-            string key = advance().value;
-            
-            // Expect: :
-            if (!match(TokenType.Colon))
-            {
-                return error!(ExpressionValue)("Expected ':' after map key");
-            }
-            
-            // Parse value (can be any expression type)
-            auto valueResult = parseExpression();
-            if (valueResult.isErr)
-                return Err!(ExpressionValue, BuildError)(valueResult.unwrapErr());
-            
-            pairs[key] = valueResult.unwrap();
-            
-            if (!check(TokenType.RightBrace))
-            {
-                if (!match(TokenType.Comma))
-                {
-                    return error!(ExpressionValue)("Expected ',' or '}' in map");
-                }
-            }
-        }
-        
-        if (!match(TokenType.RightBrace))
-        {
-            return error!(ExpressionValue)("Expected '}' to close map");
-        }
-        
-        return Ok!(ExpressionValue, BuildError)(
-            ExpressionValue.fromMap(pairs, line, col)
-        );
+        return result;
     }
     
     /// Parsing utilities

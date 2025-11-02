@@ -15,8 +15,11 @@ enum TokenType
     Identifier,
     String,
     Number,
+    True,
+    False,
+    Null,
     
-    // Keywords
+    // Keywords - Target fields
     Target,
     Type,
     Language,
@@ -27,6 +30,18 @@ enum TokenType
     Output,
     Includes,
     Config,
+    
+    // Keywords - Programmability
+    Let,
+    Const,
+    Fn,
+    Macro,
+    If,
+    Else,
+    For,
+    In,
+    Return,
+    Import,
     
     // Types
     Executable,
@@ -44,6 +59,26 @@ enum TokenType
     Colon,          // :
     Semicolon,      // ;
     Comma,          // ,
+    Dot,            // .
+    
+    // Operators
+    Plus,           // +
+    Minus,          // -
+    Star,           // *
+    Slash,          // /
+    Percent,        // %
+    Equal,          // =
+    EqualEqual,     // ==
+    BangEqual,      // !=
+    Less,           // <
+    LessEqual,      // <=
+    Greater,        // >
+    GreaterEqual,   // >=
+    AmpAmp,         // &&
+    PipePipe,       // ||
+    Bang,           // !
+    Question,       // ?
+    Pipe,           // |
     
     // Special
     EOF,
@@ -86,6 +121,7 @@ struct Lexer
     shared static this()
     {
         keywords = [
+            // Target field keywords
             "target": "Target",
             "type": "Type",
             "language": "Language",
@@ -100,7 +136,22 @@ struct Lexer
             "executable": "Executable",
             "library": "Library",
             "test": "Test",
-            "custom": "Custom"
+            "custom": "Custom",
+            // Programmability keywords
+            "let": "Let",
+            "const": "Const",
+            "fn": "Fn",
+            "macro": "Macro",
+            "if": "If",
+            "else": "Else",
+            "for": "For",
+            "in": "In",
+            "return": "Return",
+            "import": "Import",
+            // Boolean literals
+            "true": "True",
+            "false": "False",
+            "null": "Null"
         ];
     }
     
@@ -183,7 +234,7 @@ struct Lexer
         size_t startLine = line;
         size_t startCol = column;
         
-        // Single-character tokens
+        // Single and multi-character tokens
         switch (c)
         {
             case '(': advance(); return ok(TokenType.LeftParen, "(", startLine, startCol);
@@ -195,18 +246,96 @@ struct Lexer
             case ':': advance(); return ok(TokenType.Colon, ":", startLine, startCol);
             case ';': advance(); return ok(TokenType.Semicolon, ";", startLine, startCol);
             case ',': advance(); return ok(TokenType.Comma, ",", startLine, startCol);
+            case '.': advance(); return ok(TokenType.Dot, ".", startLine, startCol);
+            case '?': advance(); return ok(TokenType.Question, "?", startLine, startCol);
+            case '+': advance(); return ok(TokenType.Plus, "+", startLine, startCol);
+            case '*': advance(); return ok(TokenType.Star, "*", startLine, startCol);
+            case '%': advance(); return ok(TokenType.Percent, "%", startLine, startCol);
+            
+            // Multi-character operators
+            case '=':
+                advance();
+                if (peek() == '=') {
+                    advance();
+                    return ok(TokenType.EqualEqual, "==", startLine, startCol);
+                }
+                return ok(TokenType.Equal, "=", startLine, startCol);
+            
+            case '!':
+                advance();
+                if (peek() == '=') {
+                    advance();
+                    return ok(TokenType.BangEqual, "!=", startLine, startCol);
+                }
+                return ok(TokenType.Bang, "!", startLine, startCol);
+            
+            case '<':
+                advance();
+                if (peek() == '=') {
+                    advance();
+                    return ok(TokenType.LessEqual, "<=", startLine, startCol);
+                }
+                return ok(TokenType.Less, "<", startLine, startCol);
+            
+            case '>':
+                advance();
+                if (peek() == '=') {
+                    advance();
+                    return ok(TokenType.GreaterEqual, ">=", startLine, startCol);
+                }
+                return ok(TokenType.Greater, ">", startLine, startCol);
+            
+            case '&':
+                advance();
+                if (peek() == '&') {
+                    advance();
+                    return ok(TokenType.AmpAmp, "&&", startLine, startCol);
+                }
+                auto error = new ParseError(filePath, 
+                    "Single '&' is not a valid operator (use '&&' for logical AND)",
+                    ErrorCode.ParseFailed);
+                error.line = line;
+                error.column = column;
+                return Err!(Token, BuildError)(error);
+            
+            case '|':
+                advance();
+                if (peek() == '|') {
+                    advance();
+                    return ok(TokenType.PipePipe, "||", startLine, startCol);
+                }
+                return ok(TokenType.Pipe, "|", startLine, startCol);
+            
+            case '-':
+                // Minus can be operator or part of negative number
+                // Treat as number if followed by digit and not after an identifier
+                advance();
+                if (isDigit(peek()))
+                {
+                    // Check if this should be a negative number
+                    // Allow after: =, :, (, [, {, operators, or at start
+                    if (position == 1 || isWhite(source[position - 2]) ||
+                        source[position - 2] == '=' || source[position - 2] == ':' ||
+                        source[position - 2] == '(' || source[position - 2] == '[' ||
+                        source[position - 2] == '{' || source[position - 2] == ',' ||
+                        source[position - 2] == '+' || source[position - 2] == '*' ||
+                        source[position - 2] == '/' || source[position - 2] == '%')
+                    {
+                        // Scan as negative number (position already advanced)
+                        return scanNumber();
+                    }
+                }
+                return ok(TokenType.Minus, "-", startLine, startCol);
+            
+            case '/':
+                // Could be division or start of comment (handled earlier)
+                advance();
+                return ok(TokenType.Slash, "/", startLine, startCol);
+            
             case '"': case '\'': return scanString(c);
             default:
                 if (isDigit(c))
                     return scanNumber();
-                if (c == '-' && peekNext().isDigit)
-                {
-                    // Only treat '-' as part of number in value contexts (after : or at start)
-                    // Not after array/list delimiters where strings are expected
-                    if (position == 0 || isWhite(source[position - 1]) || 
-                        source[position - 1] == ':' || source[position - 1] == '(')
-                        return scanNumber();
-                }
                 if (isAlpha(c) || c == '_')
                     return scanIdentifier();
                 
@@ -291,7 +420,12 @@ struct Lexer
         auto builder = appender!string;
         builder.reserve(16); // Numbers are typically short
         
-        if (peek() == '-')
+        // Check if we need to add minus (may have been consumed already)
+        if (position > 0 && source[position - 1] == '-')
+        {
+            builder.put('-');
+        }
+        else if (peek() == '-')
         {
             builder.put(peek());
             advance();
@@ -330,6 +464,7 @@ struct Lexer
             // Map keyword to TokenType
             switch (*keywordType)
             {
+                // Target field keywords
                 case "Target": return ok(TokenType.Target, value, startLine, startCol);
                 case "Type": return ok(TokenType.Type, value, startLine, startCol);
                 case "Language": return ok(TokenType.Language, value, startLine, startCol);
@@ -340,10 +475,26 @@ struct Lexer
                 case "Output": return ok(TokenType.Output, value, startLine, startCol);
                 case "Includes": return ok(TokenType.Includes, value, startLine, startCol);
                 case "Config": return ok(TokenType.Config, value, startLine, startCol);
+                // Type keywords
                 case "Executable": return ok(TokenType.Executable, value, startLine, startCol);
                 case "Library": return ok(TokenType.Library, value, startLine, startCol);
                 case "Test": return ok(TokenType.Test, value, startLine, startCol);
                 case "Custom": return ok(TokenType.Custom, value, startLine, startCol);
+                // Programmability keywords
+                case "Let": return ok(TokenType.Let, value, startLine, startCol);
+                case "Const": return ok(TokenType.Const, value, startLine, startCol);
+                case "Fn": return ok(TokenType.Fn, value, startLine, startCol);
+                case "Macro": return ok(TokenType.Macro, value, startLine, startCol);
+                case "If": return ok(TokenType.If, value, startLine, startCol);
+                case "Else": return ok(TokenType.Else, value, startLine, startCol);
+                case "For": return ok(TokenType.For, value, startLine, startCol);
+                case "In": return ok(TokenType.In, value, startLine, startCol);
+                case "Return": return ok(TokenType.Return, value, startLine, startCol);
+                case "Import": return ok(TokenType.Import, value, startLine, startCol);
+                // Boolean literals
+                case "True": return ok(TokenType.True, value, startLine, startCol);
+                case "False": return ok(TokenType.False, value, startLine, startCol);
+                case "Null": return ok(TokenType.Null, value, startLine, startCol);
                 default: break;
             }
         }
