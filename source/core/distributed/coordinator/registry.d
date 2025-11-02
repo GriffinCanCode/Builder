@@ -153,8 +153,10 @@ final class WorkerRegistry
                 return Err!(WorkerId, DistributedError)(
                     new WorkerError("No healthy workers available"));
             
-            // 2. Filter by capabilities (simplified - would check caps in detail)
-            auto capable = healthy;  // TODO: Filter by capability requirements
+            // 2. Filter by capabilities - check if worker can meet resource requirements
+            auto capable = healthy
+                .filter!(w => canMeetCapabilities(w, caps))
+                .array;
             
             if (capable.empty)
                 return Err!(WorkerId, DistributedError)(
@@ -165,6 +167,36 @@ final class WorkerRegistry
             
             return Ok!(WorkerId, DistributedError)(selected.id);
         }
+    }
+    
+    /// Check if worker can meet the required capabilities
+    private bool canMeetCapabilities(in WorkerInfo worker, in Capabilities caps) const pure @safe
+    {
+        // Check memory constraints
+        // If action requires specific memory and worker is already heavily loaded, skip
+        if (caps.maxMemory > 0)
+        {
+            // Worker should have headroom for memory-intensive tasks
+            if (worker.metrics.memoryUsage > 0.85)
+                return false;
+        }
+        
+        // Check CPU constraints
+        // If worker is CPU-bound and action has CPU requirements, prefer less loaded workers
+        if (caps.maxCpu > 0)
+        {
+            // Skip heavily loaded workers for CPU-intensive tasks
+            if (worker.metrics.cpuUsage > 0.90)
+                return false;
+        }
+        
+        // Check disk space for tasks that may write large outputs
+        // Ensure worker has sufficient disk space
+        if (worker.metrics.diskUsage > 0.95)
+            return false;
+        
+        // All capability checks passed
+        return true;
     }
     
     /// Mark action as in-progress on worker

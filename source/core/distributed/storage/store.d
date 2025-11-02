@@ -10,6 +10,19 @@ import core.distributed.protocol.protocol;
 import core.distributed.protocol.protocol : DistributedError;
 import errors : BuildError, Result, Ok, Err;
 
+/// Helper function to convert hex character to value
+private ubyte hexCharToValue(char c) pure @safe
+{
+    if (c >= '0' && c <= '9')
+        return cast(ubyte)(c - '0');
+    else if (c >= 'a' && c <= 'f')
+        return cast(ubyte)(c - 'a' + 10);
+    else if (c >= 'A' && c <= 'F')
+        return cast(ubyte)(c - 'A' + 10);
+    else
+        return 0;
+}
+
 /// Artifact store interface
 interface ArtifactStore
 {
@@ -197,8 +210,100 @@ final class LocalArtifactStore : ArtifactStore
     /// Load existing cache entries
     private void loadEntries() @trusted
     {
-        // TODO: Scan cache directory and build entry map
+        import std.file : dirEntries, SpanMode, DirEntry, getTimes, isFile;
+        import std.path : baseName;
+        import std.string : strip;
+        import std.conv : parse, to;
+        
         currentSize = 0;
+        entries.clear();
+        
+        try
+        {
+            // Scan cache directory recursively
+            foreach (DirEntry entry; dirEntries(cacheDir, SpanMode.depth))
+            {
+                if (!entry.isFile)
+                    continue;
+                
+                try
+                {
+                    // Parse artifact ID from filename
+                    immutable filename = baseName(entry.name);
+                    
+                    // Validate it looks like a hash (hex string - should be 64 chars for 32 bytes)
+                    if (filename.length != 64)
+                        continue;
+                    
+                    // Parse hex string to bytes
+                    ubyte[32] hashBytes;
+                    bool validHex = true;
+                    
+                    try
+                    {
+                        import std.string : toLower;
+                        import std.ascii : isHexDigit;
+                        
+                        // Validate all characters are hex digits
+                        foreach (c; filename)
+                        {
+                            if (!isHexDigit(c))
+                            {
+                                validHex = false;
+                                break;
+                            }
+                        }
+                        
+                        if (validHex)
+                        {
+                            for (size_t i = 0; i < 32; i++)
+                            {
+                                immutable hexPair = filename[i * 2 .. i * 2 + 2];
+                                // Manual hex parsing to avoid string mutation
+                                immutable highNibble = hexCharToValue(hexPair[0]);
+                                immutable lowNibble = hexCharToValue(hexPair[1]);
+                                hashBytes[i] = cast(ubyte)((highNibble << 4) | lowNibble);
+                            }
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        validHex = false;
+                    }
+                    
+                    if (!validHex)
+                        continue;
+                    
+                    // Create ArtifactId from parsed hash
+                    auto id = ArtifactId(hashBytes);
+                    
+                    // Get file metadata
+                    immutable size = entry.size;
+                    SysTime accessTime, modificationTime;
+                    getTimes(entry.name, accessTime, modificationTime);
+                    
+                    // Create cache entry
+                    CacheEntry cacheEntry;
+                    cacheEntry.id = id;
+                    cacheEntry.size = size;
+                    cacheEntry.lastAccess = accessTime;
+                    
+                    entries[id] = cacheEntry;
+                    currentSize += size;
+                }
+                catch (Exception e)
+                {
+                    // Skip files that can't be read
+                    continue;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            // If cache directory doesn't exist or can't be read, start fresh
+            currentSize = 0;
+            entries.clear();
+        }
     }
     
     /// Evict least-recently-used entries to free space

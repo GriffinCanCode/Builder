@@ -540,7 +540,7 @@ final class Worker
             hb.timestamp = Clock.currTime;
             
             // Send via transport
-            auto sendResult = coordinatorTransport.send(WorkerId(0), hb);
+            auto sendResult = coordinatorTransport.sendHeartBeat(WorkerId(0), hb);
             if (sendResult.isErr)
             {
                 Logger.error("Heartbeat send failed: " ~ sendResult.unwrapErr().message());
@@ -593,10 +593,66 @@ final class Worker
             cast(float)m.activeActions / cast(float)config.maxConcurrentActions : 0.0f;
         m.cpuUsage = queueLoad * 0.5 + actionLoad * 0.5;
         
-        // Disk usage (simplified)
-        m.diskUsage = 0.2;  // TODO: Platform-specific disk usage
+        // Disk usage (platform-specific)
+        m.diskUsage = getDiskUsage();
         
         return m;
+    }
+    
+    /// Get disk usage for current working directory (platform-specific)
+    private float getDiskUsage() @trusted
+    {
+        version(Posix)
+        {
+            import core.sys.posix.sys.statvfs;
+            import std.file : getcwd;
+            import std.string : toStringz;
+            
+            statvfs_t stat;
+            immutable cwd = getcwd();
+            if (statvfs(toStringz(cwd), &stat) == 0)
+            {
+                immutable totalBytes = stat.f_blocks * stat.f_frsize;
+                immutable availBytes = stat.f_bavail * stat.f_frsize;
+                
+                if (totalBytes > 0)
+                {
+                    immutable usedBytes = totalBytes - availBytes;
+                    return cast(float)usedBytes / cast(float)totalBytes;
+                }
+            }
+            
+            // Fallback
+            return 0.2f;
+        }
+        else version(Windows)
+        {
+            import core.sys.windows.windows;
+            import std.file : getcwd;
+            import std.string : toUTF16z;
+            import std.utf : toUTF16;
+            
+            ULARGE_INTEGER freeBytesAvailable, totalBytes, freeBytes;
+            immutable cwd = getcwd();
+            immutable wpath = (cwd ~ "\0").toUTF16;
+            
+            if (GetDiskFreeSpaceExW(wpath.ptr, &freeBytesAvailable, &totalBytes, &freeBytes))
+            {
+                if (totalBytes.QuadPart > 0)
+                {
+                    immutable usedBytes = totalBytes.QuadPart - freeBytes.QuadPart;
+                    return cast(float)usedBytes / cast(float)totalBytes.QuadPart;
+                }
+            }
+            
+            // Fallback
+            return 0.2f;
+        }
+        else
+        {
+            // Unsupported platform
+            return 0.2f;
+        }
     }
     
     /// Backoff strategy (exponential with jitter)

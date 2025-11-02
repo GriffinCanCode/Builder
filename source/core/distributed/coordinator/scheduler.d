@@ -390,6 +390,8 @@ final class CriticalPathAnalyzer
     private BuildGraph graph;
     private Duration[ActionId] estimatedDurations;
     private Duration[ActionId] criticalPaths;
+    private size_t[ActionId] depthCache;
+    private size_t[ActionId] dependentsCache;
     
     this(BuildGraph graph) @safe
     {
@@ -426,17 +428,106 @@ final class CriticalPathAnalyzer
     }
     
     /// Estimate action depth in graph
+    /// Since ActionId (distributed) doesn't directly map to BuildNode,
+    /// we use a heuristic based on graph statistics
     private size_t estimateDepth(ActionId action) @safe
     {
-        // TODO: Query build graph
-        return 0;
+        // Check cache
+        if (auto cached = action in depthCache)
+            return *cached;
+        
+        // Without direct ActionId->TargetId mapping, estimate based on graph structure
+        // Use average depth of targets in the build graph as baseline
+        try
+        {
+            auto nodes = graph.nodes.values;
+            if (nodes.length == 0)
+                return 1;
+            
+            // Calculate average depth by doing a BFS from roots
+            size_t totalDepth = 0;
+            size_t nodeCount = 0;
+            bool[string] visited;
+            
+            foreach (node; nodes)
+            {
+                if (node.dependencyIds.length == 0)
+                {
+                    // This is a root node
+                    immutable depth = calculateNodeDepth(node, visited);
+                    totalDepth += depth;
+                    nodeCount++;
+                }
+            }
+            
+            // Return average depth (reasonable estimate for unknown action)
+            immutable result = nodeCount > 0 ? totalDepth / nodeCount : 1;
+            depthCache[action] = result;
+            return result;
+        }
+        catch (Exception)
+        {
+            return 1;
+        }
+    }
+    
+    /// Calculate depth of a specific node from roots
+    private size_t calculateNodeDepth(BuildNode node, ref bool[string] visited) @trusted
+    {
+        immutable nodeKey = node.id.toString();
+        if (nodeKey in visited)
+            return 0;
+        
+        visited[nodeKey] = true;
+        
+        if (node.dependencyIds.length == 0)
+            return 0;
+        
+        size_t maxDepth = 0;
+        foreach (depId; node.dependencyIds)
+        {
+            auto depKey = depId.toString();
+            if (depKey in graph.nodes)
+            {
+                immutable depth = 1 + calculateNodeDepth(graph.nodes[depKey], visited);
+                if (depth > maxDepth)
+                    maxDepth = depth;
+            }
+        }
+        
+        return maxDepth;
     }
     
     /// Count transitive dependents
+    /// Estimate fan-out using graph statistics
     private size_t countDependents(ActionId action) @safe
     {
-        // TODO: Query build graph
-        return 0;
+        // Check cache
+        if (auto cached = action in dependentsCache)
+            return *cached;
+        
+        // Without direct mapping, estimate based on graph average
+        try
+        {
+            auto nodes = graph.nodes.values;
+            if (nodes.length == 0)
+                return 0;
+            
+            size_t totalDependents = 0;
+            foreach (node; nodes)
+            {
+                totalDependents += node.dependentIds.length;
+            }
+            
+            // Return average fan-out
+            immutable result = totalDependents / nodes.length;
+            dependentsCache[action] = result;
+            return result;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
     }
     
     /// Estimate critical path duration (longest path to leaves)
@@ -446,8 +537,12 @@ final class CriticalPathAnalyzer
         if (auto cached = action in criticalPaths)
             return *cached;
         
-        // TODO: Compute from build graph
-        immutable result = 1000.msecs;
+        // Estimate based on graph depth and average action duration
+        immutable depth = estimateDepth(action);
+        immutable avgDuration = estimateDuration(action);
+        
+        // Critical path estimate: depth * average duration
+        immutable result = avgDuration * depth;
         
         criticalPaths[action] = result;
         return result;
@@ -459,8 +554,27 @@ final class CriticalPathAnalyzer
         if (auto cached = action in estimatedDurations)
             return *cached;
         
-        // Default estimate
+        // Default estimate (1 second baseline)
+        // In a production system, this would query historical execution data
         return 1000.msecs;
+    }
+    
+    /// Record actual execution time for future estimates
+    void recordExecution(ActionId action, Duration actualDuration) @safe
+    {
+        // Update duration estimate (simple moving average)
+        if (auto existing = action in estimatedDurations)
+        {
+            // Weighted average: 70% old, 30% new
+            immutable oldMs = existing.total!"msecs";
+            immutable newMs = actualDuration.total!"msecs";
+            immutable avgMs = cast(long)(oldMs * 0.7 + newMs * 0.3);
+            estimatedDurations[action] = msecs(avgMs);
+        }
+        else
+        {
+            estimatedDurations[action] = actualDuration;
+        }
     }
 }
 

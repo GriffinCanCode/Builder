@@ -121,9 +121,36 @@ struct HermeticExecutor
     /// Execute with timeout
     Result!(Output, string) executeWithTimeout(string[] command, Duration timeout, string workingDir = "") @system
     {
-        // TODO: Implement timeout using signals or thread-based monitoring
-        // For now, delegate to regular execute
-        return execute(command, workingDir);
+        import core.execution.hermetic.timeout : createTimeoutEnforcer;
+        
+        if (!initialized)
+            return Result!(Output, string).err("Executor not initialized");
+        
+        if (command.length == 0)
+            return Result!(Output, string).err("Empty command");
+        
+        // Create timeout enforcer
+        auto timeoutEnforcer = createTimeoutEnforcer();
+        if (timeout > Duration.zero)
+        {
+            timeoutEnforcer.start(timeout);
+        }
+        scope(exit)
+        {
+            if (timeout > Duration.zero)
+                timeoutEnforcer.stop();
+        }
+        
+        // Execute command
+        auto result = execute(command, workingDir);
+        
+        // Check if timed out
+        if (timeoutEnforcer.isTimedOut())
+        {
+            return Result!(Output, string).err("Execution timed out after " ~ timeout.toString());
+        }
+        
+        return result;
     }
     
     /// Get sandbox specification
