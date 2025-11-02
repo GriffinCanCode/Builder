@@ -6,45 +6,66 @@ This directory contains all documentation for the Builder project, organized int
 
 ### [`user-guides/`](./user-guides)
 User-facing documentation and guides:
-- **CLI.md** - Command-line interface reference
-- **EXAMPLES.md** - Usage examples and tutorials
-- **BUILDERIGNORE.md** - Configuration for ignoring files
+- **cli.md** - Command-line interface reference
+- **examples.md** - Usage examples and tutorials
+- **ignore.md** - Configuration for ignoring files
+- **lsp.md** - Language Server Protocol integration
+- **testing.md** - Testing guide for users
+- **watch.md** - Watch mode documentation
+- **wizard.md** - Interactive wizard guide
 
 ### [`architecture/`](./architecture)
 Design and architecture documentation:
-- **ARCHITECTURE.md** - Overall system architecture
-- **DSL.md** - Domain-specific language specification
+- **overview.md** - Overall system architecture
+- **dsl.md** - Domain-specific language specification
+- **plugins.md** - Plugin system design
+- **cachedesign.md** - Action cache design principles
+- **workstealing.md** - Work-stealing scheduler design
 
-### [`implementation/`](./implementation)
-Technical implementation details:
-- **PERFORMANCE.md** - Performance optimization strategies
-- **CONCURRENCY.md** - Concurrency and parallelization
-- **SIMD.md** - SIMD optimizations
-- **BLAKE3.md** - BLAKE3 hashing implementation
-- **TELEMETRY.md** - Telemetry and monitoring
-- **RECOVERY.md** - Error recovery mechanisms
+### [`features/`](./features)
+Specific feature implementations and technical details:
+- **caching.md** - Action caching implementation
+- **coordinator.md** - Cache coordinator system
+- **graphcache.md** - Graph caching mechanism
+- **parsecache.md** - Parse result caching
+- **remotecache.md** - Remote caching support
+- **distributed.md** - Distributed builds
+- **observability.md** - Observability and monitoring
+- **health.md** - Health check system
+- **telemetry.md** - Telemetry collection
+- **watch.md** - Watch mode implementation
+- **recovery.md** - Error recovery mechanisms
+- **performance.md** - Performance optimizations
+- **concurrency.md** - Concurrency and parallelization
+- **simd.md** - SIMD optimizations
+- **simdhash.md** - SIMD hashing implementation
+- **blake3.md** - BLAKE3 hashing details
+- **languages.md** - Language separation (JS/TS)
 
 ### [`security/`](./security)
 Security and safety documentation:
-- **SECURITY.md** - Security guidelines and practices
-- **MEMORY_SAFETY_AUDIT.md** - Memory safety audit results
+- **security.md** - Security guidelines and practices
 
-### [`development/`](./development)
-Development process and planning:
-- **TESTING.md** - Testing strategies and guidelines
-- **plan.md** - Project roadmap and planning
+### [`api/`](./api)
+Auto-generated API documentation (HTML)
+
+### [`examples/`](./examples)
+Code examples and samples
+
+### [`ddoc/`](./ddoc)
+DDoc documentation templates
 
 ## 🚀 Quick Start
 
 New to Builder? Start here:
-1. [CLI Guide](./user-guides/CLI.md) - Learn the command-line interface
-2. [Examples](./user-guides/EXAMPLES.md) - See Builder in action
-3. [Architecture](./architecture/ARCHITECTURE.md) - Understand how it works
+1. [CLI Guide](./user-guides/cli.md) - Learn the command-line interface
+2. [Examples](./user-guides/examples.md) - See Builder in action
+3. [Architecture](./architecture/overview.md) - Understand how it works
 
 ## 🔍 Finding Documentation
 
 - **For Users**: Check the `user-guides/` directory
-- **For Contributors**: See `development/` and `architecture/`
+- **For Contributors**: See `architecture/` for design docs
 - **For Security Researchers**: Review `security/` documentation
-- **For Performance Tuning**: Explore `implementation/` docs
+- **For Feature Details**: Explore `features/` for technical implementations
 
