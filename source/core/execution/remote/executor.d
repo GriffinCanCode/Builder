@@ -9,6 +9,7 @@ import core.distributed.coordinator.coordinator;
 import core.distributed.coordinator.scheduler;
 import core.execution.hermetic;
 import core.execution.remote.codec : HermeticSpecCodec;
+import core.execution.remote.artifacts : ArtifactManager;
 import core.caching.distributed.remote.client;
 import core.distributed.storage.store : ArtifactStore;
 import errors;
@@ -57,12 +58,14 @@ struct RemoteExecutionResult
 }
 
 /// Remote executor
-/// Orchestrates execution across worker pool using native hermetic sandboxing
+/// 
+/// Responsibility: Orchestrate remote execution flow
+/// Delegates artifact management to ArtifactManager (SRP)
 final class RemoteExecutor
 {
     private RemoteExecutorConfig config;
     private Coordinator coordinator;
-    private RemoteCacheClient artifactStore;
+    private ArtifactManager artifactManager;
     
     this(RemoteExecutorConfig config) @trusted
     {
@@ -75,7 +78,10 @@ final class RemoteExecutor
         cacheConfig.url = config.artifactStoreUrl;
         cacheConfig.enableCompression = config.enableCompression;
         
-        this.artifactStore = new RemoteCacheClient(cacheConfig);
+        auto cacheClient = new RemoteCacheClient(cacheConfig);
+        
+        // Initialize artifact manager (SRP: separated from execution orchestration)
+        this.artifactManager = new ArtifactManager(cacheClient);
     }
     
     /// Execute action remotely
@@ -102,8 +108,8 @@ final class RemoteExecutor
             }
         }
         
-        // 2. Upload input artifacts
-        auto uploadResult = uploadInputs(spec);
+        // 2. Upload input artifacts (delegated to ArtifactManager)
+        auto uploadResult = artifactManager.uploadInputs(spec);
         if (uploadResult.isErr)
         {
             return Err!(RemoteExecutionResult, BuildError)(uploadResult.unwrapErr());
@@ -128,8 +134,8 @@ final class RemoteExecutor
         
         auto builderResult = executeResult.unwrap();
         
-        // 5. Download output artifacts
-        auto downloadResult = downloadOutputs(builderResult.outputs);
+        // 5. Download output artifacts (delegated to ArtifactManager)
+        auto downloadResult = artifactManager.downloadOutputs(builderResult.outputs);
         if (downloadResult.isErr)
         {
             return Err!(RemoteExecutionResult, BuildError)(downloadResult.unwrapErr());
@@ -221,67 +227,6 @@ final class RemoteExecutor
         return caps;
     }
     
-    /// Upload input artifacts to store
-    private Result!(InputSpec[], BuildError) uploadInputs(SandboxSpec spec) @trusted
-    {
-        InputSpec[] inputs;
-        
-        foreach (inputPath; spec.inputs.paths)
-        {
-            // Read input file/directory
-            auto readResult = readArtifact(inputPath);
-            if (readResult.isErr)
-            {
-                auto error = new GenericError(
-                    "Failed to read input: " ~ inputPath ~ ": " ~ 
-                    readResult.unwrapErr(),
-                    ErrorCode.FileNotFound
-                );
-                return Err!(InputSpec[], BuildError)(error);
-            }
-            
-            auto data = readResult.unwrap();
-            
-            // Compute artifact ID (content hash)
-            auto artifactId = computeArtifactId(data);
-            
-            // Upload to artifact store - convert ActionId to string
-            auto uploadResult = artifactStore.put(artifactId.toString(), cast(const(ubyte)[])data);
-            if (uploadResult.isErr)
-            {
-                return Err!(InputSpec[], BuildError)(uploadResult.unwrapErr());
-            }
-            
-            // Check if executable
-            bool executable = isExecutable(inputPath);
-            
-            inputs ~= InputSpec(artifactId, inputPath, executable);
-            
-            Logger.debugLog("Uploaded input: " ~ inputPath ~ 
-                          " -> " ~ artifactId.toString());
-        }
-        
-        return Ok!(InputSpec[], BuildError)(inputs);
-    }
-    
-    /// Download output artifacts from store
-    private Result!BuildError downloadOutputs(ArtifactId[] artifacts) @trusted
-    {
-        foreach (artifactId; artifacts)
-        {
-            // Convert ActionId to string hash for cache lookup
-            auto downloadResult = artifactStore.get(artifactId.toString());
-            if (downloadResult.isErr)
-            {
-                // Return the error from the download result
-                return Err!(BuildError)(downloadResult.unwrapErr());
-            }
-            
-            Logger.debugLog("Downloaded output: " ~ artifactId.toString());
-        }
-        
-        return Ok!BuildError();
-    }
     
     /// Submit action to worker via coordinator
     private Result!(core.distributed.protocol.protocol.ActionResult, BuildError) 
@@ -335,69 +280,4 @@ final class RemoteExecutor
         return Ok!BuildError();
     }
     
-    /// Read artifact from filesystem
-    private Result!(ubyte[], string) readArtifact(string path) @trusted
-    {
-        import std.file : read, exists;
-        
-        if (!exists(path))
-            return Err!(ubyte[], string)("File not found: " ~ path);
-        
-        try
-        {
-            auto data = cast(ubyte[])read(path);
-            return Ok!(ubyte[], string)(data);
-        }
-        catch (Exception e)
-        {
-            return Err!(ubyte[], string)(e.msg);
-        }
-    }
-    
-    /// Compute artifact ID from content
-    /// Uses Blake3 for consistency across the system
-    private ArtifactId computeArtifactId(const ubyte[] data) @trusted
-    {
-        import utils.crypto.blake3 : Blake3;
-        
-        auto hasher = Blake3(0);
-        hasher.put(cast(const(ubyte)[])data);
-        
-        auto hashBytes = hasher.finish(32);
-        ubyte[32] hash;
-        hash[0 .. 32] = hashBytes[0 .. 32];
-        
-        return ArtifactId(hash);
-    }
-    
-    /// Helper to convert hex character to value
-    private static ubyte hexCharToValue(char c) pure nothrow @safe @nogc
-    {
-        if (c >= '0' && c <= '9')
-            return cast(ubyte)(c - '0');
-        else if (c >= 'a' && c <= 'f')
-            return cast(ubyte)(c - 'a' + 10);
-        else if (c >= 'A' && c <= 'F')
-            return cast(ubyte)(c - 'A' + 10);
-        else
-            return 0;
-    }
-    
-    /// Check if file is executable
-    private bool isExecutable(string path) @trusted
-    {
-        version(Posix)
-        {
-            import core.sys.posix.sys.stat;
-            import std.string : toStringz;
-            
-            stat_t statbuf;
-            if (stat(toStringz(path), &statbuf) == 0)
-            {
-                return (statbuf.st_mode & S_IXUSR) != 0;
-            }
-        }
-        
-        return false;
-    }
 }

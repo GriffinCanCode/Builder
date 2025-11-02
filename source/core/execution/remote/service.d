@@ -14,6 +14,9 @@ import core.distributed.protocol.protocol : ActionId, WorkerId;
 import core.execution.remote.executor;
 import core.execution.remote.pool;
 import core.execution.remote.reapi;
+import core.execution.remote.providers.provisioner : WorkerProvisioner;
+import core.execution.remote.providers.base : CloudProvider;
+import core.execution.remote.providers.mock : MockCloudProvider;
 import core.execution.remote.monitoring.health : RemoteServiceHealthMonitor;
 import core.execution.remote.monitoring.metrics : RemoteServiceMetricsCollector, ServiceMetrics;
 import core.execution.hermetic;
@@ -77,6 +80,7 @@ final class RemoteExecutionService
     private Coordinator coordinator;
     private WorkerRegistry registry;
     private WorkerPool pool;
+    private WorkerProvisioner provisioner;
     private RemoteExecutor executor;
     private ReapiAdapter reapiAdapter;
     private BuildGraph graph;
@@ -112,8 +116,12 @@ final class RemoteExecutionService
         
         this.coordinator = new Coordinator(graph, coordConfig);
         
-        // Worker pool with autoscaling
-        this.pool = new WorkerPool(config.poolConfig, registry);
+        // Worker provisioner (SRP: separated from pool management)
+        CloudProvider provider = createProvider(config.poolConfig);
+        this.provisioner = new WorkerProvisioner(provider);
+        
+        // Worker pool with autoscaling (now delegating provisioning to provisioner)
+        this.pool = new WorkerPool(config.poolConfig, registry, provisioner);
         
         // Remote executor
         this.executor = new RemoteExecutor(config.executorConfig);
@@ -138,6 +146,20 @@ final class RemoteExecutionService
         );
         
         Logger.info("Remote execution service initialized");
+    }
+    
+    /// Create worker provider based on configuration
+    /// 
+    /// Responsibility: Factory method for provider selection
+    private CloudProvider createProvider(PoolConfig poolConfig) @trusted
+    {
+        // Would select provider based on configuration
+        // For now, use mock provider (stub implementation)
+        // In production, would check config and return:
+        // - AwsCloudProvider for AWS EC2
+        // - KubernetesCloudProvider for K8s
+        // - GcpCloudProvider for GCP Compute
+        return new MockCloudProvider();
     }
     
     /// Start service

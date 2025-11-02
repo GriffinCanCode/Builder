@@ -8,20 +8,10 @@ import std.format : formattedWrite;
 import errors.types.types;
 import errors.handling.codes;
 import errors.types.context : ErrorSuggestion, ErrorContext;
+import errors.formatting.colors : ColorFormatter, Color;
+import errors.formatting.suggestions : SuggestionGenerator;
 
 private import std.string : sformat = format;
-
-/// ANSI color codes for terminal output
-private enum Color : string
-{
-    Reset = "\x1b[0m",
-    Bold = "\x1b[1m",
-    Red = "\x1b[31m",
-    Green = "\x1b[32m",
-    Yellow = "\x1b[33m",
-    Blue = "\x1b[36m",
-    Gray = "\x1b[90m"
-}
 
 /// Formatting options for error display
 struct FormatOptions
@@ -36,19 +26,23 @@ struct FormatOptions
 }
 
 /// Format error for display
+/// 
+/// Responsibility: Format error structure into human-readable text
+/// Delegates color application to ColorFormatter (SRP)
+/// Delegates suggestion generation to SuggestionGenerator (SRP)
 string format(const BuildError error, FormatOptions opts = FormatOptions.init)
 {
     import std.array : appender;
     auto result = appender!string;
     result.reserve(256); // Reserve capacity for typical error message
     
+    // Initialize color formatter (SRP: separated from formatting logic)
+    auto colorFmt = ColorFormatter(opts.colors);
+    
     // Header with category and code
     if (opts.showCategory)
     {
-        if (opts.colors)
-            result.put(cast(string)(Color.Bold ~ Color.Red));
-        
-        result.put("[");
+        result.put(colorFmt.error("["));
         result.put(error.category().to!string);
         
         if (opts.showCode)
@@ -57,21 +51,12 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
             result.put(error.code().to!string);
         }
         
-        result.put("]");
-        
-        if (opts.colors)
-            result.put(cast(string)Color.Reset);
-        
+        result.put("]"));
         result.put(" ");
     }
     
     // Main message
-    if (opts.colors)
-        result.put(cast(string)Color.Red);
-    result.put(error.message());
-    if (opts.colors)
-        result.put(cast(string)Color.Reset);
-    
+    result.put(colorFmt.colored(error.message(), Color.Red));
     result.put("\n");
     
     // Context chain
@@ -79,46 +64,27 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
     {
         foreach (ctx; error.contexts())
         {
-            if (opts.colors)
-                result.put(cast(string)Color.Gray);
-            result.put("  → ");
-            result.put(ctx.toString());
+            result.put(colorFmt.muted("  → " ~ ctx.toString()));
             result.put("\n");
-            if (opts.colors)
-                result.put(cast(string)Color.Reset);
         }
     }
     
     // Type-specific formatting
     result.put(formatSpecific(error, opts));
     
-    // Add suggestions
+    // Add suggestions (delegated to SuggestionGenerator - SRP)
     if (opts.showSuggestions)
     {
-        import std.algorithm : uniq;
-        import std.array : array;
-        import errors.types.context : ErrorSuggestion;
+        auto suggestions = SuggestionGenerator.generate(error);
         
-        // Try to get typed suggestions from the error
-        const(ErrorSuggestion)[] typedSuggestions;
-        if (auto baseErr = cast(const BaseBuildError)error)
-        {
-            typedSuggestions = baseErr.suggestions();
-        }
-        
-        // If we have typed suggestions, format them nicely
-        if (!typedSuggestions.empty)
+        if (!suggestions.empty)
         {
             result.put("\n");
-            if (opts.colors)
-                result.put(cast(string)(Color.Bold ~ Color.Yellow));
-            result.put("Suggestions:\n");
-            if (opts.colors)
-                result.put(cast(string)Color.Reset);
+            result.put(colorFmt.warning(colorFmt.bold("Suggestions:\n")));
             
             // Track seen suggestions to avoid duplicates
             bool[string] seen;
-            foreach (suggestion; typedSuggestions)
+            foreach (suggestion; suggestions)
             {
                 string formatted = formatSuggestion(suggestion, opts);
                 if (formatted !in seen)
@@ -128,83 +94,39 @@ string format(const BuildError error, FormatOptions opts = FormatOptions.init)
                 }
             }
         }
-        else
-        {
-            // Fallback to generic suggestions if no typed suggestions
-            string[] suggestions = suggestFixes(error);
-            if (!suggestions.empty)
-            {
-                result.put("\n");
-                if (opts.colors)
-                    result.put(cast(string)(Color.Bold ~ Color.Yellow));
-                result.put("Suggestions:\n");
-                if (opts.colors)
-                    result.put(cast(string)Color.Reset);
-                
-                bool[string] seen;
-                foreach (suggestion; suggestions)
-                {
-                    if (suggestion !in seen)
-                    {
-                        seen[suggestion] = true;
-                        if (opts.colors)
-                            result.put(cast(string)Color.Yellow);
-                        result.put("  • ");
-                        result.put(suggestion);
-                        result.put("\n");
-                        if (opts.colors)
-                            result.put(cast(string)Color.Reset);
-                    }
-                }
-            }
-        }
     }
     
     return result.data;
 }
 
 /// Format a single suggestion with type-specific styling
+/// 
+/// Responsibility: Format suggestion structure
+/// Uses ColorFormatter for color application (SRP)
 string formatSuggestion(const ErrorSuggestion suggestion, FormatOptions opts)
 {
     import std.array : appender;
     
     auto result = appender!string;
+    auto colorFmt = ColorFormatter(opts.colors);
     
     // Bullet point
-    if (opts.colors)
-        result.put(cast(string)Color.Yellow);
-    result.put("  • ");
+    result.put(colorFmt.warning("  • "));
     
     // Icon/prefix based on type
     final switch (suggestion.type)
     {
         case ErrorSuggestion.Type.Command:
-            if (opts.colors)
-                result.put(cast(string)Color.Green);
-            result.put("Run: ");
-            if (opts.colors)
-                result.put(cast(string)Color.Reset);
+            result.put(colorFmt.success("Run: "));
             break;
         case ErrorSuggestion.Type.Documentation:
-            if (opts.colors)
-                result.put(cast(string)Color.Blue);
-            result.put("Docs: ");
-            if (opts.colors)
-                result.put(cast(string)Color.Reset);
+            result.put(colorFmt.info("Docs: "));
             break;
         case ErrorSuggestion.Type.FileCheck:
-            if (opts.colors)
-                result.put(cast(string)Color.Yellow);
-            result.put("Check: ");
-            if (opts.colors)
-                result.put(cast(string)Color.Reset);
+            result.put(colorFmt.warning("Check: "));
             break;
         case ErrorSuggestion.Type.Configuration:
-            if (opts.colors)
-                result.put(cast(string)Color.Yellow);
-            result.put("Config: ");
-            if (opts.colors)
-                result.put(cast(string)Color.Reset);
+            result.put(colorFmt.warning("Config: "));
             break;
         case ErrorSuggestion.Type.General:
             break;
@@ -217,34 +139,24 @@ string formatSuggestion(const ErrorSuggestion suggestion, FormatOptions opts)
     if (!suggestion.detail.empty)
     {
         result.put("\n    ");
-        if (opts.colors)
-            result.put(cast(string)Color.Gray);
         
         final switch (suggestion.type)
         {
             case ErrorSuggestion.Type.Command:
-                result.put("$ ");
-                result.put(suggestion.detail);
+                result.put(colorFmt.muted("$ " ~ suggestion.detail));
                 break;
             case ErrorSuggestion.Type.Documentation:
-                result.put("→ ");
-                result.put(suggestion.detail);
+                result.put(colorFmt.muted("→ " ~ suggestion.detail));
                 break;
             case ErrorSuggestion.Type.FileCheck:
             case ErrorSuggestion.Type.Configuration:
             case ErrorSuggestion.Type.General:
-                result.put(suggestion.detail);
+                result.put(colorFmt.muted(suggestion.detail));
                 break;
         }
-        
-        if (opts.colors)
-            result.put(cast(string)Color.Reset);
     }
     
     result.put("\n");
-    
-    if (opts.colors)
-        result.put(cast(string)Color.Reset);
     
     return result.data;
 }
@@ -461,10 +373,19 @@ string summarize(const BuildError[] errors)
 }
 
 /// Suggest fixes for common errors
+/// DEPRECATED: Use SuggestionGenerator.generate() instead
 string[] suggestFixes(const BuildError error)
 {
+    // Delegate to SuggestionGenerator for consistency
+    auto typedSuggestions = SuggestionGenerator.generate(error);
     string[] suggestions;
+    foreach (s; typedSuggestions)
+    {
+        suggestions ~= s.message;
+    }
+    return suggestions;
     
+    /*
     final switch (error.code())
     {
         case ErrorCode.UnknownError:

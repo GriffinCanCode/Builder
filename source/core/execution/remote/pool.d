@@ -12,6 +12,7 @@ import core.distributed.protocol.protocol;
 import core.distributed.coordinator.registry;
 import core.execution.remote.scaling.predictor : LoadPredictor;
 import core.execution.remote.providers;
+import core.execution.remote.providers.provisioner : WorkerProvisioner;
 import errors;
 import utils.logging.logger;
 
@@ -70,10 +71,14 @@ private struct PoolWorker
 }
 
 /// Worker pool manager
+/// 
+/// Responsibility: Manage pool state, autoscaling decisions, and statistics
+/// Delegates provisioning to WorkerProvisioner (SRP)
 final class WorkerPool
 {
     private PoolConfig config;
     private WorkerRegistry registry;
+    private WorkerProvisioner provisioner;
     private Mutex mutex;
     
     private LoadPredictor utilizationPredictor;
@@ -85,10 +90,11 @@ final class WorkerPool
     private shared bool running;
     private Thread scalerThread;
     
-    this(PoolConfig config, WorkerRegistry registry) @trusted
+    this(PoolConfig config, WorkerRegistry registry, WorkerProvisioner provisioner) @trusted
     {
         this.config = config;
         this.registry = registry;
+        this.provisioner = provisioner;
         this.mutex = new Mutex();
         
         this.utilizationPredictor = LoadPredictor(
@@ -232,15 +238,17 @@ final class WorkerPool
             immutable toAdd = targetSize - currentSize;
             Logger.info("Scaling up: adding " ~ toAdd.to!string ~ " workers");
             
-            // Request worker creation (would integrate with actual worker provisioning)
-            foreach (_; 0 .. toAdd)
+            // Delegate provisioning to WorkerProvisioner (SRP)
+            auto result = provisioner.provisionBatch(toAdd);
+            if (result.isErr)
             {
-                auto result = provisionWorker();
-                if (result.isErr)
-                {
-                    Logger.error("Failed to provision worker: " ~ 
-                               result.unwrapErr().message());
-                }
+                Logger.error("Failed to provision workers: " ~ 
+                           result.unwrapErr().message());
+            }
+            else
+            {
+                Logger.info("Successfully provisioned " ~ 
+                           result.unwrap().length.to!string ~ " workers");
             }
             
             lastScaleUp = now;
@@ -271,30 +279,36 @@ final class WorkerPool
         return Ok!BuildError();
     }
     
-    /// Provision new worker (stub - would integrate with cloud provider)
-    private Result!(WorkerId, BuildError) provisionWorker() @trusted
-    {
-        // This would:
-        // 1. Call cloud provider API (AWS EC2, GCP Compute, K8s, etc.)
-        // 2. Launch worker instance with Builder worker binary
-        // 3. Wait for worker to register with coordinator
-        // 4. Return worker ID
-        
-        // For now, return placeholder
-        import std.random : uniform;
-        return Ok!(WorkerId, BuildError)(WorkerId(uniform!ulong()));
-    }
-    
     /// Drain and remove workers
+    /// 
+    /// Responsibility: Select workers to drain based on utilization
+    /// Delegates actual deprovisioning to WorkerProvisioner (SRP)
     private Result!BuildError drainWorkers(size_t count) @trusted
     {
-        // This would:
-        // 1. Select least utilized workers
-        // 2. Mark as draining (no new work)
-        // 3. Wait for current work to complete
-        // 4. Deregister and terminate workers
-        
         Logger.info("Draining " ~ count.to!string ~ " workers");
+        
+        // 1. Select least utilized workers from registry
+        // (Registry owns worker state, so query it)
+        WorkerId[] workersToDrain;
+        // In full implementation, would query registry for least utilized workers
+        
+        // 2. Mark as draining (no new work assigned)
+        // (Registry owns worker state management)
+        
+        // 3. Wait for current work to complete
+        // (Would monitor via registry)
+        
+        // 4. Deregister and terminate workers
+        // Delegate actual deprovisioning to provisioner (SRP)
+        if (workersToDrain.length > 0)
+        {
+            auto result = provisioner.deprovisionBatch(workersToDrain);
+            if (result.isErr)
+            {
+                return result;
+            }
+        }
+        
         return Ok!BuildError();
     }
     
