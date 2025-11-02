@@ -1,11 +1,7 @@
 module core.distributed.storage;
 
-/// Artifact Storage
+/// Distributed artifact storage
 /// 
-/// Content-addressable storage for build artifacts.
-/// 
-/// Components:
-/// - store.d - Artifact store implementations
+/// Content-addressable artifact caching with tiered storage.
 
 public import core.distributed.storage.store;
-

@@ -13,6 +13,7 @@ module core.distributed;
 /// - transport.d   - Network transport layer
 /// - sandbox.d     - Hermetic execution
 /// - store.d       - Artifact storage
+/// - integration.d - Main build system integration
 /// 
 /// Design Principles:
 /// - Content-addressable: All artifacts identified by BLAKE3 hash
@@ -65,6 +66,11 @@ module core.distributed;
 /// - **Speedup:** 5-10x with 10 workers (typical)
 /// - **Scaling:** >80% efficiency with 100 workers
 /// - **Overhead:** <10% vs local builds
+
+// Public API
+public import core.distributed.coordinator.coordinator;
+public import core.distributed.worker.worker;
+public import core.distributed.protocol.protocol;
 /// - **Fault tolerance:** <5s recovery from worker failure
 /// 
 /// Security:

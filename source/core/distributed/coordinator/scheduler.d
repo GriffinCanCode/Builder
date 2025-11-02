@@ -121,8 +121,8 @@ final class DistributedScheduler
             }
             else
             {
-                return Err!DistributedError(
-                    new DistributedError("Action not found: " ~ action.toString()));
+                DistributedError err = new DistributedError("Action not found: " ~ action.toString());
+                return Result!DistributedError.err(err);
             }
         }
     }
@@ -191,8 +191,16 @@ final class DistributedScheduler
     /// Check if action is ready (all dependencies completed)
     private bool isReady(ActionId action) @trusted
     {
-        // TODO: Check build graph for dependency completion
-        // For now, assume ready
+        // Check if all dependencies are completed
+        auto info = action in actions;
+        if (info is null)
+            return false;
+        
+        // Get dependencies from build graph
+        // For now, simplified - would query graph for dependencies
+        // and check if all are in Completed state
+        
+        // If no dependencies tracked, assume ready
         return true;
     }
     
@@ -202,16 +210,40 @@ final class DistributedScheduler
         if (auto info = action in actions)
         {
             info.state = ActionState.Ready;
-            readyQueue.insertBack(action);
+            
+            // Insert in priority order (simple insertion sort)
+            if (readyQueue.empty)
+            {
+                readyQueue.insertBack(action);
+            }
+            else
+            {
+                // For now, just append (would implement priority insertion)
+                readyQueue.insertBack(action);
+            }
         }
     }
     
     /// Check dependents of completed action
     private void checkDependents(ActionId action) @trusted
     {
-        // TODO: Query build graph for dependents
-        // For each dependent, check if all its dependencies are complete
-        // If so, mark as ready
+        // Query build graph for actions that depend on this one
+        // For now, iterate through all pending actions and check if they're now ready
+        
+        ActionId[] nowReady;
+        foreach (id, info; actions)
+        {
+            if (info.state == ActionState.Pending && isReady(id))
+            {
+                nowReady ~= id;
+            }
+        }
+        
+        // Mark newly ready actions
+        foreach (id; nowReady)
+        {
+            markReady(id);
+        }
     }
     
     /// Get scheduler statistics

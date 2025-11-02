@@ -1,13 +1,8 @@
 module core.distributed.worker;
 
-/// Build Worker
+/// Distributed build worker
 /// 
 /// Executes build actions in hermetic sandbox.
-/// 
-/// Components:
-/// - worker.d  - Worker implementation
-/// - sandbox.d - Hermetic execution environment
 
 public import core.distributed.worker.worker;
 public import core.distributed.worker.sandbox;
-

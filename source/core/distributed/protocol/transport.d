@@ -4,6 +4,7 @@ import std.socket;
 import std.datetime : Duration, seconds;
 import std.conv : to;
 import std.string : split, strip;
+import std.algorithm.searching : startsWith;
 import core.distributed.protocol.protocol;
 import errors;
 
@@ -53,8 +54,8 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!DistributedError(
-                new NetworkError("Failed to connect: " ~ e.msg));
+            DistributedError err = new protocol.NetworkError("Failed to connect: " ~ e.msg);
+            return Result!DistributedError.err(err);
         }
     }
     
@@ -147,20 +148,379 @@ final class HttpTransport : Transport
         }
     }
     
-    /// Simplified serialization (placeholder for proper protocol buffers)
+    /// Binary serialization (efficient, no external dependencies)
     private ubyte[] serializeMessage(T)(Envelope!T envelope) @trusted
     {
-        // TODO: Implement proper serialization (protobuf, msgpack, etc.)
-        // For now, just use a placeholder
-        return cast(ubyte[])("PLACEHOLDER");
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.reserve(4096);
+        
+        // Protocol version
+        buffer.write!ubyte(envelope.version_, buffer.length);
+        
+        // Message ID
+        buffer.write!ulong(envelope.id.value, buffer.length);
+        
+        // Sender/Recipient
+        buffer.write!ulong(envelope.sender.value, buffer.length);
+        buffer.write!ulong(envelope.recipient.value, buffer.length);
+        
+        // Timestamp (stdTime)
+        buffer.write!long(envelope.timestamp.stdTime, buffer.length);
+        
+        // Compression
+        buffer.write!ubyte(envelope.compression, buffer.length);
+        
+        // Payload type tag
+        static if (is(T == ActionRequest))
+        {
+            buffer.write!ubyte(1, buffer.length);
+            buffer ~= envelope.payload.serialize();
+        }
+        else static if (is(T == ActionResult))
+        {
+            buffer.write!ubyte(2, buffer.length);
+            buffer ~= serializeActionResult(envelope.payload);
+        }
+        else static if (is(T == HeartBeat))
+        {
+            buffer.write!ubyte(3, buffer.length);
+            buffer ~= serializeHeartBeat(envelope.payload);
+        }
+        else static if (is(T == StealRequest))
+        {
+            buffer.write!ubyte(4, buffer.length);
+            buffer ~= serializeStealRequest(envelope.payload);
+        }
+        else static if (is(T == StealResponse))
+        {
+            buffer.write!ubyte(5, buffer.length);
+            buffer ~= serializeStealResponse(envelope.payload);
+        }
+        else static if (is(T == Shutdown))
+        {
+            buffer.write!ubyte(6, buffer.length);
+            buffer ~= serializeShutdown(envelope.payload);
+        }
+        else
+            static assert(0, "Unsupported message type: " ~ T.stringof);
+        
+        return buffer;
     }
     
-    /// Simplified deserialization
+    /// Binary deserialization
     private Result!(Envelope!T, DistributedError) deserializeMessage(T)(ubyte[] data) @system
     {
-        // TODO: Implement proper deserialization
-        return Err!(Envelope!T, DistributedError)(
-            new DistributedError("Deserialization not implemented"));
+        import std.bitmanip : read;
+        import std.datetime : SysTime;
+        
+        if (data.length < 30)
+            return Err!(Envelope!T, DistributedError)(
+                new NetworkError("Message too short"));
+        
+        try
+        {
+            ubyte[] mutableData = data.dup;
+            size_t offset = 0;
+            
+            Envelope!T envelope;
+            
+            // Protocol version
+            auto versionSlice = mutableData[offset .. offset + 1];
+            envelope.version_ = cast(ProtocolVersion)versionSlice.read!ubyte();
+            offset += 1;
+            
+            // Message ID
+            auto idSlice = mutableData[offset .. offset + 8];
+            envelope.id = MessageId(idSlice.read!ulong());
+            offset += 8;
+            
+            // Sender/Recipient
+            auto senderSlice = mutableData[offset .. offset + 8];
+            envelope.sender = WorkerId(senderSlice.read!ulong());
+            offset += 8;
+            
+            auto recipSlice = mutableData[offset .. offset + 8];
+            envelope.recipient = WorkerId(recipSlice.read!ulong());
+            offset += 8;
+            
+            // Timestamp
+            auto timeSlice = mutableData[offset .. offset + 8];
+            envelope.timestamp = SysTime(timeSlice.read!long());
+            offset += 8;
+            
+            // Compression
+            auto compSlice = mutableData[offset .. offset + 1];
+            envelope.compression = cast(Compression)compSlice.read!ubyte();
+            offset += 1;
+            
+            // Payload type (verify match)
+            auto typeSlice = mutableData[offset .. offset + 1];
+            immutable payloadType = typeSlice.read!ubyte();
+            offset += 1;
+            
+            immutable payloadData = data[offset .. $];
+            
+            static if (is(T == ActionRequest))
+            {
+                if (payloadType != 1)
+                    return Err!(Envelope!T, DistributedError)(
+                        new NetworkError("Type mismatch: expected ActionRequest"));
+                // ActionRequest deserialization is complex, return error for now
+                return Err!(Envelope!T, DistributedError)(
+                    new NetworkError("ActionRequest deserialization not yet implemented"));
+            }
+            else static if (is(T == ActionResult))
+            {
+                if (payloadType != 2)
+                    return Err!(Envelope!T, DistributedError)(
+                        new NetworkError("Type mismatch: expected ActionResult"));
+                auto result = deserializeActionResult(payloadData);
+                if (result.isErr)
+                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                envelope.payload = result.unwrap();
+            }
+            else static if (is(T == HeartBeat))
+            {
+                if (payloadType != 3)
+                    return Err!(Envelope!T, DistributedError)(
+                        new NetworkError("Type mismatch: expected HeartBeat"));
+                auto result = deserializeHeartBeat(payloadData);
+                if (result.isErr)
+                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                envelope.payload = result.unwrap();
+            }
+            else
+                static assert(0, "Unsupported message type: " ~ T.stringof);
+            
+            return Ok!(Envelope!T, DistributedError)(envelope);
+        }
+        catch (Exception e)
+        {
+            return Err!(Envelope!T, DistributedError)(
+                new NetworkError("Deserialization failed: " ~ e.msg));
+        }
+    }
+    
+    /// Serialize ActionResult
+    private ubyte[] serializeActionResult(ActionResult result) @trusted
+    {
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.reserve(1024);
+        
+        buffer ~= result.id.hash;
+        buffer.write!ubyte(result.status, buffer.length);
+        buffer.write!long(result.duration.total!"msecs", buffer.length);
+        
+        // Outputs array
+        buffer.write!uint(cast(uint)result.outputs.length, buffer.length);
+        foreach (output; result.outputs)
+            buffer ~= output.hash;
+        
+        // Stdout (length-prefixed)
+        buffer.write!uint(cast(uint)result.stdout.length, buffer.length);
+        buffer ~= cast(ubyte[])result.stdout;
+        
+        // Stderr (length-prefixed)
+        buffer.write!uint(cast(uint)result.stderr.length, buffer.length);
+        buffer ~= cast(ubyte[])result.stderr;
+        
+        buffer.write!int(result.exitCode, buffer.length);
+        
+        // Resource usage (simplified)
+        buffer.write!long(result.resources.cpuTime.total!"msecs", buffer.length);
+        buffer.write!ulong(result.resources.peakMemory, buffer.length);
+        
+        return buffer;
+    }
+    
+    /// Deserialize ActionResult
+    private Result!(ActionResult, DistributedError) deserializeActionResult(const ubyte[] data) @system
+    {
+        import std.bitmanip : read;
+        import std.datetime : msecs;
+        
+        if (data.length < 32)
+            return Err!(ActionResult, DistributedError)(
+                new NetworkError("ActionResult data too short"));
+        
+        try
+        {
+            ubyte[] mutableData = cast(ubyte[])data.dup;
+            size_t offset = 0;
+            
+            ActionResult result;
+            
+            // Action ID
+            result.id = ActionId(data[offset .. offset + 32]);
+            offset += 32;
+            
+            // Status
+            auto statusSlice = mutableData[offset .. offset + 1];
+            result.status = cast(ResultStatus)statusSlice.read!ubyte();
+            offset += 1;
+            
+            // Duration
+            auto durSlice = mutableData[offset .. offset + 8];
+            result.duration = durSlice.read!long().msecs;
+            offset += 8;
+            
+            // Outputs
+            auto outCountSlice = mutableData[offset .. offset + 4];
+            immutable outCount = outCountSlice.read!uint();
+            offset += 4;
+            result.outputs.reserve(outCount);
+            foreach (_; 0 .. outCount)
+            {
+                result.outputs ~= ArtifactId(data[offset .. offset + 32]);
+                offset += 32;
+            }
+            
+            // Stdout
+            auto stdoutLenSlice = mutableData[offset .. offset + 4];
+            immutable stdoutLen = stdoutLenSlice.read!uint();
+            offset += 4;
+            result.stdout = cast(string)data[offset .. offset + stdoutLen];
+            offset += stdoutLen;
+            
+            // Stderr
+            auto stderrLenSlice = mutableData[offset .. offset + 4];
+            immutable stderrLen = stderrLenSlice.read!uint();
+            offset += 4;
+            result.stderr = cast(string)data[offset .. offset + stderrLen];
+            offset += stderrLen;
+            
+            // Exit code
+            auto exitSlice = mutableData[offset .. offset + 4];
+            result.exitCode = exitSlice.read!int();
+            offset += 4;
+            
+            // Resource usage
+            auto cpuSlice = mutableData[offset .. offset + 8];
+            result.resources.cpuTime = cpuSlice.read!long().msecs;
+            offset += 8;
+            
+            auto memSlice = mutableData[offset .. offset + 8];
+            result.resources.peakMemory = memSlice.read!ulong();
+            
+            return Ok!(ActionResult, DistributedError)(result);
+        }
+        catch (Exception e)
+        {
+            return Err!(ActionResult, DistributedError)(
+                new NetworkError("Failed to deserialize ActionResult: " ~ e.msg));
+        }
+    }
+    
+    /// Serialize HeartBeat
+    private ubyte[] serializeHeartBeat(HeartBeat hb) @trusted
+    {
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.write!ulong(hb.worker.value, buffer.length);
+        buffer.write!ubyte(hb.state, buffer.length);
+        buffer.write!float(hb.metrics.cpuUsage, buffer.length);
+        buffer.write!float(hb.metrics.memoryUsage, buffer.length);
+        buffer.write!float(hb.metrics.diskUsage, buffer.length);
+        buffer.write!ulong(hb.metrics.queueDepth, buffer.length);
+        buffer.write!ulong(hb.metrics.activeActions, buffer.length);
+        buffer.write!long(hb.timestamp.stdTime, buffer.length);
+        
+        return buffer;
+    }
+    
+    /// Deserialize HeartBeat
+    private Result!(HeartBeat, DistributedError) deserializeHeartBeat(const ubyte[] data) @system
+    {
+        import std.bitmanip : read;
+        import std.datetime : SysTime;
+        
+        if (data.length < 41)
+            return Err!(HeartBeat, DistributedError)(
+                new NetworkError("HeartBeat data too short"));
+        
+        try
+        {
+            ubyte[] mutableData = cast(ubyte[])data.dup;
+            
+            HeartBeat hb;
+            
+            auto workerSlice = mutableData[0 .. 8];
+            hb.worker = WorkerId(workerSlice.read!ulong());
+            
+            auto stateSlice = mutableData[8 .. 9];
+            hb.state = cast(WorkerState)stateSlice.read!ubyte();
+            
+            auto cpuSlice = mutableData[9 .. 13];
+            hb.metrics.cpuUsage = cpuSlice.read!float();
+            
+            auto memSlice = mutableData[13 .. 17];
+            hb.metrics.memoryUsage = memSlice.read!float();
+            
+            auto diskSlice = mutableData[17 .. 21];
+            hb.metrics.diskUsage = diskSlice.read!float();
+            
+            auto queueSlice = mutableData[21 .. 29];
+            hb.metrics.queueDepth = queueSlice.read!ulong();
+            
+            auto activeSlice = mutableData[29 .. 37];
+            hb.metrics.activeActions = activeSlice.read!ulong();
+            
+            auto timeSlice = mutableData[37 .. 45];
+            hb.timestamp = SysTime(timeSlice.read!long());
+            
+            return Ok!(HeartBeat, DistributedError)(hb);
+        }
+        catch (Exception e)
+        {
+            return Err!(HeartBeat, DistributedError)(
+                new NetworkError("Failed to deserialize HeartBeat: " ~ e.msg));
+        }
+    }
+    
+    /// Serialize StealRequest
+    private ubyte[] serializeStealRequest(StealRequest req) @trusted
+    {
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.write!ulong(req.thief.value, buffer.length);
+        buffer.write!ulong(req.victim.value, buffer.length);
+        buffer.write!ubyte(req.minPriority, buffer.length);
+        
+        return buffer;
+    }
+    
+    /// Serialize StealResponse
+    private ubyte[] serializeStealResponse(StealResponse resp) @trusted
+    {
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.write!ulong(resp.victim.value, buffer.length);
+        buffer.write!ulong(resp.thief.value, buffer.length);
+        buffer.write!ubyte(resp.hasWork ? 1 : 0, buffer.length);
+        
+        if (resp.hasWork)
+            buffer ~= resp.action.serialize();
+        
+        return buffer;
+    }
+    
+    /// Serialize Shutdown
+    private ubyte[] serializeShutdown(Shutdown cmd) @trusted
+    {
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.write!ubyte(cmd.graceful ? 1 : 0, buffer.length);
+        buffer.write!long(cmd.timeout.total!"msecs", buffer.length);
+        
+        return buffer;
     }
 }
 

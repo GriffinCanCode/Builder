@@ -1,13 +1,10 @@
 module core.distributed.protocol;
 
-/// Distributed Build Protocol
+/// Distributed build protocol
 /// 
-/// Message definitions and communication protocols for distributed builds.
-/// 
-/// Components:
-/// - protocol.d  - Core protocol types and messages
-/// - transport.d - Network transport layer
+/// Message formats, serialization, and network transport for
+/// coordinator-worker communication.
 
 public import core.distributed.protocol.protocol;
 public import core.distributed.protocol.transport;
-
+public import core.distributed.protocol.messages;

@@ -1,15 +1,9 @@
 module core.distributed.coordinator;
 
-/// Build Coordinator
+/// Distributed build coordinator
 /// 
-/// Manages distributed build execution across worker pool.
-/// 
-/// Components:
-/// - coordinator.d - Main coordinator implementation
-/// - registry.d    - Worker pool registry
-/// - scheduler.d   - Distributed scheduling logic
+/// Schedules and coordinates build actions across worker pool.
 
 public import core.distributed.coordinator.coordinator;
-public import core.distributed.coordinator.registry;
 public import core.distributed.coordinator.scheduler;
-
+public import core.distributed.coordinator.registry;
