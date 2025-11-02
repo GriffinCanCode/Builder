@@ -18,8 +18,9 @@ import core;
 auto graph = new DependencyGraph();
 graph.addNode(target);
 
-auto executor = new BuildExecutor();
-executor.execute(graph);
+auto services = new BuildServices(config, options);
+auto engine = services.createEngine(graph);
+engine.execute();
 
 auto cache = new BuildCache();
 if (cache.contains(target)) {

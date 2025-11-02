@@ -4,7 +4,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import core.graph.graph;
-import core.execution.executor;
+import core.execution.engine;
 import core.services;
 import core.telemetry;
 import config.parsing.parser;
@@ -167,10 +167,10 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @syste
         graph.print();
     }
     
-    // Execute build with event publishing
-    auto executor = services.createExecutor(graph);
-    bool success = executor.execute();
-    executor.shutdown();
+    // Execute build with modern service-based architecture
+    auto engine = services.createEngine(graph);
+    bool success = engine.execute();
+    engine.shutdown();
     
     // Cleanup and persist telemetry
     services.shutdown();
@@ -385,10 +385,10 @@ void resumeCommand(in string modeStr) @system
     
     Logger.info("Resuming build...");
     
-    // Execute build with checkpoint resume
-    auto executor = services.createExecutor(graph);
-    executor.execute();
-    executor.shutdown();
+    // Execute build with modern service-based architecture
+    auto engine = services.createEngine(graph);
+    engine.execute();
+    engine.shutdown();
     
     // Cleanup and persist telemetry
     services.shutdown();

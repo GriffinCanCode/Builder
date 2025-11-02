@@ -3,7 +3,7 @@ module core.services;
 import std.stdio;
 import std.conv : to;
 import core.graph.graph;
-import core.execution.executor;
+import core.execution.engine : ExecutionEngine;
 import core.caching.cache;
 import core.telemetry;
 import core.telemetry.tracing;
@@ -184,26 +184,50 @@ final class BuildServices
         return this._renderer;
     }
     
-    /// Create a build executor
+    /// Create execution engine with modular service architecture
     /// 
     /// Parameters:
     ///   graph = Build graph to execute
     ///   maxParallelism = Maximum parallel tasks (0 = auto)
     ///   enableCheckpoints = Enable checkpoint/resume functionality
     ///   enableRetries = Enable automatic retry on failure
-    BuildExecutor createExecutor(
+    ///   useWorkStealing = Use work-stealing scheduler (vs simple thread pool)
+    ExecutionEngine createEngine(
         BuildGraph graph,
         size_t maxParallelism = 0,
         bool enableCheckpoints = true,
-        bool enableRetries = true)
+        bool enableRetries = true,
+        bool useWorkStealing = true)
     {
-        return new BuildExecutor(
+        import core.execution.engine;
+        import core.execution.services;
+        
+        // Create scheduling service
+        auto schedulingMode = useWorkStealing ? SchedulingMode.WorkStealing : SchedulingMode.ThreadPool;
+        auto scheduling = new SchedulingService(schedulingMode);
+        
+        // Create cache service
+        auto cacheService = new CacheService(".builder-cache");
+        
+        // Create observability service
+        auto observability = new ObservabilityService(_publisher, _tracer, _structuredLogger);
+        
+        // Create resilience service
+        auto resilience = new ResilienceService(enableRetries, enableCheckpoints, ".");
+        
+        // Create handler registry
+        auto handlers = new HandlerRegistry();
+        handlers.initialize();
+        
+        // Create execution engine
+        return new ExecutionEngine(
             graph,
             _config,
-            maxParallelism,
-            _publisher,
-            enableCheckpoints,
-            enableRetries
+            scheduling,
+            cacheService,
+            observability,
+            resilience,
+            handlers
         );
     }
     

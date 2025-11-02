@@ -16,8 +16,8 @@ module core;
 ///   auto graph = new DependencyGraph();
 ///   graph.addNode(target);
 ///   
-///   auto executor = new BuildExecutor();
-///   executor.execute(graph);
+///   auto engine = new ExecutionEngine(graph, config, scheduling, cache, observability, resilience, handlers);
+///   engine.execute();
 ///   
 ///   auto cache = new BuildCache();
 ///   if (cache.contains(target)) {
@@ -25,7 +25,7 @@ module core;
 ///   }
 
 public import core.graph.graph;
-public import core.execution.executor;
+public import core.execution.engine;
 public import core.caching.cache;
 public import core.caching.storage;
 public import core.caching.eviction;
