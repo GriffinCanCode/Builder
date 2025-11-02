@@ -5,6 +5,7 @@ import std.string : toLower;
 import utils.logging.logger;
 import cli.control.terminal;
 import cli.display.format;
+import cli.commands.watch : WatchCommand;
 import languages.registry : LanguageCategory, getLanguageCategoryList;
 
 /// Help command - provides detailed documentation for Builder commands
@@ -84,7 +85,14 @@ struct HelpCommand
         // Monitoring & tools
         printSectionHeader("MONITORING & TOOLS");
         printCommand("telemetry", "", "View build analytics and performance insights");
+        printCommand("cache-server", "[options]", "Start remote cache server");
         printCommand("install-extension", "", "Install Builder VS Code extension");
+        terminal.writeln();
+        
+        // Distributed builds
+        printSectionHeader("DISTRIBUTED BUILDS");
+        printCommand("coordinator", "[options]", "Start distributed build coordinator");
+        printCommand("worker", "[options]", "Start distributed build worker");
         terminal.writeln();
         
         // Information

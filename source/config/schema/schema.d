@@ -354,6 +354,41 @@ struct WorkspaceConfig
     }
 }
 
+/// Distributed build configuration
+struct DistributedConfig
+{
+    bool enabled = false;                   // Enable distributed builds
+    string coordinatorUrl = "";              // Coordinator URL (http://host:port)
+    size_t localWorkers = 0;                // Local workers for hybrid mode (0 = distributed only)
+    bool autoDiscover = true;               // Auto-discover coordinator
+    
+    /// Load from environment variables
+    static DistributedConfig fromEnvironment() @safe
+    {
+        import std.process : environment;
+        
+        DistributedConfig config;
+        
+        immutable enabled = environment.get("BUILDER_DISTRIBUTED_ENABLED", "");
+        config.enabled = (enabled == "1" || enabled == "true");
+        
+        config.coordinatorUrl = environment.get("BUILDER_COORDINATOR_URL", "");
+        
+        immutable localWorkers = environment.get("BUILDER_LOCAL_WORKERS", "");
+        if (localWorkers.length > 0)
+        {
+            try
+            {
+                import std.conv : to;
+                config.localWorkers = localWorkers.to!size_t;
+            }
+            catch (Exception) {}
+        }
+        
+        return config;
+    }
+}
+
 /// Build options
 struct BuildOptions
 {
@@ -363,6 +398,7 @@ struct BuildOptions
     size_t maxJobs = 0; // 0 = auto
     string cacheDir = ".builder-cache";
     string outputDir = "bin";
+    DistributedConfig distributed;
 }
 
 /// Language-specific build result
