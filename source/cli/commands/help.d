@@ -67,6 +67,7 @@ struct HelpCommand
         // Core commands
         printSectionHeader("CORE COMMANDS");
         printCommand("build", "[target]", "Build all targets or a specific target");
+        printCommand("watch", "[target]", "Watch for changes and rebuild automatically");
         printCommand("resume", "", "Resume a failed build from checkpoint");
         printCommand("clean", "", "Remove build artifacts and cache");
         printCommand("graph", "[target]", "Visualize dependency graph");
@@ -96,6 +97,9 @@ struct HelpCommand
         printOption("-v, --verbose", "Enable verbose output");
         printOption("-g, --graph", "Show dependency graph during build");
         printOption("-m, --mode <MODE>", "CLI mode: auto, interactive, plain, verbose, quiet");
+        printOption("-w, --watch", "Enable watch mode (rebuild on file changes)");
+        printOption("--debounce <MS>", "Debounce delay in milliseconds for watch mode");
+        printOption("--clear", "Clear screen between builds in watch mode");
         terminal.writeln();
         
         // Zero-config mode highlight
@@ -107,6 +111,7 @@ struct HelpCommand
         // Examples
         printSectionHeader("EXAMPLES");
         printExample("builder build", "Auto-detect and build all targets");
+        printExample("builder build --watch", "Watch mode - rebuild on file changes");
         printExample("builder init", "Create Builderfile from project structure");
         printExample("builder build //path/to:target", "Build specific target");
         printExample("builder graph", "Show complete dependency graph");
@@ -274,6 +279,9 @@ struct HelpCommand
         {
             case "build":
                 showBuildHelp();
+                break;
+            case "watch":
+                WatchCommand.showHelp();
                 break;
             case "resume":
                 showResumeHelp();

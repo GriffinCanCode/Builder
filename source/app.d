@@ -37,13 +37,19 @@ void main(string[] args)
     bool showGraph = false;
     bool showVersion = false;
     string mode = "auto"; // CLI render mode
+    bool watch = false;
+    bool clearScreen = true;
+    long debounceMs = 300;
     
     auto helpInfo = getopt(
         args,
         "verbose|v", "Enable verbose output", &verbose,
         "graph|g", "Show dependency graph", &showGraph,
         "mode|m", "CLI mode: auto, interactive, plain, verbose, quiet", &mode,
-        "version", "Show version information", &showVersion
+        "version", "Show version information", &showVersion,
+        "watch|w", "Watch mode - rebuild on file changes", &watch,
+        "clear", "Clear screen between builds in watch mode", &clearScreen,
+        "debounce", "Debounce delay in milliseconds for watch mode", &debounceMs
     );
     
     if (showVersion)
@@ -70,7 +76,17 @@ void main(string[] args)
         switch (command)
         {
             case "build":
-                buildCommand(target, showGraph, mode);
+                if (watch)
+                {
+                    watchCommand(target, clearScreen, showGraph, mode, verbose, debounceMs);
+                }
+                else
+                {
+                    buildCommand(target, showGraph, mode);
+                }
+                break;
+            case "watch":
+                watchCommand(target, clearScreen, showGraph, mode, verbose, debounceMs);
                 break;
             case "clean":
                 cleanCommand();
@@ -108,6 +124,9 @@ void main(string[] args)
             case "telemetry":
                 auto subcommand = args.length > 2 ? args[2] : "summary";
                 TelemetryCommand.execute(subcommand);
+                break;
+            case "cache-server":
+                CacheServerCommand.execute(args[1 .. $]);
                 break;
             case "help":
                 auto helpCommand = args.length > 2 ? args[2] : "";
@@ -436,5 +455,17 @@ void resumeCommand(in string modeStr) @system
 void installExtensionCommand() @system
 {
     VSCodeExtension.install();
+}
+
+/// Watch command handler - continuously watches for file changes and rebuilds
+void watchCommand(
+    in string target,
+    in bool clearScreen,
+    in bool showGraph,
+    in string modeStr,
+    in bool verbose,
+    in long debounceMs) @system
+{
+    WatchCommand.execute(target, clearScreen, showGraph, modeStr, verbose, debounceMs);
 }
 
