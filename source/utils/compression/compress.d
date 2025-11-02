@@ -58,7 +58,7 @@ final class Compressor
     {
         if (data.length == 0)
         {
-            auto error = new BuildError("Cannot compress empty data");
+            auto error = new GenericError("Cannot compress empty data");
             return Err!(CompressionResult, BuildError)(error);
         }
         
@@ -78,7 +78,7 @@ final class Compressor
     {
         if (data.length == 0)
         {
-            auto error = new BuildError("Cannot decompress empty data");
+            auto error = new GenericError("Cannot decompress empty data");
             return Err!(DecompressionResult, BuildError)(error);
         }
         
@@ -103,10 +103,10 @@ final class Compressor
         return ratio < 0.95;
     }
     
-    private Result!(CompressionResult, BuildError) compressNone(const(ubyte)[] data) pure @safe
+    private Result!(CompressionResult, BuildError) compressNone(const(ubyte)[] data) pure @trusted
     {
         CompressionResult result;
-        result.data = cast(ubyte[])data;
+        result.data = data.dup;
         result.originalSize = data.length;
         result.compressedSize = data.length;
         result.ratio = 1.0;
@@ -234,9 +234,9 @@ final class Compressor
         }
     }
     
-    private Result!(DecompressionResult, BuildError) decompressNone(const(ubyte)[] data) pure @safe
+    private Result!(DecompressionResult, BuildError) decompressNone(const(ubyte)[] data) pure @trusted
     {
-        return Ok!(DecompressionResult, BuildError)(cast(ubyte[])data);
+        return Ok!(DecompressionResult, BuildError)(data.dup);
     }
     
     private Result!(DecompressionResult, BuildError) decompressZstd(const(ubyte)[] data) @trusted
@@ -272,7 +272,7 @@ final class Compressor
             
             if (result.status != 0 || !exists(outputPath))
             {
-                auto error = new BuildError("Zstd decompression failed");
+                auto error = new GenericError("Zstd decompression failed");
                 return Err!(DecompressionResult, BuildError)(error);
             }
             
@@ -281,7 +281,7 @@ final class Compressor
         }
         catch (Exception e)
         {
-            auto error = new BuildError("Zstd decompression failed: " ~ e.msg);
+            auto error = new GenericError("Zstd decompression failed: " ~ e.msg);
             return Err!(DecompressionResult, BuildError)(error);
         }
     }
@@ -318,7 +318,7 @@ final class Compressor
             
             if (result.status != 0 || !exists(outputPath))
             {
-                auto error = new BuildError("LZ4 decompression failed");
+                auto error = new GenericError("LZ4 decompression failed");
                 return Err!(DecompressionResult, BuildError)(error);
             }
             
@@ -327,7 +327,7 @@ final class Compressor
         }
         catch (Exception e)
         {
-            auto error = new BuildError("LZ4 decompression failed: " ~ e.msg);
+            auto error = new GenericError("LZ4 decompression failed: " ~ e.msg);
             return Err!(DecompressionResult, BuildError)(error);
         }
     }

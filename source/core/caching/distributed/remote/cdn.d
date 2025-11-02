@@ -206,12 +206,15 @@ final class CdnManager
     private string signUrl(string data) const @trusted
     {
         import std.digest.hmac : hmac;
+        import std.digest.sha : SHA256;
         
         if (config.signingKey.length == 0)
             return "";
         
         // HMAC-SHA256 signature
-        auto hash = hmac!sha256Of(cast(ubyte[])config.signingKey, cast(ubyte[])data);
+        auto h = hmac!SHA256(cast(ubyte[])config.signingKey);
+        h.put(cast(ubyte[])data);
+        auto hash = h.finish();
         return Base64URL.encode(hash);
     }
     

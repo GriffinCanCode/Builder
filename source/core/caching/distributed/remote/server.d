@@ -806,8 +806,8 @@ final class CacheServer
         headers["X-RateLimit-Remaining"] = "0";
         headers["X-RateLimit-Reset"] = to!string(Clock.currStdTime() / 10_000_000 + retryAfter.total!"seconds");
         
-        immutable body_ = cast(ubyte[])"Rate limit exceeded. Please retry after " ~ 
-                         to!string(retryAfter.total!"seconds") ~ " seconds.";
+        immutable body_ = cast(immutable(ubyte)[])("Rate limit exceeded. Please retry after " ~ 
+                         to!string(retryAfter.total!"seconds") ~ " seconds.");
         
         sendResponse(client, 429, "Too Many Requests", body_, headers);
     }

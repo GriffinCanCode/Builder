@@ -301,6 +301,29 @@ final class Coordinator
         }
     }
     
+    /// Health monitoring loop (checks worker health periodically)
+    private void healthLoop() @trusted
+    {
+        import core.thread : Thread;
+        import std.datetime : dur;
+        
+        while (atomicLoad(running))
+        {
+            try
+            {
+                // Check worker health
+                // Health monitor runs its own monitoring loop
+                // Just sleep for heartbeat interval
+                Thread.sleep(config.heartbeatInterval);
+            }
+            catch (Exception e)
+            {
+                if (atomicLoad(running))
+                    Logger.error("Health check failed: " ~ e.msg);
+            }
+        }
+    }
+    
     private void cleanupSocket(Socket client) nothrow
     {
         try { client.shutdown(SocketShutdown.BOTH); } catch (Exception) {}

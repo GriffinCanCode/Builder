@@ -56,7 +56,7 @@ class NervesBuilder : MixProjectBuilder
         
         if (res.status != 0)
         {
-            result.error = "Firmware build failed: " ~ res.output;
+            result.errors ~= "Firmware build failed: " ~ res.output;
             result.success = false;
             return result;
         }

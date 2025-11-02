@@ -89,7 +89,7 @@ class MixProjectBuilder : ElixirBuilder
         {
             string[string] modMetadata;
             modMetadata["mixEnv"] = mixEnv;
-            modMetadata["debugInfo"] = config.debugInfo.to!string;
+            modMetadata["debugInfo"] = config.build.debugInfo.to!string;
             
             ActionId modActionId;
             modActionId.targetId = baseName(workDir);
@@ -111,10 +111,10 @@ class MixProjectBuilder : ElixirBuilder
         // Build metadata for cache validation
         string[string] metadata;
         metadata["mixEnv"] = mixEnv;
-        metadata["verbose"] = config.verbose.to!string;
-        metadata["warningsAsErrors"] = config.warningsAsErrors.to!string;
-        metadata["debugInfo"] = config.debugInfo.to!string;
-        metadata["compilerOpts"] = config.compilerOpts.join(",");
+        metadata["verbose"] = config.build.verbose.to!string;
+        metadata["warningsAsErrors"] = config.build.warningsAsErrors.to!string;
+        metadata["debugInfo"] = config.build.debugInfo.to!string;
+        metadata["compilerOpts"] = config.build.compilerOpts.join(",");
         
         // Determine output paths
         string buildDir = config.project.buildPath;
@@ -140,20 +140,20 @@ class MixProjectBuilder : ElixirBuilder
         // Build Mix command
         string[] cmd = ["mix", "compile"];
         
-        if (config.verbose)
+        if (config.build.verbose)
             cmd ~= "--verbose";
         
-        if (config.warningsAsErrors)
+        if (config.build.warningsAsErrors)
             cmd ~= "--warnings-as-errors";
         
-        if (!config.debugInfo)
+        if (!config.build.debugInfo)
             cmd ~= "--no-debug-info";
         
         // Add compiler options
-        if (!config.compilerOpts.empty)
+        if (!config.build.compilerOpts.empty)
         {
             cmd ~= "--erl-opts";
-            cmd ~= config.compilerOpts.join(" ");
+            cmd ~= config.build.compilerOpts.join(" ");
         }
         
         Logger.info("Compiling Mix project: " ~ cmd.join(" "));
@@ -165,7 +165,7 @@ class MixProjectBuilder : ElixirBuilder
         
         if (!success)
         {
-            result.error = "Compilation failed: " ~ res.output;
+            result.errors ~= "Compilation failed: " ~ res.output;
             
             // Parse warnings from output
             result.warnings = parseCompilerWarnings(res.output);
@@ -203,7 +203,7 @@ class MixProjectBuilder : ElixirBuilder
             {
                 string[string] modMetadata;
                 modMetadata["mixEnv"] = mixEnv;
-                modMetadata["debugInfo"] = config.debugInfo.to!string;
+                modMetadata["debugInfo"] = config.build.debugInfo.to!string;
                 
                 ActionId modActionId;
                 modActionId.targetId = baseName(workDir);
@@ -223,7 +223,7 @@ class MixProjectBuilder : ElixirBuilder
         }
         
         // Compile protocols if requested
-        if (config.compileProtocols)
+        if (config.build.compileProtocols)
         {
             Logger.info("Consolidating protocols");
             auto protCmd = ["mix", "compile.protocols"];

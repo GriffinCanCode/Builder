@@ -2,6 +2,7 @@ module plugins.discovery.validator;
 
 import std.algorithm : startsWith;
 import std.string : strip;
+import std.range : empty;
 import std.conv : to;
 import std.file : exists, isFile;
 import plugins.protocol;
@@ -20,7 +21,7 @@ struct SemanticVersion {
     }
     
     /// Parse semantic version from string
-    static Result!(SemanticVersion, BuildError) parse(string ver) @safe {
+    static Result!(SemanticVersion, BuildError) parse(string ver) @system {
         import std.array : split;
         
         try {
@@ -96,7 +97,7 @@ class PluginValidator {
                 "Plugin name is required",
                 ErrorCode.InvalidFieldValue
             );
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         if (info.version_.empty) {
@@ -104,13 +105,13 @@ class PluginValidator {
                 "Plugin version is required",
                 ErrorCode.InvalidFieldValue
             );
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         // Validate version format
         auto pluginVerResult = SemanticVersion.parse(info.version_);
         if (pluginVerResult.isErr) {
-            return Err!BuildError(pluginVerResult.unwrapErr());
+            return Result!BuildError.err(pluginVerResult.unwrapErr());
         }
         
         // Check Builder version compatibility
@@ -136,12 +137,12 @@ class PluginValidator {
     private Result!BuildError checkVersionCompatibility(string minVersion) @system {
         auto minVerResult = SemanticVersion.parse(minVersion);
         if (minVerResult.isErr) {
-            return Err!BuildError(minVerResult.unwrapErr());
+            return Result!BuildError.err(minVerResult.unwrapErr());
         }
         
         auto currentVerResult = SemanticVersion.parse(builderVersion);
         if (currentVerResult.isErr) {
-            return Err!BuildError(currentVerResult.unwrapErr());
+            return Result!BuildError.err(currentVerResult.unwrapErr());
         }
         
         auto minVer = minVerResult.unwrap();
@@ -154,14 +155,14 @@ class PluginValidator {
             );
             err.addSuggestion("Upgrade Builder: brew upgrade builder");
             err.addSuggestion("Or use an older version of the plugin");
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         return Ok!BuildError();
     }
     
     /// Validate capability string
-    private Result!BuildError validateCapability(string capability) @safe {
+    private Result!BuildError validateCapability(string capability) @system {
         import std.algorithm : among;
         
         // Known capabilities
@@ -188,7 +189,7 @@ class PluginValidator {
                 ErrorCode.InvalidFieldValue
             );
             err.addSuggestion("Valid capabilities: " ~ validCapabilities.to!string);
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         return Ok!BuildError();
@@ -201,7 +202,7 @@ class PluginValidator {
                 "Plugin executable not found: " ~ pluginPath,
                 ErrorCode.ToolNotFound
             );
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         if (!isFile(pluginPath)) {
@@ -209,7 +210,7 @@ class PluginValidator {
                 "Plugin path is not a file: " ~ pluginPath,
                 ErrorCode.InvalidInput
             );
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         // Check if executable
@@ -225,7 +226,7 @@ class PluginValidator {
                         ErrorCode.InvalidInput
                     );
                     err.addSuggestion("Make it executable: chmod +x " ~ pluginPath);
-                    return Err!BuildError(err);
+                    return Result!BuildError.err(err);
                 }
             }
         }

@@ -28,7 +28,7 @@ final class PerlDocumentationService : IPerlDocumentationService
         import std.process : execute;
         import std.conv : to;
         
-        auto generator = config.documentation.generator;
+        PerlDocGenerator generator = config.documentation.generator;
         if (generator == PerlDocGenerator.None)
             return;
         

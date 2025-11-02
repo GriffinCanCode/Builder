@@ -305,7 +305,7 @@ final class StealEngine
                 else
                 {
                     atomicOp!"+="(metrics.networkErrors, 1);
-                    return receiveResult.asErr!(ActionRequest, DistributedError)();
+                    return Err!(ActionRequest, DistributedError)(receiveResult.unwrapErr());
                 }
             }
             

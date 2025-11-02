@@ -223,6 +223,14 @@ struct ReleaseConfig
     bool overwrite = false;
 }
 
+/// Nerves configuration
+struct NervesConfig
+{
+    string target;
+    string system;
+    string version_;
+}
+
 /// Elixir Build Configuration
 struct ElixirBuildConfig
 {
@@ -250,6 +258,9 @@ struct ElixirBuildConfig
     /// Release configuration
     ReleaseConfig release;
     
+    /// Nerves configuration
+    NervesConfig nerves;
+    
     /// Compile warnings as errors
     bool warningsAsErrors = false;
     
@@ -273,6 +284,12 @@ struct ElixirBuildConfig
     
     /// No optional deps
     bool noOptionalDeps = false;
+    
+    /// Compiler options
+    string[] compilerOpts;
+    
+    /// Compile protocols
+    bool compileProtocols = true;
     
     /// Environment variables
     string[string] env;

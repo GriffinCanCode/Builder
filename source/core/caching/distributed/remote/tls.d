@@ -58,18 +58,19 @@ final class TlsContext
         
         if (!config.isValid())
         {
-            auto error = new BuildError(
+            auto error = new ConfigError(
                 "Invalid TLS configuration",
-                ErrorCode.ConfigInvalid
+                ErrorCode.ConfigError
             );
             return Result!BuildError.err(error);
         }
         
         if (!config.certificatesExist())
         {
-            auto error = new BuildError(
+            auto error = new IOError(
+                config.certFile,
                 "TLS certificates not found: " ~ config.certFile,
-                ErrorCode.IOError
+                ErrorCode.FileNotFound
             );
             return Result!BuildError.err(error);
         }
@@ -147,7 +148,7 @@ final class CertificateManager
         // 4. Request certificate
         // 5. Save new certificate and key
         
-        auto error = new BuildError(
+        auto error = new InternalError(
             "ACME certificate renewal not yet implemented",
             ErrorCode.NotImplemented
         );
@@ -185,7 +186,7 @@ struct TlsUtil
         // 3. Self-sign with private key
         // 4. Save PEM files
         
-        auto error = new BuildError(
+        auto error = new InternalError(
             "Self-signed certificate generation not yet implemented",
             ErrorCode.NotImplemented
         );
@@ -197,9 +198,10 @@ struct TlsUtil
     {
         if (!exists(certPath))
         {
-            auto error = new BuildError(
+            auto error = new IOError(
+                certPath,
                 "Certificate not found: " ~ certPath,
-                ErrorCode.IOError
+                ErrorCode.FileNotFound
             );
             return Err!(bool, BuildError)(error);
         }

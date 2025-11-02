@@ -40,7 +40,7 @@ class ScriptBuilder : ElixirBuilder
         {
             if (!exists(source) || !isFile(source))
             {
-                result.error = "Source file not found: " ~ source;
+                result.errors ~= "Source file not found: " ~ source;
                 return result;
             }
             
@@ -50,14 +50,14 @@ class ScriptBuilder : ElixirBuilder
             
             if (res.status != 0)
             {
-                result.error = "Syntax error in " ~ source ~ ": " ~ res.output;
+                result.errors ~= "Syntax error in " ~ source ~ ": " ~ res.output;
                 return result;
             }
         }
         
         result.success = true;
         result.outputs = sources.dup;
-        result.outputHash = FastHash.hashStrings(sources);
+        // outputHash removed from ElixirBuildResult
         
         return result;
     }

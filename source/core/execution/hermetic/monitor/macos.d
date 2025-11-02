@@ -23,7 +23,7 @@ final class MacOSMonitor : BaseMonitor
     private ulong initialUserTime;
     private ulong initialSystemTime;
     
-    this(ResourceLimits limits) @safe
+    this(ResourceLimits limits) @trusted
     {
         super(limits);
         pid = getpid();

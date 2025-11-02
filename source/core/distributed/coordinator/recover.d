@@ -1,9 +1,11 @@
 module core.distributed.coordinator.recover;
 
 import std.datetime : Duration, Clock, SysTime, seconds;
-import std.algorithm : filter, map, sort, remove;
+import std.algorithm : filter, map, sort, remove, min;
 import std.array : array;
 import std.container : DList;
+import std.conv : to;
+import std.range : walkLength;
 import core.atomic;
 import core.sync.mutex : Mutex;
 import core.distributed.protocol.protocol;
@@ -115,7 +117,7 @@ final class CoordinatorRecovery
                     atomicOp!"+="(failedReassignments, 1);
                     
                     Logger.warning("No workers available for reassignment");
-                    return Err!DistributedError(
+                    return Result!DistributedError.err(
                         new DistributedError("No available workers for reassignment"));
                 }
                 
@@ -176,7 +178,7 @@ final class CoordinatorRecovery
     {
         synchronized (mutex)
         {
-            return reassignmentQueue.length;
+            return walkLength(reassignmentQueue[]);
         }
     }
     
@@ -202,7 +204,7 @@ final class CoordinatorRecovery
         
         synchronized (mutex)
         {
-            stats.pendingReassignments = reassignmentQueue.length;
+            stats.pendingReassignments = walkLength(reassignmentQueue[]);
         }
         
         immutable total = stats.successfulReassignments + stats.failedReassignments;

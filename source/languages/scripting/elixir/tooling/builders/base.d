@@ -17,6 +17,7 @@ struct ElixirBuildResult
     bool success;
     string[] outputs;
     string[] errors;
+    string[] warnings;
 }
 
 /// Base interface for Elixir builders

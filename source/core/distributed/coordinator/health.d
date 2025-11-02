@@ -1,9 +1,9 @@
 module core.distributed.coordinator.health;
 
-import std.datetime : Duration, Clock, SysTime, seconds, msecs;
+import std.datetime : Duration, Clock, SysTime, seconds, msecs, hnsecs;
 import std.algorithm : min, max, filter, map, sort;
 import std.array : array;
-import std.math : exp;
+import std.math : exp, log10;
 import std.conv : to;
 import core.atomic;
 import core.sync.mutex : Mutex;
@@ -120,7 +120,7 @@ final class HealthMonitor
     Result!DistributedError start() @trusted
     {
         if (atomicLoad(running))
-            return Err!DistributedError(
+            return Result!DistributedError.err(
                 new DistributedError("Health monitor already running"));
         
         atomicStore(running, true);
@@ -168,7 +168,11 @@ final class HealthMonitor
             if (h.avgResponseTime == Duration.zero)
                 h.avgResponseTime = elapsed;
             else
-                h.avgResponseTime = h.avgResponseTime * 0.9 + elapsed * 0.1;
+            {
+                // Use total hnsecs (100-nanosecond intervals) for calculation
+                immutable avgHnsecs = cast(long)(h.avgResponseTime.total!"hnsecs" * 0.9 + elapsed.total!"hnsecs" * 0.1);
+                h.avgResponseTime = avgHnsecs.hnsecs;
+            }
             
             // Check for degraded performance
             if (hb.metrics.cpuUsage > degradedCpuThreshold)

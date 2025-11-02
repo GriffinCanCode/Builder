@@ -55,7 +55,7 @@ class PluginRegistry : IPluginRegistry {
         // Discover plugins
         auto discoverResult = scanner.discover();
         if (discoverResult.isErr) {
-            return Err!BuildError(discoverResult.unwrapErr());
+            return Result!BuildError.err(discoverResult.unwrapErr());
         }
         
         auto discovered = discoverResult.unwrap();

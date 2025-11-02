@@ -4,6 +4,7 @@ import languages.scripting.perl.core.config;
 import core.caching.actions.action;
 import utils.files.hash;
 import utils.logging.logger;
+import std.range : empty;
 
 /// Dependency management service interface
 interface IPerlDependencyService

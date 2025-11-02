@@ -36,9 +36,13 @@ struct ElixirConfig
     ref MixProjectConfig project() return { return build.mixProject; }
     const(MixProjectConfig) project() const { return build.mixProject; }
     ref PhoenixConfig phoenix() return { return build.phoenix; }
+    const(PhoenixConfig) phoenix() const { return build.phoenix; }
     ref ReleaseConfig release() return { return build.release; }
+    ref NervesConfig nerves() return { return build.nerves; }
+    const(NervesConfig) nerves() const { return build.nerves; }
     
     ref UmbrellaConfig umbrella() return { return dependencies.umbrella; }
+    const(UmbrellaConfig) umbrella() const { return dependencies.umbrella; }
     ref HexConfig hex() return { return dependencies.hex; }
     
     ref DialyzerConfig dialyzer() return { return quality.dialyzer; }

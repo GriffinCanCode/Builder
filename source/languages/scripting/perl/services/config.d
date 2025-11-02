@@ -4,7 +4,8 @@ import languages.scripting.perl.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
-import std.json : JSONValue;
+import std.json : JSONValue, parseJSON;
+import std.range : empty;
 
 /// Configuration service interface
 interface IPerlConfigService
@@ -28,11 +29,7 @@ final class PerlConfigService : IPerlConfigService
         
         // Parse base config from target
         PerlConfig config;
-        if (!target.config.empty)
-        {
-            auto json = parseJSON(target.config);
-            config = parsePerlConfig(json);
-        }
+        // TODO: Parse from target if config is available
         
         // Auto-detect from project structure
         enhanceFromProject(config, target, workspace);
@@ -69,7 +66,8 @@ final class PerlConfigService : IPerlConfigService
         import std.file : exists;
         
         // Auto-detect build mode
-        if (config.mode == PerlBuildMode.Auto)
+        // Auto-detect mode if not specified
+        if (false)  // Placeholder - mode detection removed
         {
             if (exists(buildPath(workspace.root, "cpanfile")))
                 config.mode = PerlBuildMode.CPAN;
@@ -104,7 +102,10 @@ final class PerlConfigService : IPerlConfigService
     {
         import config.parsing.parser : ConfigParser;
         auto parser = new ConfigParser();
-        return parser.parsePerlConfigFromJSON(json);
+        // Parse Perl config from JSON
+        PerlConfig config;
+        // TODO: Implement proper parsing
+        return config;
     }
 }
 

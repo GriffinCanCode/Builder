@@ -7,6 +7,7 @@ import analysis.targets.types;
 import core.caching.actions.action;
 import utils.files.hash;
 import utils.logging.logger;
+import std.range : empty;
 
 /// Build service interface
 interface IPerlBuildService

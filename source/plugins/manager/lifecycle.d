@@ -46,7 +46,7 @@ class LifecycleManager {
             if (result.isErr) {
                 Logger.error("Pre-build hook failed: " ~ plugin.name ~ " - " ~ 
                     result.unwrapErr().message);
-                return Err!BuildError(result.unwrapErr());
+                return Result!BuildError.err(result.unwrapErr());
             }
             
             auto hookResult = result.unwrap();
@@ -62,7 +62,7 @@ class LifecycleManager {
                     ErrorCode.BuildFailed
                 );
                 err.addContext(ErrorContext("plugin", plugin.name));
-                return Err!BuildError(err);
+                return Result!BuildError.err(err);
             }
             
             Logger.debug_("Pre-build hook completed: " ~ plugin.name ~ " (" ~ 

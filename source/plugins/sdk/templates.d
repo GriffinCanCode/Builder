@@ -31,7 +31,7 @@ class TemplateGenerator {
                 ErrorCode.InvalidInput
             );
             err.addSuggestion("Choose a different name or remove the existing directory");
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
         
         // Create directory structure
@@ -66,7 +66,7 @@ class TemplateGenerator {
                 "Failed to create plugin template: " ~ e.msg,
                 ErrorCode.FileWriteFailed
             );
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
     }
     

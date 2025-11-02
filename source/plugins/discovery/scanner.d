@@ -5,7 +5,9 @@ import std.path;
 import std.process : environment;
 import std.algorithm : canFind, filter, map, startsWith;
 import std.array : array, split;
-import std.string : strip;
+import std.string : strip, toStringz;
+import std.range : empty;
+import std.conv : to;
 import std.json;
 import plugins.protocol;
 import utils.logging.logger;
@@ -51,7 +53,7 @@ class PluginScanner {
     
     /// Discover all installed plugins
     Result!(PluginInfo[], BuildError) discover() @system {
-        Logger.debug_("Scanning for plugins in " ~ searchPaths.length.to!string ~ " directories");
+        Logger.debugLog("Scanning for plugins in " ~ searchPaths.length.to!string ~ " directories");
         
         PluginInfo[] plugins;
         
@@ -69,7 +71,7 @@ class PluginScanner {
                     auto infoResult = queryPluginInfo(entry.name);
                     if (infoResult.isOk) {
                         plugins ~= infoResult.unwrap();
-                        Logger.debug_("Found plugin: " ~ infoResult.unwrap().name);
+                        Logger.debugLog("Found plugin: " ~ infoResult.unwrap().name);
                     } else {
                         Logger.warning("Failed to query plugin " ~ entry.name ~ ": " ~ 
                             infoResult.unwrapErr().message);
@@ -248,7 +250,7 @@ class PluginScanner {
                 "Failed to save plugin cache: " ~ e.msg,
                 ErrorCode.CacheSaveFailed
             );
-            return Err!BuildError(err);
+            return Result!BuildError.err(err);
         }
     }
 }

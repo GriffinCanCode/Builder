@@ -6,6 +6,8 @@ import analysis.targets.types;
 import core.caching.actions.action;
 import utils.files.hash;
 import utils.logging.logger;
+import std.range : empty;
+import std.array : join;
 
 /// Test execution service interface
 interface IPerlTestService
@@ -30,7 +32,7 @@ final class PerlTestService : IPerlTestService
     ) @trusted
     {
         // Detect framework
-        auto framework = config.test.framework;
+        PerlTestFramework framework = config.test.framework;
         if (framework == PerlTestFramework.Auto)
         {
             framework = detectFramework();

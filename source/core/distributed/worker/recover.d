@@ -2,6 +2,7 @@ module core.distributed.worker.recover;
 
 import std.datetime : Duration, MonoTime, Clock, SysTime, seconds, msecs;
 import std.algorithm : min;
+import std.conv : to;
 import core.atomic;
 import core.sync.mutex : Mutex;
 import core.distributed.protocol.protocol;
@@ -44,9 +45,9 @@ final class WorkerRecovery
     
     /// Execute action with retry logic
     /// Wraps retry orchestrator with distributed failure handling
-    Result!ActionResult executeWithRetry(
+    Result!(ActionResult, BuildError) executeWithRetry(
         ActionRequest request,
-        Result!ActionResult delegate() @system execute) @system
+        Result!(ActionResult, BuildError) delegate() @system execute) @system
     {
         immutable operationId = "action-" ~ request.id.toString();
         
@@ -80,7 +81,7 @@ final class WorkerRecovery
         atomicOp!"+="(totalFailures, 1);
         
         // Classify error
-        if (cast(NetworkError)error !is null)
+        if (cast(core.distributed.protocol.protocol.NetworkError)error !is null)
         {
             atomicOp!"+="(networkFailures, 1);
             handleNetworkFailure(peer, error);
@@ -198,28 +199,28 @@ final class WorkerRecovery
                 policy.maxAttempts = 5;
                 policy.initialDelay = 100.msecs;
                 policy.maxDelay = 5.seconds;
-                policy.multiplier = 1.5;
+                policy.backoffMultiplier = 1.5;
                 break;
             
             case Priority.High:
                 policy.maxAttempts = 4;
                 policy.initialDelay = 200.msecs;
                 policy.maxDelay = 10.seconds;
-                policy.multiplier = 2.0;
+                policy.backoffMultiplier = 2.0;
                 break;
             
             case Priority.Normal:
                 policy.maxAttempts = 3;
                 policy.initialDelay = 500.msecs;
                 policy.maxDelay = 30.seconds;
-                policy.multiplier = 2.0;
+                policy.backoffMultiplier = 2.0;
                 break;
             
             case Priority.Low:
                 policy.maxAttempts = 2;
                 policy.initialDelay = 1.seconds;
                 policy.maxDelay = 60.seconds;
-                policy.multiplier = 2.0;
+                policy.backoffMultiplier = 2.0;
                 break;
         }
         
