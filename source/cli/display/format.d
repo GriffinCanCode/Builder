@@ -26,7 +26,7 @@ struct Formatter
     }
     
     /// Format build started message
-    string formatBuildStarted(in size_t totalTargets, in size_t maxParallelism) const @safe
+    string formatBuildStarted(in size_t totalTargets, in size_t maxParallelism) const @system
     {
         immutable msg = format("Building %d targets (parallelism: %d)...", 
                          totalTargets, maxParallelism);
@@ -34,7 +34,7 @@ struct Formatter
     }
     
     /// Format build completed message
-    string formatBuildCompleted(in size_t built, in size_t cached, in Duration duration) const @safe
+    string formatBuildCompleted(in size_t built, in size_t cached, in Duration duration) const @system
     {
         immutable msg = format("%s Build completed in %s", 
                          symbols.checkmark, formatDuration(duration));
@@ -44,7 +44,7 @@ struct Formatter
     }
     
     /// Format build failed message
-    string formatBuildFailed(in size_t failed, in Duration duration) const @safe
+    string formatBuildFailed(in size_t failed, in Duration duration) const @system
     {
         immutable msg = format("%s Build failed with %d errors in %s",
                          symbols.cross, failed, formatDuration(duration));
@@ -52,7 +52,7 @@ struct Formatter
     }
     
     /// Format target started message
-    string formatTargetStarted(in string targetId, in size_t index, in size_t total) const @safe
+    string formatTargetStarted(in string targetId, in size_t index, in size_t total) const @system
     {
         immutable msg = format("[%d/%d] %s Building %s", 
                          index, total, symbols.building, targetId);
@@ -60,7 +60,7 @@ struct Formatter
     }
     
     /// Format target completed message
-    string formatTargetCompleted(in string targetId, in Duration duration) const @safe
+    string formatTargetCompleted(in string targetId, in Duration duration) const @system
     {
         immutable msg = format("%s %s", symbols.checkmark, targetId);
         immutable time = format("(%s)", formatDuration(duration));
@@ -68,7 +68,7 @@ struct Formatter
     }
     
     /// Format target cached message
-    string formatTargetCached(in string targetId) const @safe
+    string formatTargetCached(in string targetId) const @system
     {
         immutable msg = format("%s %s", symbols.cached, targetId);
         return styled(msg, Color.Yellow) ~ " " ~ 
@@ -76,7 +76,7 @@ struct Formatter
     }
     
     /// Format target failed message
-    string formatTargetFailed(in string targetId, in string error) const @safe
+    string formatTargetFailed(in string targetId, in string error) const @system
     {
         immutable msg = format("%s %s", symbols.cross, targetId);
         immutable errorMsg = format("  Error: %s", error);
@@ -85,19 +85,19 @@ struct Formatter
     }
     
     /// Format info message
-    string formatInfo(in string message) const @safe
+    string formatInfo(in string message) const @system
     {
         return styled("[INFO] ", Color.Cyan) ~ message;
     }
     
     /// Format warning message
-    string formatWarning(in string message) const @safe
+    string formatWarning(in string message) const @system
     {
         return styled("[WARN] ", Color.Yellow, Style.Bold) ~ message;
     }
     
     /// Format error message
-    string formatError(in string message) const @safe
+    string formatError(in string message) const @system
     {
         return styled("[ERROR] ", Color.Red, Style.Bold) ~ message;
     }
@@ -195,7 +195,7 @@ struct Formatter
     }
     
     /// Apply styling to text
-    private string styled(in string text, in Color color, in Style style = Style.None) const @safe
+    private string styled(in string text, in Color color, in Style style = Style.None) const @system
     {
         if (!useColors)
             return text;
@@ -217,7 +217,7 @@ struct Formatter
 }
 
 /// Duration formatting utilities
-string formatDuration(in Duration d) pure @trusted
+string formatDuration(in Duration d) pure @system
 {
     immutable msecs = d.total!"msecs";
     

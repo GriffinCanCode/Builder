@@ -18,7 +18,7 @@ struct RetryPolicy
     bool exponential = true;
     
     /// Create policy for specific error category
-    static RetryPolicy forCategory(ErrorCategory category) pure @safe
+    static RetryPolicy forCategory(ErrorCategory category) pure @system
     {
         final switch (category)
         {
@@ -46,7 +46,7 @@ struct RetryPolicy
     }
     
     /// Calculate delay for given attempt with jitter
-    Duration delayFor(size_t attempt) const @safe
+    Duration delayFor(size_t attempt) const @system
     {
         if (attempt == 0 || !exponential)
             return Duration.zero;
@@ -80,7 +80,7 @@ struct RetryPolicy
     }
     
     /// Check if should retry based on attempt count
-    bool shouldRetry(size_t attempt) const pure nothrow @nogc @safe
+    bool shouldRetry(size_t attempt) const pure nothrow @nogc @system
     {
         return attempt < maxAttempts;
     }
@@ -96,7 +96,7 @@ struct RetryStats
     Duration totalDelay;
     
     /// Record a retry attempt
-    void recordAttempt(ErrorCode code, Duration delay, bool success) @safe
+    void recordAttempt(ErrorCode code, Duration delay, bool success) @system
     {
         totalRetries++;
         if (success)
@@ -109,7 +109,7 @@ struct RetryStats
     }
     
     /// Get success rate
-    float successRate() const pure nothrow @nogc @safe
+    float successRate() const pure nothrow @nogc @system
     {
         if (totalRetries == 0)
             return 0.0;
@@ -126,7 +126,7 @@ struct RetryContext
     RetryPolicy policy;      // Policy for this operation
     SysTime startTime;       // When retry sequence started
     
-    this(string operationId, RetryPolicy policy) @safe
+    this(string operationId, RetryPolicy policy) @system
     {
         this.operationId = operationId;
         this.policy = policy;
@@ -135,26 +135,26 @@ struct RetryContext
     }
     
     /// Check if should retry
-    bool shouldRetry() const pure nothrow @nogc @safe
+    bool shouldRetry() const pure nothrow @nogc @system
     {
         return policy.shouldRetry(currentAttempt);
     }
     
     /// Get next delay
-    Duration nextDelay() const @safe
+    Duration nextDelay() const @system
     {
         return policy.delayFor(currentAttempt + 1);
     }
     
     /// Record attempt
-    void recordAttempt(BuildError error) @safe
+    void recordAttempt(BuildError error) @system
     {
         currentAttempt++;
         lastError = error;
     }
     
     /// Get total elapsed time
-    Duration elapsed() const @safe
+    Duration elapsed() const @system
     {
         return Clock.currTime() - startTime;
     }
@@ -168,7 +168,7 @@ final class RetryOrchestrator
     private RetryPolicy defaultPolicy;
     private RetryPolicy[ErrorCode] customPolicies;
     
-    this(RetryPolicy defaultPolicy = RetryPolicy.init) @safe
+    this(RetryPolicy defaultPolicy = RetryPolicy.init) @system
     {
         this.defaultPolicy = defaultPolicy;
         atomicStore(enabled, true);
@@ -178,25 +178,25 @@ final class RetryOrchestrator
     }
     
     /// Enable/disable retry system
-    void setEnabled(bool value) nothrow @trusted @nogc
+    void setEnabled(bool value) nothrow @system @nogc
     {
         atomicStore(enabled, value);
     }
     
     /// Check if enabled
-    bool isEnabled() const nothrow @trusted @nogc
+    bool isEnabled() const nothrow @system @nogc
     {
         return atomicLoad(enabled);
     }
     
     /// Register custom policy for specific error code
-    void registerPolicy(ErrorCode code, RetryPolicy policy) @safe
+    void registerPolicy(ErrorCode code, RetryPolicy policy) @system
     {
         customPolicies[code] = policy;
     }
     
     /// Get policy for error
-    RetryPolicy policyFor(BuildError error) const @trusted
+    RetryPolicy policyFor(BuildError error) const @system
     {
         // Check custom policy
         if (auto policy = error.code() in customPolicies)
@@ -211,7 +211,7 @@ final class RetryOrchestrator
         string operationId,
         Result!(T, BuildError) delegate() operation,
         RetryPolicy policy = RetryPolicy.init
-    ) @trusted
+    ) @system
     {
         if (!isEnabled() || policy.maxAttempts <= 1)
             return operation();
@@ -265,18 +265,18 @@ final class RetryOrchestrator
     }
     
     /// Get current statistics
-    RetryStats getStats() const @trusted
+    RetryStats getStats() const @system
     {
         return cast(RetryStats)stats;
     }
     
     /// Reset statistics
-    void resetStats() @safe
+    void resetStats() @system
     {
         stats = RetryStats.init;
     }
     
-    private void registerTransientErrors() @safe
+    private void registerTransientErrors() @system
     {
         // Network/IO transient errors
         registerPolicy(ErrorCode.ProcessTimeout, 
@@ -313,7 +313,7 @@ shared static this()
 Result!(T, BuildError) retry(T)(
     string operationId,
     Result!(T, BuildError) delegate() operation
-) @trusted
+) @system
 {
     return defaultOrchestrator.withRetry(operationId, operation);
 }

@@ -49,7 +49,7 @@ struct LogEntry
     string stackTrace;
     
     /// Convert to JSON
-    JSONValue toJson() const @trusted
+    JSONValue toJson() const @system
     {
         JSONValue json;
         json["timestamp"] = timestamp.toISOExtString();
@@ -78,7 +78,7 @@ struct LogEntry
     }
     
     /// Format as human-readable string
-    string toString() const @trusted
+    string toString() const @system
     {
         auto buffer = appender!string;
         
@@ -152,7 +152,7 @@ struct LogContext
     string[string] fields;
     
     /// Clone context with additional fields
-    LogContext withFields(string[string] additionalFields) const @safe
+    LogContext withFields(string[string] additionalFields) const @system
     {
         LogContext ctx;
         ctx.targetId = this.targetId;
@@ -175,19 +175,19 @@ struct LogContext
 private LogContext threadContext;
 
 /// Get current thread context
-LogContext getLogContext() @safe
+LogContext getLogContext() @system
 {
     return threadContext;
 }
 
 /// Set current thread context
-void setLogContext(LogContext context) @safe
+void setLogContext(LogContext context) @system
 {
     threadContext = context;
 }
 
 /// Clear current thread context
-void clearLogContext() @safe
+void clearLogContext() @system
 {
     threadContext = LogContext.init;
 }
@@ -202,7 +202,7 @@ final class StructuredLogger
     private bool enableBuffering;
     private size_t maxBufferSize;
     
-    this(LogLevel minLevel = LogLevel.Info, bool enableBuffering = true, size_t maxBufferSize = 10_000) @safe
+    this(LogLevel minLevel = LogLevel.Info, bool enableBuffering = true, size_t maxBufferSize = 10_000) @system
     {
         this.logMutex = new Mutex();
         this.minLevel = minLevel;
@@ -211,7 +211,7 @@ final class StructuredLogger
     }
     
     /// Log a message with structured fields
-    void log(LogLevel level, string message, string[string] fields = null) @trusted
+    void log(LogLevel level, string message, string[string] fields = null) @system
     {
         if (level < minLevel)
             return;
@@ -271,43 +271,43 @@ final class StructuredLogger
     }
     
     /// Log trace message
-    void trace(string message, string[string] fields = null) @trusted
+    void trace(string message, string[string] fields = null) @system
     {
         log(LogLevel.Trace, message, fields);
     }
     
     /// Log debug message
-    void debug_(string message, string[string] fields = null) @trusted
+    void debug_(string message, string[string] fields = null) @system
     {
         log(LogLevel.Debug, message, fields);
     }
     
     /// Log info message
-    void info(string message, string[string] fields = null) @trusted
+    void info(string message, string[string] fields = null) @system
     {
         log(LogLevel.Info, message, fields);
     }
     
     /// Log warning message
-    void warning(string message, string[string] fields = null) @trusted
+    void warning(string message, string[string] fields = null) @system
     {
         log(LogLevel.Warning, message, fields);
     }
     
     /// Log error message
-    void error(string message, string[string] fields = null) @trusted
+    void error(string message, string[string] fields = null) @system
     {
         log(LogLevel.Error, message, fields);
     }
     
     /// Log critical message
-    void critical(string message, string[string] fields = null) @trusted
+    void critical(string message, string[string] fields = null) @system
     {
         log(LogLevel.Critical, message, fields);
     }
     
     /// Log exception with context
-    void exception(Exception e, string message = "") @trusted
+    void exception(Exception e, string message = "") @system
     {
         string[string] fields;
         fields["exception.type"] = typeid(e).toString();
@@ -357,7 +357,7 @@ final class StructuredLogger
     }
     
     /// Get all log entries
-    LogEntry[] getEntries() const @trusted
+    LogEntry[] getEntries() const @system
     {
         synchronized (cast(Mutex)logMutex)
         {
@@ -374,7 +374,7 @@ final class StructuredLogger
     }
     
     /// Get log entries for specific target
-    Result!(LogEntry[], LogError) getTargetEntries(string targetId) const @trusted
+    Result!(LogEntry[], LogError) getTargetEntries(string targetId) const @system
     {
         synchronized (cast(Mutex)logMutex)
         {
@@ -396,7 +396,7 @@ final class StructuredLogger
     }
     
     /// Export logs as JSON
-    Result!(string, LogError) exportJson() const @trusted
+    Result!(string, LogError) exportJson() const @system
     {
         synchronized (cast(Mutex)logMutex)
         {
@@ -424,7 +424,7 @@ final class StructuredLogger
     }
     
     /// Export logs for specific target as JSON
-    Result!(string, LogError) exportTargetJson(string targetId) const @trusted
+    Result!(string, LogError) exportTargetJson(string targetId) const @system
     {
         synchronized (cast(Mutex)logMutex)
         {
@@ -457,7 +457,7 @@ final class StructuredLogger
     }
     
     /// Save logs to file
-    Result!LogError saveLogs(string filepath) const @trusted
+    Result!LogError saveLogs(string filepath) const @system
     {
         import std.file : write;
         
@@ -477,7 +477,7 @@ final class StructuredLogger
     }
     
     /// Save target logs to file
-    Result!LogError saveTargetLogs(string targetId, string filepath) const @trusted
+    Result!LogError saveTargetLogs(string targetId, string filepath) const @system
     {
         import std.file : write;
         
@@ -497,7 +497,7 @@ final class StructuredLogger
     }
     
     /// Clear all log entries
-    void clear() @trusted
+    void clear() @system
     {
         synchronized (logMutex)
         {
@@ -507,7 +507,7 @@ final class StructuredLogger
     }
     
     /// Set minimum log level
-    void setMinLevel(LogLevel level) @trusted
+    void setMinLevel(LogLevel level) @system
     {
         synchronized (logMutex)
         {
@@ -529,7 +529,7 @@ final class StructuredLogger
     }
     
     /// Get logging statistics
-    Stats getStats() const @trusted
+    Stats getStats() const @system
     {
         synchronized (cast(Mutex)logMutex)
         {
@@ -573,17 +573,17 @@ struct LogError
     string message;
     ErrorCode code;
     
-    static LogError targetNotFound(string targetId) pure @safe
+    static LogError targetNotFound(string targetId) pure @system
     {
         return LogError("Target not found: " ~ targetId, ErrorCode.TargetNotFound);
     }
     
-    static LogError exportFailed(string details) pure @safe
+    static LogError exportFailed(string details) pure @system
     {
         return LogError("Export failed: " ~ details, ErrorCode.FileWriteFailed);
     }
     
-    string toString() const pure nothrow @safe
+    string toString() const pure nothrow @system
     {
         return message;
     }
@@ -593,7 +593,7 @@ struct LogError
 private StructuredLogger globalStructuredLogger;
 
 /// Get global structured logger
-StructuredLogger getStructuredLogger() @trusted
+StructuredLogger getStructuredLogger() @system
 {
     if (globalStructuredLogger is null)
     {
@@ -609,7 +609,7 @@ StructuredLogger getStructuredLogger() @trusted
 }
 
 /// Set custom structured logger
-void setStructuredLogger(StructuredLogger logger) @trusted
+void setStructuredLogger(StructuredLogger logger) @system
 {
     globalStructuredLogger = logger;
 }
@@ -619,7 +619,7 @@ struct ScopedLogContext
 {
     private LogContext previousContext;
     
-    this(string targetId, string[string] fields = null) @trusted
+    this(string targetId, string[string] fields = null) @system
     {
         previousContext = getLogContext();
         
@@ -643,7 +643,7 @@ struct ScopedLogContext
         setLogContext(ctx);
     }
     
-    ~this() @trusted
+    ~this() @system
     {
         setLogContext(previousContext);
     }

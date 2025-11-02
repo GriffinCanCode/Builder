@@ -12,13 +12,13 @@ struct TelemetryAnalyzer
 {
     private BuildSession[] sessions;
     
-    this(BuildSession[] sessions) pure @safe
+    this(BuildSession[] sessions) pure @system
     {
         this.sessions = sessions;
     }
     
     /// Generate comprehensive analytics report
-    Result!(AnalyticsReport, TelemetryError) analyze() const pure @safe
+    Result!(AnalyticsReport, TelemetryError) analyze() const pure @system
     {
         if (sessions.empty)
             return Result!(AnalyticsReport, TelemetryError).err(
@@ -53,7 +53,7 @@ struct TelemetryAnalyzer
     }
     
     /// Get target-specific analytics
-    Result!(TargetAnalytics, TelemetryError) analyzeTarget(string targetId) const pure @safe
+    Result!(TargetAnalytics, TelemetryError) analyzeTarget(string targetId) const pure @system
     {
         TargetAnalytics analytics;
         analytics.targetId = targetId;
@@ -104,7 +104,7 @@ struct TelemetryAnalyzer
     }
     
     /// Detect performance regressions
-    Result!(Regression[], TelemetryError) detectRegressions(double threshold = 1.5) const pure @safe
+    Result!(Regression[], TelemetryError) detectRegressions(double threshold = 1.5) const pure @system
     {
         if (sessions.length < 2)
             return Result!(Regression[], TelemetryError).ok([]);
@@ -139,12 +139,12 @@ struct TelemetryAnalyzer
         return Result!(Regression[], TelemetryError).ok(regressions);
     }
     
-    private Duration calculateAverageDuration() const pure @safe
+    private Duration calculateAverageDuration() const pure @system
     {
         return calculateMean(sessions.map!(s => s.totalDuration).array.dup);
     }
     
-    private double calculateAverageCacheHitRate() const pure @safe
+    private double calculateAverageCacheHitRate() const pure @system
     {
         if (sessions.empty)
             return 0.0;
@@ -152,7 +152,7 @@ struct TelemetryAnalyzer
         return sessions.map!(s => s.cacheHitRate).sum / sessions.length;
     }
     
-    private double calculateAverageParallelism() const pure @safe
+    private double calculateAverageParallelism() const pure @system
     {
         if (sessions.empty)
             return 0.0;
@@ -160,7 +160,7 @@ struct TelemetryAnalyzer
         return sessions.map!(s => s.parallelismUtilization).sum / sessions.length;
     }
     
-    private double calculateAverageTargetsPerSecond() const pure @safe
+    private double calculateAverageTargetsPerSecond() const pure @system
     {
         if (sessions.empty)
             return 0.0;
@@ -168,7 +168,7 @@ struct TelemetryAnalyzer
         return sessions.map!(s => s.targetsPerSecond).sum / sessions.length;
     }
     
-    private Duration findFastestBuild() const pure @safe
+    private Duration findFastestBuild() const pure @system
     {
         if (sessions.empty)
             return dur!"msecs"(0);
@@ -176,7 +176,7 @@ struct TelemetryAnalyzer
         return sessions.map!(s => s.totalDuration).array.minElement;
     }
     
-    private Duration findSlowestBuild() const pure @safe
+    private Duration findSlowestBuild() const pure @system
     {
         if (sessions.empty)
             return dur!"msecs"(0);
@@ -184,7 +184,7 @@ struct TelemetryAnalyzer
         return sessions.map!(s => s.totalDuration).array.maxElement;
     }
     
-    private string[] identifyBottlenecks() const pure @safe
+    private string[] identifyBottlenecks() const pure @system
     {
         import std.typecons : Tuple, tuple;
         
@@ -223,7 +223,7 @@ struct TelemetryAnalyzer
         return avgDurations[0 .. limit].map!(t => t[0]).array;
     }
     
-    private TrendDirection calculateBuildTimeTrend() const pure @safe
+    private TrendDirection calculateBuildTimeTrend() const pure @system
     {
         if (sessions.length < 2)
             return TrendDirection.Stable;
@@ -243,7 +243,7 @@ struct TelemetryAnalyzer
         return TrendDirection.Stable;
     }
     
-    private TrendDirection calculateCacheEfficiencyTrend() const pure @safe
+    private TrendDirection calculateCacheEfficiencyTrend() const pure @system
     {
         if (sessions.length < 2)
             return TrendDirection.Stable;
@@ -261,7 +261,7 @@ struct TelemetryAnalyzer
         return TrendDirection.Stable;
     }
     
-    private static Duration calculateMean(Duration[] values) pure @safe
+    private static Duration calculateMean(Duration[] values) pure @system
     {
         if (values.empty)
             return dur!"msecs"(0);
@@ -270,7 +270,7 @@ struct TelemetryAnalyzer
         return dur!"msecs"(total / values.length);
     }
     
-    private static Duration calculateStdDev(Duration[] values) pure @safe
+    private static Duration calculateStdDev(Duration[] values) pure @system
     {
         if (values.length < 2)
             return dur!"msecs"(0);

@@ -57,7 +57,7 @@ class FileScanner
         alias ScanResult = Tuple!(string, string[]);
         auto results = ParallelExecutor.mapWorkStealing(
             paths,
-            (string path) @trusted {
+            (string path) @system {
                 auto imports = scanImports(path, pattern);
                 return tuple(path, imports);
             }

@@ -13,7 +13,7 @@ import errors;
 /// Thread-safe: status field is accessed atomically
 final class BuildNode
 {
-    string id;  // String ID for backward compatibility
+    TargetId id;  // Strongly-typed identifier
     Target target;
     BuildNode[] dependencies;
     BuildNode[] dependents;
@@ -27,7 +27,7 @@ final class BuildNode
     // Lock-free execution metadata
     private shared size_t _pendingDeps;  // Atomic: remaining dependencies to build
     
-    this(string id, Target target) @safe pure nothrow
+    this(TargetId id, Target target) @system pure nothrow
     {
         this.id = id;
         this.target = target;
@@ -40,15 +40,21 @@ final class BuildNode
         dependents.reserve(4);    // Fewer dependents on average
     }
     
-    /// Get strongly-typed target identifier
-    @property TargetId targetId() const @safe
+    /// Get strongly-typed target identifier (accessor for consistency)
+    @property TargetId targetId() const @system pure nothrow @nogc
     {
-        return target.id;
+        return id;
+    }
+    
+    /// Get string representation of ID (for backward compatibility)
+    @property string idString() const @system
+    {
+        return id.toString();
     }
     
     /// Get status atomically (thread-safe)
     /// 
-    /// Safety: This property is @trusted because:
+    /// Safety: This property is @system because:
     /// 1. atomicLoad() performs sequentially-consistent atomic read
     /// 2. _status is shared - requires atomic operations for thread safety
     /// 3. Read-only operation with no side effects
@@ -59,14 +65,14 @@ final class BuildNode
     /// 
     /// What could go wrong:
     /// - Nothing: atomic read of shared enum is safe, no memory corruption possible
-    @property BuildStatus status() const nothrow @trusted @nogc
+    @property BuildStatus status() const nothrow @system @nogc
     {
         return atomicLoad(this._status);
     }
     
     /// Set status atomically (thread-safe)
     /// 
-    /// Safety: This property is @trusted because:
+    /// Safety: This property is @system because:
     /// 1. atomicStore() performs sequentially-consistent atomic write
     /// 2. _status is shared - requires atomic operations for thread safety
     /// 3. Prevents data races during concurrent builds
@@ -77,14 +83,14 @@ final class BuildNode
     /// 
     /// What could go wrong:
     /// - Nothing: atomic write of shared enum is safe, no memory corruption possible
-    @property void status(BuildStatus newStatus) nothrow @trusted @nogc
+    @property void status(BuildStatus newStatus) nothrow @system @nogc
     {
         atomicStore(this._status, newStatus);
     }
     
     /// Get retry attempts atomically (thread-safe)
     /// 
-    /// Safety: This property is @trusted because:
+    /// Safety: This property is @system because:
     /// 1. atomicLoad() performs sequentially-consistent atomic read
     /// 2. _retryAttempts is shared - requires atomic operations
     /// 3. Read-only operation with no side effects
@@ -94,14 +100,14 @@ final class BuildNode
     /// 
     /// What could go wrong:
     /// - Nothing: atomic read of shared size_t is safe, no memory corruption possible
-    @property size_t retryAttempts() const nothrow @trusted @nogc
+    @property size_t retryAttempts() const nothrow @system @nogc
     {
         return atomicLoad(this._retryAttempts);
     }
     
     /// Increment retry attempts atomically (thread-safe)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicOp!"+=" performs atomic read-modify-write operation
     /// 2. _retryAttempts is shared - requires atomic operations
     /// 3. Prevents race conditions during concurrent retries
@@ -111,14 +117,14 @@ final class BuildNode
     /// 
     /// What could go wrong:
     /// - Overflow: If retries exceed size_t.max, wraps to 0 (extremely unlikely)
-    void incrementRetries() nothrow @trusted @nogc
+    void incrementRetries() nothrow @system @nogc
     {
         atomicOp!"+="(this._retryAttempts, 1);
     }
     
     /// Reset retry attempts atomically (thread-safe)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicStore() performs sequentially-consistent atomic write
     /// 2. _retryAttempts is shared - requires atomic operations
     /// 3. Cast to size_t is safe (compile-time constant 0)
@@ -128,18 +134,18 @@ final class BuildNode
     /// 
     /// What could go wrong:
     /// - Nothing: atomic write of constant 0 is safe, no memory corruption possible
-    void resetRetries() nothrow @trusted @nogc
+    void resetRetries() nothrow @system @nogc
     {
         atomicStore(this._retryAttempts, cast(size_t)0);
     }
     
     /// Initialize pending dependencies counter (call before execution)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicStore() performs sequentially-consistent atomic write
     /// 2. _pendingDeps is shared - requires atomic operations
     /// 3. dependencies.length is safe to read
-    void initPendingDeps() nothrow @trusted @nogc
+    void initPendingDeps() nothrow @system @nogc
     {
         atomicStore(this._pendingDeps, dependencies.length);
     }
@@ -147,7 +153,7 @@ final class BuildNode
     /// Atomically decrement pending dependencies and return new count
     /// Used by lock-free execution to detect when node becomes ready
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicOp!"-=" performs atomic read-modify-write operation
     /// 2. _pendingDeps is shared - requires atomic operations
     /// 3. Returns the new value after decrement
@@ -158,14 +164,14 @@ final class BuildNode
     /// 
     /// What could go wrong:
     /// - Underflow: If decremented too many times (caller's responsibility)
-    size_t decrementPendingDeps() nothrow @trusted @nogc
+    size_t decrementPendingDeps() nothrow @system @nogc
     {
         atomicOp!"-="(this._pendingDeps, 1);
         return atomicLoad(this._pendingDeps);
     }
     
     /// Get current pending dependencies count
-    size_t pendingDeps() const nothrow @trusted @nogc
+    size_t pendingDeps() const nothrow @system @nogc
     {
         return atomicLoad(this._pendingDeps);
     }
@@ -173,7 +179,7 @@ final class BuildNode
     /// Check if this node is ready to build (all deps built)
     /// Thread-safe: reads dependency status atomically
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Reads _status atomically from dependency nodes
     /// 2. dependencies array is immutable after graph construction
     /// 3. atomicLoad() ensures memory-safe concurrent reads
@@ -187,7 +193,7 @@ final class BuildNode
     /// - If dependencies array is modified during iteration: undefined behavior
     /// - If dependency nodes are freed: dangling pointer access
     /// - These are prevented by design: graph is immutable after construction
-    bool isReady() const @trusted nothrow
+    bool isReady() const @system nothrow
     {
         foreach (dep; dependencies)
         {
@@ -207,7 +213,7 @@ final class BuildNode
     /// Without memoization, this would be O(E^depth) - exponential for deep graphs.
     /// 
     /// Note: Not const because it modifies internal cache (_cachedDepth) for memoization.
-    size_t depth() @safe nothrow
+    size_t depth() @system nothrow
     {
         if (_cachedDepth != size_t.max)
             return _cachedDepth;
@@ -235,7 +241,7 @@ final class BuildNode
     }
     
     /// Invalidate cached depth (call when dependencies change)
-    private void invalidateDepthCache() @safe nothrow
+    private void invalidateDepthCache() @system nothrow
     {
         _cachedDepth = size_t.max;
     }
@@ -296,7 +302,7 @@ final class BuildGraph
     private bool _validated;
     
     /// Create graph with specified validation mode
-    this(ValidationMode mode = ValidationMode.Immediate) @safe pure nothrow
+    this(ValidationMode mode = ValidationMode.Immediate) @system pure nothrow
     {
         _validationMode = mode;
         _validated = false;
@@ -310,7 +316,7 @@ final class BuildGraph
     /// Returns: Ok on success, Err with cycle details on failure
     /// 
     /// Note: Not const because it modifies internal validation state (_validated).
-    Result!BuildError validate() @safe
+    Result!BuildError validate() @system
     {
         auto sortResult = topologicalSort();
         if (sortResult.isErr)
@@ -321,44 +327,87 @@ final class BuildGraph
     }
     
     /// Check if graph has been validated
-    @property bool isValidated() const @safe pure nothrow @nogc
+    @property bool isValidated() const @system pure nothrow @nogc
     {
         return _validated || _validationMode == ValidationMode.Immediate;
     }
     
-    /// Add a target to the graph (string version for backward compatibility)
-    /// 
-    /// Throws: Exception if target with same name already exists
-    void addTarget(Target target) @safe
+    /// Add a target to the graph (uses TargetId internally)
+    /// Returns: Ok on success, Err if target with same ID already exists
+    Result!BuildError addTargetChecked(Target target) @system
     {
-        if (target.name in nodes)
+        auto id = target.id;
+        auto key = id.toString();
+        
+        if (key in nodes)
         {
-            throw new Exception("Duplicate target name: " ~ target.name ~ 
-                              " - target names must be unique within a build graph");
+            auto error = ErrorBuilder!GraphError
+                .create("Duplicate target in build graph: " ~ key, ErrorCode.GraphInvalid)
+                .withContext("adding target to graph", "target: " ~ key)
+                .withSuggestion(ErrorSuggestion.fileCheck("Check for duplicate target definitions in Builderfile"))
+                .withSuggestion(ErrorSuggestion.fileCheck("Ensure each target has a unique name"))
+                .withCommand("List all targets", "builder list")
+                .build();
+            return Result!BuildError.err(cast(BuildError) error);
         }
         
-        auto node = new BuildNode(target.name, target);
-        nodes[target.name] = node;
+        auto node = new BuildNode(id, target);
+        nodes[key] = node;
+        return Ok!BuildError();
+    }
+    
+    /// Add a target to the graph (backward compatible, throws on duplicate)
+    /// 
+    /// Deprecated: Use addTargetChecked for Result-based error handling
+    /// Throws: Exception if target with same ID already exists
+    void addTarget(Target target) @system
+    {
+        auto result = addTargetChecked(target);
+        if (result.isErr)
+        {
+            import errors.formatting.format : format;
+            throw new Exception(format(result.unwrapErr()));
+        }
     }
     
     /// Add a target to the graph using TargetId
-    /// 
-    /// Throws: Exception if target with same ID already exists
-    void addTargetById(TargetId id, Target target) @safe
+    /// Returns: Ok on success, Err if target with same ID already exists
+    Result!BuildError addTargetByIdChecked(TargetId id, Target target) @system
     {
         auto key = id.toString();
         if (key in nodes)
         {
-            throw new Exception("Duplicate target ID: " ~ key ~ 
-                              " - target IDs must be unique within a build graph");
+            auto error = ErrorBuilder!GraphError
+                .create("Duplicate target ID in build graph: " ~ key, ErrorCode.GraphInvalid)
+                .withContext("adding target by ID", "targetId: " ~ key)
+                .withSuggestion(ErrorSuggestion.fileCheck("Check for duplicate target IDs"))
+                .withSuggestion(ErrorSuggestion.fileCheck("Ensure all TargetId values are unique"))
+                .withCommand("View dependency graph", "builder graph")
+                .build();
+            return Result!BuildError.err(cast(BuildError) error);
         }
         
-        auto node = new BuildNode(key, target);
+        auto node = new BuildNode(id, target);
         nodes[key] = node;
+        return Ok!BuildError();
+    }
+    
+    /// Add a target to the graph using TargetId (backward compatible, throws on duplicate)
+    /// 
+    /// Deprecated: Use addTargetByIdChecked for Result-based error handling
+    /// Throws: Exception if target with same ID already exists
+    void addTargetById(TargetId id, Target target) @system
+    {
+        auto result = addTargetByIdChecked(id, target);
+        if (result.isErr)
+        {
+            import errors.formatting.format : format;
+            throw new Exception(format(result.unwrapErr()));
+        }
     }
     
     /// Get node by TargetId
-    BuildNode* getNode(TargetId id) @safe
+    BuildNode* getNode(TargetId id) @system
     {
         auto key = id.toString();
         if (key in nodes)
@@ -367,13 +416,13 @@ final class BuildGraph
     }
     
     /// Check if graph contains a target by TargetId
-    bool hasTarget(TargetId id) @safe
+    bool hasTarget(TargetId id) @system
     {
         return (id.toString() in nodes) !is null;
     }
     
     /// Add dependency between two targets (string version for backward compatibility)
-    Result!BuildError addDependency(in string from, in string to) @safe
+    Result!BuildError addDependency(in string from, in string to) @system
     {
         if (from !in nodes)
         {
@@ -423,7 +472,7 @@ final class BuildGraph
     }
     
     /// Add dependency using TargetId (type-safe version)
-    Result!BuildError addDependencyById(TargetId from, TargetId to) @safe
+    Result!BuildError addDependencyById(TargetId from, TargetId to) @system
     {
         auto fromKey = from.toString();
         auto toKey = to.toString();
@@ -482,7 +531,7 @@ final class BuildGraph
     /// 
     /// Note: Uses visited set to prevent infinite recursion in case of cycles
     /// (cycles will be detected later during validation).
-    private void invalidateDepthCascade(BuildNode node) @trusted nothrow
+    private void invalidateDepthCascade(BuildNode node) @system nothrow
     {
         bool[BuildNode] visited;
         
@@ -505,13 +554,13 @@ final class BuildGraph
     
     /// Check if adding an edge would create a cycle (O(V+E) worst case)
     /// 
-    /// Note: This function could potentially be @safe as it only performs
+    /// Note: This function could potentially be @system as it only performs
     /// safe operations (AA access, reference comparisons, array traversal).
-    /// Marked @trusted conservatively for nested function with closure.
+    /// Marked @system conservatively for nested function with closure.
     /// 
     /// Used only in Immediate validation mode. For large graphs, prefer
     /// Deferred mode with a single O(V+E) topological sort.
-    private bool wouldCreateCycle(BuildNode from, BuildNode to) @trusted
+    private bool wouldCreateCycle(BuildNode from, BuildNode to) @system
     {
         bool[BuildNode] visited;
         
@@ -539,7 +588,7 @@ final class BuildGraph
     /// Get nodes in topological order (leaves first)
     /// Returns Result to handle cycles gracefully
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Nested function captures only local variables and graph
     /// 2. Associative array operations are bounds-checked
     /// 3. Array appending (~=) is memory-safe
@@ -553,7 +602,7 @@ final class BuildGraph
     /// What could go wrong:
     /// - If nodes array is modified during iteration: undefined behavior
     /// - Prevented by not exposing mutable access during traversal
-    Result!(BuildNode[], BuildError) topologicalSort() @trusted
+    Result!(BuildNode[], BuildError) topologicalSort() @system
     {
         BuildNode[] sorted;
         bool[BuildNode] visited;
@@ -570,10 +619,10 @@ final class BuildGraph
             
             if (node in visiting)
             {
-                auto error = new GraphError("Circular dependency detected in build graph involving target: " ~ node.id, ErrorCode.GraphCycle);
+                auto error = new GraphError("Circular dependency detected in build graph involving target: " ~ node.id.toString(), ErrorCode.GraphCycle);
                 error.addContext(ErrorContext("topological sort", "cycle detected"));
                 error.addSuggestion("Run 'builder graph' to visualize all dependencies");
-                error.addSuggestion("Trace the cycle by checking which targets depend on '" ~ node.id ~ "'");
+                error.addSuggestion("Trace the cycle by checking which targets depend on '" ~ node.id.toString() ~ "'");
                 error.addSuggestion("Break the cycle by removing or refactoring dependencies");
                 error.addSuggestion("Consider using lazy loading or interface-based design patterns");
                 cycleError = cast(BuildError) error;
@@ -727,17 +776,17 @@ final class BuildGraph
     
     /// Calculate critical path cost for all nodes
     /// Returns map of node ID to critical path cost (estimated build time to completion)
-    size_t[string] calculateCriticalPath(size_t delegate(BuildNode) @safe estimateCost) @trusted
+    size_t[string] calculateCriticalPath(size_t delegate(BuildNode) @system estimateCost) @system
     {
         size_t[string] costs;
         bool[string] visited;
         
-        size_t visit(BuildNode node) @trusted
+        size_t visit(BuildNode node) @system
         {
-            if (node.id in visited)
-                return costs[node.id];
+            if (node.id.toString() in visited)
+                return costs[node.id.toString()];
             
-            visited[node.id] = true;
+            visited[node.id.toString()] = true;
             
             // Get max cost of dependents (reverse direction - who depends on me)
             size_t maxDependentCost = 0;
@@ -749,7 +798,7 @@ final class BuildGraph
             
             // Critical path cost = own cost + max dependent cost
             immutable cost = estimateCost(node) + maxDependentCost;
-            costs[node.id] = cost;
+            costs[node.id.toString()] = cost;
             return cost;
         }
         
@@ -760,7 +809,7 @@ final class BuildGraph
     }
     
     /// Calculate critical path length (longest chain)
-    private size_t calculateCriticalPathLength() @trusted
+    private size_t calculateCriticalPathLength() @system
     {
         if (nodes.empty)
             return 0;

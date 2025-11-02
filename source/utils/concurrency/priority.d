@@ -5,7 +5,7 @@ import std.range;
 import std.traits;
 import core.atomic;
 
-@safe:
+@system:
 
 /// Priority level for task scheduling
 enum Priority : ubyte
@@ -90,7 +90,7 @@ struct PriorityQueue(T)
     @disable this(this);  // Non-copyable
     
     /// Initialize with capacity hint
-    @trusted
+    @system
     this(size_t capacity)
     {
         heap.reserve(capacity);
@@ -99,7 +99,7 @@ struct PriorityQueue(T)
     
     /// Insert task with priority
     /// Thread-safe: Use external synchronization for concurrent inserts
-    @trusted
+    @system
     void insert(PriorityTask!T task)
     {
         heap ~= task;
@@ -121,7 +121,7 @@ struct PriorityQueue(T)
     /// Extract highest priority task
     /// Thread-safe: Use external synchronization for concurrent extracts
     /// Returns: null if empty
-    @trusted
+    @system
     PriorityTask!T extractMax()
     {
         if (heap.empty)
@@ -164,21 +164,21 @@ struct PriorityQueue(T)
     }
     
     /// Peek at highest priority task without removing
-    @trusted
+    @system
     const(PriorityTask!T) peek() const
     {
         return heap.empty ? null : heap[0];
     }
     
     /// Get size atomically
-    @trusted
+    @system
     size_t size() const nothrow @nogc
     {
         return atomicLoad(count);
     }
     
     /// Check if empty
-    @trusted
+    @system
     bool empty() const nothrow @nogc
     {
         return atomicLoad(count) == 0;
@@ -186,7 +186,7 @@ struct PriorityQueue(T)
     
     /// Build heap from array of tasks
     /// Thread-safe: Use external synchronization
-    @trusted
+    @system
     void build(PriorityTask!T[] tasks)
     {
         heap = tasks.dup;
@@ -203,7 +203,7 @@ struct PriorityQueue(T)
         }
     }
     
-    private void heapifyDown(size_t pos) @trusted
+    private void heapifyDown(size_t pos) @system
     {
         while (true)
         {
@@ -226,7 +226,7 @@ struct PriorityQueue(T)
     }
     
     /// Clear all tasks
-    @trusted
+    @system
     void clear()
     {
         heap.length = 0;
@@ -244,7 +244,7 @@ struct MultiLevelQueue(T)
     @disable this(this);  // Non-copyable
     
     /// Initialize with priority levels
-    @trusted
+    @system
     void initialize(size_t capacityPerLevel = 64)
     {
         levels.length = Priority.max + 1;
@@ -256,7 +256,7 @@ struct MultiLevelQueue(T)
     }
     
     /// Enqueue task to appropriate priority level
-    @trusted
+    @system
     void enqueue(PriorityTask!T task)
     {
         immutable idx = task.priority;
@@ -266,7 +266,7 @@ struct MultiLevelQueue(T)
     
     /// Dequeue highest priority task available
     /// Returns: null if empty
-    @trusted
+    @system
     PriorityTask!T dequeue()
     {
         // Search from highest to lowest priority
@@ -284,7 +284,7 @@ struct MultiLevelQueue(T)
     }
     
     /// Get total size across all levels
-    @trusted
+    @system
     size_t size() const nothrow @nogc
     {
         size_t total = 0;
@@ -294,14 +294,14 @@ struct MultiLevelQueue(T)
     }
     
     /// Check if completely empty
-    @trusted
+    @system
     bool empty() const nothrow @nogc
     {
         return size() == 0;
     }
     
     /// Get size at specific priority level
-    @trusted
+    @system
     size_t sizeAt(Priority p) const nothrow @nogc
     {
         return atomicLoad(counts[p]);
@@ -310,12 +310,12 @@ struct MultiLevelQueue(T)
 
 /// Calculate critical path cost for dependency graph
 /// Returns: Map of task ID to critical path cost
-size_t[string] calculateCriticalPath(Node)(Node[] nodes, size_t delegate(Node) @safe getCost, string delegate(Node) @safe getId, Node[] delegate(Node) @safe getDeps) @safe
+size_t[string] calculateCriticalPath(Node)(Node[] nodes, size_t delegate(Node) @system getCost, string delegate(Node) @system getId, Node[] delegate(Node) @system getDeps) @system
 {
     size_t[string] costs;
     bool[string] visited;
     
-    size_t visit(Node node) @safe
+    size_t visit(Node node) @system
     {
         auto id = getId(node);
         if (id in visited)

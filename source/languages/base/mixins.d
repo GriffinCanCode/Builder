@@ -37,7 +37,7 @@ mixin template CachingHandlerMixin(string languageName)
     }
     
     /// Get access to the action cache
-    protected final ActionCache getCache() @safe nothrow
+    protected final ActionCache getCache() @system nothrow
     {
         return actionCache;
     }

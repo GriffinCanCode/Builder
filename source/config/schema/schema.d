@@ -20,13 +20,13 @@ struct TargetId
     string name;       // Target name (required)
     
     /// Create simple target ID with just a name
-    this(string name) pure nothrow @safe
+    this(string name) pure nothrow @system
     {
         this("", "", name);
     }
     
     /// Create target ID with all components
-    this(string workspace, string path, string name) pure nothrow @safe
+    this(string workspace, string path, string name) pure nothrow @system
     {
         this.workspace = workspace;
         this.path = path;
@@ -35,7 +35,7 @@ struct TargetId
     
     /// Parse qualified target ID from string
     /// Format: "workspace//path:name" or "//path:name" or "name"
-    static Result!(TargetId, BuildError) parse(string qualified) @safe
+    static Result!(TargetId, BuildError) parse(string qualified) @system
     {
         if (qualified.empty)
         {
@@ -84,7 +84,7 @@ struct TargetId
     }
     
     /// Convert to fully-qualified string representation
-    string toString() const pure nothrow @safe
+    string toString() const pure nothrow @system
     {
         if (workspace.empty && path.empty)
             return name;
@@ -96,19 +96,19 @@ struct TargetId
     }
     
     /// Get simple name (without workspace/path)
-    string simpleName() const pure nothrow @safe
+    string simpleName() const pure nothrow @system
     {
         return name;
     }
     
     /// Check if this is a simple name (no workspace or path)
-    bool isSimple() const pure nothrow @safe
+    bool isSimple() const pure nothrow @system
     {
         return workspace.empty && path.empty;
     }
     
     /// Equality comparison
-    bool opEquals(const TargetId other) const pure nothrow @safe
+    bool opEquals(const TargetId other) const pure nothrow @system
     {
         return workspace == other.workspace &&
                path == other.path &&
@@ -116,7 +116,7 @@ struct TargetId
     }
     
     /// Hash for use as associative array key
-    size_t toHash() const nothrow @safe
+    size_t toHash() const nothrow @system
     {
         size_t hash = 0;
         foreach (char c; workspace)
@@ -129,7 +129,7 @@ struct TargetId
     }
     
     /// Comparison for sorting
-    int opCmp(const TargetId other) const pure nothrow @safe
+    int opCmp(const TargetId other) const pure nothrow @system
     {
         if (workspace != other.workspace)
             return workspace < other.workspace ? -1 : 1;
@@ -142,7 +142,7 @@ struct TargetId
     
     /// Check if this ID matches a filter string
     /// Supports partial matching on name, path, or full qualified name
-    bool matches(string filter) const pure nothrow @safe
+    bool matches(string filter) const pure nothrow @system
     {
         if (filter.empty)
             return true;
@@ -167,19 +167,19 @@ struct TargetId
     
     /// Create a TargetId in the same workspace/path with different name
     /// Useful for relative target references
-    TargetId withName(string newName) const pure nothrow @safe
+    TargetId withName(string newName) const pure nothrow @system
     {
         return TargetId(workspace, path, newName);
     }
     
     /// Create a TargetId in a different path (same workspace)
-    TargetId withPath(string newPath) const pure nothrow @safe
+    TargetId withPath(string newPath) const pure nothrow @system
     {
         return TargetId(workspace, newPath, name);
     }
     
     /// Parse or create - never fails, falls back to simple name
-    static TargetId parseOrSimple(string str) nothrow @safe
+    static TargetId parseOrSimple(string str) nothrow @system
     {
         try
         {
@@ -266,11 +266,11 @@ struct Target
     
     /// Get target as TargetId (cached for performance)
     /// 
-    /// Safety: This property is @trusted because:
+    /// Safety: This property is @system because:
     /// 1. The const-cast is safe as we only mutate cache fields (_id, _idCached)
     /// 2. The caching is logically const (doesn't change observable behavior)
     /// 3. Result unwrap operations are safe (properly handles union access)
-    @property TargetId id() const @trusted
+    @property TargetId id() const @system
     {
         // Need to cast away const for caching, but logically const
         auto self = cast(Target*)&this;

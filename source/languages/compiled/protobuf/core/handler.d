@@ -115,7 +115,7 @@ class ProtobufHandler : BaseLanguageHandler
             try
             {
                 auto content = readText(source);
-                auto imports = () @trusted { return parseProtoImports(source, content); }();
+                auto imports = parseProtoImports(source, content);
                 allImports ~= imports;
             }
             catch (Exception e)

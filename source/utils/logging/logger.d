@@ -4,7 +4,7 @@ import std.stdio;
 import std.datetime;
 import std.conv;
 
-@safe:
+@system:
 
 /// Simple logging utility with colors
 class Logger
@@ -23,7 +23,7 @@ class Logger
     
     /// Log info message
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. writeln() and stdout.flush() are I/O operations (inherently @system)
     /// 2. String concatenation with ANSI codes is safe
     /// 3. No memory management issues
@@ -37,7 +37,7 @@ class Logger
     /// What could go wrong:
     /// - stdout write fails: would throw exception (safe failure)
     /// - ANSI codes in non-terminal: harmless (just extra characters)
-    @trusted
+    @system
     static void info(in string msg)
     {
         writeln("\x1b[36m[INFO]\x1b[0m ", msg);
@@ -46,7 +46,7 @@ class Logger
     
     /// Log success message
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. writeln() and stdout.flush() are I/O operations (inherently @system)
     /// 2. String operations are memory-safe
     /// 3. Message parameter is immutable (in)
@@ -57,7 +57,7 @@ class Logger
     /// 
     /// What could go wrong:
     /// - Write fails: exception propagates (safe failure)
-    @trusted
+    @system
     static void success(in string msg)
     {
         writeln("\x1b[32m[SUCCESS]\x1b[0m ", msg);
@@ -66,7 +66,7 @@ class Logger
     
     /// Log warning message
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. writeln() and stdout.flush() are I/O operations (inherently @system)
     /// 2. Yellow ANSI code is safe constant
     /// 3. No unsafe memory operations
@@ -77,7 +77,7 @@ class Logger
     /// 
     /// What could go wrong:
     /// - Write fails: safe exception thrown
-    @trusted
+    @system
     static void warning(in string msg)
     {
         writeln("\x1b[33m[WARNING]\x1b[0m ", msg);
@@ -86,7 +86,7 @@ class Logger
     
     /// Log error message to stderr
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. stderr.writeln() and stderr.flush() are I/O operations (inherently @system)
     /// 2. Using stderr instead of stdout for error reporting
     /// 3. Red ANSI code is compile-time constant
@@ -98,7 +98,7 @@ class Logger
     /// 
     /// What could go wrong:
     /// - stderr write fails: exception thrown (appropriate for errors)
-    @trusted
+    @system
     static void error(in string msg)
     {
         stderr.writeln("\x1b[31m[ERROR]\x1b[0m ", msg);
@@ -109,7 +109,7 @@ class Logger
     /// 
     /// Note: Named debugLog instead of debug because 'debug' is a reserved keyword in D.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Checks verbose flag before any I/O (minimal side effects)
     /// 2. writeln() and stdout.flush() are I/O operations (inherently @system)
     /// 3. Gray ANSI code for subtle debug output
@@ -123,7 +123,7 @@ class Logger
     /// What could go wrong:
     /// - Write fails: exception thrown (safe failure)
     /// - verbose flag race: acceptable (worst case is extra/missing debug line)
-    @trusted
+    @system
     static void debugLog(in string msg)
     {
         if (verbose)

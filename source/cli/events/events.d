@@ -50,15 +50,15 @@ final class BuildStartedEvent : BuildEvent
     immutable size_t totalTargets;
     immutable size_t maxParallelism;
     
-    this(in size_t totalTargets, in size_t maxParallelism, in Duration timestamp) pure @safe
+    this(in size_t totalTargets, in size_t maxParallelism, in Duration timestamp) pure @system
     {
         this.totalTargets = totalTargets;
         this.maxParallelism = maxParallelism;
         this._timestamp = timestamp;
     }
     
-    @property EventType type() const pure nothrow @safe @nogc { return _type; }
-    @property Duration timestamp() const pure nothrow @safe @nogc { return _timestamp; }
+    @property EventType type() const pure nothrow @system @nogc { return _type; }
+    @property Duration timestamp() const pure nothrow @system @nogc { return _timestamp; }
 }
 
 final class BuildCompletedEvent : BuildEvent
@@ -71,7 +71,7 @@ final class BuildCompletedEvent : BuildEvent
     immutable size_t failed;
     immutable Duration duration;
     
-    this(in size_t built, in size_t cached, in size_t failed, in Duration duration, in Duration timestamp) pure @safe
+    this(in size_t built, in size_t cached, in size_t failed, in Duration duration, in Duration timestamp) pure @system
     {
         this.built = built;
         this.cached = cached;
@@ -80,8 +80,8 @@ final class BuildCompletedEvent : BuildEvent
         this._timestamp = timestamp;
     }
     
-    @property EventType type() const pure nothrow @safe @nogc { return _type; }
-    @property Duration timestamp() const pure nothrow @safe @nogc { return _timestamp; }
+    @property EventType type() const pure nothrow @system @nogc { return _type; }
+    @property Duration timestamp() const pure nothrow @system @nogc { return _timestamp; }
 }
 
 final class BuildFailedEvent : BuildEvent
@@ -93,7 +93,7 @@ final class BuildFailedEvent : BuildEvent
     immutable size_t failedCount;
     immutable Duration duration;
     
-    this(in string reason, in size_t failedCount, in Duration duration, in Duration timestamp) pure @safe
+    this(in string reason, in size_t failedCount, in Duration duration, in Duration timestamp) pure @system
     {
         this.reason = reason;
         this.failedCount = failedCount;

@@ -38,7 +38,7 @@ final class DependencyAnalyzer
     private static immutable envPattern = ctRegex!(r"only:\s*\[(.*?)\]");
     
     /// Analyze dependencies from mix.exs
-    static DependencyInfo[] analyzeMixFile(string mixExsPath) @safe
+    static DependencyInfo[] analyzeMixFile(string mixExsPath) @system
     {
         if (!exists(mixExsPath) || !isFile(mixExsPath))
             return [];
@@ -139,11 +139,11 @@ final class DependencyAnalyzer
     
     /// Get dependencies for specific environment
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Casts away const to create mutable copies of struct values
     /// 2. Structs are copied by value, originals remain const
     /// 3. No references or pointers involved, pure value semantics
-    static DependencyInfo[] getDepsForEnv(scope const(DependencyInfo)[] deps, string env) @trusted pure
+    static DependencyInfo[] getDepsForEnv(scope const(DependencyInfo)[] deps, string env) @system pure
     {
         import std.algorithm : canFind;
         
@@ -161,11 +161,11 @@ final class DependencyAnalyzer
     
     /// Get runtime dependencies only
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Casts away const to create mutable copies of struct values
     /// 2. Structs are copied by value, originals remain const
     /// 3. No references or pointers involved, pure value semantics
-    static DependencyInfo[] getRuntimeDeps(scope const(DependencyInfo)[] deps) @trusted pure nothrow
+    static DependencyInfo[] getRuntimeDeps(scope const(DependencyInfo)[] deps) @system pure nothrow
     {
         DependencyInfo[] result;
         result.reserve(deps.length);
@@ -181,11 +181,11 @@ final class DependencyAnalyzer
     
     /// Get optional dependencies
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Casts away const to create mutable copies of struct values
     /// 2. Structs are copied by value, originals remain const
     /// 3. No references or pointers involved, pure value semantics
-    static DependencyInfo[] getOptionalDeps(scope const(DependencyInfo)[] deps) @trusted pure nothrow
+    static DependencyInfo[] getOptionalDeps(scope const(DependencyInfo)[] deps) @system pure nothrow
     {
         DependencyInfo[] result;
         result.reserve(deps.length);
@@ -200,7 +200,7 @@ final class DependencyAnalyzer
     }
     
     /// Build dependency graph (simple version)
-    static string[string] buildDependencyGraph(scope const(DependencyInfo)[] deps) @safe pure
+    static string[string] buildDependencyGraph(scope const(DependencyInfo)[] deps) @system pure
     {
         string[string] graph;
         

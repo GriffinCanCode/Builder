@@ -35,7 +35,7 @@ struct ResumeConfig
     Duration maxCheckpointAge = 24.hours;
     
     /// Create config from environment
-    static ResumeConfig fromEnvironment() @safe
+    static ResumeConfig fromEnvironment() @system
     {
         import std.process : environment;
         
@@ -62,7 +62,7 @@ final class ResumePlanner
 {
     private ResumeConfig config;
     
-    this(ResumeConfig config = ResumeConfig.init) @safe
+    this(ResumeConfig config = ResumeConfig.init) @system
     {
         this.config = config;
     }
@@ -71,7 +71,7 @@ final class ResumePlanner
     Result!(ResumePlan, string) plan(
         const ref Checkpoint checkpoint,
         BuildGraph graph
-    ) @trusted
+    ) @system
     {
         // Validate checkpoint
         if (!checkpoint.isValid(graph))
@@ -112,7 +112,7 @@ final class ResumePlanner
         const ref Checkpoint checkpoint,
         BuildGraph graph,
         ref ResumePlan plan
-    ) @safe
+    ) @system
     {
         // Restore successful builds
         checkpoint.mergeWith(graph);
@@ -140,7 +140,7 @@ final class ResumePlanner
         const ref Checkpoint checkpoint,
         BuildGraph graph,
         ref ResumePlan plan
-    ) @safe
+    ) @system
     {
         // Restore successful builds
         checkpoint.mergeWith(graph);
@@ -157,7 +157,7 @@ final class ResumePlanner
             .array;
     }
     
-    private void planRebuildAll(BuildGraph graph, ref ResumePlan plan) @safe
+    private void planRebuildAll(BuildGraph graph, ref ResumePlan plan) @system
     {
         // Clear all node states
         foreach (node; graph.nodes.values)
@@ -170,7 +170,7 @@ final class ResumePlanner
         const ref Checkpoint checkpoint,
         BuildGraph graph,
         ref ResumePlan plan
-    ) @safe
+    ) @system
     {
         // Restore successful builds
         checkpoint.mergeWith(graph);
@@ -220,7 +220,7 @@ final class ResumePlanner
     private string[] findInvalidated(
         const ref Checkpoint checkpoint,
         BuildGraph graph
-    ) const @safe
+    ) const @system
     {
         import core.caching.cache : BuildCache, CacheConfig;
         
@@ -244,7 +244,7 @@ final class ResumePlanner
             auto target = node.target;
             auto deps = node.dependencies.map!(d => d.id).array;
             
-            if (!cache.isCached(targetId, target.sources, deps))
+            if (!cache.isCached(targetId, target.sources, deps.map!(d => d.toString()).array))
                 invalidated ~= targetId;
         }
         
@@ -255,7 +255,7 @@ final class ResumePlanner
         BuildGraph graph,
         const string[] changedTargets,
         ref ResumePlan plan
-    ) @safe
+    ) @system
     {
         import std.range : chain;
         
@@ -263,14 +263,14 @@ final class ResumePlanner
         
         void markRecursive(BuildNode node)
         {
-            if (node.id in visited)
+            if (node.id.toString() in visited)
                 return;
             
-            visited[node.id] = true;
+            visited[node.id.toString()] = true;
             
             // Mark as pending and add to retry list
             node.status = BuildStatus.Pending;
-            plan.targetsToRetry ~= node.id;
+            plan.targetsToRetry ~= node.id.toString();
             
             // Recursively mark dependents
             foreach (dependent; node.dependents)
@@ -300,7 +300,7 @@ struct ResumePlan
     string message;
     
     /// Print summary
-    void print() const @safe
+    void print() const @system
     {
         writeln("\n=== Resume Plan ===");
         writeln("Strategy: ", strategy);
@@ -331,7 +331,7 @@ struct ResumePlan
     }
     
     /// Get estimated time savings
-    float estimatedSavings() const pure nothrow @nogc @safe
+    float estimatedSavings() const pure nothrow @nogc @system
     {
         immutable total = targetsToRetry.length + targetsToSkip.length;
         if (total == 0)

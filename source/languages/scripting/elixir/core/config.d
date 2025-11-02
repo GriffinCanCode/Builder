@@ -90,7 +90,7 @@ struct ElixirVersion
     bool useAsdf = false;
     
     /// Convert to version string
-    string toString() const @safe pure
+    string toString() const @system pure
     {
         import std.format : format;
         
@@ -652,9 +652,9 @@ struct ElixirConfig
     
     /// Parse from JSON
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Parses untrusted JSON input (potentially malicious data)
-    /// 2. JSONValue operations are @safe but extensive parsing justifies @trusted
+    /// 2. JSONValue operations are @system but extensive parsing justifies @system
     /// 3. All string extractions are validated with type checks
     /// 4. Invalid JSON results in default config (safe fallback)
     /// 5. Exception handling ensures no crashes on malformed input
@@ -669,7 +669,7 @@ struct ElixirConfig
     /// - Malformed JSON: caught by exception handler, returns defaults
     /// - Type mismatch: checked before access, uses defaults
     /// - Missing fields: defaults applied (safe behavior)
-    static ElixirConfig fromJSON(JSONValue json) @trusted
+    static ElixirConfig fromJSON(JSONValue json) @system
     {
         ElixirConfig config;
         

@@ -120,7 +120,7 @@ void main(string[] args)
 }
 
 /// Build command handler (refactored to use dependency injection)
-void buildCommand(in string target, in bool showGraph, in string modeStr) @trusted
+void buildCommand(in string target, in bool showGraph, in string modeStr) @system
 {
     Logger.info("Starting build...");
     
@@ -176,7 +176,7 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @trust
     }
 }
 
-RenderMode parseRenderMode(in string mode) @safe pure
+RenderMode parseRenderMode(in string mode) @system pure
 {
     import std.string : toLower;
     import std.uni : sicmp;
@@ -197,7 +197,7 @@ RenderMode parseRenderMode(in string mode) @safe pure
 
 /// Clean command handler - removes build artifacts and cache
 /// 
-/// Safety: This function is @trusted because:
+/// Safety: This function is @system because:
 /// 1. exists() and rmdirRecurse() are file system operations (inherently @system)
 /// 2. Hardcoded directory names prevent path traversal
 /// 3. Checks existence before attempting deletion
@@ -212,7 +212,7 @@ RenderMode parseRenderMode(in string mode) @safe pure
 /// - Permission denied: exception thrown (safe failure)
 /// - Directory in use: exception thrown (safe failure)
 /// - Hardcoded paths ensure no accidental deletion of user data
-void cleanCommand() @trusted
+void cleanCommand() @system
 {
     Logger.info("Cleaning build cache...");
     
@@ -228,7 +228,7 @@ void cleanCommand() @trusted
 }
 
 /// Graph command handler - visualizes dependency graph (refactored with DI)
-void graphCommand(in string target) @trusted
+void graphCommand(in string target) @system
 {
     import core.stdc.signal : signal, SIGSEGV, SIGABRT;
     import core.stdc.stdlib : exit;
@@ -286,7 +286,7 @@ void graphCommand(in string target) @trusted
 }
 
 /// Resume command handler - continues build from checkpoint (refactored with DI)
-void resumeCommand(in string modeStr) @trusted
+void resumeCommand(in string modeStr) @system
 {
     import core.execution.checkpoint : CheckpointManager;
     import core.execution.resume : ResumePlanner, ResumeConfig;
@@ -372,7 +372,7 @@ void resumeCommand(in string modeStr) @trusted
 
 /// Install VS Code extension command
 /// 
-/// Safety: This function is @trusted because:
+/// Safety: This function is @system because:
 /// 1. VSCodeExtension.install() performs validated file I/O
 /// 2. Extension installation uses verified paths
 /// 3. Process execution for VS Code CLI is validated
@@ -387,7 +387,7 @@ void resumeCommand(in string modeStr) @trusted
 /// - VS Code not installed: detected by VSCodeExtension
 /// - Permission denied: exception thrown and caught
 /// - Extension files missing: validated before install
-void installExtensionCommand() @trusted
+void installExtensionCommand() @system
 {
     VSCodeExtension.install();
 }

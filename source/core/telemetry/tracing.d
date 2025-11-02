@@ -30,7 +30,7 @@ struct TraceId
     ulong low;
     
     /// Generate random trace ID
-    static TraceId generate() @trusted
+    static TraceId generate() @system
     {
         TraceId id;
         id.high = uniform!ulong();
@@ -39,13 +39,13 @@ struct TraceId
     }
     
     /// Convert to hex string (32 characters)
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         return format("%016x%016x", high, low);
     }
     
     /// Parse from hex string
-    static Result!(TraceId, TraceError) parse(string str) pure @safe
+    static Result!(TraceId, TraceError) parse(string str) pure @system
     {
         import std.conv : ConvException;
         import std.string : strip;
@@ -83,7 +83,7 @@ struct SpanId
     ulong value;
     
     /// Generate random span ID
-    static SpanId generate() @trusted
+    static SpanId generate() @system
     {
         SpanId id;
         id.value = uniform!ulong();
@@ -91,13 +91,13 @@ struct SpanId
     }
     
     /// Convert to hex string (16 characters)
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         return format("%016x", value);
     }
     
     /// Parse from hex string
-    static Result!(SpanId, TraceError) parse(string str) pure @safe
+    static Result!(SpanId, TraceError) parse(string str) pure @system
     {
         import std.conv : ConvException, parse;
         import std.string : strip;
@@ -139,7 +139,7 @@ final class Span
     private bool finished;
     private Mutex spanMutex;
     
-    this(TraceId traceId, SpanId spanId, SpanId parentSpanId, string name, SpanKind kind) @safe
+    this(TraceId traceId, SpanId spanId, SpanId parentSpanId, string name, SpanKind kind) @system
     {
         this.traceId = traceId;
         this.spanId = spanId;
@@ -153,7 +153,7 @@ final class Span
     }
     
     /// Set attribute on span (key-value metadata)
-    void setAttribute(string key, string value) @trusted
+    void setAttribute(string key, string value) @system
     {
         synchronized (spanMutex)
         {
@@ -162,7 +162,7 @@ final class Span
     }
     
     /// Add event to span (timestamped log entry)
-    void addEvent(string name, string[string] attrs = null) @trusted
+    void addEvent(string name, string[string] attrs = null) @system
     {
         synchronized (spanMutex)
         {
@@ -175,7 +175,7 @@ final class Span
     }
     
     /// Set span status
-    void setStatus(SpanStatus status, string description = "") @trusted
+    void setStatus(SpanStatus status, string description = "") @system
     {
         synchronized (spanMutex)
         {
@@ -186,7 +186,7 @@ final class Span
     }
     
     /// Record exception in span
-    void recordException(Exception e) @trusted
+    void recordException(Exception e) @system
     {
         synchronized (spanMutex)
         {
@@ -208,7 +208,7 @@ final class Span
     }
     
     /// Finish span (stops timing)
-    void finish() @trusted
+    void finish() @system
     {
         synchronized (spanMutex)
         {
@@ -226,7 +226,7 @@ final class Span
     }
     
     /// Get span data for export
-    @property SpanData data() const @trusted
+    @property SpanData data() const @system
     {
         synchronized (cast(Mutex)spanMutex)
         {
@@ -265,10 +265,10 @@ final class Span
     }
     
     /// Accessors
-    @property TraceId trace() const pure nothrow @safe @nogc { return traceId; }
-    @property SpanId id() const pure nothrow @safe @nogc { return spanId; }
-    @property SpanId parent() const pure nothrow @safe @nogc { return parentSpanId; }
-    @property bool isFinished() const @trusted
+    @property TraceId trace() const pure nothrow @system @nogc { return traceId; }
+    @property SpanId id() const pure nothrow @system @nogc { return spanId; }
+    @property SpanId parent() const pure nothrow @system @nogc { return parentSpanId; }
+    @property bool isFinished() const @system
     {
         synchronized (cast(Mutex)spanMutex)
         {
@@ -328,14 +328,14 @@ struct TraceContext
     bool sampled;
     
     /// Serialize to W3C Trace Context format (traceparent header)
-    string toTraceparent() const pure @safe
+    string toTraceparent() const pure @system
     {
         immutable sampledFlag = sampled ? "01" : "00";
         return format("00-%s-%s-%s", traceId.toString(), spanId.toString(), sampledFlag);
     }
     
     /// Parse from W3C Trace Context format
-    static Result!(TraceContext, TraceError) fromTraceparent(string header) pure @safe
+    static Result!(TraceContext, TraceError) fromTraceparent(string header) pure @system
     {
         import std.string : split, strip;
         
@@ -381,7 +381,7 @@ final class Tracer
     private SpanExporter exporter;
     private bool enabled;
     
-    this(SpanExporter exporter = null) @safe
+    this(SpanExporter exporter = null) @system
     {
         this.tracerMutex = new Mutex();
         this.exporter = exporter;
@@ -389,7 +389,7 @@ final class Tracer
     }
     
     /// Start new trace
-    void startTrace() @trusted
+    void startTrace() @system
     {
         synchronized (tracerMutex)
         {
@@ -398,7 +398,7 @@ final class Tracer
     }
     
     /// Start a new span
-    Span startSpan(string name, SpanKind kind = SpanKind.Internal, Span parent = null) @trusted
+    Span startSpan(string name, SpanKind kind = SpanKind.Internal, Span parent = null) @system
     {
         if (!enabled)
             return null;
@@ -417,7 +417,7 @@ final class Tracer
     }
     
     /// Finish a span and export it
-    void finishSpan(Span span) @trusted
+    void finishSpan(Span span) @system
     {
         if (span is null || !enabled)
             return;
@@ -442,7 +442,7 @@ final class Tracer
     }
     
     /// Get current trace context
-    Result!(TraceContext, TraceError) currentContext() @trusted
+    Result!(TraceContext, TraceError) currentContext() @system
     {
         synchronized (tracerMutex)
         {
@@ -461,7 +461,7 @@ final class Tracer
     }
     
     /// Flush all completed spans
-    void flush() @trusted
+    void flush() @system
     {
         synchronized (tracerMutex)
         {
@@ -474,7 +474,7 @@ final class Tracer
     }
     
     /// Enable/disable tracing
-    void setEnabled(bool enabled) @trusted
+    void setEnabled(bool enabled) @system
     {
         synchronized (tracerMutex)
         {
@@ -483,7 +483,7 @@ final class Tracer
     }
     
     /// Get all completed spans
-    SpanData[] getCompletedSpans() const @trusted
+    SpanData[] getCompletedSpans() const @system
     {
         synchronized (cast(Mutex)tracerMutex)
         {
@@ -510,7 +510,7 @@ interface SpanExporter
 /// Console exporter for debugging
 final class ConsoleSpanExporter : SpanExporter
 {
-    void exportSpan(SpanData span) @trusted
+    void exportSpan(SpanData span) @system
     {
         import std.stdio : writeln;
         
@@ -540,7 +540,7 @@ final class ConsoleSpanExporter : SpanExporter
         }
     }
     
-    void flush(SpanData[] spans) @trusted
+    void flush(SpanData[] spans) @system
     {
         import std.stdio : writeln;
         writeln("Flushing ", spans.length, " spans");
@@ -553,7 +553,7 @@ final class JaegerSpanExporter : SpanExporter
     private string outputFile;
     private Mutex exportMutex;
     
-    this(string outputFile = ".builder-cache/traces/jaeger.json") @safe
+    this(string outputFile = ".builder-cache/traces/jaeger.json") @system
     {
         this.outputFile = outputFile;
         this.exportMutex = new Mutex();
@@ -567,7 +567,7 @@ final class JaegerSpanExporter : SpanExporter
             mkdirRecurse(dir);
     }
     
-    void exportSpan(SpanData span) @trusted
+    void exportSpan(SpanData span) @system
     {
         synchronized (exportMutex)
         {
@@ -583,12 +583,12 @@ final class JaegerSpanExporter : SpanExporter
         }
     }
     
-    void flush(SpanData[] spans) @trusted
+    void flush(SpanData[] spans) @system
     {
         // Jaeger format flushes immediately
     }
     
-    private JSONValue spanToJaegerJson(SpanData span) const @trusted
+    private JSONValue spanToJaegerJson(SpanData span) const @system
     {
         JSONValue json;
         json["traceID"] = span.traceId.toString();
@@ -656,22 +656,22 @@ struct TraceError
     string message;
     ErrorCode code;
     
-    static TraceError invalidFormat(string details) pure @safe
+    static TraceError invalidFormat(string details) pure @system
     {
         return TraceError("Invalid format: " ~ details, ErrorCode.TraceInvalidFormat);
     }
     
-    static TraceError noActiveSpan() pure @safe
+    static TraceError noActiveSpan() pure @system
     {
         return TraceError("No active span", ErrorCode.TraceNoActiveSpan);
     }
     
-    static TraceError exportFailed(string details) pure @safe
+    static TraceError exportFailed(string details) pure @system
     {
         return TraceError("Export failed: " ~ details, ErrorCode.TraceExportFailed);
     }
     
-    string toString() const pure nothrow @safe
+    string toString() const pure nothrow @system
     {
         return message;
     }
@@ -681,7 +681,7 @@ struct TraceError
 private Tracer globalTracer;
 
 /// Get global tracer
-Tracer getTracer() @trusted
+Tracer getTracer() @system
 {
     if (globalTracer is null)
     {
@@ -693,7 +693,7 @@ Tracer getTracer() @trusted
 }
 
 /// Set custom tracer
-void setTracer(Tracer tracer) @trusted
+void setTracer(Tracer tracer) @system
 {
     globalTracer = tracer;
 }

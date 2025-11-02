@@ -392,11 +392,11 @@ class RubyHandler : BaseLanguageHandler
     }
     
     /// Analyze imports in Ruby source files
-    override Import[] analyzeImports(in string[] sources) @safe
+    override Import[] analyzeImports(in string[] sources) @system
     {
         import std.file : readText, exists, isFile;
         
-        auto spec = () @trusted { return getLanguageSpec(TargetLanguage.Ruby); }();
+        auto spec = getLanguageSpec(TargetLanguage.Ruby);
         if (spec is null)
             return [];
         
@@ -410,7 +410,7 @@ class RubyHandler : BaseLanguageHandler
             try
             {
                 auto content = readText(source);
-                auto imports = () @trusted { return spec.scanImports(source, content); }();
+                auto imports = spec.scanImports(source, content);
                 allImports ~= imports;
             }
             catch (Exception e)

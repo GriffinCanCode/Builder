@@ -1237,7 +1237,7 @@ class PerlHandler : BaseLanguageHandler
             try
             {
                 auto content = readText(source);
-                auto imports = () @trusted { return parsePerlImports(source, content); }();
+                auto imports = parsePerlImports(source, content);
                 allImports ~= imports;
             }
             catch (Exception e)

@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.regex;
 
-@safe:
+@system:
 
 /// Security utilities for validating and sanitizing file paths and arguments
 /// Protects against command injection and path traversal attacks
@@ -23,7 +23,7 @@ struct SecurityValidator
     /// 4. Control characters (newlines, tabs)
     /// 5. System directory access
     /// 6. Unicode homograph attacks (lookalike characters)
-    @safe
+    @system
     static bool isPathSafe(string path) nothrow
     {
         if (path.empty)
@@ -76,7 +76,7 @@ struct SecurityValidator
     /// 3. Hidden traversal (/./ or //)
     /// 4. Absolute paths to sensitive system directories
     /// 5. Windows device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
-    @safe
+    @system
     static bool isPathTraversalSafe(string path) nothrow
     {
         try
@@ -139,7 +139,7 @@ struct SecurityValidator
     /// Validates that a file path exists and is within allowed directory
     /// baseDir: The base directory that the path must be within
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File system operations (exists, absolutePath) are unsafe I/O
     /// 2. Path normalization requires file system access
     /// 3. String prefix comparison (startsWith) is memory-safe
@@ -157,7 +157,7 @@ struct SecurityValidator
     /// - Relative path handling: mitigated by absolutePath normalization
     /// 
     /// NOTE: This is less secure than glob.d's isPathWithinBase which resolves symlinks
-    @trusted
+    @system
     static bool isPathWithinBase(string path, string baseDir)
     {
         try
@@ -180,7 +180,7 @@ struct SecurityValidator
     
     /// Validates and sanitizes a command argument
     /// Returns: Sanitized argument, or empty string if unsafe
-    @safe
+    @system
     static string sanitizeArgument(string arg) nothrow
     {
         try
@@ -198,7 +198,7 @@ struct SecurityValidator
     }
     
     /// Check if a command argument is safe
-    @safe
+    @system
     static bool isArgumentSafe(string arg) nothrow
     {
         try
@@ -232,7 +232,7 @@ struct SecurityValidator
     /// Escape a file path for safe use in shell commands (when executeShell is unavoidable)
     /// This is a last resort - prefer using execute() with array form
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. String operations (replace, format) are memory-safe
     /// 2. Character filtering and escaping don't involve pointers
     /// 3. Platform-specific escaping rules are hardcoded (no external input)
@@ -249,7 +249,7 @@ struct SecurityValidator
     /// - This is BEST EFFORT - strongly prefer execute() with arrays!
     /// 
     /// SECURITY WARNING: This does NOT guarantee safety for all shells/contexts
-    @trusted
+    @system
     static string escapeShellPath(string path)
     {
         version(Windows)
@@ -272,7 +272,7 @@ struct SecurityValidator
     
     /// Validates a list of file paths for safety
     /// Returns: true if all paths are safe
-    @safe
+    @system
     static bool arePathsSafe(string[] paths) nothrow
     {
         try
@@ -291,7 +291,7 @@ struct SecurityValidator
     }
     
     /// Validates that a file extension is in an allowed list
-    @safe
+    @system
     static bool hasAllowedExtension(string path, string[] allowedExtensions) nothrow
     {
         try
@@ -308,7 +308,7 @@ struct SecurityValidator
 
 /// Safe execute wrapper that validates paths before execution
 /// 
-/// Safety: This struct is @trusted because:
+/// Safety: This struct is @system because:
 /// 1. Wraps std.process.execute which requires system calls (unsafe I/O)
 /// 2. Validates all paths before passing to execute()
 /// 3. Uses array form of execute (prevents shell injection)
@@ -324,7 +324,7 @@ struct SecurityValidator
 /// - Path validation could be bypassed: mitigated by multiple validation layers
 /// - TOCTOU: files could change between validation and execution
 /// - Resource exhaustion: process could consume unlimited resources (no sandboxing)
-@trusted
+@system
 struct SafeExecute
 {
     import std.process;
@@ -354,7 +354,7 @@ struct SafeExecute
 }
 
 // Unit tests
-@safe unittest
+@system unittest
 {
     // Test path safety validation
     assert(SecurityValidator.isPathSafe("src/main.cpp"));

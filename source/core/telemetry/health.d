@@ -51,7 +51,7 @@ struct HealthCheckpoint
         size_t pendingTasks,
         size_t workerCount,
         size_t activeWorkers,
-        double avgTaskTime) @trusted
+        double avgTaskTime) @system
     {
         auto stats = GC.stats();
         auto profileStats = GC.profileStats();
@@ -88,7 +88,7 @@ struct HealthCheckpoint
     }
     
     /// Compute health status based on metrics
-    private HealthStatus computeStatus() const pure nothrow @safe
+    private HealthStatus computeStatus() const pure nothrow @system
     {
         // Check for failures
         if (failedTasks > 0)
@@ -113,7 +113,7 @@ struct HealthCheckpoint
     }
     
     /// Get memory utilization percentage
-    double memoryUtilization() const pure nothrow @safe
+    double memoryUtilization() const pure nothrow @system
     {
         if (memoryTotal == 0)
             return 0.0;
@@ -121,7 +121,7 @@ struct HealthCheckpoint
     }
     
     /// Estimate time remaining based on current velocity
-    Duration estimateTimeRemaining() const pure nothrow @safe
+    Duration estimateTimeRemaining() const pure nothrow @system
     {
         if (tasksPerSecond <= 0.0 || pendingTasks == 0)
             return dur!"msecs"(0);
@@ -131,7 +131,7 @@ struct HealthCheckpoint
     }
     
     /// Format as human-readable string
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         string result;
         result ~= format("=== Health Checkpoint [%s] ===\n", status);
@@ -159,7 +159,7 @@ struct HealthCheckpoint
     }
     
     /// Format size in human-readable format
-    private string formatSize(size_t bytes) const pure @safe
+    private string formatSize(size_t bytes) const pure @system
     {
         if (bytes < 1024)
             return format("%d B", bytes);
@@ -172,7 +172,7 @@ struct HealthCheckpoint
     }
     
     /// Format duration in human-readable format
-    private string formatDuration(Duration d) const pure @safe
+    private string formatDuration(Duration d) const pure @system
     {
         immutable msecs = d.total!"msecs";
         
@@ -206,7 +206,7 @@ final class HealthMonitor
     private bool monitoring;
     private size_t checkpointInterval;  // Milliseconds between checkpoints
     
-    this(size_t checkpointIntervalMs = 5000) @safe
+    this(size_t checkpointIntervalMs = 5000) @system
     {
         this.monitorMutex = new Mutex();
         this.checkpointInterval = checkpointIntervalMs;
@@ -214,7 +214,7 @@ final class HealthMonitor
     }
     
     /// Start health monitoring
-    void start() @trusted
+    void start() @system
     {
         synchronized (monitorMutex)
         {
@@ -226,7 +226,7 @@ final class HealthMonitor
     
     /// Take a health checkpoint
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block is @system but memory-safe
     /// 2. Checkpoint creation is validated
     /// 3. Array append is bounds-checked
@@ -243,7 +243,7 @@ final class HealthMonitor
         size_t pendingTasks,
         size_t workerCount,
         size_t activeWorkers,
-        double avgTaskTime = 0.0) @trusted
+        double avgTaskTime = 0.0) @system
     {
         synchronized (monitorMutex)
         {
@@ -267,7 +267,7 @@ final class HealthMonitor
     }
     
     /// Stop monitoring and return final checkpoint
-    HealthCheckpoint stop() @trusted
+    HealthCheckpoint stop() @system
     {
         synchronized (monitorMutex)
         {
@@ -285,7 +285,7 @@ final class HealthMonitor
     }
     
     /// Get all checkpoints
-    const(HealthCheckpoint)[] getCheckpoints() const @trusted
+    const(HealthCheckpoint)[] getCheckpoints() const @system
     {
         synchronized (monitorMutex)
         {
@@ -294,7 +294,7 @@ final class HealthMonitor
     }
     
     /// Get latest checkpoint
-    Result!(HealthCheckpoint, string) getLatest() const @trusted
+    Result!(HealthCheckpoint, string) getLatest() const @system
     {
         synchronized (monitorMutex)
         {
@@ -308,7 +308,7 @@ final class HealthMonitor
     }
     
     /// Get health trend (improving, stable, degrading)
-    HealthTrend getTrend() const @trusted
+    HealthTrend getTrend() const @system
     {
         synchronized (monitorMutex)
         {
@@ -337,7 +337,7 @@ final class HealthMonitor
     }
     
     /// Check if monitoring should trigger checkpoint
-    bool shouldCheckpoint() const @trusted
+    bool shouldCheckpoint() const @system
     {
         synchronized (monitorMutex)
         {
@@ -358,7 +358,7 @@ final class HealthMonitor
     }
     
     /// Get summary statistics
-    HealthSummary getSummary() const @trusted
+    HealthSummary getSummary() const @system
     {
         synchronized (monitorMutex)
         {
@@ -397,7 +397,7 @@ final class HealthMonitor
     }
     
     /// Generate health report
-    string report() const @trusted
+    string report() const @system
     {
         auto summary = getSummary();
         
@@ -421,7 +421,7 @@ final class HealthMonitor
     }
     
     /// Format size helper
-    private string formatSize(size_t bytes) const pure @safe
+    private string formatSize(size_t bytes) const pure @system
     {
         if (bytes < 1024)
             return format("%d B", bytes);
@@ -434,7 +434,7 @@ final class HealthMonitor
     }
     
     /// Format duration helper
-    private string formatDuration(Duration d) const pure @safe
+    private string formatDuration(Duration d) const pure @system
     {
         immutable msecs = d.total!"msecs";
         

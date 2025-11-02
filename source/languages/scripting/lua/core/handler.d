@@ -56,8 +56,8 @@ class LuaHandler : BaseLanguageHandler
     
     /// Get output file paths for target
     /// 
-    /// Safety: This function is @trusted because:
-    /// 1. Required by BaseLanguageHandler (called via @trusted wrapper)
+    /// Safety: This function is @system because:
+    /// 1. Required by BaseLanguageHandler (called via @system wrapper)
     /// 2. Performs path construction with buildPath (safe operations)
     /// 3. May read files to detect rockspec (file I/O)
     /// 4. parseLuaConfig performs JSON parsing
@@ -70,7 +70,7 @@ class LuaHandler : BaseLanguageHandler
     /// What could go wrong:
     /// - Config parse fails: caught by parseLuaConfig, returns defaults
     /// - File read fails: findRockspec handles, returns empty string
-    override string[] getOutputs(in Target target, in WorkspaceConfig config) @trusted
+    override string[] getOutputs(in Target target, in WorkspaceConfig config) @system
     {
         LuaConfig luaConfig = parseLuaConfig(target);
         string[] outputs;
@@ -112,7 +112,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Build executable target
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes Lua builders (LuaJIT, bytecode, or script)
     /// 2. Installs dependencies via LuaRocks (process execution)
     /// 3. Runs formatters and linters (external tools)
@@ -129,7 +129,7 @@ class LuaHandler : BaseLanguageHandler
     /// - Dependency install fails: propagates in result.error
     /// - Builder fails: error message in result.error
     /// - Format/lint fail: logged but build continues
-    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @trusted
+    private LanguageBuildResult buildExecutable(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @system
     {
         LanguageBuildResult result;
         
@@ -189,7 +189,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Build library target
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes LuaRocks make (external process)
     /// 2. Installs dependencies (process execution, file I/O)
     /// 3. Validates and formats code (file I/O)
@@ -205,7 +205,7 @@ class LuaHandler : BaseLanguageHandler
     /// - No rockspec: caught and returned as error
     /// - LuaRocks not available: detected in validateConfig
     /// - make fails: exit code captured in result.error
-    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @trusted
+    private LanguageBuildResult buildLibrary(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @system
     {
         LanguageBuildResult result;
         
@@ -258,7 +258,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Run tests
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes test framework (Busted, LuaUnit, or custom)
     /// 2. Auto-detects framework if not specified (file scanning)
     /// 3. Installs dependencies before testing
@@ -274,7 +274,7 @@ class LuaHandler : BaseLanguageHandler
     /// - No test framework found: returns error
     /// - Test execution fails: captured in exit code
     /// - Dependency install fails: propagates error
-    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @trusted
+    private LanguageBuildResult runTests(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @system
     {
         LanguageBuildResult result;
         
@@ -335,7 +335,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Build custom target
-    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @safe
+    private LanguageBuildResult buildCustom(in Target target, in WorkspaceConfig config, LuaConfig luaConfig) @system
     {
         LanguageBuildResult result;
         result.success = true;
@@ -346,7 +346,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Validate configuration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Calls isCommandAvailable() to check toolchain (process execution)
     /// 2. Validates file paths exist (file I/O)
     /// 3. Checks LuaRocks availability (process execution)
@@ -360,7 +360,7 @@ class LuaHandler : BaseLanguageHandler
     /// What could go wrong:
     /// - Command check fails: returns validation error (safe)
     /// - File doesn't exist: returns validation error (safe)
-    private string validateConfig(LuaConfig config, const Target target) @trusted
+    private string validateConfig(LuaConfig config, const Target target) @system
     {
         import std.format : format;
         
@@ -421,7 +421,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Install project dependencies via LuaRocks
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes LuaRocks install command (external process)
     /// 2. Finds rockspec file (file I/O, directory scanning)
     /// 3. Parses rockspec for dependencies (file read)
@@ -437,7 +437,7 @@ class LuaHandler : BaseLanguageHandler
     /// - LuaRocks not available: detected by caller
     /// - Install fails: exit code captured in result
     /// - Network issues: LuaRocks handles, returns error
-    private DependencyResult installDependencies(const Target target, LuaConfig config) @trusted
+    private DependencyResult installDependencies(const Target target, LuaConfig config) @system
     {
         DependencyResult result;
         
@@ -546,7 +546,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Find rockspec file in project
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Scans directory for .rockspec files (file I/O)
     /// 2. Uses dirEntries() to iterate directory (system call)
     /// 3. Checks file existence and extensions (file queries)
@@ -562,7 +562,7 @@ class LuaHandler : BaseLanguageHandler
     /// - Directory doesn't exist: dirEntries throws, caught, returns empty
     /// - Permission denied: exception caught, returns empty
     /// - Multiple rockspecs: returns first one found (acceptable)
-    private string findRockspec(const Target target) @trusted
+    private string findRockspec(const Target target) @system
     {
         if (target.sources.empty)
             return "";
@@ -596,7 +596,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Run code formatter (stylua or lua-format)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes external formatter tool (process execution)
     /// 2. Passes source file paths as arguments (validated paths)
     /// 3. Formatter modifies files in-place (intentional side effect)
@@ -612,7 +612,7 @@ class LuaHandler : BaseLanguageHandler
     /// - Formatter not installed: caught by isCommandAvailable
     /// - Format fails on file: exit code captured, logged
     /// - File corrupted: formatter's responsibility, rollback not provided
-    private FormatResult runFormatter(const Target target, LuaConfig config) @trusted
+    private FormatResult runFormatter(const Target target, LuaConfig config) @system
     {
         FormatResult result;
         
@@ -641,7 +641,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Run static analysis linter (luacheck)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes luacheck tool (external process)
     /// 2. Passes source files for analysis (validated paths)
     /// 3. Parses linter output (text processing)
@@ -657,7 +657,7 @@ class LuaHandler : BaseLanguageHandler
     /// - Luacheck not installed: detected, skipped gracefully
     /// - Lint fails: captured in exit code, logged
     /// - Output parsing fails: handled safely
-    private LintResult runLinter(const Target target, LuaConfig config) @trusted
+    private LintResult runLinter(const Target target, LuaConfig config) @system
     {
         LintResult result;
         
@@ -686,7 +686,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Validate Lua syntax by compilation check
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes Lua compiler with -p flag (syntax check only)
     /// 2. Passes source file path (validated within workspace)
     /// 3. No code execution (only parsing)
@@ -702,7 +702,7 @@ class LuaHandler : BaseLanguageHandler
     /// - Compiler not found: detected by getLuaCompiler
     /// - Syntax error: captured in exit code (expected)
     /// - File read fails: compiler reports error
-    private SyntaxResult validateSyntax(string source, LuaConfig config) @trusted
+    private SyntaxResult validateSyntax(string source, LuaConfig config) @system
     {
         SyntaxResult result;
         
@@ -733,7 +733,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Get Lua compiler path based on runtime
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Calls isCommandAvailable() for each runtime (process execution)
     /// 2. Checks PATH environment for lua/luajit executables
     /// 3. Falls back through runtime priority list
@@ -749,7 +749,7 @@ class LuaHandler : BaseLanguageHandler
     /// - No Lua found: returns empty string (caller handles)
     /// - Multiple Luas: returns first found (acceptable)
     /// - Command check fails: handled by isCommandAvailable
-    private string getLuaCompiler(LuaConfig config) @trusted
+    private string getLuaCompiler(LuaConfig config) @system
     {
         // Try LuaJIT first if enabled
         if (config.luajit.enabled && isCommandAvailable("luajit"))
@@ -792,14 +792,14 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Select appropriate builder based on config
-    private LuaBuilder selectBuilder(LuaConfig config) @safe
+    private LuaBuilder selectBuilder(LuaConfig config) @system
     {
         return BuilderFactory.create(config.mode, config, actionCache);
     }
     
     /// Auto-detect test framework from project files
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Scans test directories for framework files (file I/O)
     /// 2. Reads test files to detect require statements (file read)
     /// 3. Checks for framework-specific files (file queries)
@@ -815,7 +815,7 @@ class LuaHandler : BaseLanguageHandler
     /// - Directory doesn't exist: handled gracefully, returns None
     /// - File read fails: caught, continues scanning
     /// - False positive: unlikely, patterns are specific
-    private LuaTestFramework detectTestFramework(const Target target) @trusted
+    private LuaTestFramework detectTestFramework(const Target target) @system
     {
         // Check if busted is available
         if (isCommandAvailable("busted"))
@@ -850,7 +850,7 @@ class LuaHandler : BaseLanguageHandler
     
     
     /// Convert runtime enum to string
-    private string runtimeToString(LuaRuntime runtime) @safe pure nothrow
+    private string runtimeToString(LuaRuntime runtime) @system pure nothrow
     {
         final switch (runtime)
         {
@@ -865,7 +865,7 @@ class LuaHandler : BaseLanguageHandler
     }
     
     /// Convert test framework enum to string
-    private string testFrameworkToString(LuaTestFramework framework) @safe pure nothrow
+    private string testFrameworkToString(LuaTestFramework framework) @system pure nothrow
     {
         final switch (framework)
         {
@@ -880,7 +880,7 @@ class LuaHandler : BaseLanguageHandler
     
     /// Analyze Lua import/require statements
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Reads source files to parse require() calls (file I/O)
     /// 2. Uses regex to match require/dofile patterns (memory-safe)
     /// 3. Delegates to LanguageSpec for structured parsing
@@ -896,7 +896,7 @@ class LuaHandler : BaseLanguageHandler
     /// - File doesn't exist: checked with exists(), skipped
     /// - File read fails: caught, returns partial results
     /// - Regex doesn't match: returns empty for that file (safe)
-    override Import[] analyzeImports(in string[] sources) @trusted
+    override Import[] analyzeImports(in string[] sources) @system
     {
         auto spec = getLanguageSpec(TargetLanguage.Lua);
         if (spec is null)

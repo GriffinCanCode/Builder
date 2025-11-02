@@ -34,7 +34,7 @@ struct FlameNode
     size_t samples;
     
     /// Total duration including children
-    @property Duration totalDuration() const pure @safe
+    @property Duration totalDuration() const pure @system
     {
         Duration total = duration;
         foreach (child; children)
@@ -45,7 +45,7 @@ struct FlameNode
     }
     
     /// Add or update child node
-    void addChild(FlameNode node) @safe
+    void addChild(FlameNode node) @system
     {
         // Check if child with same name exists
         foreach (ref child; children)
@@ -75,14 +75,14 @@ final class FlameGraphBuilder
     private FlameNode root;
     private Mutex builderMutex;
     
-    this() @safe
+    this() @system
     {
         this.builderMutex = new Mutex();
         this.root = FlameNode("root", dur!"msecs"(0));
     }
     
     /// Add build session to flamegraph
-    void addSession(BuildSession session) @trusted
+    void addSession(BuildSession session) @system
     {
         synchronized (builderMutex)
         {
@@ -111,7 +111,7 @@ final class FlameGraphBuilder
     
     /// Build flamegraph from call stack samples
     /// Format: "func1;func2;func3 weight"
-    void addStackSample(string stack, Duration weight = dur!"msecs"(1)) @trusted
+    void addStackSample(string stack, Duration weight = dur!"msecs"(1)) @system
     {
         synchronized (builderMutex)
         {
@@ -160,7 +160,7 @@ final class FlameGraphBuilder
     
     /// Generate flamegraph in folded stack format
     /// Compatible with flamegraph.pl
-    Result!(string, FlameError) toFoldedStacks() const @trusted
+    Result!(string, FlameError) toFoldedStacks() const @system
     {
         synchronized (cast(Mutex)builderMutex)
         {
@@ -179,7 +179,7 @@ final class FlameGraphBuilder
     }
     
     /// Generate SVG flamegraph
-    Result!(string, FlameError) toSVG(uint width = 1200, uint height = 800) const @trusted
+    Result!(string, FlameError) toSVG(uint width = 1200, uint height = 800) const @system
     {
         synchronized (cast(Mutex)builderMutex)
         {
@@ -206,7 +206,7 @@ final class FlameGraphBuilder
     }
     
     /// Get flamegraph statistics
-    Stats getStats() const @trusted
+    Stats getStats() const @system
     {
         synchronized (cast(Mutex)builderMutex)
         {
@@ -217,7 +217,7 @@ final class FlameGraphBuilder
         }
     }
     
-    private void generateFoldedStacks(in FlameNode node, string prefix, ref Appender!string buffer) const @trusted
+    private void generateFoldedStacks(in FlameNode node, string prefix, ref Appender!string buffer) const @system
     {
         if (node.children.length == 0)
         {
@@ -238,7 +238,7 @@ final class FlameGraphBuilder
         }
     }
     
-    private void collectStats(in FlameNode node, size_t depth, ref Stats stats) const pure @safe
+    private void collectStats(in FlameNode node, size_t depth, ref Stats stats) const pure @system
     {
         stats.totalSamples += node.samples;
         stats.uniqueFrames += 1;
@@ -262,13 +262,13 @@ private final class SVGFlameGraphGenerator
     private enum uint PADDING = 10;
     private enum uint TEXT_SIZE = 12;
     
-    this(uint width, uint height) pure @safe
+    this(uint width, uint height) pure @system
     {
         this.width = width;
         this.height = height;
     }
     
-    Result!(string, FlameError) generate(in FlameNode root) const @trusted
+    Result!(string, FlameError) generate(in FlameNode root) const @system
     {
         try
         {
@@ -302,7 +302,7 @@ private final class SVGFlameGraphGenerator
         }
     }
     
-    private void drawFlame(in FlameNode node, uint x, uint y, uint width, Duration totalDuration, ref Appender!string buffer) const @trusted
+    private void drawFlame(in FlameNode node, uint x, uint y, uint width, Duration totalDuration, ref Appender!string buffer) const @system
     {
         if (node.children.length == 0)
             return;
@@ -354,7 +354,7 @@ private final class SVGFlameGraphGenerator
         }
     }
     
-    private string hashColor(string name) const pure @safe
+    private string hashColor(string name) const pure @system
     {
         // Simple hash to RGB color
         uint hash = 0;
@@ -378,24 +378,24 @@ struct FlameError
     string message;
     ErrorCode code;
     
-    static FlameError generationFailed(string details) pure @safe
+    static FlameError generationFailed(string details) pure @system
     {
         return FlameError("Flamegraph generation failed: " ~ details, ErrorCode.InternalError);
     }
     
-    static FlameError invalidData(string details) pure @safe
+    static FlameError invalidData(string details) pure @system
     {
         return FlameError("Invalid data: " ~ details, ErrorCode.TelemetryInvalid);
     }
     
-    string toString() const pure nothrow @safe
+    string toString() const pure nothrow @system
     {
         return message;
     }
 }
 
 /// Build flamegraph from build sessions
-Result!(FlameGraphBuilder, FlameError) buildFromSessions(BuildSession[] sessions) @trusted
+Result!(FlameGraphBuilder, FlameError) buildFromSessions(BuildSession[] sessions) @system
 {
     try
     {
@@ -416,7 +416,7 @@ Result!(FlameGraphBuilder, FlameError) buildFromSessions(BuildSession[] sessions
 }
 
 /// Build dependency flamegraph from single session
-Result!(FlameGraphBuilder, FlameError) buildDependencyFlame(BuildSession session) @trusted
+Result!(FlameGraphBuilder, FlameError) buildDependencyFlame(BuildSession session) @system
 {
     try
     {
@@ -442,7 +442,7 @@ Result!(FlameGraphBuilder, FlameError) buildDependencyFlame(BuildSession session
 }
 
 /// Save flamegraph to file
-Result!FlameError saveFlamegraphSVG(FlameGraphBuilder builder, string filepath) @trusted
+Result!FlameError saveFlamegraphSVG(FlameGraphBuilder builder, string filepath) @system
 {
     import std.file : write;
     
@@ -463,7 +463,7 @@ Result!FlameError saveFlamegraphSVG(FlameGraphBuilder builder, string filepath) 
 }
 
 /// Save folded stacks to file (for use with flamegraph.pl)
-Result!FlameError saveFoldedStacks(FlameGraphBuilder builder, string filepath) @trusted
+Result!FlameError saveFoldedStacks(FlameGraphBuilder builder, string filepath) @system
 {
     import std.file : write;
     

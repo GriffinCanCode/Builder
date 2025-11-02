@@ -93,7 +93,7 @@ struct SIMDDispatch
     
     /// Ensure SIMD is initialized (thread-safe, idempotent)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Uses synchronized block for thread-safe initialization
     /// 2. Double-checked locking pattern prevents race conditions
     /// 3. blake3_simd_init() is idempotent (safe to call multiple times)
@@ -105,7 +105,7 @@ struct SIMDDispatch
     /// 
     /// What could go wrong:
     /// - Nothing: C code has its own initialization guard
-    private static void ensureInitialized() @trusted
+    private static void ensureInitialized() @system
     {
         // Fast path: already initialized (no lock needed)
         if (_initialized)
@@ -125,20 +125,20 @@ struct SIMDDispatch
     
     /// Initialize dispatch system (now optional - auto-initializes on first use)
     /// Can still be called explicitly for control over initialization timing
-    static void initialize() @trusted
+    static void initialize() @system
     {
         ensureInitialized();
     }
     
     /// Get compression function (auto-initializes if needed)
-    static blake3_compress_fn getCompressFn() @trusted
+    static blake3_compress_fn getCompressFn() @system
     {
         ensureInitialized();
         return blake3_get_compress_fn();
     }
     
     /// Get hash-many function (auto-initializes if needed)
-    static blake3_hash_many_fn getHashManyFn() @trusted
+    static blake3_hash_many_fn getHashManyFn() @system
     {
         ensureInitialized();
         return blake3_get_hash_many_fn();
@@ -167,7 +167,7 @@ struct SIMDDispatch
     }
     
     /// Check if SIMD has been initialized
-    static bool isInitialized() @trusted nothrow @nogc
+    static bool isInitialized() @system nothrow @nogc
     {
         return _initialized;
     }

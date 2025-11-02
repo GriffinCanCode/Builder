@@ -5,6 +5,7 @@ import std.algorithm;
 import std.array;
 import std.typecons : Rebindable, rebindable;
 import config.schema.schema;
+import errors;
 
 /// Abstract syntax tree node types for Builderfile DSL
 /// 
@@ -233,7 +234,36 @@ struct ExpressionValue
     
     // Semantic conversion methods
     
-    /// Convert to string (for semantic analysis)
+    /// Convert to string (Result-based version for type-safe conversion)
+    /// Returns: Ok with string value, Err if expression cannot be converted
+    Result!(string, BuildError) tryAsString() const
+    {
+        final switch (kind)
+        {
+            case Kind.String: return Ok!(string, BuildError)(_storage.stringValue.value);
+            case Kind.Identifier: return Ok!(string, BuildError)(_storage.identifierValue.name);
+            case Kind.Number: return Ok!(string, BuildError)(_storage.numberValue.value.to!string);
+            case Kind.Array:
+                auto error = ErrorBuilder!ParseError
+                    .create("", "Cannot convert array expression to string", ErrorCode.InvalidFieldValue)
+                    .withSuggestion(ErrorSuggestion.fileCheck("Expected a string value, but got an array"))
+                    .withSuggestion(ErrorSuggestion.fileCheck("Remove brackets [] to use a single string value"))
+                    .build();
+                return Err!(string, BuildError)(cast(BuildError) error);
+            case Kind.Map:
+                auto error = ErrorBuilder!ParseError
+                    .create("", "Cannot convert map expression to string", ErrorCode.InvalidFieldValue)
+                    .withSuggestion(ErrorSuggestion.fileCheck("Expected a string value, but got a map"))
+                    .withSuggestion(ErrorSuggestion.fileCheck("Remove braces {} to use a single string value"))
+                    .build();
+                return Err!(string, BuildError)(cast(BuildError) error);
+        }
+    }
+    
+    /// Convert to string (backward compatible, throws on error)
+    /// 
+    /// Deprecated: Use tryAsString for Result-based error handling
+    /// Throws: Exception if expression is an array or map
     string asString() const
     {
         final switch (kind)
@@ -246,7 +276,39 @@ struct ExpressionValue
         }
     }
     
-    /// Convert to string array
+    /// Convert to string array (Result-based version for type-safe conversion)
+    /// Returns: Ok with string array, Err if expression is not an array
+    Result!(string[], BuildError) tryAsStringArray() const
+    {
+        if (kind != Kind.Array)
+        {
+            auto error = ErrorBuilder!ParseError
+                .create("", "Expected array but got " ~ kind.to!string, ErrorCode.InvalidFieldValue)
+                .withSuggestion(ErrorSuggestion.fileCheck("Value must be an array like [\"item1\", \"item2\"]"))
+                .withSuggestion(ErrorSuggestion.fileCheck("Add brackets [] around the values"))
+                .build();
+            return Err!(string[], BuildError)(cast(BuildError) error);
+        }
+        
+        // Try to convert each element, collecting errors
+        string[] result;
+        result.reserve(_storage.arrayValue.elements.length);
+        
+        foreach (elem; _storage.arrayValue.elements)
+        {
+            auto elemResult = elem.tryAsString();
+            if (elemResult.isErr)
+                return Err!(string[], BuildError)(elemResult.unwrapErr());
+            result ~= elemResult.unwrap();
+        }
+        
+        return Ok!(string[], BuildError)(result);
+    }
+    
+    /// Convert to string array (backward compatible, throws on error)
+    /// 
+    /// Deprecated: Use tryAsStringArray for Result-based error handling
+    /// Throws: Exception if expression is not an array
     string[] asStringArray() const
     {
         if (kind != Kind.Array)
@@ -255,7 +317,36 @@ struct ExpressionValue
         return _storage.arrayValue.elements.map!(e => e.asString()).array;
     }
     
-    /// Convert to map (converting values to strings)
+    /// Convert to map (Result-based version for type-safe conversion)
+    /// Returns: Ok with string map, Err if expression is not a map
+    Result!(string[string], BuildError) tryAsMap() const
+    {
+        if (kind != Kind.Map)
+        {
+            auto error = ErrorBuilder!ParseError
+                .create("", "Expected map but got " ~ kind.to!string, ErrorCode.InvalidFieldValue)
+                .withSuggestion(ErrorSuggestion.fileCheck("Value must be a map like {key: \"value\"}"))
+                .withSuggestion(ErrorSuggestion.fileCheck("Add braces {} around key-value pairs"))
+                .build();
+            return Err!(string[string], BuildError)(cast(BuildError) error);
+        }
+        
+        string[string] result;
+        foreach (key, value; _storage.mapValue.pairs)
+        {
+            auto valueResult = value.tryAsString();
+            if (valueResult.isErr)
+                return Err!(string[string], BuildError)(valueResult.unwrapErr());
+            result[key] = valueResult.unwrap();
+        }
+        
+        return Ok!(string[string], BuildError)(result);
+    }
+    
+    /// Convert to map (backward compatible, throws on error)
+    /// 
+    /// Deprecated: Use tryAsMap for Result-based error handling
+    /// Throws: Exception if expression is not a map
     string[string] asMap() const
     {
         if (kind != Kind.Map)

@@ -13,7 +13,7 @@ import utils.files.metadata;
 import utils.files.chunking;
 import utils.files.glob;
 
-@safe:
+@system:
 
 /// Performance benchmarking utilities
 struct Benchmark
@@ -31,7 +31,7 @@ struct Benchmark
     }
     
     /// Run benchmark
-    @trusted // Stopwatch and delegate execution
+    @system // Stopwatch and delegate execution
     void run(void delegate() func)
     {
         samples.length = 0;
@@ -107,7 +107,7 @@ struct BenchmarkResult
     Duration stdDev;
     
     /// Print results
-    @trusted // I/O operations
+    @system // I/O operations
     void print()
     {
         writeln("\n=== ", name, " ===");
@@ -145,7 +145,7 @@ struct BenchmarkResult
 struct FileOpBenchmark
 {
     /// Benchmark different hashing strategies
-    @trusted // File operations and benchmarking
+    @system // File operations and benchmarking
     static void benchmarkHashing(string[] testFiles)
     {
         writeln("\n╔══════════════════════════════════════════════════════════════╗");
@@ -182,7 +182,7 @@ struct FileOpBenchmark
     }
     
     /// Benchmark metadata checking
-    @trusted // File operations and benchmarking
+    @system // File operations and benchmarking
     static void benchmarkMetadata(string[] testFiles)
     {
         writeln("\n╔══════════════════════════════════════════════════════════════╗");
@@ -240,7 +240,7 @@ struct FileOpBenchmark
     }
     
     /// Benchmark glob matching
-    @trusted // File operations and benchmarking
+    @system // File operations and benchmarking
     static void benchmarkGlob(string baseDir, string[] patterns)
     {
         writeln("\n╔══════════════════════════════════════════════════════════════╗");
@@ -264,7 +264,7 @@ struct FileOpBenchmark
     }
     
     /// Benchmark content-defined chunking
-    @trusted // File operations and benchmarking
+    @system // File operations and benchmarking
     static void benchmarkChunking(string[] testFiles)
     {
         writeln("\n╔══════════════════════════════════════════════════════════════╗");
@@ -309,7 +309,7 @@ struct FileOpBenchmark
     }
     
     /// Run comprehensive benchmark suite
-    @trusted // File operations and benchmarking
+    @system // File operations and benchmarking
     static void runAll(string testDir = ".")
     {
         writeln("\n");
@@ -352,7 +352,7 @@ struct BenchmarkComparison
     BenchmarkResult baseline;
     BenchmarkResult optimized;
     
-    @trusted // I/O operations
+    @system // I/O operations
     void print()
     {
         writeln("\n=== Comparison: ", baseline.name, " vs ", optimized.name, " ===");

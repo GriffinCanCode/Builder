@@ -5,7 +5,7 @@ import std.algorithm;
 import std.range;
 import std.traits;
 
-@safe:
+@system:
 
 /// Lock-free work-stealing deque using Chase-Lev algorithm
 /// Optimized for single-producer (owner) and multiple-consumer (stealers) pattern
@@ -33,7 +33,7 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
         
         @disable this(this);  // Non-copyable
         
-        static CircularArray* create(size_t capacity) @trusted nothrow
+        static CircularArray* create(size_t capacity) @system nothrow
         {
             import std.math : isPowerOf2;
             assert(isPowerOf2(capacity), "Capacity must be power of 2");
@@ -53,18 +53,18 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
             return arr;
         }
         
-        @property size_t capacity() const pure nothrow @nogc @trusted
+        @property size_t capacity() const pure nothrow @nogc @system
         {
             return cast(size_t)1 << logSize;
         }
         
-        T get(size_t index) @trusted nothrow @nogc
+        T get(size_t index) @system nothrow @nogc
         {
             immutable mask = capacity - 1;
             return cast(T)atomicLoad(buffer[index & mask]);
         }
         
-        void put(size_t index, T item) @trusted nothrow @nogc
+        void put(size_t index, T item) @system nothrow @nogc
         {
             immutable mask = capacity - 1;
             atomicStore(buffer[index & mask], cast(shared)item);
@@ -78,7 +78,7 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     @disable this(this);  // Non-copyable
     
     /// Initialize deque with initial capacity (must be power of 2)
-    this(size_t capacity) @trusted
+    this(size_t capacity) @system
     {
         import std.math : isPowerOf2;
         assert(isPowerOf2(capacity), "Capacity must be power of 2");
@@ -92,12 +92,12 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     /// Push task to bottom (owner only)
     /// Owner can push without CAS - fastest path
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Only owner thread calls this (by design contract)
     /// 2. Atomic loads for top, relaxed for bottom (owner exclusive)
     /// 3. Array access is bounds-checked via capacity
     /// 4. Automatic growth when needed
-    @trusted
+    @system
     void push(T task) nothrow
     {
         auto b = atomicLoad!(MemoryOrder.raw)(bottom);
@@ -124,12 +124,12 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     /// Owner's fast path - no CAS in common case
     /// Returns null if empty
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Only owner thread calls this (by design contract)
     /// 2. Atomic operations ensure proper ordering
     /// 3. CAS only when racing with stealers
     /// 4. Bounds checking via capacity
-    @trusted
+    @system
     T pop() nothrow
     {
         auto b = atomicLoad!(MemoryOrder.raw)(bottom) - 1;
@@ -169,12 +169,12 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     /// Lock-free CAS-based stealing for multiple threads
     /// Returns null if empty or lost race
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Multiple stealers can call concurrently
     /// 2. CAS ensures only one stealer succeeds
     /// 3. Atomic loads ensure memory ordering
     /// 4. Array access is bounds-checked
-    @trusted
+    @system
     T steal() nothrow
     {
         auto t = atomicLoad!(MemoryOrder.acq)(top);
@@ -201,7 +201,7 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     
     /// Get approximate size (may be stale immediately)
     /// Used for load balancing heuristics
-    @trusted
+    @system
     size_t size() const nothrow @nogc
     {
         auto b = atomicLoad!(MemoryOrder.raw)(bottom);
@@ -211,7 +211,7 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     }
     
     /// Check if approximately empty (may be stale)
-    @trusted
+    @system
     bool empty() const nothrow @nogc
     {
         auto b = atomicLoad!(MemoryOrder.raw)(bottom);
@@ -220,7 +220,7 @@ struct WorkStealingDeque(T) if (is(T == class) || is(T == interface))
     }
     
     /// Get approximate capacity
-    @trusted
+    @system
     size_t capacity() const nothrow @nogc
     {
         auto arr = cast(CircularArray*)atomicLoad(array);

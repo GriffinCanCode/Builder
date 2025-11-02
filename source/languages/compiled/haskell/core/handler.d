@@ -126,7 +126,7 @@ class HaskellHandler : BaseLanguageHandler
             try
             {
                 auto content = readText(source);
-                auto imports = () @trusted { return parseHaskellImports(source, content); }();
+                auto imports = parseHaskellImports(source, content);
                 allImports ~= imports;
             }
             catch (Exception e)

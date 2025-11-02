@@ -44,7 +44,7 @@ class ElixirHandler : BaseLanguageHandler
         }
     }
     
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @trusted
+    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @system
     {
         LanguageBuildResult result;
         
@@ -80,7 +80,7 @@ class ElixirHandler : BaseLanguageHandler
         return result;
     }
     
-    override string[] getOutputs(in Target target, in WorkspaceConfig config) @trusted
+    override string[] getOutputs(in Target target, in WorkspaceConfig config) @system
     {
         string[] outputs;
         
@@ -143,7 +143,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    ) @trusted
+    ) @system
     {
         LanguageBuildResult result;
         
@@ -245,7 +245,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    ) @trusted
+    ) @system
     {
         LanguageBuildResult result;
         
@@ -333,7 +333,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    ) @trusted
+    ) @system
     {
         LanguageBuildResult result;
         
@@ -431,7 +431,7 @@ class ElixirHandler : BaseLanguageHandler
         ElixirConfig elixirConfig,
         string elixirCmd,
         string mixCmd
-    ) @safe
+    ) @system
     {
         LanguageBuildResult result;
         result.success = true;
@@ -440,7 +440,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Parse Elixir configuration from target
-    private ElixirConfig parseElixirConfig(const Target target) @trusted
+    private ElixirConfig parseElixirConfig(const Target target) @system
     {
         ElixirConfig config;
         
@@ -472,7 +472,7 @@ class ElixirHandler : BaseLanguageHandler
         ref ElixirConfig config,
         const Target target,
         const WorkspaceConfig workspace
-    ) @trusted
+    ) @system
     {
         if (target.sources.empty)
             return;
@@ -553,7 +553,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Setup Elixir environment and return Elixir command to use
-    private string setupElixirEnvironment(ElixirConfig config, string projectRoot) @trusted
+    private string setupElixirEnvironment(ElixirConfig config, string projectRoot) @system
     {
         string elixirCmd = "elixir";
         
@@ -587,7 +587,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Setup Mix command
-    private string setupMixCommand(ElixirConfig config, string projectRoot) @trusted
+    private string setupMixCommand(ElixirConfig config, string projectRoot) @system
     {
         string mixCmd = "mix";
         
@@ -607,7 +607,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Pre-build steps (dependencies, compilation)
-    private bool preBuildSteps(ElixirConfig config, string projectRoot, string mixCmd) @trusted
+    private bool preBuildSteps(ElixirConfig config, string projectRoot, string mixCmd) @system
     {
         // Clean if requested
         if (config.clean)
@@ -664,7 +664,7 @@ class ElixirHandler : BaseLanguageHandler
         string projectRoot,
         string mixCmd,
         ElixirBuildResult buildResult
-    ) @trusted
+    ) @system
     {
         // Run Dialyzer with PLT caching (post-build for type checking)
         if (config.dialyzer.enabled)
@@ -805,7 +805,7 @@ class ElixirHandler : BaseLanguageHandler
     }
     
     /// Convert MixEnv to string
-    private string envToString(MixEnv env) @safe pure nothrow
+    private string envToString(MixEnv env) @system pure nothrow
     {
         final switch (env)
         {
@@ -816,7 +816,7 @@ class ElixirHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(in string[] sources) @trusted
+    override Import[] analyzeImports(in string[] sources) @system
     {
         auto spec = getLanguageSpec(TargetLanguage.Elixir);
         if (spec is null)

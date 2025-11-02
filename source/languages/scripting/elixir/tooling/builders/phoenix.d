@@ -102,7 +102,7 @@ class PhoenixBuilder : MixProjectBuilder
     }
     
     /// Compile assets with esbuild
-    private bool compileWithEsbuild(string workDir) @trusted
+    private bool compileWithEsbuild(string workDir) @system
     {
         // Check if esbuild is configured in mix.exs
         string mixExsPath = buildPath(workDir, "mix.exs");
@@ -121,7 +121,7 @@ class PhoenixBuilder : MixProjectBuilder
     }
     
     /// Compile assets with webpack
-    private bool compileWithWebpack(string workDir) @trusted
+    private bool compileWithWebpack(string workDir) @system
     {
         string assetsDir = buildPath(workDir, "assets");
         if (!exists(assetsDir))
@@ -139,7 +139,7 @@ class PhoenixBuilder : MixProjectBuilder
     }
     
     /// Compile assets with vite
-    private bool compileWithVite(string workDir) @trusted
+    private bool compileWithVite(string workDir) @system
     {
         string assetsDir = buildPath(workDir, "assets");
         if (!exists(assetsDir))

@@ -10,7 +10,7 @@ import std.conv;
 import std.mmfile;
 import std.bitmanip;
 
-@safe:
+@system:
 
 /// Fast hashing utilities with intelligent size-tiered strategy
 /// Uses SIMD-accelerated BLAKE3 for 3-5x speedup over SHA-256
@@ -56,9 +56,9 @@ struct FastHash
     /// This is acceptable for build system caching (eventual consistency) but
     /// NOT suitable for security validation, signature verification, or tamper detection.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. exists() and getSize() are file system operations (unsafe I/O)
-    /// 2. Delegates to tier-specific @trusted hash functions
+    /// 2. Delegates to tier-specific @system hash functions
     /// 3. No pointer arithmetic or unsafe memory operations
     /// 4. Strategy selection is based on validated file size
     /// 
@@ -71,7 +71,7 @@ struct FastHash
     /// - File deleted between exists() and hash: returns empty or throws
     /// - File size changes during hashing: hash reflects state at that moment
     /// - Permission errors: propagate as exceptions (safe failure)
-    @trusted
+    @system
     static string hashFile(in string path)
     {
         if (!exists(path))
@@ -97,7 +97,7 @@ struct FastHash
     
     /// Direct hash for tiny files
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. std.file.read() performs file I/O (inherently unsafe)
     /// 2. Cast to ubyte[] is safe (data is owned by read())
     /// 3. Blake3.hashHex() is trusted hash operation
@@ -112,7 +112,7 @@ struct FastHash
     /// - File too large: memory allocation could fail (exception)
     /// - File modified during read: hash reflects state at read time
     /// - Read errors: exception propagates (safe failure)
-    @trusted
+    @system
     private static string hashFileDirect(in string path)
     {
         auto data = cast(ubyte[])std.file.read(path);
@@ -121,7 +121,7 @@ struct FastHash
     
     /// Chunked hash for small files (original approach)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File.open() and rawRead() are file I/O operations
     /// 2. Stack-allocated buffer (no heap allocation per chunk)
     /// 3. rawRead() validates buffer bounds internally
@@ -136,7 +136,7 @@ struct FastHash
     /// - File read errors: exception propagates (safe failure)
     /// - File modified during read: hash reflects state at read time
     /// - EOF handling: safe, loop exits naturally
-    @trusted
+    @system
     private static string hashFileChunked(in string path)
     {
         auto file = File(path, "rb");
@@ -160,7 +160,7 @@ struct FastHash
     /// modify bytes between sample points without detection.
     /// Use hashFileComplete() for security-critical applications.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File operations (open, seek, rawRead) are inherently unsafe I/O
     /// 2. Buffer allocations are bounded by SAMPLE_* constants
     /// 3. Seek positions are calculated and bounds-checked
@@ -176,7 +176,7 @@ struct FastHash
     /// - Seek beyond EOF: caught by File operations (exception)
     /// - Buffer allocation fails: exception propagates (safe failure)
     /// - File modified during sampling: hash reflects state at sample time
-    @trusted
+    @system
     private static string hashFileSampled(in string path, in size_t fileSize)
     {
         auto hash = Blake3(0);
@@ -230,7 +230,7 @@ struct FastHash
     /// modify bytes between sample points without detection.
     /// Use hashFileComplete() for security-critical applications.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. MmFile provides memory-mapped file access (inherently unsafe)
     /// 2. Cast to ubyte[] is safe (mmfile validates bounds internally)
     /// 3. Array slicing is bounds-checked with min() calls
@@ -249,7 +249,7 @@ struct FastHash
     /// - File too large for address space: mmap throws, caught
     /// - Concurrent modification: undefined (acceptable for cache)
     /// - Array slicing out of bounds: prevented by min() calculations
-    @trusted
+    @system
     private static string hashFileLargeSampled(in string path, in size_t fileSize)
     {
         auto hash = Blake3(0);  // SIMD-accelerated
@@ -311,7 +311,7 @@ struct FastHash
     /// and hashes every single byte. For build system caching where eventual
     /// consistency is acceptable, use hashFile() instead.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File operations are inherently unsafe I/O
     /// 2. Memory-mapped file access is validated by MmFile
     /// 3. Fallback to chunked reading on mmap failure
@@ -326,7 +326,7 @@ struct FastHash
     /// - Very large files may exhaust memory: handled by chunked fallback
     /// - File modified during read: hash reflects state at read time
     /// - Permission errors: propagate as exceptions (safe failure)
-    @trusted
+    @system
     static string hashFileComplete(in string path)
     {
         if (!exists(path))
@@ -363,7 +363,7 @@ struct FastHash
     
     /// Hash multiple strings together
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Cast from string to ubyte[] is safe (identical memory layout)
     /// 2. Blake3 hasher incrementally processes data (memory-safe)
     /// 3. No pointer manipulation or unsafe operations
@@ -376,7 +376,7 @@ struct FastHash
     /// What could go wrong:
     /// - Nothing: pure data hashing with no side effects
     /// - Large strings: memory usage grows but is safe
-    @trusted
+    @system
     static string hashStrings(const string[] strings)
     {
         auto hash = Blake3(0);
@@ -387,7 +387,7 @@ struct FastHash
     
     /// Hash multiple files together with SIMD-aware parallel processing
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Delegates to trusted hashFile() for individual files
     /// 2. SIMDParallel.mapSIMD() is trusted parallel execution
     /// 3. Cast operations for combining hashes are memory-safe
@@ -404,7 +404,7 @@ struct FastHash
     /// - File operations can fail: handled per-file (hash path instead)
     /// - Parallel execution overhead: mitigated by threshold check
     /// - Memory usage for many files: bounded by file count
-    @trusted
+    @system
     static string hashFiles(string[] filePaths)
     {
         import std.file : exists;

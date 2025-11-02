@@ -56,22 +56,17 @@ interface LanguageHandler
 /// Base implementation with common functionality
 abstract class BaseLanguageHandler : LanguageHandler
 {
-    /// Build a target with action-level context support
-    Result!(string, BuildError) buildWithContext(BuildContext context) @safe
-    {
-        return build(context.target, context.config);
-    }
     
     /// Build a target with error handling and Result wrapper
     /// 
-    /// Safety: Calls buildImpl() and getOutputs() through @trusted wrappers because
+    /// Safety: Calls buildImpl() and getOutputs() through @system wrappers because
     /// language handlers may perform file I/O, process execution, and other
     /// operations that are inherently @system but have been validated for safety.
     /// 
-    /// The @trusted lambda wrapper pattern:
+    /// The @system lambda wrapper pattern:
     /// - Delegates responsibility to concrete language handlers
-    /// - Each handler marks buildImpl() as @trusted with justification
-    /// - This function remains @safe by wrapping the call
+    /// - Each handler marks buildImpl() as @system with justification
+    /// - This function remains @system by wrapping the call
     /// - Exceptions are caught and converted to Result types
     /// 
     /// Invariants:
@@ -84,21 +79,19 @@ abstract class BaseLanguageHandler : LanguageHandler
     /// - Handler buildImpl() has memory safety bug: contained within handler
     /// - Exception thrown: caught and converted to BuildError Result
     /// - Invalid target: handler validates and returns error Result
-    Result!(string, BuildError) build(Target target, WorkspaceConfig config) @safe
+    Result!(string, BuildError) build(Target target, WorkspaceConfig config) @system
     {
         // Get global tracer and structured logger (safe operations)
-        auto tracer = () @trusted { return getTracer(); }();
-        auto logger = () @trusted { return getStructuredLogger(); }();
+        auto tracer = getTracer();
+        auto logger = getStructuredLogger();
         
         // Create span for language handler execution
-        auto handlerSpan = () @trusted { 
-            return tracer.startSpan("language-handler", SpanKind.Internal); 
-        }();
+        auto handlerSpan = tracer.startSpan("language-handler", SpanKind.Internal);
         
         // Ensure span is finished
-        scope(exit) () @trusted { tracer.finishSpan(handlerSpan); }();
+        scope(exit) tracer.finishSpan(handlerSpan);;
         
-        () @trusted {
+        () @system {
             handlerSpan.setAttribute("handler.language", target.language.to!string);
             handlerSpan.setAttribute("handler.target", target.name);
             handlerSpan.setAttribute("handler.type", target.type.to!string);
@@ -107,13 +100,13 @@ abstract class BaseLanguageHandler : LanguageHandler
         try
         {
             // Safety: buildImpl() performs I/O and process execution
-            // Marked @trusted in each language handler with specific justification
-            // This lambda wrapper keeps build() @safe while allowing @system ops
-            auto result = () @trusted { return buildImpl(target, config); }();
+            // Marked @system in each language handler with specific justification
+            // This lambda wrapper keeps build() @system while allowing @system ops
+            auto result = buildImpl(target, config);
             
             if (result.success)
             {
-                () @trusted { 
+                () @system { 
                     handlerSpan.setStatus(SpanStatus.Ok);
                     handlerSpan.setAttribute("build.success", "true");
                 }();
@@ -136,7 +129,7 @@ abstract class BaseLanguageHandler : LanguageHandler
                 error.addSuggestion("Verify source files have no syntax errors");
                 error.addSuggestion("Try building manually to reproduce the issue");
                 
-                () @trusted {
+                () @system {
                     handlerSpan.recordException(new Exception(result.error));
                     handlerSpan.setStatus(SpanStatus.Error, result.error);
                 }();
@@ -160,7 +153,7 @@ abstract class BaseLanguageHandler : LanguageHandler
             error.addSuggestion("Ensure all required tools and dependencies are available");
             error.addSuggestion("Run with --verbose for more detailed output");
             
-            () @trusted {
+            () @system {
                 handlerSpan.recordException(e);
                 handlerSpan.setStatus(SpanStatus.Error, e.msg);
             }();
@@ -171,11 +164,11 @@ abstract class BaseLanguageHandler : LanguageHandler
     
     /// Check if target needs rebuild based on output file existence
     /// 
-    /// Safety: This function is @safe and calls getOutputs() through @trusted wrapper
+    /// Safety: This function is @system and calls getOutputs() through @system wrapper
     /// because handlers may perform path operations (inherently @system).
     /// 
-    /// The @trusted lambda wrapper pattern:
-    /// - getOutputs() is marked @trusted in each language handler
+    /// The @system lambda wrapper pattern:
+    /// - getOutputs() is marked @system in each language handler
     /// - Path operations are validated by handlers
     /// - exists() check is read-only file system query
     /// 
@@ -187,13 +180,13 @@ abstract class BaseLanguageHandler : LanguageHandler
     /// What could go wrong:
     /// - Handler returns invalid paths: contained within handler
     /// - exists() throws: would propagate (safe failure)
-    bool needsRebuild(in Target target, in WorkspaceConfig config) @safe
+    bool needsRebuild(in Target target, in WorkspaceConfig config) @system
     {
         import std.file : exists;
         
         // Safety: getOutputs() performs path operations
-        // Marked @trusted in each handler with specific justification
-        auto outputs = () @trusted { return getOutputs(target, config); }();
+        // Marked @system in each handler with specific justification
+        auto outputs = getOutputs(target, config);
         
         // Rebuild if any output is missing
         foreach (output; outputs)
@@ -207,13 +200,13 @@ abstract class BaseLanguageHandler : LanguageHandler
     
     /// Clean build artifacts by removing output files
     /// 
-    /// Safety: This function is @safe and calls getOutputs() through @trusted wrapper.
+    /// Safety: This function is @system and calls getOutputs() through @system wrapper.
     /// File deletion operations (remove) are inherently @system but safe here because:
     /// - Only deletes files returned by handler's getOutputs()
     /// - Checks existence before attempting removal
     /// - Handler validates output paths
     /// 
-    /// The @trusted lambda wrapper pattern:
+    /// The @system lambda wrapper pattern:
     /// - getOutputs() provides validated file list
     /// - Deletion is confined to handler-specified outputs
     /// - No arbitrary file deletion possible
@@ -227,13 +220,13 @@ abstract class BaseLanguageHandler : LanguageHandler
     /// - Permission denied: remove() throws (safe failure)
     /// - File in use: remove() throws (safe failure)
     /// - Handler returns invalid paths: contained within handler
-    void clean(in Target target, in WorkspaceConfig config) @safe
+    void clean(in Target target, in WorkspaceConfig config) @system
     {
         import std.file : remove, exists;
         
         // Safety: getOutputs() returns validated output file paths
-        // Marked @trusted in each handler with specific justification
-        auto outputs = () @trusted { return getOutputs(target, config); }();
+        // Marked @system in each handler with specific justification
+        auto outputs = getOutputs(target, config);
         
         foreach (output; outputs)
         {
@@ -242,7 +235,7 @@ abstract class BaseLanguageHandler : LanguageHandler
         }
     }
     
-    Import[] analyzeImports(string[] sources) @safe
+    Import[] analyzeImports(string[] sources) @system
     {
         // Default implementation: delegate to language spec
         // Subclasses can override for custom analysis

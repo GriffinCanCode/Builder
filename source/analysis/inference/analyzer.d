@@ -37,9 +37,10 @@ class DependencyAnalyzer
         this.resolver = new DependencyResolver(config);
     }
     
-    /// Analyze dependencies and build graph
+    /// Analyze dependencies and build graph (Result-based version)
     /// Note: Uses target.id for type-safe identification where possible
-    BuildGraph analyze(in string targetFilter = "") @trusted
+    /// Returns: Ok with BuildGraph on success, Err with BuildError on validation failure
+    Result!(BuildGraph, BuildError) analyzeChecked(in string targetFilter = "") @trusted
     {
         Logger.info("Analyzing dependencies...");
         auto sw = StopWatch(AutoStart.yes);
@@ -165,13 +166,28 @@ class DependencyAnalyzer
         {
             auto error = validateResult.unwrapErr();
             Logger.error("Graph validation failed: " ~ format(error));
-            throw new Exception("Circular dependency detected in build graph");
+            return Result!(BuildGraph, BuildError).err(error);
         }
         
         sw.stop();
         Logger.success("Analysis complete (" ~ sw.peek().total!"msecs".to!string ~ "ms)");
         
-        return graph;
+        return Result!(BuildGraph, BuildError).ok(graph);
+    }
+    
+    /// Analyze dependencies and build graph (backward compatible, throws on error)
+    /// 
+    /// Deprecated: Use analyzeChecked for Result-based error handling
+    /// Throws: Exception if graph validation fails (circular dependencies)
+    BuildGraph analyze(in string targetFilter = "") @trusted
+    {
+        auto result = analyzeChecked(targetFilter);
+        if (result.isErr)
+        {
+            auto error = result.unwrapErr();
+            throw new Exception(format(error));
+        }
+        return result.unwrap();
     }
     
     /// Analyze a single target with error aggregation

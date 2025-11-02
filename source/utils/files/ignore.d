@@ -8,7 +8,7 @@ import std.file;
 import std.stdio;
 import config.schema.schema : TargetLanguage;
 
-@safe:
+@system:
 
 /// Language-specific dependency and build directories that should be ignored during scanning
 /// to avoid performance issues and false positives
@@ -44,7 +44,7 @@ class IgnoreRegistry
     
     /// Static constructor: Initialize immutable ignore patterns
     /// 
-    /// Safety: This static constructor is @trusted because:
+    /// Safety: This static constructor is @system because:
     /// 1. Initializes immutable static data once at program start
     /// 2. Array literal initialization is memory-safe
     /// 3. Associative array initialization with enum keys is type-safe
@@ -56,7 +56,7 @@ class IgnoreRegistry
     /// 
     /// What could go wrong:
     /// - Nothing: pure data initialization with no side effects
-    @trusted
+    @system
     shared static this()
     {
         // Version control system directories - ALWAYS ignore
@@ -577,7 +577,7 @@ class UserIgnorePatterns
     
     /// Constructor: Load ignore patterns from files
     /// 
-    /// Safety: This constructor is @trusted because:
+    /// Safety: This constructor is @system because:
     /// 1. Delegates to loadIgnoreFiles() which performs validated file I/O
     /// 2. baseDir is stored as-is (no pointer manipulation)
     /// 3. Array initialization is safe
@@ -589,7 +589,7 @@ class UserIgnorePatterns
     /// What could go wrong:
     /// - File I/O could fail: handled gracefully in loadIgnoreFiles()
     /// - Invalid baseDir: will fail when trying to read files (safe failure)
-    @trusted
+    @system
     this(string baseDir)
     {
         this.baseDir = baseDir;
@@ -598,7 +598,7 @@ class UserIgnorePatterns
     
     /// Load ignore patterns from .builderignore and .gitignore
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. buildPath() is safe string concatenation
     /// 2. exists() is file system query (read-only)
     /// 3. parseIgnoreFile() is called with valid paths
@@ -611,7 +611,7 @@ class UserIgnorePatterns
     /// What could go wrong:
     /// - File doesn't exist: checked with exists() before reading
     /// - Permission errors: caught and ignored (safe default)
-    @trusted
+    @system
     private void loadIgnoreFiles()
     {
         // Load .builderignore first (takes precedence)
@@ -636,7 +636,7 @@ class UserIgnorePatterns
     /// - Glob patterns (*, ?, **)
     /// - Negation patterns (starting with !)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. readText() performs file I/O (inherently unsafe)
     /// 2. String operations (strip, startsWith, endsWith) are memory-safe
     /// 3. Array appending (~=) is memory-safe
@@ -650,7 +650,7 @@ class UserIgnorePatterns
     /// - File not readable: caught by exception handler (safe failure)
     /// - Malformed patterns: skipped or handled gracefully
     /// - Large files: memory allocation could fail (exception propagates)
-    @trusted
+    @system
     private void parseIgnoreFile(string filePath)
     {
         try
@@ -882,7 +882,7 @@ class CombinedIgnoreChecker
     
     /// Constructor: Create ignore filter with user patterns
     /// 
-    /// Safety: This constructor is @trusted because:
+    /// Safety: This constructor is @system because:
     /// 1. Creates UserIgnorePatterns which performs file I/O
     /// 2. All parameters are stored by value (no pointer issues)
     /// 3. Object creation is memory-safe
@@ -894,7 +894,7 @@ class CombinedIgnoreChecker
     /// What could go wrong:
     /// - UserIgnorePatterns constructor could fail: exception propagates
     /// - Invalid baseDir: handled by UserIgnorePatterns (safe failure)
-    @trusted
+    @system
     this(string baseDir, TargetLanguage language = TargetLanguage.Generic)
     {
         this.baseDir = baseDir;

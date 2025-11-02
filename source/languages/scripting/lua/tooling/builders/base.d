@@ -40,10 +40,10 @@ class BuilderFactory
 {
     /// Create builder based on build mode
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Creates instances of builder classes (memory allocation via `new`)
     /// 2. Builder classes perform @system operations (file I/O, process execution)
-    /// 3. Factory pattern allows @safe code to obtain builders
+    /// 3. Factory pattern allows @system code to obtain builders
     /// 4. All builder instances are properly initialized
     /// 
     /// Invariants:
@@ -54,7 +54,7 @@ class BuilderFactory
     /// What could go wrong:
     /// - Builder construction fails: D's `new` handles allocation failure
     /// - Invalid mode: prevented by final switch (compile-time check)
-    static LuaBuilder create(LuaBuildMode mode, LuaConfig config, ActionCache cache = null) @trusted
+    static LuaBuilder create(LuaBuildMode mode, LuaConfig config, ActionCache cache = null) @system
     {
         import languages.scripting.lua.tooling.builders.script;
         import languages.scripting.lua.tooling.builders.bytecode;

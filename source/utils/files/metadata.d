@@ -14,7 +14,7 @@ version(Posix)
     import core.sys.posix.sys.stat;
 }
 
-@safe:
+@system:
 
 /// Advanced file metadata for high-performance cache validation
 struct FileMetadata
@@ -28,7 +28,7 @@ struct FileMetadata
     string hash;        // Hash of all metadata fields
     
     /// Create metadata from file path
-    @trusted // File system and platform-specific system calls
+    @system // File system and platform-specific system calls
     static FileMetadata from(string path)
     {
         FileMetadata meta;
@@ -84,7 +84,7 @@ struct FileMetadata
     }
     
     /// Compute hash of metadata (SIMD-accelerated BLAKE3)
-    @trusted // Uses trusted Blake3 hasher
+    @system // Uses trusted Blake3 hasher
     string computeHash() const
     {
         auto hasher = Blake3(0);  // SIMD-accelerated
@@ -132,7 +132,7 @@ struct FileMetadata
     }
     
     /// Serialize metadata
-    @trusted // Safe casts for serialization
+    @system // Safe casts for serialization
     ubyte[] serialize() const
     {
         auto buffer = appender!(ubyte[]);
@@ -156,7 +156,7 @@ struct FileMetadata
     }
     
     /// Deserialize metadata
-    @trusted // Array slicing and casts operations
+    @system // Array slicing and casts operations
     static FileMetadata deserialize(ubyte[] data)
     {
         FileMetadata meta;
@@ -237,7 +237,7 @@ struct MetadataChecker
     }
     
     /// Batch check multiple files in parallel with SIMD-aware execution
-    @trusted // Parallel processing and file operations
+    @system // Parallel processing and file operations
     static CheckLevel[] checkBatch(FileMetadata[] oldFiles, string[] paths)
     {
         import utils.concurrency.simd;

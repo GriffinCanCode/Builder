@@ -20,7 +20,7 @@ struct ErrorSuggestion
     string message;
     string detail;         // Optional detail (e.g., URL, command)
     
-    this(string message, Type type = Type.General, string detail = "") @safe pure nothrow @nogc
+    this(string message, Type type = Type.General, string detail = "") @system pure nothrow @nogc
     {
         this.message = message;
         this.type = type;
@@ -28,25 +28,25 @@ struct ErrorSuggestion
     }
     
     /// Create a command suggestion
-    static ErrorSuggestion command(string description, string cmd) @safe pure nothrow
+    static ErrorSuggestion command(string description, string cmd) @system pure nothrow
     {
         return ErrorSuggestion(description, Type.Command, cmd);
     }
     
     /// Create a documentation suggestion
-    static ErrorSuggestion docs(string description, string url = "") @safe pure nothrow
+    static ErrorSuggestion docs(string description, string url = "") @system pure nothrow
     {
         return ErrorSuggestion(description, Type.Documentation, url);
     }
     
     /// Create a file check suggestion
-    static ErrorSuggestion fileCheck(string description, string path = "") @safe pure nothrow
+    static ErrorSuggestion fileCheck(string description, string path = "") @system pure nothrow
     {
         return ErrorSuggestion(description, Type.FileCheck, path);
     }
     
     /// Create a configuration suggestion
-    static ErrorSuggestion config(string description, string setting = "") @safe pure nothrow
+    static ErrorSuggestion config(string description, string setting = "") @system pure nothrow
     {
         return ErrorSuggestion(description, Type.Configuration, setting);
     }

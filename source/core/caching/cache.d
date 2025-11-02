@@ -55,7 +55,7 @@ final class BuildCache
     
     /// Constructor: Initialize cache with directory and configuration
     /// 
-    /// Safety: This constructor is @trusted because:
+    /// Safety: This constructor is @system because:
     /// 1. buildPath() is safe string concatenation
     /// 2. File system operations (exists, mkdirRecurse) are inherently unsafe I/O
     /// 3. Mutex creation is safe
@@ -70,7 +70,7 @@ final class BuildCache
     /// - Directory creation could fail due to permissions: throws exception
     /// - loadCache() could fail to read existing cache: handled gracefully
     /// - getcwd() could fail: throws exception (caller must handle)
-    this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @trusted
+    this(string cacheDir = ".builder-cache", CacheConfig config = CacheConfig.init) @system
     {
         this.cacheDir = cacheDir;
         this.cacheFilePath = buildPath(cacheDir, "cache.bin");  // Pre-compute path
@@ -98,7 +98,7 @@ final class BuildCache
     /// This method prevents silent data loss that can occur if the
     /// destructor runs during abnormal shutdown or GC finalization.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Synchronization ensures thread-safe access
     /// 2. flush() is a trusted member function
     /// 3. File I/O operations are inherently system-dependent
@@ -107,7 +107,7 @@ final class BuildCache
     /// - After close(), the cache should not be modified
     /// - Multiple calls to close() are safe (idempotent)
     /// - Destructor detects closed state and skips flushing
-    void close() @trusted
+    void close() @system
     {
         synchronized (cacheMutex)
         {
@@ -175,7 +175,7 @@ final class BuildCache
     /// - Tamper detection in production systems
     /// - Any scenario where file atomicity is required
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Mutex synchronization ensures thread-safe access to entries
     /// 2. File system operations (exists, timeLastModified, FastHash) are unsafe I/O
     /// 3. Associative array access is bounds-checked (safe)
@@ -191,7 +191,7 @@ final class BuildCache
     /// - File could be deleted between metadata check and hash: returns false (safe)
     /// - Hash computation could fail: caught and returns false
     /// - Large files could slow down hashing: mitigated by FastHash tiers
-    bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @trusted
+    bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @system
     {
         synchronized (cacheMutex)
         {
@@ -255,7 +255,7 @@ final class BuildCache
     /// Uses SIMD-aware parallel hashing for multiple sources
     /// Thread-safe: synchronized via internal mutex
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Mutex synchronization ensures thread-safe access to entries
     /// 2. File system operations (FastHash.hashFile, timeLastModified) are unsafe I/O
     /// 3. Parallel hashing may spawn threads (synchronized internally)
@@ -271,7 +271,7 @@ final class BuildCache
     /// - Parallel hashing could fail: exception propagates to caller
     /// - Memory usage could grow: limited by eviction policy on flush()
     /// - File modification during hashing: hash reflects state at that moment
-    void update(string targetId, scope const(string)[] sources, scope const(string)[] deps, string outputHash) @trusted
+    void update(string targetId, scope const(string)[] sources, scope const(string)[] deps, string outputHash) @system
     {
         synchronized (cacheMutex)
         {
@@ -356,7 +356,7 @@ final class BuildCache
     
     /// Invalidate cache for a target
     /// Thread-safe: synchronized via internal mutex
-    void invalidate(in string targetId) @trusted nothrow
+    void invalidate(in string targetId) @system nothrow
     {
         try
         {
@@ -374,7 +374,7 @@ final class BuildCache
     
     /// Clear entire cache
     /// Thread-safe: synchronized via internal mutex
-    void clear() @trusted
+    void clear() @system
     {
         synchronized (cacheMutex)
         {
@@ -392,7 +392,7 @@ final class BuildCache
     /// Thread-safe: synchronized via internal mutex
     /// Params:
     ///   runEviction = whether to run eviction policy (default true, false in destructor)
-    void flush(in bool runEviction = true) @trusted
+    void flush(in bool runEviction = true) @system
     {
         synchronized (cacheMutex)
         {
@@ -449,7 +449,7 @@ final class BuildCache
     
     /// Get cache statistics
     /// Thread-safe: synchronized via internal mutex
-    CacheStats getStats() const @trusted
+    CacheStats getStats() const @system
     {
         synchronized (cast(Mutex)cacheMutex)  // const_cast for read-only access
         {
@@ -483,7 +483,7 @@ final class BuildCache
         }
     }
     
-    private void loadCache() @trusted
+    private void loadCache() @system
     {
         if (!exists(cacheFilePath))
         {
@@ -658,7 +658,7 @@ struct CacheConfig
     size_t maxAge = 30;               // 30 days default
     
     /// Load from environment variables
-    static CacheConfig fromEnvironment() @safe
+    static CacheConfig fromEnvironment() @system
     {
         import std.process : environment;
         

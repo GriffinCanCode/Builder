@@ -5,7 +5,7 @@ import core.sync.mutex;
 import std.algorithm;
 import std.range;
 
-@safe:
+@system:
 
 /// Lock-free SPMC (Single Producer Multiple Consumer) queue using atomic operations
 /// Optimized for the build executor's ready queue pattern
@@ -36,7 +36,7 @@ struct LockFreeQueue(T) if (is(T == class))
     
     /// Constructor: Initialize queue with power-of-2 capacity
     /// 
-    /// Safety: This constructor is @trusted because:
+    /// Safety: This constructor is @system because:
     /// 1. Buffer allocation is safe (GC-managed array)
     /// 2. atomicStore() for position initialization
     /// 3. Power-of-2 enforcement for efficient modulo via mask
@@ -45,7 +45,7 @@ struct LockFreeQueue(T) if (is(T == class))
     /// - Capacity must be power of 2 (enforced by assertion)
     /// - Buffer is fully initialized before use
     /// - Positions start at 0
-    @trusted
+    @system
     this(size_t capacity)
     {
         import std.math : isPowerOf2;
@@ -65,7 +65,7 @@ struct LockFreeQueue(T) if (is(T == class))
     /// Enqueue an item (producer side)
     /// Returns true if successful, false if queue is full
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicLoad/Store/Cas operations ensure thread-safe access
     /// 2. Mask operation keeps index within bounds
     /// 3. Sequence checking prevents ABA problems
@@ -75,7 +75,7 @@ struct LockFreeQueue(T) if (is(T == class))
     /// - pos & mask is always < buffer.length
     /// - Sequence numbers prevent slot reuse conflicts
     /// - CAS ensures only one thread updates position
-    @trusted
+    @system
     bool enqueue(T item)
     {
         size_t pos;
@@ -112,7 +112,7 @@ struct LockFreeQueue(T) if (is(T == class))
     /// Dequeue an item (consumer side)
     /// Returns the item if successful, null if queue is empty
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicLoad/Store/Cas operations ensure thread-safe access
     /// 2. Mask operation keeps index within bounds
     /// 3. Sequence checking prevents ABA problems
@@ -122,7 +122,7 @@ struct LockFreeQueue(T) if (is(T == class))
     /// - pos & mask is always < buffer.length
     /// - Sequence numbers prevent reading before write completes
     /// - CAS ensures only one consumer gets each item
-    @trusted
+    @system
     T tryDequeue()
     {
         size_t pos;
@@ -157,7 +157,7 @@ struct LockFreeQueue(T) if (is(T == class))
     }
     
     /// Check if queue is empty (approximate - may be stale immediately)
-    @trusted
+    @system
     bool empty() const
     {
         immutable enq = atomicLoad(enqueuePos);
@@ -166,7 +166,7 @@ struct LockFreeQueue(T) if (is(T == class))
     }
     
     /// Get approximate size (may be stale immediately)
-    @trusted
+    @system
     size_t length() const
     {
         immutable enq = atomicLoad(enqueuePos);
@@ -195,7 +195,7 @@ struct FastHashCache
     @disable this(this); // Non-copyable
     
     /// Explicitly initialize the cache (must be called before use)
-    @trusted
+    @system
     void initialize()
     {
         cacheMutex = new Mutex();
@@ -204,12 +204,12 @@ struct FastHashCache
     /// Get cached hash if available
     /// Returns tuple: (found, contentHash, metadataHash)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Associative array lookup is bounds-checked
     /// 2. atomicLoad ensures thread-safe read of shared data
     /// 3. String casts are safe (strings are immutable)
     /// 4. Synchronized access to AA via mutex
-    @trusted
+    @system
     auto get(string path)
     {
         struct Result
@@ -243,12 +243,12 @@ struct FastHashCache
     
     /// Store hash in cache
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Associative array insert is memory-safe when synchronized
     /// 2. atomicStore ensures thread-safe write to entry fields
     /// 3. String to shared string cast is safe (immutable data)
     /// 4. Mutex protects concurrent AA modifications
-    @trusted
+    @system
     void put(string path, string contentHash, string metadataHash)
     {
         if (cacheMutex is null)
@@ -277,7 +277,7 @@ struct FastHashCache
     }
     
     /// Check if cache entry exists and is valid
-    @trusted
+    @system
     bool isValid(string path) const
     {
         assert(cacheMutex !is null, "FastHashCache not initialized - call initialize() first");
@@ -291,7 +291,7 @@ struct FastHashCache
     }
     
     /// Clear the cache (typically at build end)
-    @trusted
+    @system
     void clear()
     {
         assert(cacheMutex !is null, "FastHashCache not initialized - call initialize() first");
@@ -305,7 +305,7 @@ struct FastHashCache
     }
     
     /// Get cache statistics
-    @trusted
+    @system
     auto getStats() const
     {
         struct Stats

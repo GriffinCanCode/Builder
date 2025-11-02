@@ -33,7 +33,7 @@ struct DialyzerResult
 class DialyzerChecker
 {
     /// Run Dialyzer type analysis
-    static DialyzerResult check(DialyzerConfig config, string mixCmd = "mix") @trusted
+    static DialyzerResult check(DialyzerConfig config, string mixCmd = "mix") @system
     {
         DialyzerResult result;
         
@@ -89,7 +89,7 @@ class DialyzerChecker
     }
     
     /// Build/update PLT
-    static bool buildPLT(DialyzerConfig config, string mixCmd = "mix") @trusted
+    static bool buildPLT(DialyzerConfig config, string mixCmd = "mix") @system
     {
         Logger.info("Building Dialyzer PLT");
         
@@ -119,21 +119,21 @@ class DialyzerChecker
     }
     
     /// Check if Dialyxir is available
-    static bool isDialyxirAvailable(string mixCmd = "mix") @trusted
+    static bool isDialyxirAvailable(string mixCmd = "mix") @system
     {
         auto res = execute([mixCmd, "help", "dialyzer"]);
         return res.status == 0;
     }
     
     /// Check if bare Dialyzer is available
-    static bool isDialyzerAvailable() @trusted
+    static bool isDialyzerAvailable() @system
     {
         auto res = execute(["dialyzer", "--version"]);
         return res.status == 0;
     }
     
     /// Parse Dialyzer output
-    private static DialyzerResult parseDialyzerOutput(string output, bool isDialyxir) @trusted
+    private static DialyzerResult parseDialyzerOutput(string output, bool isDialyxir) @system
     {
         DialyzerResult result;
         

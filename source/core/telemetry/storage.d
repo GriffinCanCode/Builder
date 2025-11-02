@@ -29,7 +29,7 @@ final class TelemetryStorage
     private Mutex storageMutex;
     private TelemetryConfig config;
     
-    this(string storageDir = ".builder-cache/telemetry", TelemetryConfig config = TelemetryConfig.init) @safe
+    this(string storageDir = ".builder-cache/telemetry", TelemetryConfig config = TelemetryConfig.init) @system
     {
         this.storageDir = storageDir;
         this.storageFile = buildPath(storageDir, "telemetry.bin");
@@ -44,7 +44,7 @@ final class TelemetryStorage
     
     /// Add a new session - thread-safe
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block protects shared sessions array
     /// 2. Array append (~=) is memory-safe
     /// 3. Delegates to persist() which performs validated file I/O
@@ -59,7 +59,7 @@ final class TelemetryStorage
     /// - Race condition on sessions array: prevented by synchronized
     /// - Persist fails: returned as Err result (safe failure)
     /// - Retention removes too many: logic is deterministic and safe
-    Result!TelemetryError append(BuildSession session) @trusted
+    Result!TelemetryError append(BuildSession session) @system
     {
         synchronized (storageMutex)
         {
@@ -74,7 +74,7 @@ final class TelemetryStorage
     
     /// Get all sessions - thread-safe
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block protects access to sessions array
     /// 2. Returns .dup copy (no references to internal data escape)
     /// 3. Simple read operation with no side effects
@@ -87,7 +87,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - Returning reference to internal array: prevented by .dup
     /// - Race condition: prevented by synchronized block
-    Result!(BuildSession[], TelemetryError) getSessions() @trusted
+    Result!(BuildSession[], TelemetryError) getSessions() @system
     {
         synchronized (storageMutex)
         {
@@ -97,7 +97,7 @@ final class TelemetryStorage
     
     /// Get recent sessions - thread-safe
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block protects array access
     /// 2. Slice bounds are checked with min/max logic
     /// 3. Returns .dup copy (no aliasing)
@@ -111,7 +111,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - Out of bounds slice: prevented by limit calculation
     /// - Reference to internal data: prevented by .dup
-    Result!(BuildSession[], TelemetryError) getRecent(size_t count) @trusted
+    Result!(BuildSession[], TelemetryError) getRecent(size_t count) @system
     {
         synchronized (storageMutex)
         {
@@ -127,7 +127,7 @@ final class TelemetryStorage
     
     /// Clear all telemetry data - thread-safe
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block protects sessions array
     /// 2. Empty array assignment is always safe
     /// 3. Delegates to persist() for file I/O
@@ -141,7 +141,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - File write fails: returned as Err result
     /// - Partial clear visible: prevented by synchronized block
-    Result!TelemetryError clear() @trusted
+    Result!TelemetryError clear() @system
     {
         synchronized (storageMutex)
         {
@@ -152,7 +152,7 @@ final class TelemetryStorage
     
     /// Load sessions from binary file
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File I/O (exists, read) is inherently @system
     /// 2. Cast from void[] to ubyte[] is safe (read-only data)
     /// 3. deserialize() is manually verified for bounds checking
@@ -167,7 +167,7 @@ final class TelemetryStorage
     /// - File doesn't exist: checked with exists() first
     /// - Corrupted data: caught by exception, resets to empty array
     /// - deserialize throws: caught and handled safely
-    private void loadSessions() @trusted
+    private void loadSessions() @system
     {
         if (!exists(storageFile))
             return;
@@ -186,7 +186,7 @@ final class TelemetryStorage
     
     /// Persist sessions to binary file
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File I/O (write) is inherently @system
     /// 2. serialize() produces validated binary data
     /// 3. Exception handling converts failures to Result type
@@ -201,7 +201,7 @@ final class TelemetryStorage
     /// - Write fails: returned as Err result (safe failure)
     /// - Disk full: exception caught and converted to error
     /// - Permission denied: exception caught and converted to error
-    private Result!TelemetryError persist() @trusted
+    private Result!TelemetryError persist() @system
     {
         try
         {
@@ -217,7 +217,7 @@ final class TelemetryStorage
         }
     }
     
-    private void applyRetention() @safe
+    private void applyRetention() @system
     {
         immutable now = Clock.currTime();
         
@@ -239,7 +239,7 @@ final class TelemetryStorage
     
     /// Serialize sessions to binary format
     /// 
-    /// Safety: This function is @trusted pure because:
+    /// Safety: This function is @system pure because:
     /// 1. nativeToBigEndian() performs safe integer serialization
     /// 2. Appender operations are memory-safe
     /// 3. Array slicing is bounds-checked
@@ -255,7 +255,7 @@ final class TelemetryStorage
     /// - Buffer overflow: prevented by Appender's dynamic growth
     /// - Invalid binary format: prevented by structured writes
     /// - Memory allocation fails: exception propagates (safe failure)
-    private static ubyte[] serialize(BuildSession[] sessions) @trusted pure
+    private static ubyte[] serialize(BuildSession[] sessions) @system pure
     {
         auto buffer = appender!(ubyte[]);
         
@@ -281,7 +281,7 @@ final class TelemetryStorage
     
     /// Deserialize sessions from binary format
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Validates minimum data length before reading
     /// 2. Validates magic number and version
     /// 3. All array slicing is bounds-checked before access
@@ -299,7 +299,7 @@ final class TelemetryStorage
     /// - Invalid magic/version: validated and exception thrown
     /// - Truncated data: readSession validates, exception thrown
     /// - Malformed session data: caught by readSession validation
-    private static BuildSession[] deserialize(ubyte[] data) @trusted
+    private static BuildSession[] deserialize(ubyte[] data) @system
     {
         if (data.length < MIN_HEADER_SIZE)
             throw new Exception("Invalid telemetry file: too small");
@@ -337,7 +337,7 @@ final class TelemetryStorage
     
     /// Write session to binary buffer
     /// 
-    /// Safety: This function is @trusted pure because:
+    /// Safety: This function is @system pure because:
     /// 1. Appender.put() is memory-safe
     /// 2. nativeToBigEndian() safely converts integers to bytes
     /// 3. String serialization via writeString() is validated
@@ -352,7 +352,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - Buffer overflow: prevented by Appender's dynamic growth
     /// - Invalid encoding: prevented by structured writes
-    private static void writeSession(ref Appender!(ubyte[]) buffer, ref const BuildSession session) @trusted pure
+    private static void writeSession(ref Appender!(ubyte[]) buffer, ref const BuildSession session) @system pure
     {
         // Write timestamps
         buffer.put(nativeToBigEndian(session.startTime.stdTime)[]);
@@ -388,7 +388,7 @@ final class TelemetryStorage
     
     /// Read session from binary data
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. All array slicing uses helper functions (readLong, readUint, etc.)
     /// 2. Helpers validate bounds before slicing
     /// 3. offset is updated consistently after each read
@@ -404,7 +404,7 @@ final class TelemetryStorage
     /// - Truncated data: helpers would read past end, caught by array bounds
     /// - Mismatched field order: prevented by symmetric read/write order
     /// - offset overflow: size_t arithmetic is checked
-    private static BuildSession readSession(ubyte[] data, ref size_t offset) @trusted
+    private static BuildSession readSession(ubyte[] data, ref size_t offset) @system
     {
         BuildSession session;
         
@@ -445,7 +445,7 @@ final class TelemetryStorage
     
     /// Write target metric to binary buffer
     /// 
-    /// Safety: This function is @trusted pure because:
+    /// Safety: This function is @system pure because:
     /// 1. Delegates to writeString() for string serialization
     /// 2. Uses nativeToBigEndian() for safe integer serialization
     /// 3. Enum cast is safe (byte-sized enum)
@@ -459,7 +459,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - Buffer overflow: prevented by Appender
     /// - Invalid enum value: cast is safe, serialized as-is
-    private static void writeTarget(ref Appender!(ubyte[]) buffer, ref const TargetMetric target) @trusted pure
+    private static void writeTarget(ref Appender!(ubyte[]) buffer, ref const TargetMetric target) @system pure
     {
         writeString(buffer, target.targetId);
         buffer.put(nativeToBigEndian(target.startTime.stdTime)[]);
@@ -472,7 +472,7 @@ final class TelemetryStorage
     
     /// Read target metric from binary data
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Uses readString() which validates length prefix
     /// 2. Uses readLong/readUlong for integer deserialization
     /// 3. Enum cast from byte is safe (all values are valid)
@@ -486,7 +486,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - Truncated data: caught by array bounds in helpers
     /// - Invalid enum value: all byte values are accepted (degraded gracefully)
-    private static TargetMetric readTarget(ubyte[] data, ref size_t offset) @trusted
+    private static TargetMetric readTarget(ubyte[] data, ref size_t offset) @system
     {
         TargetMetric target;
         target.targetId = readString(data, offset);
@@ -501,7 +501,7 @@ final class TelemetryStorage
     
     /// Write string with length prefix
     /// 
-    /// Safety: This function is @trusted pure because:
+    /// Safety: This function is @system pure because:
     /// 1. Length is written as 4-byte prefix (handles up to 4GB strings)
     /// 2. String cast to ubyte[] is safe (read-only data)
     /// 3. Appender.put() is memory-safe
@@ -515,7 +515,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - String too large: would fit in uint32 (4GB limit)
     /// - Buffer overflow: prevented by Appender
-    private static void writeString(ref Appender!(ubyte[]) buffer, string str) @trusted pure
+    private static void writeString(ref Appender!(ubyte[]) buffer, string str) @system pure
     {
         buffer.put(nativeToBigEndian(cast(uint)str.length)[]);
         buffer.put(cast(const(ubyte)[])str);
@@ -523,7 +523,7 @@ final class TelemetryStorage
     
     /// Read string with length prefix
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Reads 4-byte length prefix with readUint()
     /// 2. Validates data bounds before slicing (offset + length <= data.length)
     /// 3. Cast from ubyte[] to string is safe (valid UTF-8 or handled by D runtime)
@@ -538,7 +538,7 @@ final class TelemetryStorage
     /// - Length too large: would cause out-of-bounds, caught by array bounds check
     /// - Invalid UTF-8: handled by D runtime (may throw, caught by caller)
     /// - offset overflow: size_t addition would overflow, caught by bounds check
-    private static string readString(ubyte[] data, ref size_t offset) @trusted
+    private static string readString(ubyte[] data, ref size_t offset) @system
     {
         immutable length = readUint(data, offset);
         auto slice = cast(string)data[offset .. offset + length];
@@ -548,7 +548,7 @@ final class TelemetryStorage
     
     /// Read 64-bit signed integer
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Fixed-size array slice [0..8] is bounds-checked by compiler
     /// 2. bigEndianToNative() safely converts bytes to integer
     /// 3. offset is incremented by fixed amount (8 bytes)
@@ -560,7 +560,7 @@ final class TelemetryStorage
     /// 
     /// What could go wrong:
     /// - Not enough data: caught by array bounds check (throws)
-    private static long readLong(ubyte[] data, ref size_t offset) @trusted
+    private static long readLong(ubyte[] data, ref size_t offset) @system
     {
         immutable ubyte[8] bytes = data[offset .. offset + 8][0 .. 8];
         offset += 8;
@@ -569,7 +569,7 @@ final class TelemetryStorage
     
     /// Read 64-bit unsigned integer
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Fixed-size array slice [0..8] is bounds-checked
     /// 2. bigEndianToNative() is safe for valid byte arrays
     /// 3. offset increment is fixed (8 bytes)
@@ -581,7 +581,7 @@ final class TelemetryStorage
     /// 
     /// What could go wrong:
     /// - Insufficient data: array bounds check throws
-    private static ulong readUlong(ubyte[] data, ref size_t offset) @trusted
+    private static ulong readUlong(ubyte[] data, ref size_t offset) @system
     {
         immutable ubyte[8] bytes = data[offset .. offset + 8][0 .. 8];
         offset += 8;
@@ -590,7 +590,7 @@ final class TelemetryStorage
     
     /// Read 32-bit unsigned integer
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Fixed-size array slice [0..4] is bounds-checked
     /// 2. bigEndianToNative!uint safely converts 4 bytes
     /// 3. offset increment is fixed (4 bytes)
@@ -602,7 +602,7 @@ final class TelemetryStorage
     /// 
     /// What could go wrong:
     /// - Insufficient data: array bounds check throws
-    private static uint readUint(ubyte[] data, ref size_t offset) @trusted
+    private static uint readUint(ubyte[] data, ref size_t offset) @system
     {
         immutable ubyte[4] bytes = data[offset .. offset + 4][0 .. 4];
         offset += 4;
@@ -611,7 +611,7 @@ final class TelemetryStorage
     
     /// Read 64-bit floating point number
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Uses union for type-punning (standard C technique, safe in D)
     /// 2. readUlong() validates data availability
     /// 3. Union conversion is well-defined for same-sized types
@@ -625,7 +625,7 @@ final class TelemetryStorage
     /// What could go wrong:
     /// - Non-finite values (NaN, Inf): valid doubles, handled by D runtime
     /// - Insufficient data: caught by readUlong()
-    private static double readDouble(ubyte[] data, ref size_t offset) @trusted
+    private static double readDouble(ubyte[] data, ref size_t offset) @system
     {
         union Converter { ulong u; double d; }
         Converter conv;
@@ -646,7 +646,7 @@ struct TelemetryConfig
     bool enabled = true;                             // Enable/disable telemetry
     
     /// Load from environment variables
-    static TelemetryConfig fromEnvironment() @safe
+    static TelemetryConfig fromEnvironment() @system
     {
         import std.process : environment;
         import std.conv : to;

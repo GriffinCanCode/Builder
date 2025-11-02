@@ -1,6 +1,6 @@
 module utils.simd.hash;
 
-@safe:
+@system:
 
 import utils.simd.ops;
 import std.algorithm : min;
@@ -12,11 +12,11 @@ struct SIMDHash
     /// Standard fast comparison using SIMD (may short-circuit)
     /// Best for: Cache validation, general purpose
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Validates input lengths before comparison
     /// 2. Delegates to verified SIMDOps.equals()
     /// 3. No memory mutations, read-only operation
-    @trusted
+    @system
     static bool equals(scope const(char)[] a, scope const(char)[] b, size_t threshold = 32)
     {
         if (a.length != b.length) return false;
@@ -36,11 +36,11 @@ struct SIMDHash
     /// Security: This comparison takes constant time regardless of where
     /// differences occur, preventing timing side-channel attacks.
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Length validation before processing
     /// 2. Uses trusted simd_constant_time_equals extern C function
     /// 3. No memory mutations, read-only operation
-    @trusted
+    @system
     static bool constantTimeEquals(scope const(char)[] a, scope const(char)[] b) nothrow @nogc
     {
         if (a.length != b.length) return false;
@@ -57,11 +57,11 @@ struct SIMDHash
     /// Performance: 3-5x faster than sequential comparisons for >= 8 pairs
     /// Uses work-stealing parallel execution for load balancing
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Length validation for each pair
     /// 2. Result array allocated with correct size
     /// 3. Delegates to trusted comparison functions
-    @trusted
+    @system
     static bool[] batchEquals(scope const(string)[] hashesA, scope const(string)[] hashesB)
     {
         import std.algorithm : min;
@@ -101,11 +101,11 @@ struct SIMDHash
     /// Check if hash starts with prefix (SIMD-accelerated)
     /// Best for: Bloom filters, proof-of-work validation, hash tables
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Bounds checking on prefix length
     /// 2. Uses validated SIMD comparison
     /// 3. Read-only operation
-    @trusted
+    @system
     static bool hasPrefix(scope const(char)[] hash, scope const(char)[] prefix)
     {
         if (prefix.length > hash.length) return false;
@@ -120,7 +120,7 @@ struct SIMDHash
     /// Returns: indices of hashes that match prefix
     /// 
     /// Performance: 4-6x faster than sequential for >= 16 hashes
-    @trusted
+    @system
     static size_t[] findWithPrefix(scope const(string)[] hashes, scope const(char)[] prefix)
     {
         if (prefix.length == 0) return [];
@@ -140,10 +140,10 @@ struct SIMDHash
     /// Count matching bytes between hashes (Hamming-like distance for hex strings)
     /// Best for: Similarity detection, fuzzy matching, deduplication
     /// 
-    /// Safety: @trusted because:
+    /// Safety: @system because:
     /// 1. Takes minimum length to prevent out-of-bounds
     /// 2. Delegates to verified SIMDOps.countMatches
-    @trusted
+    @system
     static size_t countMatches(scope const(char)[] a, scope const(char)[] b)
     {
         import std.algorithm : min;

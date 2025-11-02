@@ -14,7 +14,7 @@ final class TelemetryCollector : EventSubscriber
     private Mutex collectorMutex;
     private bool sessionActive;
     
-    this() @safe
+    this() @system
     {
         this.collectorMutex = new Mutex();
         this.sessionActive = false;
@@ -22,10 +22,10 @@ final class TelemetryCollector : EventSubscriber
     
     /// Event handler - thread-safe
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block is @system but manually verified memory-safe
     /// 2. Mutex protects shared state (currentSession, sessionActive)
-    /// 3. All operations inside synchronized are @safe
+    /// 3. All operations inside synchronized are @system
     /// 4. No pointer manipulation or unsafe casts
     /// 
     /// Invariants:
@@ -37,7 +37,7 @@ final class TelemetryCollector : EventSubscriber
     /// - Mutex is null: prevented by constructor initialization
     /// - Race condition: prevented by synchronized block
     /// - Invalid event type: caught by final switch (compile-time safety)
-    void onEvent(BuildEvent event) @trusted
+    void onEvent(BuildEvent event) @system
     {
         synchronized (collectorMutex)
         {
@@ -85,7 +85,7 @@ final class TelemetryCollector : EventSubscriber
     
     /// Get current session - thread-safe
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block is @system but memory-safe
     /// 2. Returns copy of currentSession (no references to protected data escape)
     /// 3. sessionActive flag is safely checked under lock
@@ -100,7 +100,7 @@ final class TelemetryCollector : EventSubscriber
     /// - Returning reference to internal data: prevented by value return
     /// - Race condition: prevented by synchronized block
     /// - Reading invalid session: checked with sessionActive flag
-    Result!(BuildSession, TelemetryError) getSession() @trusted
+    Result!(BuildSession, TelemetryError) getSession() @system
     {
         synchronized (collectorMutex)
         {
@@ -115,7 +115,7 @@ final class TelemetryCollector : EventSubscriber
     
     /// Reset collector state
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. synchronized block is @system but memory-safe
     /// 2. Assigns .init value which is always valid
     /// 3. No memory is leaked (D handles struct cleanup)
@@ -129,7 +129,7 @@ final class TelemetryCollector : EventSubscriber
     /// What could go wrong:
     /// - Partial reset visible: prevented by synchronized block
     /// - Memory leak from old session: D's GC handles cleanup
-    void reset() @trusted
+    void reset() @system
     {
         synchronized (collectorMutex)
         {
@@ -138,7 +138,7 @@ final class TelemetryCollector : EventSubscriber
         }
     }
     
-    private void handleBuildStarted(BuildStartedEvent event) @trusted
+    private void handleBuildStarted(BuildStartedEvent event) @system
     {
         currentSession = BuildSession();
         currentSession.startTime = Clock.currTime();
@@ -148,7 +148,7 @@ final class TelemetryCollector : EventSubscriber
         sessionActive = true;
     }
     
-    private void handleBuildCompleted(BuildCompletedEvent event) @safe
+    private void handleBuildCompleted(BuildCompletedEvent event) @system
     {
         currentSession.endTime = Clock.currTime();
         currentSession.totalDuration = event.duration;
@@ -158,7 +158,7 @@ final class TelemetryCollector : EventSubscriber
         currentSession.succeeded = true;
     }
     
-    private void handleBuildFailed(BuildFailedEvent event) @safe
+    private void handleBuildFailed(BuildFailedEvent event) @system
     {
         currentSession.endTime = Clock.currTime();
         currentSession.totalDuration = event.duration;
@@ -167,7 +167,7 @@ final class TelemetryCollector : EventSubscriber
         currentSession.failureReason = event.reason;
     }
     
-    private void handleTargetStarted(TargetStartedEvent event) @safe
+    private void handleTargetStarted(TargetStartedEvent event) @system
     {
         TargetMetric metric;
         metric.targetId = event.targetId;
@@ -175,7 +175,7 @@ final class TelemetryCollector : EventSubscriber
         currentSession.targets[event.targetId] = metric;
     }
     
-    private void handleTargetCompleted(TargetCompletedEvent event) @safe
+    private void handleTargetCompleted(TargetCompletedEvent event) @system
     {
         if (auto metric = event.targetId in currentSession.targets)
         {
@@ -186,7 +186,7 @@ final class TelemetryCollector : EventSubscriber
         }
     }
     
-    private void handleTargetFailed(TargetFailedEvent event) @safe
+    private void handleTargetFailed(TargetFailedEvent event) @system
     {
         if (auto metric = event.targetId in currentSession.targets)
         {
@@ -197,7 +197,7 @@ final class TelemetryCollector : EventSubscriber
         }
     }
     
-    private void handleTargetCached(TargetCachedEvent event) @safe
+    private void handleTargetCached(TargetCachedEvent event) @system
     {
         if (auto metric = event.targetId in currentSession.targets)
         {
@@ -206,7 +206,7 @@ final class TelemetryCollector : EventSubscriber
         }
     }
     
-    private void handleStatistics(StatisticsEvent event) @safe
+    private void handleStatistics(StatisticsEvent event) @system
     {
         currentSession.cacheHitRate = event.cacheStats.hitRate;
         currentSession.cacheHits = event.cacheStats.hits;
@@ -242,7 +242,7 @@ struct BuildSession
     TargetMetric[string] targets;
     
     /// Calculate actual parallelism utilization
-    @property double parallelismUtilization() const pure nothrow @safe
+    @property double parallelismUtilization() const pure nothrow @system
     {
         if (maxParallelism == 0 || totalDuration.total!"msecs" == 0)
             return 0.0;
@@ -259,7 +259,7 @@ struct BuildSession
     }
     
     /// Get slowest targets
-    TargetMetric[] slowest(size_t count = 10) const pure @safe
+    TargetMetric[] slowest(size_t count = 10) const pure @system
     {
         import std.algorithm : sort;
         import std.array : array;
@@ -272,7 +272,7 @@ struct BuildSession
     }
     
     /// Get average build time per target
-    @property Duration averageTargetTime() const pure nothrow @safe
+    @property Duration averageTargetTime() const pure nothrow @system
     {
         import std.datetime : dur;
         
@@ -316,22 +316,22 @@ struct TelemetryError
     string message;
     ErrorCode code;
     
-    static TelemetryError noActiveSession() pure @safe
+    static TelemetryError noActiveSession() pure @system
     {
         return TelemetryError("No active build session", ErrorCode.TelemetryNoSession);
     }
     
-    static TelemetryError storageError(string details) pure @safe
+    static TelemetryError storageError(string details) pure @system
     {
         return TelemetryError("Storage error: " ~ details, ErrorCode.TelemetryStorage);
     }
     
-    static TelemetryError invalidData(string details) pure @safe
+    static TelemetryError invalidData(string details) pure @system
     {
         return TelemetryError("Invalid data: " ~ details, ErrorCode.TelemetryInvalid);
     }
     
-    string toString() const pure nothrow @safe
+    string toString() const pure nothrow @system
     {
         return message;
     }

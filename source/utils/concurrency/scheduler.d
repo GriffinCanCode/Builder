@@ -11,7 +11,7 @@ import std.parallelism : totalCPUs;
 import utils.concurrency.deque;
 import utils.concurrency.priority;
 
-@safe:
+@system:
 
 /// Work-stealing scheduler with priority support
 /// Each worker has its own deque for local tasks
@@ -38,7 +38,7 @@ final class WorkStealingScheduler(T)
         shared size_t tasksStolen;
         shared size_t stealAttempts;
         
-        this(size_t id, size_t capacity) @trusted
+        this(size_t id, size_t capacity) @system
         {
             this.id = id;
             this.deque = WorkStealingDeque!(PriorityTask!T)(capacity);
@@ -49,33 +49,33 @@ final class WorkStealingScheduler(T)
             atomicStore(stealAttempts, cast(size_t)0);
         }
         
-        void start(void delegate() @safe work) @trusted
+        void start(void delegate() @system work) @system
         {
             thread = new Thread(work);
             thread.start();
         }
         
-        void stop() @trusted
+        void stop() @system
         {
             atomicStore(running, false);
         }
         
-        bool isRunning() const @trusted nothrow @nogc
+        bool isRunning() const @system nothrow @nogc
         {
             return atomicLoad(running);
         }
         
-        void recordExecution() @trusted nothrow @nogc
+        void recordExecution() @system nothrow @nogc
         {
             atomicOp!"+="(tasksExecuted, 1);
         }
         
-        void recordSteal() @trusted nothrow @nogc
+        void recordSteal() @system nothrow @nogc
         {
             atomicOp!"+="(tasksStolen, 1);
         }
         
-        void recordStealAttempt() @trusted nothrow @nogc
+        void recordStealAttempt() @system nothrow @nogc
         {
             atomicOp!"+="(stealAttempts, 1);
         }
@@ -88,7 +88,7 @@ final class WorkStealingScheduler(T)
     private shared bool running;
     private shared size_t activeWorkers;
     private immutable size_t workerCount;
-    private void delegate(T) @safe executeTask;
+    private void delegate(T) @system executeTask;
     
     /// Configuration
     private enum size_t DEQUE_CAPACITY = 256;
@@ -97,8 +97,8 @@ final class WorkStealingScheduler(T)
     private enum size_t BACKOFF_MAX_US = 100;
     
     /// Initialize scheduler with worker count and task executor
-    @trusted
-    this(size_t workerCount, void delegate(T) @safe executeTask)
+    @system
+    this(size_t workerCount, void delegate(T) @system executeTask)
     {
         this.workerCount = workerCount == 0 ? totalCPUs : workerCount;
         this.executeTask = executeTask;
@@ -115,12 +115,12 @@ final class WorkStealingScheduler(T)
         {
             auto worker = new Worker(i, DEQUE_CAPACITY);
             workers ~= worker;
-            worker.start(() @trusted => workerLoop(worker));
+            worker.start(() @system => workerLoop(worker));
         }
     }
     
     /// Submit task with priority
-    @trusted
+    @system
     void submit(T task, Priority priority = Priority.Normal,
                 size_t criticalPathCost = 0, size_t depth = 0, size_t dependents = 0)
     {
@@ -135,7 +135,7 @@ final class WorkStealingScheduler(T)
     }
     
     /// Submit multiple tasks in batch
-    @trusted
+    @system
     void submitBatch(T[] tasks, Priority priority = Priority.Normal)
     {
         foreach (task; tasks)
@@ -143,7 +143,7 @@ final class WorkStealingScheduler(T)
     }
     
     /// Wait for all tasks to complete
-    @trusted
+    @system
     void waitAll()
     {
         import core.time : msecs;
@@ -195,7 +195,7 @@ final class WorkStealingScheduler(T)
     
     /// Shutdown scheduler and all workers
     /// Idempotent: safe to call multiple times
-    @trusted
+    @system
     void shutdown()
     {
         // Check if already shut down (idempotent)
@@ -232,7 +232,7 @@ final class WorkStealingScheduler(T)
         size_t[] workerLoads;
     }
     
-    @trusted
+    @system
     Stats getStats() const
     {
         Stats stats;
@@ -253,7 +253,7 @@ final class WorkStealingScheduler(T)
     }
     
     /// Worker main loop
-    private void workerLoop(Worker worker) @trusted
+    private void workerLoop(Worker worker) @system
     {
         import core.time : usecs;
         
@@ -346,7 +346,7 @@ final class WorkStealingScheduler(T)
     
     /// Select victim for work stealing using random selection
     /// Prefer victims with more work for better load balancing
-    private Worker selectVictim(Worker thief) @trusted
+    private Worker selectVictim(Worker thief) @system
     {
         if (workers.length <= 1)
             return null;
@@ -387,7 +387,7 @@ unittest
     
     shared size_t counter = 0;
     
-    auto scheduler = new WorkStealingScheduler!int(2, (int task) @trusted {
+    auto scheduler = new WorkStealingScheduler!int(2, (int task) @system {
         atomicOp!"+="(counter, task);
     });
     
@@ -419,7 +419,7 @@ unittest
     auto executed = appender!(int[]);
     Mutex mutex = new Mutex();
     
-    auto scheduler = new WorkStealingScheduler!int(1, (int task) @trusted {
+    auto scheduler = new WorkStealingScheduler!int(1, (int task) @system {
         synchronized (mutex)
             executed ~= task;
     });
@@ -453,7 +453,7 @@ unittest
     
     shared size_t counter = 0;
     
-    auto scheduler = new WorkStealingScheduler!int(4, (int task) @trusted {
+    auto scheduler = new WorkStealingScheduler!int(4, (int task) @system {
         atomicOp!"+="(counter, 1);
         Thread.sleep(1.msecs);  // Simulate work
     });

@@ -27,7 +27,7 @@ class ConfigParser
     /// while still loading valid Builderfile files. This maximizes information
     /// available to the caller.
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File I/O (findBuildFiles, readText) is inherently @system
     /// 2. absolutePath() performs path normalization (system call)
     /// 3. SecurityValidator.isPathWithinBase() validates paths in findBuildFiles
@@ -47,7 +47,7 @@ class ConfigParser
     /// - Zero-config inference fails: caught and returned as error Result
     static Result!(WorkspaceConfig, BuildError) parseWorkspace(
         in string root,
-        in AggregationPolicy policy = AggregationPolicy.CollectAll) @trusted
+        in AggregationPolicy policy = AggregationPolicy.CollectAll) @system
     {
         WorkspaceConfig config;
         config.root = absolutePath(root);

@@ -465,11 +465,11 @@ class PythonHandler : BaseLanguageHandler
     }
     
     /// Analyze imports in Python source files
-    override Import[] analyzeImports(in string[] sources) @safe
+    override Import[] analyzeImports(in string[] sources) @system
     {
         import std.file : readText, exists, isFile;
         
-        auto spec = () @trusted { return getLanguageSpec(TargetLanguage.Python); }();
+        auto spec = getLanguageSpec(TargetLanguage.Python);
         if (spec is null)
             return [];
         
@@ -483,7 +483,7 @@ class PythonHandler : BaseLanguageHandler
             try
             {
                 auto content = readText(source);
-                auto imports = () @trusted { return spec.scanImports(source, content); }();
+                auto imports = spec.scanImports(source, content);
                 allImports ~= imports;
             }
             catch (Exception e)

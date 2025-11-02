@@ -42,11 +42,11 @@ struct BinaryStorage
     
     /// Acquire a buffer from the pool or create a new one
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Validates poolIndex bounds before access
     /// 2. Limits pool size to prevent unbounded growth
     /// 3. All pointer operations are bounds-checked
-    private static ref Appender!(ubyte[]) acquireBuffer() @trusted nothrow
+    private static ref Appender!(ubyte[]) acquireBuffer() @system nothrow
     {
         import core.exception : AssertError;
         
@@ -81,7 +81,7 @@ struct BinaryStorage
     }
     
     /// Release a buffer back to the pool
-    private static void releaseBuffer() @safe nothrow
+    private static void releaseBuffer() @system nothrow
     {
         if (poolIndex > 0)
             poolIndex--;
@@ -89,7 +89,7 @@ struct BinaryStorage
     
     /// Serialize cache entries to binary format
     /// Uses buffer pooling to reduce GC allocations
-    static ubyte[] serialize(T)(scope T[string] entries) @trusted
+    static ubyte[] serialize(T)(scope T[string] entries) @system
     {
         // Acquire buffer from pool
         auto buffer = acquireBuffer();
@@ -119,7 +119,7 @@ struct BinaryStorage
     
     /// Deserialize cache entries from binary format
     /// Preallocates associative array capacity to reduce rehashing
-    static T[string] deserialize(T)(scope ubyte[] data) @trusted
+    static T[string] deserialize(T)(scope ubyte[] data) @system
     {
         if (data.length < MIN_HEADER_SIZE)
             return null;
@@ -163,7 +163,7 @@ struct BinaryStorage
     }
     
     /// Write string with length prefix (SIMD-accelerated for large strings)
-    private static void writeString(ref Appender!(ubyte[]) buffer, scope const(char)[] str) @trusted pure
+    private static void writeString(ref Appender!(ubyte[]) buffer, scope const(char)[] str) @system pure
     {
         buffer.put(nativeToBigEndian(cast(uint)str.length)[]);
         
@@ -181,11 +181,11 @@ struct BinaryStorage
     /// Uses slice of original data to avoid allocation (zero-copy)
     /// The data must remain valid for the lifetime of returned string
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Validates UTF-8 encoding before casting to string
     /// 2. Performs bounds checking on slice operations
     /// 3. Data comes from trusted cache files with format validation
-    private static string readString(scope const(ubyte)[] data, ref size_t offset) @trusted
+    private static string readString(scope const(ubyte)[] data, ref size_t offset) @system
     {
         import std.utf : validate, UTFException;
         import std.exception : enforce;
@@ -223,7 +223,7 @@ struct BinaryStorage
     }
     
     /// Write cache entry
-    private static void writeEntry(T)(ref Appender!(ubyte[]) buffer, ref const(T) entry) @trusted
+    private static void writeEntry(T)(ref Appender!(ubyte[]) buffer, ref const(T) entry) @system
     {
         // Write targetId
         writeString(buffer, entry.targetId);
@@ -276,7 +276,7 @@ struct BinaryStorage
     
     /// Read cache entry
     /// Optimized to minimize allocations and rehashing of associative arrays
-    private static T readEntry(T)(scope const(ubyte)[] data, ref size_t offset) @trusted
+    private static T readEntry(T)(scope const(ubyte)[] data, ref size_t offset) @system
     {
         T entry;
         

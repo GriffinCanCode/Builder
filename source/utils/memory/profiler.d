@@ -30,7 +30,7 @@ struct MemorySnapshot
     
     /// Create a snapshot of current memory state
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. GC.stats() is @system but read-only query of GC state
     /// 2. No memory is allocated or modified
     /// 3. Clock.currTime() is safe time query
@@ -44,7 +44,7 @@ struct MemorySnapshot
     /// What could go wrong:
     /// - GC.stats() returning invalid data: GC maintains invariants
     /// - Clock.currTime() failing: would throw (caught by caller)
-    static MemorySnapshot take(string label = "") @trusted
+    static MemorySnapshot take(string label = "") @system
     {
         auto stats = GC.stats();
         auto profileStats = GC.profileStats();
@@ -61,7 +61,7 @@ struct MemorySnapshot
     }
     
     /// Format memory size as human-readable string
-    string formatSize(size_t bytes) const pure @safe
+    string formatSize(size_t bytes) const pure @system
     {
         if (bytes < 1024)
             return format("%d B", bytes);
@@ -74,7 +74,7 @@ struct MemorySnapshot
     }
     
     /// Get heap utilization percentage
-    double heapUtilization() const pure nothrow @safe
+    double heapUtilization() const pure nothrow @system
     {
         if (heapTotal == 0)
             return 0.0;
@@ -82,7 +82,7 @@ struct MemorySnapshot
     }
     
     /// Display formatted snapshot
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         string result;
         if (label.length > 0)
@@ -108,7 +108,7 @@ struct MemoryDelta
     string toLabel;
     
     /// Calculate delta between two snapshots
-    static MemoryDelta between(const MemorySnapshot before, const MemorySnapshot after) pure nothrow @safe
+    static MemoryDelta between(const MemorySnapshot before, const MemorySnapshot after) pure nothrow @system
     {
         MemoryDelta delta;
         delta.heapUsedDelta = cast(long)after.heapUsed - cast(long)before.heapUsed;
@@ -122,7 +122,7 @@ struct MemoryDelta
     }
     
     /// Format delta as human-readable string with sign
-    private string formatDelta(long bytes) const pure @safe
+    private string formatDelta(long bytes) const pure @system
     {
         string sign = bytes >= 0 ? "+" : "";
         if (bytes < 0) bytes = -bytes;
@@ -138,7 +138,7 @@ struct MemoryDelta
     }
     
     /// Display formatted delta
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         string result;
         result ~= format("Memory Delta [%s → %s] (%.2fs):\n", 
@@ -163,7 +163,7 @@ struct MemoryProfiler
     @disable this(this); // Non-copyable
     
     /// Start profiling
-    void start(string label = "start") @trusted
+    void start(string label = "start") @system
     {
         snapshots = [];
         snapshots ~= MemorySnapshot.take(label);
@@ -172,7 +172,7 @@ struct MemoryProfiler
     }
     
     /// Take a snapshot at current point
-    void snapshot(string label = "") @trusted
+    void snapshot(string label = "") @system
     {
         if (!running)
             return;
@@ -180,7 +180,7 @@ struct MemoryProfiler
     }
     
     /// Stop profiling and return final snapshot
-    MemorySnapshot stop(string label = "end") @trusted
+    MemorySnapshot stop(string label = "end") @system
     {
         if (!running)
             return MemorySnapshot.init;
@@ -193,13 +193,13 @@ struct MemoryProfiler
     }
     
     /// Get all snapshots
-    const(MemorySnapshot)[] getSnapshots() const pure nothrow @safe
+    const(MemorySnapshot)[] getSnapshots() const pure nothrow @system
     {
         return snapshots;
     }
     
     /// Get snapshot by label
-    MemorySnapshot getSnapshot(string label) const pure @safe
+    MemorySnapshot getSnapshot(string label) const pure @system
     {
         foreach (snap; snapshots)
         {
@@ -210,7 +210,7 @@ struct MemoryProfiler
     }
     
     /// Calculate delta between two snapshots by label
-    MemoryDelta delta(string fromLabel, string toLabel) const pure @safe
+    MemoryDelta delta(string fromLabel, string toLabel) const pure @system
     {
         auto from = getSnapshot(fromLabel);
         auto to = getSnapshot(toLabel);
@@ -218,7 +218,7 @@ struct MemoryProfiler
     }
     
     /// Calculate delta from first to last snapshot
-    MemoryDelta totalDelta() const pure nothrow @safe
+    MemoryDelta totalDelta() const pure nothrow @system
     {
         if (snapshots.length < 2)
             return MemoryDelta.init;
@@ -226,7 +226,7 @@ struct MemoryProfiler
     }
     
     /// Get peak memory usage
-    size_t peakHeapUsed() const pure nothrow @safe
+    size_t peakHeapUsed() const pure nothrow @system
     {
         size_t peak = 0;
         foreach (snap; snapshots)
@@ -235,7 +235,7 @@ struct MemoryProfiler
     }
     
     /// Get peak heap total
-    size_t peakHeapTotal() const pure nothrow @safe
+    size_t peakHeapTotal() const pure nothrow @system
     {
         size_t peak = 0;
         foreach (snap; snapshots)
@@ -244,7 +244,7 @@ struct MemoryProfiler
     }
     
     /// Get total GC collections during profiling
-    size_t totalGCCollections() const pure nothrow @safe
+    size_t totalGCCollections() const pure nothrow @system
     {
         if (snapshots.length < 2)
             return 0;
@@ -252,13 +252,13 @@ struct MemoryProfiler
     }
     
     /// Check if profiler is currently running
-    bool isRunning() const pure nothrow @safe
+    bool isRunning() const pure nothrow @system
     {
         return running;
     }
     
     /// Display full profiling report
-    string report() const @safe
+    string report() const @system
     {
         if (snapshots.length == 0)
             return "No memory snapshots recorded\n";
@@ -294,9 +294,9 @@ struct MemoryProfiler
 
 /// Track memory usage for a specific operation
 /// 
-/// Safety: This function is @trusted because:
+/// Safety: This function is @system because:
 /// 1. Delegates to MemorySnapshot.take() which is trusted
-/// 2. Function execution is @safe by D's type system
+/// 2. Function execution is @system by D's type system
 /// 3. Exception handling is memory-safe
 /// 4. Delta calculation is pure and safe
 /// 
@@ -309,7 +309,7 @@ struct MemoryProfiler
 /// - func throws exception: handled with try/finally pattern
 /// - Memory allocation during snapshot: accepted (small overhead)
 /// - GC running during measurement: accepted (real-world behavior)
-MemoryDelta trackMemory(T)(T delegate() func, string label = "operation") @trusted
+MemoryDelta trackMemory(T)(T delegate() func, string label = "operation") @system
 {
     auto before = MemorySnapshot.take(label ~ " (before)");
     MemorySnapshot after;
@@ -327,7 +327,7 @@ MemoryDelta trackMemory(T)(T delegate() func, string label = "operation") @trust
 }
 
 /// Overload for void functions
-MemoryDelta trackMemory(void delegate() func, string label = "operation") @trusted
+MemoryDelta trackMemory(void delegate() func, string label = "operation") @system
 {
     auto before = MemorySnapshot.take(label ~ " (before)");
     MemorySnapshot after;

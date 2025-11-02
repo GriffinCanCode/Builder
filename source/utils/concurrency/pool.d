@@ -10,7 +10,7 @@ import std.exception;
 import std.conv : to;
 import std.parallelism : totalCPUs;
 
-@safe:
+@system:
 
 /// Persistent thread pool for reusable parallel execution
 /// Thread-safe: All shared state is protected by mutex or atomic operations
@@ -27,7 +27,7 @@ final class ThreadPool
     
     /// Constructor: Create thread pool with specified worker count
     /// 
-    /// Safety: This constructor is @trusted because:
+    /// Safety: This constructor is @system because:
     /// 1. Thread creation is inherently unsafe but properly managed
     /// 2. Atomic operations (atomicStore) ensure thread-safe initialization
     /// 3. Mutex/Condition creation is safe
@@ -43,7 +43,7 @@ final class ThreadPool
     /// - Thread creation could fail: exception propagates to caller
     /// - Resource exhaustion: too many threads could fail (OS limit)
     /// - Race during initialization: prevented by setting running flag first
-    @trusted
+    @system
     this(size_t workerCount = 0)
     {
         if (workerCount == 0)
@@ -67,7 +67,7 @@ final class ThreadPool
     
     /// Execute function on items in parallel (delegate version)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Thread synchronization via mutex prevents data races
     /// 2. Atomic operations (atomicStore, atomicLoad) ensure memory safety
     /// 3. Result array is pre-allocated to exact size (no reallocation)
@@ -84,7 +84,7 @@ final class ThreadPool
     /// - Deadlock: impossible due to single mutex and proper wait/notify
     /// - Memory: pre-allocated results array, no growth/reallocation
     /// - Thread safety: mutex ensures exclusive access to shared state
-    @trusted
+    @system
     R[] map(T, R)(scope T[] items, scope R delegate(T) func)
     {
         if (items.empty)
@@ -128,7 +128,7 @@ final class ThreadPool
     /// Execute function on items in parallel (function pointer version)
     /// 
     /// Safety: Delegates to trusted map() with delegate wrapper
-    @trusted
+    @system
     R[] map(T, R)(scope T[] items, R function(T) func)
     {
         // Convert function to delegate and call delegate version
@@ -138,12 +138,12 @@ final class ThreadPool
     
     /// Execute function on items in parallel without collecting results (forEach)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Thread synchronization via mutex prevents data races
     /// 2. Atomic operations ensure memory safety
     /// 3. No result collection - simpler than map()
     /// 4. Jobs properly synchronized and awaited
-    @trusted
+    @system
     void forEach(T)(scope T[] items, scope void delegate(T) func)
     {
         if (items.empty)
@@ -184,15 +184,15 @@ final class ThreadPool
     
     /// Helper to create work delegate with proper value capture
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Captures variables by value (index, item) - no dangling references
     /// 2. ref results is guaranteed valid during job execution
-    /// 3. Inner delegate marked @trusted for array index assignment
+    /// 3. Inner delegate marked @system for array index assignment
     /// 4. Index is guaranteed valid (within bounds of pre-allocated array)
-    @trusted
-    private void delegate() @safe makeWork(T, R)(size_t index, T item, ref R[] results, scope R delegate(T) func)
+    @system
+    private void delegate() @system makeWork(T, R)(size_t index, T item, ref R[] results, scope R delegate(T) func)
     {
-        void delegate() @safe safeDel = () @trusted {
+        void delegate() @system safeDel = () @system {
             results[index] = func(item);
         };
         return safeDel;
@@ -200,14 +200,14 @@ final class ThreadPool
     
     /// Helper for forEach work delegate
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Captures item by value - no dangling references
-    /// 2. Inner delegate marked @trusted for function invocation
+    /// 2. Inner delegate marked @system for function invocation
     /// 3. No result storage - simpler than makeWork()
-    @trusted
-    private void delegate() @safe makeForEachWork(T)(T item, scope void delegate(T) func)
+    @system
+    private void delegate() @system makeForEachWork(T)(T item, scope void delegate(T) func)
     {
-        void delegate() @safe safeDel = () @trusted {
+        void delegate() @system safeDel = () @system {
             func(item);
         };
         return safeDel;
@@ -215,13 +215,13 @@ final class ThreadPool
     
     /// Shutdown pool and wait for workers
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Atomic operations ensure thread-safe shutdown
     /// 2. Mutex synchronization prevents races
     /// 3. Thread.join() is inherently unsafe but properly managed
     /// 4. Notifies all workers to exit gracefully
     /// 5. Idempotent: safe to call multiple times
-    @trusted
+    @system
     void shutdown()
     {
         // Check if already shut down (idempotent)
@@ -243,14 +243,14 @@ final class ThreadPool
     
     /// Get next job for worker (internal method)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Returns Job class reference (heap-allocated, stable pointer)
     /// 2. synchronized block ensures exclusive access
     /// 3. Atomic operations for thread-safe index access
     /// 4. Bounds checking prevents invalid array access
     /// 5. CAS operation ensures only one worker claims each job
     /// 6. Job is a class, so reference remains valid even if jobs array is reallocated
-    @trusted
+    @system
     Job nextJob()
     {
         synchronized (jobMutex)
@@ -280,11 +280,11 @@ final class ThreadPool
     
     /// Mark job as complete (internal method)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Atomic decrement operation is thread-safe
     /// 2. synchronized block ensures exclusive access
     /// 3. Condition variable notification is properly synchronized
-    @trusted
+    @system
     void completeJob()
     {
         synchronized (jobMutex)
@@ -298,11 +298,11 @@ final class ThreadPool
     
     /// Check if pool is running (internal method)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. atomicLoad() performs sequentially-consistent atomic read
     /// 2. running is shared - requires atomic operations
     /// 3. Read-only operation with no side effects
-    @trusted
+    @system
     bool isRunning() const nothrow @nogc
     {
         return atomicLoad(running);
@@ -317,11 +317,11 @@ private final class Worker
     
     /// Worker constructor
     /// 
-    /// Safety: This constructor is @trusted because:
+    /// Safety: This constructor is @system because:
     /// 1. Thread creation with member function pointer is safe pattern
     /// 2. Captures this and pool - both remain valid for thread lifetime
     /// 3. Thread is not started yet - safe initialization
-    @trusted
+    @system
     this(size_t id, ThreadPool pool)
     {
         this.id = id;
@@ -332,7 +332,7 @@ private final class Worker
     /// Start worker thread
     /// 
     /// Safety: Thread.start() is inherently unsafe but properly managed
-    @trusted
+    @system
     void start()
     {
         thread.start();
@@ -341,7 +341,7 @@ private final class Worker
     /// Wait for worker thread to complete
     /// 
     /// Safety: Thread.join() is inherently unsafe but properly managed
-    @trusted
+    @system
     void join()
     {
         thread.join();
@@ -349,13 +349,13 @@ private final class Worker
     
     /// Worker main loop (runs in separate thread)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Atomic operations for thread-safe state checks
     /// 2. Job execution is isolated per worker
     /// 3. Exception handling prevents thread crashes
     /// 4. Proper cleanup via pool.completeJob()
     /// 5. Job is a class (heap-allocated), so reference remains valid
-    @trusted
+    @system
     private void run()
     {
         while (pool.isRunning())
@@ -390,7 +390,7 @@ private final class Job
     void delegate() work;
     shared bool completed;  // Atomic access for thread-safe completion checking
     
-    this(size_t id) @safe nothrow
+    this(size_t id) @system nothrow
     {
         this.id = id;
         atomicStore(this.completed, false);

@@ -142,7 +142,7 @@ class OCamlHandler : BaseLanguageHandler
             try
             {
                 auto content = readText(source);
-                auto imports = () @trusted { return parseOCamlImports(source, content); }();
+                auto imports = parseOCamlImports(source, content);
                 allImports ~= imports;
             }
             catch (Exception e)

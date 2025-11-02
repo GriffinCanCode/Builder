@@ -42,7 +42,7 @@ struct ActionId
     string subId;         // Optional sub-identifier (e.g., source file name)
     
     /// Generate stable string representation for storage
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         import std.format : format;
         if (subId.length > 0)
@@ -51,7 +51,7 @@ struct ActionId
     }
     
     /// Parse action ID from string
-    static ActionId parse(string str) @safe
+    static ActionId parse(string str) @system
     {
         auto parts = str.split(":");
         if (parts.length < 3)
@@ -130,7 +130,7 @@ final class ActionCache
     private size_t actionMisses;
     
     /// Constructor: Initialize action cache
-    this(string cacheDir = ".builder-cache/actions", ActionCacheConfig config = ActionCacheConfig.init) @trusted
+    this(string cacheDir = ".builder-cache/actions", ActionCacheConfig config = ActionCacheConfig.init) @system
     {
         this.cacheDir = cacheDir;
         this.cacheFilePath = buildPath(cacheDir, "actions.bin");
@@ -153,7 +153,7 @@ final class ActionCache
     }
     
     /// Explicitly close cache and flush to disk
-    void close() @trusted
+    void close() @system
     {
         synchronized (cacheMutex)
         {
@@ -189,7 +189,7 @@ final class ActionCache
     /// 2. All input files unchanged (via hash)
     /// 3. All output files exist
     /// 4. No execution context changes (flags, env, etc)
-    bool isCached(ActionId actionId, scope const(string)[] inputs, scope const(string[string]) metadata) @trusted
+    bool isCached(ActionId actionId, scope const(string)[] inputs, scope const(string[string]) metadata) @system
     {
         synchronized (cacheMutex)
         {
@@ -281,7 +281,7 @@ final class ActionCache
         scope const(string)[] outputs,
         scope const(string[string]) metadata,
         bool success
-    ) @trusted
+    ) @system
     {
         synchronized (cacheMutex)
         {
@@ -335,7 +335,7 @@ final class ActionCache
     }
     
     /// Invalidate action cache entry
-    void invalidate(ActionId actionId) @trusted nothrow
+    void invalidate(ActionId actionId) @system nothrow
     {
         try
         {
@@ -349,7 +349,7 @@ final class ActionCache
     }
     
     /// Clear entire action cache
-    void clear() @trusted
+    void clear() @system
     {
         synchronized (cacheMutex)
         {
@@ -363,7 +363,7 @@ final class ActionCache
     }
     
     /// Flush cache to disk
-    void flush(bool runEviction = true) @trusted
+    void flush(bool runEviction = true) @system
     {
         synchronized (cacheMutex)
         {
@@ -408,7 +408,7 @@ final class ActionCache
         size_t failedActions;
     }
     
-    ActionCacheStats getStats() const @trusted
+    ActionCacheStats getStats() const @system
     {
         synchronized (cast(Mutex)cacheMutex)
         {
@@ -436,7 +436,7 @@ final class ActionCache
     }
     
     /// Get all cached actions for a target
-    ActionEntry[] getActionsForTarget(string targetId) const @trusted
+    ActionEntry[] getActionsForTarget(string targetId) const @system
     {
         synchronized (cast(Mutex)cacheMutex)
         {
@@ -473,7 +473,7 @@ final class ActionCache
         }
     }
     
-    private void loadCache() @trusted
+    private void loadCache() @system
     {
         if (!exists(cacheFilePath))
             return;
@@ -524,7 +524,7 @@ final class ActionCache
     }
     
     /// Compute hash of execution context (flags, env, etc)
-    private static string computeExecutionHash(scope const(string[string]) metadata) @trusted
+    private static string computeExecutionHash(scope const(string[string]) metadata) @system
     {
         import std.digest.sha : SHA256, toHexString;
         
@@ -550,7 +550,7 @@ struct ActionCacheConfig
     size_t maxEntries = 50_000;       // 50k actions default (more than targets)
     size_t maxAge = 30;               // 30 days default
     
-    static ActionCacheConfig fromEnvironment() @safe
+    static ActionCacheConfig fromEnvironment() @system
     {
         import std.process : environment;
         

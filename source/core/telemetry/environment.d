@@ -27,7 +27,7 @@ struct BuildEnvironment
     
     /// Create snapshot of current build environment
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Calls to detectToolVersions() are validated I/O operations
     /// 2. Environment variable access is read-only
     /// 3. Clock.currTime() is safe time query
@@ -42,7 +42,7 @@ struct BuildEnvironment
     /// - Tool detection subprocess fails: handled gracefully (empty version)
     /// - Environment variable access: handled by D runtime
     /// - System info detection fails: returns default values
-    static BuildEnvironment snapshot() @trusted
+    static BuildEnvironment snapshot() @system
     {
         BuildEnvironment env;
         env.toolVersions = detectToolVersions();
@@ -54,7 +54,7 @@ struct BuildEnvironment
     
     /// Compare two build environments for reproducibility
     /// Returns true if environments are equivalent for build purposes
-    bool isCompatible(const BuildEnvironment other) const pure nothrow @safe
+    bool isCompatible(const BuildEnvironment other) const pure nothrow @system
     {
         // Check tool versions match
         foreach (pair; toolVersions.byKeyValue)
@@ -97,7 +97,7 @@ struct BuildEnvironment
     }
     
     /// Get human-readable diff between environments
-    string[] diff(const BuildEnvironment other) const pure @safe
+    string[] diff(const BuildEnvironment other) const pure @system
     {
         string[] differences;
         
@@ -149,7 +149,7 @@ struct BuildEnvironment
     }
     
     /// Display formatted environment info
-    string toString() const pure @safe
+    string toString() const pure @system
     {
         import std.format : format;
         import std.algorithm : sort;
@@ -186,7 +186,7 @@ struct BuildEnvironment
     }
     
     /// Detect versions of common build tools
-    private static string[string] detectToolVersions() @trusted
+    private static string[string] detectToolVersions() @system
     {
         string[string] versions;
         
@@ -236,7 +236,7 @@ struct BuildEnvironment
     }
     
     /// Parse version string from tool output
-    private static string parseVersion(string output) pure nothrow @safe
+    private static string parseVersion(string output) pure nothrow @system
     {
         // Simple version extraction - take first line and strip
         auto stripped = output.strip();
@@ -246,7 +246,7 @@ struct BuildEnvironment
     }
     
     /// Capture environment variables relevant for build reproducibility
-    private static string[string] captureRelevantEnvVars() @trusted
+    private static string[string] captureRelevantEnvVars() @system
     {
         string[string] relevant;
         
@@ -278,7 +278,7 @@ struct BuildEnvironment
     }
     
     /// Check if an environment variable is critical for reproducibility
-    private static bool isCriticalEnvVar(string key) pure nothrow @safe
+    private static bool isCriticalEnvVar(string key) pure nothrow @system
     {
         // Critical variables that must match exactly
         return key == "CC" || key == "CXX" || key == "FC" ||
@@ -297,7 +297,7 @@ struct SystemInfo
     
     /// Detect current system information
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. version() checks are compile-time constants
     /// 2. Environment access is read-only
     /// 3. String operations are bounds-checked
@@ -309,7 +309,7 @@ struct SystemInfo
     /// What could go wrong:
     /// - Environment variables missing: handled with defaults
     /// - Subprocess execution fails: handled with defaults
-    static SystemInfo detect() @trusted
+    static SystemInfo detect() @system
     {
         SystemInfo info;
         

@@ -180,7 +180,7 @@ shared static this()
 ///   parseLanguageName("python") -> TargetLanguage.Python
 ///   parseLanguageName("py") -> TargetLanguage.Python
 ///   parseLanguageName("c++") -> TargetLanguage.Cpp
-pure @safe
+pure @system
 TargetLanguage parseLanguageName(string langName)
 {
     if (langName.length == 0)
@@ -204,7 +204,7 @@ TargetLanguage parseLanguageName(string langName)
 /// Examples:
 ///   inferLanguageFromExtension(".py") -> TargetLanguage.Python
 ///   inferLanguageFromExtension(".tsx") -> TargetLanguage.TypeScript
-pure nothrow @safe
+pure nothrow @system
 TargetLanguage inferLanguageFromExtension(string extension)
 {
     if (auto lang = extension in extensionMap)
@@ -218,7 +218,7 @@ TargetLanguage inferLanguageFromExtension(string extension)
 /// Examples:
 ///   getLanguageExtensions(TargetLanguage.Python) -> [".py"]
 ///   getLanguageExtensions(TargetLanguage.TypeScript) -> [".ts", ".tsx", ".mts", ".cts"]
-pure @safe
+pure @system
 string[] getLanguageExtensions(TargetLanguage language)
 {
     string[] result;
@@ -234,7 +234,7 @@ string[] getLanguageExtensions(TargetLanguage language)
 
 /// Get all supported language names (primary name only, not aliases)
 /// Excludes Generic
-pure @safe
+pure @system
 string[] getSupportedLanguageNames()
 {
     string[] names;
@@ -250,7 +250,7 @@ string[] getSupportedLanguageNames()
 
 /// Get all language aliases for a given language
 /// Returns empty array if no aliases defined
-pure @safe
+pure @system
 string[] getLanguageAliases(TargetLanguage language)
 {
     if (auto aliases = language in languageAliases)
@@ -259,14 +259,14 @@ string[] getLanguageAliases(TargetLanguage language)
 }
 
 /// Check if a language is supported (has aliases/extensions defined)
-pure nothrow @safe
+pure nothrow @system
 bool isLanguageSupported(TargetLanguage language)
 {
     return (language in languageAliases) !is null;
 }
 
 /// Get primary display name for a language
-pure @safe
+pure @system
 string getLanguageDisplayName(TargetLanguage language)
 {
     if (auto aliases = language in languageAliases)

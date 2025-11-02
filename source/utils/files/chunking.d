@@ -10,7 +10,7 @@ import std.bitmanip : nativeToBigEndian, bigEndianToNative;
 import utils.crypto.blake3;
 import utils.simd.ops;
 
-@safe:
+@system:
 
 /// Content-defined chunking for incremental hashing
 /// Uses Rabin fingerprinting to identify chunk boundaries
@@ -49,7 +49,7 @@ struct ContentChunker
     }
     
     /// Chunk a file using content-defined boundaries
-    @trusted // File I/O operations and hash computations
+    @system // File I/O operations and hash computations
     static ChunkResult chunkFile(string path)
     {
         ChunkResult result;
@@ -147,7 +147,7 @@ struct ContentChunker
     }
     
     /// Hash a specific chunk of a file using SIMD-accelerated BLAKE3
-    @trusted // File I/O and hashing operations
+    @system // File I/O and hashing operations
     private static string hashChunk(ref File file, size_t offset, size_t length)
     {
         file.seek(offset);
@@ -191,7 +191,7 @@ struct ContentChunker
     }
     
     /// Serialize chunk metadata for caching
-    @trusted // Array operations and casts
+    @system // Array operations and casts
     static ubyte[] serialize(ChunkResult result)
     {
         auto buffer = appender!(ubyte[]);
@@ -216,7 +216,7 @@ struct ContentChunker
     }
     
     /// Deserialize chunk metadata
-    @trusted // Array slicing and casts
+    @system // Array slicing and casts
     static ChunkResult deserialize(ubyte[] data)
     {
         ChunkResult result;

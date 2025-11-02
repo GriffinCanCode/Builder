@@ -9,14 +9,14 @@ import utils.security.validation;
 import utils.logging.logger;
 import errors;
 
-@safe:
+@system:
 
 /// Redact sensitive information from strings for audit logging
 /// Protects against leaking sensitive paths, tokens, and environment variables in logs
 private struct AuditRedactor
 {
     /// Redact a command argument
-    static string redactArg(string arg) @safe
+    static string redactArg(string arg) @system
     {
         import std.path : expandTilde;
         import std.regex : regex, replaceAll;
@@ -63,7 +63,7 @@ private struct AuditRedactor
     }
     
     /// Redact a working directory path
-    static string redactPath(string path) @safe
+    static string redactPath(string path) @system
     {
         import std.process : environment;
         
@@ -103,7 +103,7 @@ private struct AuditRedactor
     
     /// Redact environment variable names (hide values)
     /// Shows variable names but masks potentially sensitive ones
-    static string redactEnvKeys(string[] keys) @safe
+    static string redactEnvKeys(string[] keys) @system
     {
         import std.algorithm : map, filter, joiner;
         import std.conv : to;
@@ -140,48 +140,48 @@ struct SecureExecutor
     private bool auditLog = false;
     
     /// Builder pattern for configuration
-    static SecureExecutor create() @safe nothrow
+    static SecureExecutor create() @system nothrow
     {
         return SecureExecutor.init;
     }
     
     /// Set working directory
-    ref typeof(this) in_(string dir) @safe return nothrow
+    ref typeof(this) in_(string dir) @system return nothrow
     {
         this.workDir = dir;
         return this;
     }
     
     /// Set environment variables (replaces all)
-    ref typeof(this) env(string[string] vars) @safe return nothrow
+    ref typeof(this) env(string[string] vars) @system return nothrow
     {
         this.environment = vars;
         return this;
     }
     
     /// Add single environment variable
-    ref typeof(this) withEnv(string key, string value) @safe return nothrow
+    ref typeof(this) withEnv(string key, string value) @system return nothrow
     {
         this.environment[key] = value;
         return this;
     }
     
     /// Disable path validation (use with extreme caution)
-    ref typeof(this) unsafeNoValidation() @safe return nothrow
+    ref typeof(this) unsafeNoValidation() @system return nothrow
     {
         this.validatePaths = false;
         return this;
     }
     
     /// Enable audit logging of all commands
-    ref typeof(this) audit() @safe return nothrow
+    ref typeof(this) audit() @system return nothrow
     {
         this.auditLog = true;
         return this;
     }
     
     /// Validate a command (helper for testing)
-    bool validateCommand(scope const(string)[] cmd) @safe
+    bool validateCommand(scope const(string)[] cmd) @system
     {
         if (cmd.length == 0)
             return false;
@@ -201,13 +201,13 @@ struct SecureExecutor
     }
     
     /// Validate a single path (helper for testing)
-    bool validatePath(string path) @safe
+    bool validatePath(string path) @system
     {
         return SecurityValidator.isPathSafe(path);
     }
     
     /// Validate a working directory (helper for testing)
-    bool validateWorkingDir(string dir) @safe
+    bool validateWorkingDir(string dir) @system
     {
         // Check if path is safe and not a system directory
         if (!SecurityValidator.isPathSafe(dir))
@@ -228,13 +228,13 @@ struct SecureExecutor
     }
     
     /// Set environment variable (helper for testing)
-    void setEnv(string key, string value) @safe nothrow
+    void setEnv(string key, string value) @system nothrow
     {
         this.environment[key] = value;
     }
     
     /// Get all environment variables (helper for testing)
-    string[string] getEnv() @safe nothrow
+    string[string] getEnv() @system nothrow
     {
         return this.environment;
     }
@@ -242,7 +242,7 @@ struct SecureExecutor
     /// Execute command with full validation
     /// Returns: Result monad with ProcessResult or SecurityError
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Validates all arguments before execution (prevents injection)
     /// 2. Uses std.process.execute with array form (no shell interpretation)
     /// 3. SecurityValidator ensures no malicious paths or arguments
@@ -258,7 +258,7 @@ struct SecureExecutor
     /// - Malicious arguments: caught by SecurityValidator (returns Err)
     /// - Process execution fails: converted to SecurityError result
     /// - Path traversal attempts: blocked by isPathSafe() validation
-    auto run(scope const(string)[] cmd) @trusted
+    auto run(scope const(string)[] cmd) @system
     {
         // Validation layer
         if (cmd.length == 0)
@@ -331,7 +331,7 @@ struct SecureExecutor
     
     /// Execute command and check success (throws on non-zero exit)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Delegates to trusted run() which validates all inputs
     /// 2. Additional exit code checking for convenience
     /// 3. Converts non-zero exits to errors
@@ -343,7 +343,7 @@ struct SecureExecutor
     /// What could go wrong:
     /// - Command fails validation: returned as Err from run()
     /// - Non-zero exit: converted to SecurityError (safe failure)
-    auto runChecked(scope const(string)[] cmd) @trusted
+    auto runChecked(scope const(string)[] cmd) @system
     {
         auto result = run(cmd);
         if (result.isErr)
@@ -368,7 +368,7 @@ struct ProcessResult
     int status;
     string output;
     
-    bool success() const @safe pure nothrow @nogc
+    bool success() const @system pure nothrow @nogc
     {
         return status == 0;
     }
@@ -380,7 +380,7 @@ struct SecurityError
     string message;
     SecurityCode code;
     
-    this(string msg, SecurityCode c = SecurityCode.Unknown) @safe pure nothrow @nogc
+    this(string msg, SecurityCode c = SecurityCode.Unknown) @system pure nothrow @nogc
     {
         this.message = msg;
         this.code = c;
@@ -405,7 +405,7 @@ struct Result(T, E)
     private T _value;
     private E _error;
     
-    static Result ok(T val) @safe
+    static Result ok(T val) @system
     {
         Result r;
         r._isOk = true;
@@ -413,7 +413,7 @@ struct Result(T, E)
         return r;
     }
     
-    static Result err(E error) @safe
+    static Result err(E error) @system
     {
         Result r;
         r._isOk = false;
@@ -421,36 +421,36 @@ struct Result(T, E)
         return r;
     }
     
-    bool isOk() const @safe pure nothrow @nogc { return _isOk; }
-    bool isErr() const @safe pure nothrow @nogc { return !_isOk; }
+    bool isOk() const @system pure nothrow @nogc { return _isOk; }
+    bool isErr() const @system pure nothrow @nogc { return !_isOk; }
     
-    T unwrap() @safe
+    T unwrap() @system
     {
         if (!_isOk)
             throw new Exception("Called unwrap on error result: " ~ _error.message);
         return _value;
     }
     
-    E unwrapErr() @safe
+    E unwrapErr() @system
     {
         if (_isOk)
             throw new Exception("Called unwrapErr on ok result");
         return _error;
     }
     
-    T unwrapOr(T default_) @safe
+    T unwrapOr(T default_) @system
     {
         return _isOk ? _value : default_;
     }
 }
 
 /// Helper functions
-auto Ok(T, E)(T val) @safe
+auto Ok(T, E)(T val) @system
 {
     return Result!(T, E).ok(val);
 }
 
-auto Err(T, E)(E error) @safe
+auto Err(T, E)(E error) @system
 {
     return Result!(T, E).err(error);
 }
@@ -461,7 +461,7 @@ private import std.conv : to;
 /// Drop-in replacement for std.process.execute with automatic path validation
 /// This function provides the same interface as std.process.execute but with security checks
 /// 
-/// Safety: This function is @trusted because:
+/// Safety: This function is @system because:
 /// 1. Validates all command arguments before execution
 /// 2. Validates paths to prevent traversal attacks
 /// 3. Uses array form (no shell interpretation)
@@ -476,7 +476,7 @@ private import std.conv : to;
 /// - False positives: legitimate special characters in paths could be rejected
 /// - TOCTOU: files could change between validation and execution
 /// - Symlink attacks: validation doesn't resolve symlinks
-@trusted
+@system
 auto execute(
     scope const(string)[] args,
     const string[string] env = null,
@@ -563,7 +563,7 @@ auto execute(
 }
 
 /// Execute command in working directory with validation
-@trusted
+@system
 auto execute(
     scope const(string)[] args,
     scope const(char)[] workDir,
@@ -573,7 +573,7 @@ auto execute(
     return execute(args, null, Config.none, size_t.max, workDir, skipValidation);
 }
 
-@safe unittest
+@system unittest
 {
     // Test safe execution
     auto exec = SecureExecutor.create();
@@ -597,7 +597,7 @@ auto execute(
     assert(pathResult.isErr);
 }
 
-@safe unittest
+@system unittest
 {
     import std.process : environment;
     
@@ -655,7 +655,7 @@ auto execute(
     assert(!redactedKeys.canFind("API_KEY,") || redactedKeys.canFind("API_KEY=***"));
 }
 
-@safe unittest
+@system unittest
 {
     // Test audit logging is opt-in
     auto exec = SecureExecutor.create();

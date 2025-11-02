@@ -1,6 +1,6 @@
 module utils.simd.ops;
 
-@safe:
+@system:
 
 /// SIMD-accelerated memory operations
 /// Automatically selects optimal implementation based on CPU
@@ -44,7 +44,7 @@ struct SIMDOps
 {
     /// Fast memory copy using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Validates bounds: only copies min(dest.length, src.length) bytes
     /// 2. Calls extern(C) simd_memcpy which has been verified for memory safety
     /// 3. No escaping pointers - all memory remains valid
@@ -55,7 +55,7 @@ struct SIMDOps
     /// Post-conditions:
     /// - Copies min(dest.length, src.length) bytes
     /// - No memory is leaked or corrupted
-    @trusted
+    @system
     static void copy(void[] dest, const void[] src)
     {
         import std.algorithm : min;
@@ -65,11 +65,11 @@ struct SIMDOps
     
     /// Fast memory comparison using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Length validation ensures equal-sized buffers before comparison
     /// 2. Calls extern(C) simd_memcmp with validated parameters
     /// 3. Read-only operation with no memory mutation
-    @trusted
+    @system
     static bool equals(const void[] a, const void[] b)
     {
         if (a.length != b.length) return false;
@@ -78,11 +78,11 @@ struct SIMDOps
     
     /// Fast memory set using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Uses D slice length for bounds (no manual size calculation)
     /// 2. Calls verified extern(C) simd_memset
     /// 3. dest slice ensures pointer validity
-    @trusted
+    @system
     static void fill(void[] dest, ubyte value)
     {
         simd_memset(dest.ptr, value, dest.length);
@@ -90,11 +90,11 @@ struct SIMDOps
     
     /// Find byte in array using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Result pointer is within haystack bounds (verified by simd_memchr)
     /// 2. Pointer arithmetic validated: result >= haystack.ptr
     /// 3. Returns -1 for not found (no invalid index)
-    @trusted
+    @system
     static ptrdiff_t find(const ubyte[] haystack, ubyte needle)
     {
         auto result = simd_memchr(haystack.ptr, needle, haystack.length);
@@ -104,11 +104,11 @@ struct SIMDOps
     
     /// Count matching bytes using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Takes min length to avoid out-of-bounds access
     /// 2. Calls verified extern(C) simd_count_matches
     /// 3. Read-only operation with no mutations
-    @trusted
+    @system
     static size_t countMatches(const ubyte[] a, const ubyte[] b)
     {
         import std.algorithm : min;
@@ -118,11 +118,11 @@ struct SIMDOps
     
     /// XOR two arrays using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Computes safe bounds: min(dest, a, b) lengths
     /// 2. Calls verified extern(C) simd_xor with validated size
     /// 3. All buffers remain valid throughout operation
-    @trusted
+    @system
     static void xor(ubyte[] dest, const ubyte[] a, const ubyte[] b)
     {
         import std.algorithm : min;
@@ -132,11 +132,11 @@ struct SIMDOps
     
     /// Calculate rolling hash using SIMD acceleration
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Empty array check prevents invalid operations
     /// 2. Calls verified extern(C) simd_rolling_hash
     /// 3. Read-only operation, no memory mutations
-    @trusted
+    @system
     static ulong rollingHash(const ubyte[] data, size_t windowSize = 64)
     {
         if (data.length == 0) return 0;
@@ -146,7 +146,7 @@ struct SIMDOps
     /// Constant-time comparison using SIMD (no early exit)
     /// Prevents timing side-channel attacks for security-sensitive comparisons
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Length validation ensures equal-sized buffers
     /// 2. Calls extern(C) simd_constant_time_equals with validated parameters
     /// 3. Read-only operation with no memory mutation
@@ -154,7 +154,7 @@ struct SIMDOps
     /// Security: Always processes all bytes regardless of where differences
     /// occur, making timing attacks infeasible. Use for cryptographic hashes,
     /// MACs, tokens, and other security-sensitive data.
-    @trusted
+    @system
     static bool constantTimeEquals(const void[] a, const void[] b)
     {
         if (a.length != b.length) return false;

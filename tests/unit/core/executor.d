@@ -3,6 +3,7 @@ module tests.unit.core.executor;
 import std.stdio;
 import std.algorithm;
 import std.array;
+<<<<<<< Updated upstream
 import std.conv;
 import std.parallelism;
 import std.datetime.stopwatch;
@@ -17,6 +18,10 @@ import core.graph.graph;
 import core.caching.cache;
 import core.execution.executor;
 import config.schema.schema;
+=======
+import core.graph;
+import config.schema;
+>>>>>>> Stashed changes
 import tests.harness;
 import tests.fixtures;
 import tests.mocks;
@@ -26,6 +31,7 @@ unittest
     writeln("\x1b[36m[TEST]\x1b[0m core.executor - Simple sequential execution");
     
     auto graph = new BuildGraph();
+<<<<<<< Updated upstream
     auto workspace = new WorkspaceConfig();
     workspace.root = ".";
     
@@ -39,6 +45,40 @@ unittest
     
     // This is a basic smoke test - actual execution requires language handlers
     writeln("\x1b[32m  ✓ Sequential execution setup works\x1b[0m");
+=======
+    
+    // Create independent targets that can build in parallel
+    auto target1 = TargetBuilder.create("parallel-1")
+        .withType(TargetType.Library)
+        .withSources(["p1.d"])
+        .build();
+    target1.language = TargetLanguage.D;
+    
+    auto target2 = TargetBuilder.create("parallel-2")
+        .withType(TargetType.Library)
+        .withSources(["p2.d"])
+        .build();
+    target2.language = TargetLanguage.D;
+    
+    auto target3 = TargetBuilder.create("parallel-3")
+        .withType(TargetType.Library)
+        .withSources(["p3.d"])
+        .build();
+    target3.language = TargetLanguage.D;
+    
+    graph.addTarget(target1);
+    graph.addTarget(target2);
+    graph.addTarget(target3);
+    
+    // All targets are independent, should be built in parallel
+    auto readyNodes = graph.getReadyNodes();
+    Assert.equal(readyNodes.length, 3);
+    
+    // Verify all can be marked as ready simultaneously
+    Assert.isTrue(readyNodes.all!(n => n.isReady()));
+    
+    writeln("\x1b[32m  ✓ Parallel execution readiness verified\x1b[0m");
+>>>>>>> Stashed changes
 }
 
 unittest
@@ -47,6 +87,7 @@ unittest
     
     auto graph = new BuildGraph();
     
+<<<<<<< Updated upstream
     // Create independent targets that can run in parallel
     foreach (i; 0 .. 5)
     {
@@ -60,6 +101,30 @@ unittest
     Assert.equal(ready.length, 5, "All independent nodes should be ready");
     
     writeln("\x1b[32m  ✓ Parallel ready node detection works\x1b[0m");
+=======
+    // Create chain where failure should stop execution
+    auto lib = TargetBuilder.create("lib")
+        .withType(TargetType.Library)
+        .build();
+    
+    auto app = TargetBuilder.create("app")
+        .withType(TargetType.Executable)
+        .build();
+    
+    graph.addTarget(lib);
+    graph.addTarget(app);
+    graph.addDependency("app", "lib");
+    
+    // Simulate lib failing
+    graph.nodes["lib"].status = BuildStatus.Failed;
+    
+    // App should not be ready due to failed dependency
+    auto readyNodes = graph.getReadyNodes();
+    Assert.isFalse(readyNodes.canFind!(n => n.id == "app"));
+    Assert.isFalse(graph.nodes["app"].isReady());
+    
+    writeln("\x1b[32m  ✓ Fail-fast behavior verified\x1b[0m");
+>>>>>>> Stashed changes
 }
 
 unittest
@@ -68,6 +133,7 @@ unittest
     
     auto graph = new BuildGraph();
     
+<<<<<<< Updated upstream
     auto lib = TargetBuilder.create("lib").build();
     auto app = TargetBuilder.create("app").build();
     
@@ -92,6 +158,57 @@ unittest
     Assert.equal(ready3[0].id, "app");
     
     writeln("\x1b[32m  ✓ Dependency ordering enforced correctly\x1b[0m");
+=======
+    // Create dependency tree with distinct waves:
+    // Wave 0: lib1, lib2 (depth 0)
+    // Wave 1: middleware (depth 1)
+    // Wave 2: app (depth 2)
+    
+    auto lib1 = TargetBuilder.create("lib1").build();
+    auto lib2 = TargetBuilder.create("lib2").build();
+    auto middleware = TargetBuilder.create("middleware").build();
+    auto app = TargetBuilder.create("app").build();
+    
+    graph.addTarget(lib1);
+    graph.addTarget(lib2);
+    graph.addTarget(middleware);
+    graph.addTarget(app);
+    
+    graph.addDependency("middleware", "lib1");
+    graph.addDependency("middleware", "lib2");
+    graph.addDependency("app", "middleware");
+    
+    // Verify depth-based waves
+    Assert.equal(graph.nodes["lib1"].depth(), 0);
+    Assert.equal(graph.nodes["lib2"].depth(), 0);
+    Assert.equal(graph.nodes["middleware"].depth(), 1);
+    Assert.equal(graph.nodes["app"].depth(), 2);
+    
+    // Wave 0: lib1 and lib2 should be ready
+    auto wave0 = graph.getReadyNodes();
+    Assert.equal(wave0.length, 2);
+    Assert.isTrue(wave0.canFind!(n => n.id == "lib1"));
+    Assert.isTrue(wave0.canFind!(n => n.id == "lib2"));
+    
+    // Complete wave 0
+    graph.nodes["lib1"].status = BuildStatus.Success;
+    graph.nodes["lib2"].status = BuildStatus.Success;
+    
+    // Wave 1: middleware should be ready
+    auto wave1 = graph.getReadyNodes();
+    Assert.equal(wave1.length, 1);
+    Assert.equal(wave1[0].id, "middleware");
+    
+    // Complete wave 1
+    graph.nodes["middleware"].status = BuildStatus.Success;
+    
+    // Wave 2: app should be ready
+    auto wave2 = graph.getReadyNodes();
+    Assert.equal(wave2.length, 1);
+    Assert.equal(wave2[0].id, "app");
+    
+    writeln("\x1b[32m  ✓ Wave-based scheduling verified\x1b[0m");
+>>>>>>> Stashed changes
 }
 
 // ==================== CONCURRENT EXECUTION TESTS ====================

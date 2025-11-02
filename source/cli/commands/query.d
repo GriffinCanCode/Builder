@@ -105,7 +105,7 @@ struct Query
 }
 
 /// Parse a query expression
-Result!(Query, string) parseQuery(string expr) @safe
+Result!(Query, string) parseQuery(string expr) @system
 {
     expr = expr.strip();
     
@@ -146,7 +146,7 @@ Result!(Query, string) parseQuery(string expr) @safe
 }
 
 /// Parse deps(expr) or deps(expr, depth)
-Result!(Query, string) parseDepsQuery(string args) @safe
+Result!(Query, string) parseDepsQuery(string args) @system
 {
     auto parts = splitArgs(args);
     if (parts.length == 0)
@@ -175,7 +175,7 @@ Result!(Query, string) parseDepsQuery(string args) @safe
 }
 
 /// Parse rdeps(expr)
-Result!(Query, string) parseRdepsQuery(string args) @safe
+Result!(Query, string) parseRdepsQuery(string args) @system
 {
     auto innerResult = parseQuery(args.strip());
     if (innerResult.isErr)
@@ -190,7 +190,7 @@ Result!(Query, string) parseRdepsQuery(string args) @safe
 }
 
 /// Parse allpaths(from, to)
-Result!(Query, string) parseAllPathsQuery(string args) @safe
+Result!(Query, string) parseAllPathsQuery(string args) @system
 {
     auto parts = splitArgs(args);
     if (parts.length != 2)
@@ -203,7 +203,7 @@ Result!(Query, string) parseAllPathsQuery(string args) @safe
 }
 
 /// Parse kind(type, expr)
-Result!(Query, string) parseKindQuery(string args) @safe
+Result!(Query, string) parseKindQuery(string args) @system
 {
     auto parts = splitArgs(args);
     if (parts.length != 2)
@@ -223,7 +223,7 @@ Result!(Query, string) parseKindQuery(string args) @safe
 }
 
 /// Parse attr(name, value, expr)
-Result!(Query, string) parseAttrQuery(string args) @safe
+Result!(Query, string) parseAttrQuery(string args) @system
 {
     auto parts = splitArgs(args);
     if (parts.length != 3)
@@ -243,7 +243,7 @@ Result!(Query, string) parseAttrQuery(string args) @safe
 }
 
 /// Split function arguments by comma (respecting nested parentheses)
-string[] splitArgs(string args) @safe
+string[] splitArgs(string args) @system
 {
     string[] result;
     string current;
@@ -318,7 +318,7 @@ BuildNode[] matchTargets(string pattern, BuildGraph graph) @trusted
         string pathPrefix = pattern[0 .. $ - 3];  // Remove "..."
         foreach (node; graph.nodes.values)
         {
-            if (node.id.startsWith(pathPrefix))
+            if (node.idString.startsWith(pathPrefix))
                 results ~= node;
         }
     }
@@ -328,7 +328,7 @@ BuildNode[] matchTargets(string pattern, BuildGraph graph) @trusted
         string pathPrefix = pattern[0 .. $ - 1];  // Remove "*", keep ":"
         foreach (node; graph.nodes.values)
         {
-            if (node.id.startsWith(pathPrefix))
+            if (node.idString.startsWith(pathPrefix))
                 results ~= node;
         }
     }
@@ -498,7 +498,7 @@ BuildNode[] filterByAttr(BuildNode[] targets, string attrName, string attrValue)
 }
 
 /// Display query results
-void displayResults(BuildNode[] results, Query query) @safe
+void displayResults(BuildNode[] results, Query query) @system
 {
     if (results.empty)
     {

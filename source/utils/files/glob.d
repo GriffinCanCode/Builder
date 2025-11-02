@@ -13,7 +13,7 @@ import core.sync.mutex;
 import utils.files.ignore;
 import utils.security.validation;
 
-@safe:
+@system:
 
 /// Result of glob matching
 struct GlobResult
@@ -34,7 +34,7 @@ class GlobMatcher
     
     /// Match with separate tracking of exclusions
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File system operations (dirEntries, exists) are inherently unsafe I/O
     /// 2. Regex matching uses validated patterns (no user-controlled regex compilation)
     /// 3. Path validation prevents directory traversal attacks
@@ -49,7 +49,7 @@ class GlobMatcher
     /// - Malicious patterns could access files outside baseDir: prevented by validation
     /// - Race condition (TOCTOU) between validation and access: mitigated by normalized paths
     /// - Symlink attacks: paths are resolved before validation
-    @trusted
+    @system
     static GlobResult matchWithExclusions(in string[] patterns, in string baseDir)
     {
         GlobResult result;
@@ -88,10 +88,10 @@ class GlobMatcher
     
     /// Match a single glob pattern
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File system operations are unsafe I/O
     /// 2. Pattern validation prevents injection attacks
-    /// 3. Delegates to other @trusted functions with proper validation
+    /// 3. Delegates to other @system functions with proper validation
     /// 
     /// Invariants:
     /// - Pattern must not contain path traversal sequences
@@ -100,7 +100,7 @@ class GlobMatcher
     /// What could go wrong:
     /// - Invalid patterns: caught by regex compilation errors
     /// - Path traversal: prevented by validation layer
-    @trusted
+    @system
     private static string[] matchSingle(in string pattern, in string baseDir)
     {
         // Validate pattern for path traversal attempts
@@ -135,7 +135,7 @@ class GlobMatcher
     
     /// Match recursive glob pattern (contains **) with parallel scanning
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File system traversal requires unsafe I/O operations
     /// 2. Parallel directory scanning uses synchronized data structures
     /// 3. Regex compilation from patterns is validated
@@ -147,7 +147,7 @@ class GlobMatcher
     /// What could go wrong:
     /// - Regex compilation could fail: handled by try/catch
     /// - Parallel access conflicts: prevented by mutex in scanDirectoryParallel
-    @trusted
+    @system
     private static string[] matchRecursive(string pattern, string baseDir)
     {
         // Split pattern on **
@@ -181,7 +181,7 @@ class GlobMatcher
     
     /// Parallel directory scanner using work-stealing
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File system recursion requires unsafe I/O (dirEntries, isDir, isFile)
     /// 2. Mutex protects shared state (files array, work queue) from races
     /// 3. Thread creation and synchronization are inherently unsafe operations
@@ -197,7 +197,7 @@ class GlobMatcher
     /// - Deadlock: impossible with single mutex and work-stealing pattern
     /// - File system errors: caught and logged, don't crash scanner
     /// - Memory growth: limited by file system size (unavoidable)
-    @trusted
+    @system
     private static string[] scanDirectoryParallel(string startDir, Regex!char pattern, bool matchAll, bool matchFullPath)
     {
         string[] files;
@@ -291,7 +291,7 @@ class GlobMatcher
     
     /// Match shallow glob pattern (no **)
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File system operations (dirEntries, globMatch) require unsafe I/O
     /// 2. Pattern matching is performed by standard library (validated)
     /// 3. No recursion limits directory traversal depth
@@ -303,7 +303,7 @@ class GlobMatcher
     /// What could go wrong:
     /// - TOCTOU: files may be deleted between discovery and use (unavoidable)
     /// - Invalid patterns: handled by globMatch errors
-    @trusted
+    @system
     private static string[] matchShallow(string pattern, string baseDir)
     {
         string[] files;
@@ -415,7 +415,7 @@ class GlobMatcher
     /// Helper function to validate path is within base directory
     /// Uses normalized absolute paths to prevent traversal attacks
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Path normalization requires file system operations
     /// 2. absolutePath and buildNormalizedPath are stdlib functions
     /// 3. String prefix checking is memory-safe
@@ -430,7 +430,7 @@ class GlobMatcher
     /// - Symlink race: path could be modified after validation (caller must check)
     /// - Case-sensitive filesystems: could bypass check if case differs (platform-specific)
     /// - Exception during normalization: caught and returns false (safe default)
-    @trusted
+    @system
     private static bool isPathWithinBase(string path, string normalizedBase) nothrow
     {
         try

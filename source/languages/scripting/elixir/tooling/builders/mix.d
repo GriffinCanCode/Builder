@@ -31,7 +31,7 @@ class MixProjectBuilder : ElixirBuilder
         in ElixirConfig config,
         in Target target,
         in WorkspaceConfig workspace
-    ) @trusted
+    ) @system
     {
         ElixirBuildResult result;
         
@@ -237,19 +237,19 @@ class MixProjectBuilder : ElixirBuilder
         return result;
     }
     
-    override bool isAvailable() @trusted
+    override bool isAvailable() @system
     {
         auto res = execute(["mix", "--version"]);
         return res.status == 0;
     }
     
-    override string name() const @safe pure nothrow
+    override string name() const @system pure nothrow
     {
         return "Mix Project";
     }
     
     /// Parse compiler warnings from output
-    private string[] parseCompilerWarnings(string output) @trusted
+    private string[] parseCompilerWarnings(string output) @system
     {
         string[] warnings;
         
@@ -270,7 +270,7 @@ class MixProjectBuilder : ElixirBuilder
     }
     
     /// Convert MixEnv to string
-    private string envToString(MixEnv env) @safe pure nothrow
+    private string envToString(MixEnv env) @system pure nothrow
     {
         final switch (env)
         {

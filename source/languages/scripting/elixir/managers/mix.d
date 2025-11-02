@@ -27,9 +27,9 @@ class MixProjectParser
 {
     /// Parse mix.exs file
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. File I/O (exists, isFile, readText) is inherently @system
-    /// 2. Regex matching is memory-safe (std.regex is @safe)
+    /// 2. Regex matching is memory-safe (std.regex is @system)
     /// 3. Exception handling converts failures to invalid result
     /// 4. Path validation via exists() and isFile()
     /// 
@@ -44,7 +44,7 @@ class MixProjectParser
     /// - Not a regular file: checked with isFile()
     /// - Read fails: caught by exception handler
     /// - Malformed mix.exs: regex won't match, returns partial/invalid info (safe)
-    static MixProjectInfo parse(string mixExsPath) @trusted
+    static MixProjectInfo parse(string mixExsPath) @system
     {
         MixProjectInfo info;
         
@@ -118,7 +118,7 @@ class MixRunner
     
     /// Run mix task
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. execute() runs external processes (inherently @system)
     /// 2. Command arguments are validated by Mix tool itself
     /// 3. Uses array form of execute (no shell interpretation)
@@ -135,7 +135,7 @@ class MixRunner
     /// - Invalid task: Mix reports error, returns non-zero status
     /// - Invalid workDir: execute() fails with exception
     /// - Command execution fails: reflected in return status (safe)
-    auto runTask(string task, string[] args = [], string[string] env = null) @trusted
+    auto runTask(string task, string[] args = [], string[string] env = null) @system
     {
         string[] cmd = [mixCmd, task] ~ args;
         

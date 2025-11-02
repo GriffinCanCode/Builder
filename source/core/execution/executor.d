@@ -212,7 +212,7 @@ final class BuildExecutor
     }
     
     /// Estimate build cost for a node (for critical path calculation)
-    private size_t estimateBuildCost(BuildNode node) @safe
+    private size_t estimateBuildCost(BuildNode node) @system
     {
         // Heuristic: base cost + source file count * weight
         enum size_t BASE_COST = 100;  // Base cost in arbitrary units
@@ -255,7 +255,7 @@ final class BuildExecutor
         catch (Exception e)
         {
             string[string] fields;
-            fields["target.id"] = node.id;
+            fields["target.id"] = node.idString;
             fields["error"] = e.msg;
             structuredLogger.exception(e, "Build failed in work-stealing scheduler");
             atomicOp!"+="(failedTasks, 1);
@@ -401,7 +401,7 @@ final class BuildExecutor
             {
                 if (!readyQueue.enqueue(node))
                 {
-                    Logger.error("Failed to enqueue initial node: " ~ node.id);
+                    Logger.error("Failed to enqueue initial node: " ~ node.idString);
                 }
             }
         }
@@ -448,7 +448,7 @@ final class BuildExecutor
             
             // Use slice of actual batch (avoid processing empty slots)
             auto batch = currentBatch[0 .. batchSize];
-            Logger.debugLog("Building batch: " ~ batch.map!(n => n.id).join(", "));
+            Logger.debugLog("Building batch: " ~ batch.map!(n => n.idString).join(", "));
             
             atomicOp!"+="(activeTasks, cast(size_t)batchSize);
             
@@ -467,7 +467,7 @@ final class BuildExecutor
                             // All dependencies satisfied, enqueue for building
                             if (!readyQueue.enqueue(dependent))
                             {
-                                Logger.error("Failed to enqueue dependent: " ~ dependent.id);
+                                Logger.error("Failed to enqueue dependent: " ~ dependent.idString);
                             }
                         }
                     }
@@ -505,7 +505,7 @@ final class BuildExecutor
                 {
                     node.status = BuildStatus.Failed;
                     atomicOp!"+="(failedTasks, cast(size_t)1);
-                    Logger.error("Failed to build " ~ node.id ~ ": " ~ result.error);
+                    Logger.error("Failed to build " ~ node.idString ~ ": " ~ result.error);
                 }
             }
             
@@ -601,7 +601,7 @@ final class BuildExecutor
     }
     
     /// Format size in human-readable format
-    private static string formatSize(in size_t bytes) pure @safe
+    private static string formatSize(in size_t bytes) pure @system
     {
         import std.format : format;
         
@@ -622,15 +622,15 @@ final class BuildExecutor
         auto targetSpan = tracer.startSpan("build-target", SpanKind.Internal);
         scope(exit) tracer.finishSpan(targetSpan);
         
-        targetSpan.setAttribute("target.id", node.id);
+        targetSpan.setAttribute("target.id", node.idString);
         targetSpan.setAttribute("target.language", node.target.language.to!string);
         targetSpan.setAttribute("target.type", node.target.type.to!string);
         
         // Set thread-local logging context
-        auto logContext = ScopedLogContext(node.id);
+        auto logContext = ScopedLogContext(node.idString);
         
         BuildResult result;
-        result.targetId = node.id;
+        result.targetId = node.id.toString();
         auto nodeTimer = StopWatch(AutoStart.yes);
         
         try
@@ -648,17 +648,17 @@ final class BuildExecutor
                 {
                     auto sorted = sortedResult.unwrap();
                     auto index = sorted.countUntil(node) + 1;
-                    auto event = new TargetStartedEvent(node.id, index, sorted.length, nodeTimer.peek());
+                    auto event = new TargetStartedEvent(node.idString, index, sorted.length, nodeTimer.peek());
                     eventPublisher.publish(event);
                 }
             }
             
             auto target = node.target;
-            auto deps = node.dependencies.map!(d => d.id).array;
+            auto deps = node.dependencies.map!(d => d.id).array;  // Get TargetId[] from dependencies
             
-            // Check cache with span
+            // Check cache with span (using TargetId)
             auto cacheSpan = tracer.startSpan("cache-check", SpanKind.Internal, targetSpan);
-            bool isCached = cache.isCached(node.id, target.sources, deps);
+            bool isCached = cache.isCached(node.id.toString(), target.sources, deps.map!(d => d.toString()).array);
             cacheSpan.setAttribute("cache.hit", isCached.to!string);
             tracer.finishSpan(cacheSpan);
             
@@ -677,7 +677,7 @@ final class BuildExecutor
                 // Publish cached event
                 if (eventPublisher !is null)
                 {
-                    auto event = new TargetCachedEvent(node.id, nodeTimer.peek());
+                    auto event = new TargetCachedEvent(node.idString, nodeTimer.peek());
                     eventPublisher.publish(event);
                 }
                 
@@ -692,7 +692,7 @@ final class BuildExecutor
                 import errors.types.context : ErrorSuggestion;
                 
                 auto error = ErrorBuilder!BuildFailureError.create(
-                    node.id,
+                    node.idString,
                     "No language handler found for: " ~ target.language.to!string,
                     ErrorCode.HandlerNotFound
                 )
@@ -734,9 +734,9 @@ final class BuildExecutor
             if (enableRetries)
             {
                 // Wrap build in retry logic
-                auto policy = retryOrchestrator.policyFor(new BuildFailureError(node.id, ""));
+                auto policy = retryOrchestrator.policyFor(new BuildFailureError(node.idString, ""));
                 buildResult = retryOrchestrator.withRetry(
-                    node.id,
+                    node.idString,
                     () {
                         immutable attempt = node.retryAttempts;
                         if (attempt > 0)
@@ -767,9 +767,9 @@ final class BuildExecutor
             {
                 auto outputHash = buildResult.unwrap();
                 
-                // Update cache with span
+                // Update cache with span (using TargetId)
                 auto cacheUpdateSpan = tracer.startSpan("cache-update", SpanKind.Internal, targetSpan);
-                cache.update(node.id, target.sources, deps, outputHash);
+                cache.update(node.id.toString(), target.sources, deps.map!(d => d.toString()).array, outputHash);
                 tracer.finishSpan(cacheUpdateSpan);
                 
                 targetSpan.setStatus(SpanStatus.Ok);
@@ -790,7 +790,7 @@ final class BuildExecutor
                 if (eventPublisher !is null)
                 {
                     nodeTimer.stop();
-                    auto event = new TargetCompletedEvent(node.id, nodeTimer.peek(), 0, nodeTimer.peek());
+                    auto event = new TargetCompletedEvent(node.idString, nodeTimer.peek(), 0, nodeTimer.peek());
                     eventPublisher.publish(event);
                 }
             }
@@ -811,7 +811,7 @@ final class BuildExecutor
                 if (eventPublisher !is null)
                 {
                     nodeTimer.stop();
-                    auto event = new TargetFailedEvent(node.id, error.message(), nodeTimer.peek(), nodeTimer.peek());
+                    auto event = new TargetFailedEvent(node.idString, error.message(), nodeTimer.peek(), nodeTimer.peek());
                     eventPublisher.publish(event);
                 }
             }
@@ -821,7 +821,7 @@ final class BuildExecutor
             // Use builder pattern with typed suggestions
             import errors.types.context : ErrorSuggestion;
             
-            auto error = ErrorBuilder!BuildFailureError.create(node.id, "Build failed with exception: " ~ e.msg)
+            auto error = ErrorBuilder!BuildFailureError.create(node.idString, "Build failed with exception: " ~ e.msg)
                 .withContext("building node", "exception caught")
                 .withSuggestion("Check the error message above for specific details")
                 .withCommand("Run with verbose output", "builder build --verbose")
@@ -839,7 +839,7 @@ final class BuildExecutor
             if (eventPublisher !is null)
             {
                 nodeTimer.stop();
-                auto event = new TargetFailedEvent(node.id, error.message(), nodeTimer.peek(), nodeTimer.peek());
+                auto event = new TargetFailedEvent(node.idString, error.message(), nodeTimer.peek(), nodeTimer.peek());
                 eventPublisher.publish(event);
             }
         }

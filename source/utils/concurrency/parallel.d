@@ -11,7 +11,7 @@ import utils.concurrency.balancer;
 import utils.concurrency.priority;
 import utils.concurrency.pool;
 
-@safe:
+@system:
 
 /// Execution mode for parallel operations
 enum ExecutionMode
@@ -48,8 +48,8 @@ struct ExecutionStats
 struct ParallelExecutor
 {
     /// Execute a function on items in parallel (simple mode - backward compatible)
-    @trusted
-    static R[] execute(T, R)(T[] items, R delegate(T) @safe func, size_t maxParallelism)
+    @system
+    static R[] execute(T, R)(T[] items, R delegate(T) @system func, size_t maxParallelism)
     {
         if (items.empty)
             return [];
@@ -71,14 +71,14 @@ struct ParallelExecutor
     }
     
     /// Execute with automatic parallelism based on CPU count (backward compatible)
-    static R[] executeAuto(T, R)(T[] items, R delegate(T) @safe func)
+    static R[] executeAuto(T, R)(T[] items, R delegate(T) @system func)
     {
         return execute(items, func, totalCPUs);
     }
     
     /// Execute with advanced configuration (work-stealing, load balancing, priorities)
-    @trusted
-    static R[] executeAdvanced(T, R)(T[] items, R delegate(T) @safe func, ParallelConfig config)
+    @system
+    static R[] executeAdvanced(T, R)(T[] items, R delegate(T) @system func, ParallelConfig config)
     {
         if (items.empty)
             return [];
@@ -106,8 +106,8 @@ struct ParallelExecutor
     }
     
     /// Execute with work-stealing scheduler
-    @trusted
-    private static R[] executeWorkStealing(T, R)(T[] items, R delegate(T) @safe func, 
+    @system
+    private static R[] executeWorkStealing(T, R)(T[] items, R delegate(T) @system func, 
                                                   size_t workerCount, ParallelConfig config)
     {
         R[] results;
@@ -117,7 +117,7 @@ struct ParallelExecutor
         
         auto scheduler = new WorkStealingScheduler!size_t(
             workerCount,
-            (size_t idx) @trusted {
+            (size_t idx) @system {
                 results[idx] = func(items[idx]);
             }
         );
@@ -133,8 +133,8 @@ struct ParallelExecutor
     }
     
     /// Execute with dynamic load balancing
-    @trusted
-    private static R[] executeLoadBalanced(T, R)(T[] items, R delegate(T) @safe func,
+    @system
+    private static R[] executeLoadBalanced(T, R)(T[] items, R delegate(T) @system func,
                                                   size_t workerCount, ParallelConfig config)
     {
         R[] results;
@@ -143,7 +143,7 @@ struct ParallelExecutor
         auto balancer = new LoadBalancer(workerCount, config.balanceStrategy);
         auto scheduler = new WorkStealingScheduler!size_t(
             workerCount,
-            (size_t idx) @trusted {
+            (size_t idx) @system {
                 results[idx] = func(items[idx]);
             }
         );
@@ -162,8 +162,8 @@ struct ParallelExecutor
     }
     
     /// Execute with priority-based scheduling
-    @trusted
-    private static R[] executePriority(T, R)(T[] items, R delegate(T) @safe func,
+    @system
+    private static R[] executePriority(T, R)(T[] items, R delegate(T) @system func,
                                              size_t workerCount, ParallelConfig config)
     {
         R[] results;
@@ -171,7 +171,7 @@ struct ParallelExecutor
         
         auto scheduler = new WorkStealingScheduler!size_t(
             workerCount,
-            (size_t idx) @trusted {
+            (size_t idx) @system {
                 results[idx] = func(items[idx]);
             }
         );
@@ -191,8 +191,8 @@ struct ParallelExecutor
     }
     
     /// Execute with detailed statistics collection
-    @trusted
-    static ExecutionStats executeWithStats(T, R)(T[] items, R delegate(T) @safe func, 
+    @system
+    static ExecutionStats executeWithStats(T, R)(T[] items, R delegate(T) @system func, 
                                                   out R[] results, ParallelConfig config)
     {
         ExecutionStats stats;
@@ -209,7 +209,7 @@ struct ParallelExecutor
         
         auto scheduler = new WorkStealingScheduler!size_t(
             workerCount,
-            (size_t idx) @trusted {
+            (size_t idx) @system {
                 results[idx] = func(items[idx]);
             }
         );
@@ -240,7 +240,7 @@ struct ParallelExecutor
     }
     
     /// Parallel map with work stealing (convenience function)
-    static R[] mapWorkStealing(T, R)(T[] items, R delegate(T) @safe func, 
+    static R[] mapWorkStealing(T, R)(T[] items, R delegate(T) @system func, 
                                      size_t maxParallelism = 0)
     {
         ParallelConfig config;
@@ -250,7 +250,7 @@ struct ParallelExecutor
     }
     
     /// Parallel map with load balancing (convenience function)
-    static R[] mapLoadBalanced(T, R)(T[] items, R delegate(T) @safe func,
+    static R[] mapLoadBalanced(T, R)(T[] items, R delegate(T) @system func,
                                      size_t maxParallelism = 0)
     {
         ParallelConfig config;
@@ -260,7 +260,7 @@ struct ParallelExecutor
     }
     
     /// Parallel map with priority scheduling (convenience function)
-    static R[] mapPriority(T, R)(T[] items, R delegate(T) @safe func,
+    static R[] mapPriority(T, R)(T[] items, R delegate(T) @system func,
                                  Priority priority = Priority.Normal,
                                  size_t maxParallelism = 0)
     {

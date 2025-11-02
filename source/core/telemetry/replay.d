@@ -67,7 +67,7 @@ struct FileSnapshot
     SysTime modifiedTime;
     
     /// Create snapshot from file
-    static FileSnapshot capture(string path) @trusted
+    static FileSnapshot capture(string path) @system
     {
         import std.file : getSize, timeLastModified;
         import utils.files.hash : FastHash;
@@ -106,7 +106,7 @@ final class BuildRecorder
     private BuildRecording currentRecording;
     private bool recording;
     
-    this(string recordingsDir = ".builder-cache/recordings") @safe
+    this(string recordingsDir = ".builder-cache/recordings") @system
     {
         this.recordingsDir = recordingsDir;
         this.recorderMutex = new Mutex();
@@ -114,7 +114,7 @@ final class BuildRecorder
     }
     
     /// Start recording a build
-    void startRecording(string[] args) @trusted
+    void startRecording(string[] args) @system
     {
         import std.process : environment;
         import std.file : getcwd;
@@ -139,7 +139,7 @@ final class BuildRecorder
     }
     
     /// Record target execution
-    void recordExecution(TargetExecution execution) @trusted
+    void recordExecution(TargetExecution execution) @system
     {
         synchronized (recorderMutex)
         {
@@ -151,7 +151,7 @@ final class BuildRecorder
     }
     
     /// Record input file
-    void recordInput(string path) @trusted
+    void recordInput(string path) @system
     {
         synchronized (recorderMutex)
         {
@@ -164,7 +164,7 @@ final class BuildRecorder
     }
     
     /// Record output file
-    void recordOutput(string path) @trusted
+    void recordOutput(string path) @system
     {
         synchronized (recorderMutex)
         {
@@ -177,7 +177,7 @@ final class BuildRecorder
     }
     
     /// Set build session
-    void setSession(BuildSession session) @trusted
+    void setSession(BuildSession session) @system
     {
         synchronized (recorderMutex)
         {
@@ -189,7 +189,7 @@ final class BuildRecorder
     }
     
     /// Add metadata
-    void addMetadata(string key, string value) @trusted
+    void addMetadata(string key, string value) @system
     {
         synchronized (recorderMutex)
         {
@@ -201,7 +201,7 @@ final class BuildRecorder
     }
     
     /// Stop recording and save
-    Result!(string, ReplayError) stopRecording() @trusted
+    Result!(string, ReplayError) stopRecording() @system
     {
         synchronized (recorderMutex)
         {
@@ -223,7 +223,7 @@ final class BuildRecorder
     }
     
     /// Load recording
-    static Result!(BuildRecording, ReplayError) loadRecording(string recordingId, string recordingsDir = ".builder-cache/recordings") @trusted
+    static Result!(BuildRecording, ReplayError) loadRecording(string recordingId, string recordingsDir = ".builder-cache/recordings") @system
     {
         immutable filepath = buildPath(recordingsDir, recordingId ~ ".json");
         
@@ -293,7 +293,7 @@ final class BuildRecorder
         }
     }
     
-    private static Result!ReplayError saveRecording(BuildRecording recording, string filepath) @trusted
+    private static Result!ReplayError saveRecording(BuildRecording recording, string filepath) @system
     {
         try
         {
@@ -377,13 +377,13 @@ final class ReplayEngine
 {
     private string recordingsDir;
     
-    this(string recordingsDir = ".builder-cache/recordings") @safe
+    this(string recordingsDir = ".builder-cache/recordings") @system
     {
         this.recordingsDir = recordingsDir;
     }
     
     /// Replay a recorded build
-    Result!(ReplayResult, ReplayError) replay(string recordingId) @trusted
+    Result!(ReplayResult, ReplayError) replay(string recordingId) @system
     {
         // Load recording
         auto recordingResult = BuildRecorder.loadRecording(recordingId, recordingsDir);
@@ -446,7 +446,7 @@ final class ReplayEngine
     }
     
     /// List all recordings
-    Result!(RecordingInfo[], ReplayError) listRecordings() @trusted
+    Result!(RecordingInfo[], ReplayError) listRecordings() @system
     {
         import std.file : dirEntries, DirEntry, SpanMode;
         import std.algorithm : endsWith;
@@ -532,37 +532,37 @@ struct ReplayError
     string message;
     ErrorCode code;
     
-    static ReplayError notRecording() pure @safe
+    static ReplayError notRecording() pure @system
     {
         return ReplayError("Not currently recording", ErrorCode.InternalError);
     }
     
-    static ReplayError recordingNotFound(string id) pure @safe
+    static ReplayError recordingNotFound(string id) pure @system
     {
         return ReplayError("Recording not found: " ~ id, ErrorCode.FileNotFound);
     }
     
-    static ReplayError loadFailed(string details) pure @safe
+    static ReplayError loadFailed(string details) pure @system
     {
         return ReplayError("Failed to load recording: " ~ details, ErrorCode.FileReadFailed);
     }
     
-    static ReplayError saveFailed(string details) pure @safe
+    static ReplayError saveFailed(string details) pure @system
     {
         return ReplayError("Failed to save recording: " ~ details, ErrorCode.FileWriteFailed);
     }
     
-    static ReplayError replayFailed(string details) pure @safe
+    static ReplayError replayFailed(string details) pure @system
     {
         return ReplayError("Replay failed: " ~ details, ErrorCode.InternalError);
     }
     
-    static ReplayError listFailed(string details) pure @safe
+    static ReplayError listFailed(string details) pure @system
     {
         return ReplayError("Failed to list recordings: " ~ details, ErrorCode.FileReadFailed);
     }
     
-    string toString() const pure nothrow @safe
+    string toString() const pure nothrow @system
     {
         return message;
     }
@@ -572,7 +572,7 @@ struct ReplayError
 private BuildRecorder globalRecorder;
 
 /// Get global build recorder
-BuildRecorder getRecorder() @trusted
+BuildRecorder getRecorder() @system
 {
     if (globalRecorder is null)
     {
@@ -582,7 +582,7 @@ BuildRecorder getRecorder() @trusted
 }
 
 /// Set custom recorder
-void setRecorder(BuildRecorder recorder) @trusted
+void setRecorder(BuildRecorder recorder) @system
 {
     globalRecorder = recorder;
 }

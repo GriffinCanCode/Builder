@@ -33,6 +33,7 @@ module errors;
 
 public import errors.handling.result;
 public import errors.handling.codes;
+public import errors.handling.extensions;
 public import errors.types.types;
 public import errors.types.context;
 public import errors.formatting.format;

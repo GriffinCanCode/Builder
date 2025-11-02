@@ -7,7 +7,7 @@ import std.range;
 import std.math;
 import utils.concurrency.priority;
 
-@safe:
+@system:
 
 /// Load balancing strategy for work distribution
 enum BalanceStrategy
@@ -63,7 +63,7 @@ final class LoadBalancer
     private enum float HIGH_LOAD_THRESHOLD = 0.8;  // 80% utilization
     
     /// Initialize with worker count and strategy
-    @trusted
+    @system
     this(size_t workerCount, BalanceStrategy strategy = BalanceStrategy.Adaptive)
     {
         this.workerCount = workerCount;
@@ -80,7 +80,7 @@ final class LoadBalancer
     }
     
     /// Select worker for new task assignment
-    @trusted
+    @system
     size_t selectWorker(PriorityTask!int task = null)
     {
         final switch (strategy)
@@ -104,7 +104,7 @@ final class LoadBalancer
     
     /// Select victim worker for work stealing
     /// Returns: Worker ID with most work, or -1 if none suitable
-    @trusted
+    @system
     long selectVictim(size_t thiefId)
     {
         synchronized (metricsMutex)
@@ -129,7 +129,7 @@ final class LoadBalancer
     }
     
     /// Check if system is imbalanced and needs rebalancing
-    @trusted
+    @system
     bool needsRebalancing()
     {
         if (workerCount < 2)
@@ -156,7 +156,7 @@ final class LoadBalancer
     }
     
     /// Update metrics for a worker
-    @trusted
+    @system
     void updateMetrics(size_t workerId, LoadMetrics metrics)
     {
         if (workerId >= workerCount)
@@ -169,7 +169,7 @@ final class LoadBalancer
     }
     
     /// Get current metrics for a worker
-    @trusted
+    @system
     LoadMetrics getMetrics(size_t workerId) const
     {
         if (workerId >= workerCount)
@@ -192,7 +192,7 @@ final class LoadBalancer
         float loadImbalance;
     }
     
-    @trusted
+    @system
     AggregateMetrics getAggregateMetrics() const
     {
         synchronized (metricsMutex)
@@ -230,14 +230,14 @@ final class LoadBalancer
     
     /// Strategy implementations
     
-    private size_t selectRoundRobin() @trusted
+    private size_t selectRoundRobin() @system
     {
         immutable id = atomicLoad(nextWorker);
         atomicStore(nextWorker, (id + 1) % workerCount);
         return id;
     }
     
-    private size_t selectLeastLoaded() @trusted
+    private size_t selectLeastLoaded() @system
     {
         synchronized (metricsMutex)
         {
@@ -259,14 +259,14 @@ final class LoadBalancer
         }
     }
     
-    private size_t selectForWorkStealing() @trusted
+    private size_t selectForWorkStealing() @system
     {
         // For work-stealing, prefer round-robin to distribute initially
         // Workers will steal as needed
         return selectRoundRobin();
     }
     
-    private size_t selectForCriticalPath(PriorityTask!int task) @trusted
+    private size_t selectForCriticalPath(PriorityTask!int task) @system
     {
         // Critical path tasks go to least loaded worker
         // Regular tasks use round-robin
@@ -276,7 +276,7 @@ final class LoadBalancer
         return selectRoundRobin();
     }
     
-    private size_t selectAdaptive(PriorityTask!int task) @trusted
+    private size_t selectAdaptive(PriorityTask!int task) @system
     {
         // Adaptive strategy based on current system state
         auto agg = getAggregateMetrics();
@@ -295,7 +295,7 @@ final class LoadBalancer
 }
 
 /// Calculate work imbalance coefficient (0 = perfect, higher = more imbalanced)
-float calculateImbalance(size_t[] workloads) pure nothrow @safe
+float calculateImbalance(size_t[] workloads) pure nothrow @system
 {
     if (workloads.length < 2)
         return 0.0;
@@ -325,7 +325,7 @@ struct WorkPartition
 }
 
 WorkPartition[] partitionWork(T)(T[] tasks, size_t workerCount, 
-                                  size_t delegate(T) @safe getCost) @safe
+                                  size_t delegate(T) @system getCost) @system
 {
     if (tasks.empty || workerCount == 0)
         return [];

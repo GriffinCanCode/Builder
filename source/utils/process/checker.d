@@ -16,7 +16,7 @@ class ToolChecker
     ///   command = The command name to check (e.g., "node", "python3", "gcc")
     ///   useCache = Whether to use cached results (default: true)
     /// Returns: true if the command is available, false otherwise
-    static bool isAvailable(string command, bool useCache = true) @trusted
+    static bool isAvailable(string command, bool useCache = true) @system
     {
         if (command.empty)
             return false;
@@ -39,7 +39,7 @@ class ToolChecker
     ///   commands = Array of command names to check
     ///   useCache = Whether to use cached results (default: true)
     /// Returns: true if at least one command is available, false otherwise
-    static bool isAnyAvailable(string[] commands, bool useCache = true) @trusted
+    static bool isAnyAvailable(string[] commands, bool useCache = true) @system
     {
         return commands.any!(cmd => isAvailable(cmd, useCache));
     }
@@ -49,7 +49,7 @@ class ToolChecker
     ///   commands = Array of command names to check
     ///   useCache = Whether to use cached results (default: true)
     /// Returns: true if all commands are available, false otherwise
-    static bool areAllAvailable(string[] commands, bool useCache = true) @trusted
+    static bool areAllAvailable(string[] commands, bool useCache = true) @system
     {
         return commands.all!(cmd => isAvailable(cmd, useCache));
     }
@@ -59,7 +59,7 @@ class ToolChecker
     ///   commands = Array of command names to check in order
     ///   useCache = Whether to use cached results (default: true)
     /// Returns: The first available command, or empty string if none available
-    static string findFirstAvailable(string[] commands, bool useCache = true) @trusted
+    static string findFirstAvailable(string[] commands, bool useCache = true) @system
     {
         foreach (cmd; commands)
         {
@@ -71,7 +71,7 @@ class ToolChecker
     
     /// Clear the availability cache
     /// Useful if system PATH changes during execution
-    static void clearCache() @safe
+    static void clearCache() @system
     {
         availabilityCache.clear();
     }
@@ -80,7 +80,7 @@ class ToolChecker
     /// Params:
     ///   command = The command to check
     /// Returns: The version string, or empty if unavailable or no version found
-    static string getVersion(string command) @trusted
+    static string getVersion(string command) @system
     {
         if (!isAvailable(command))
             return "";
@@ -110,7 +110,7 @@ class ToolChecker
         return "";
     }
     
-    private static bool checkCommandAvailability(string command) @trusted
+    private static bool checkCommandAvailability(string command) @system
     {
         version(Windows)
         {
@@ -127,14 +127,14 @@ class ToolChecker
 
 /// Convenience function for checking if a command is available
 /// This is a shorthand for ToolChecker.isAvailable(command)
-bool isCommandAvailable(string command) @trusted
+bool isCommandAvailable(string command) @system
 {
     return ToolChecker.isAvailable(command);
 }
 
 /// Convenience function for finding the first available command
 /// This is a shorthand for ToolChecker.findFirstAvailable(commands)
-string findFirstAvailableCommand(string[] commands) @trusted
+string findFirstAvailableCommand(string[] commands) @system
 {
     return ToolChecker.findFirstAvailable(commands);
 }

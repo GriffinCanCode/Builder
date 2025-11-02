@@ -82,19 +82,19 @@ abstract class BaseBuildError : BuildError
     }
     
     /// Add context to error chain
-    void addContext(ErrorContext ctx) @safe
+    void addContext(ErrorContext ctx) @system
     {
         _contexts ~= ctx;
     }
     
     /// Add a strongly-typed suggestion
-    void addSuggestion(ErrorSuggestion suggestion) @safe
+    void addSuggestion(ErrorSuggestion suggestion) @system
     {
         _suggestions ~= suggestion;
     }
     
     /// Add a string suggestion (converted to General type for backward compatibility)
-    void addSuggestion(string suggestion) @safe
+    void addSuggestion(string suggestion) @system
     {
         _suggestions ~= ErrorSuggestion(suggestion);
     }
@@ -118,7 +118,7 @@ class BuildFailureError : BaseBuildError
     string targetId;
     string[] failedDeps;
     
-    this(string targetId, string message, ErrorCode code = ErrorCode.BuildFailed) @safe
+    this(string targetId, string message, ErrorCode code = ErrorCode.BuildFailed) @system
     {
         super(code, message);
         this.targetId = targetId;
@@ -177,7 +177,7 @@ class AnalysisError : BaseBuildError
     string[] unresolvedImports;
     string[] cyclePath;
     
-    this(string targetName, string message, ErrorCode code = ErrorCode.AnalysisFailed) @safe
+    this(string targetName, string message, ErrorCode code = ErrorCode.AnalysisFailed) @system
     {
         super(code, message);
         this.targetName = targetName;
@@ -203,7 +203,7 @@ class CacheError : BaseBuildError
 {
     string cachePath;
     
-    this(string message, ErrorCode code = ErrorCode.CacheLoadFailed) @safe
+    this(string message, ErrorCode code = ErrorCode.CacheLoadFailed) @system
     {
         super(code, message);
     }
@@ -224,7 +224,7 @@ class IOError : BaseBuildError
 {
     string path;
     
-    this(string path, string message, ErrorCode code = ErrorCode.FileNotFound) @safe
+    this(string path, string message, ErrorCode code = ErrorCode.FileNotFound) @system
     {
         super(code, message);
         this.path = path;
@@ -243,7 +243,7 @@ class GraphError : BaseBuildError
 {
     string[] nodePath;
     
-    this(string message, ErrorCode code = ErrorCode.GraphInvalid) @safe
+    this(string message, ErrorCode code = ErrorCode.GraphInvalid) @system
     {
         super(code, message);
     }
@@ -465,7 +465,7 @@ InternalError internalError(string message)
 /// Smart error constructors with built-in suggestions
 
 /// Create a file not found error with helpful suggestions
-IOError fileNotFoundError(string path, string context = "") @safe
+IOError fileNotFoundError(string path, string context = "") @system
 {
     auto error = new IOError(path, "File not found: " ~ path, ErrorCode.FileNotFound);
     
@@ -499,7 +499,7 @@ IOError fileNotFoundError(string path, string context = "") @safe
 }
 
 /// Create a file read error with helpful suggestions
-IOError fileReadError(string path, string errorMsg, string context = "") @safe
+IOError fileReadError(string path, string errorMsg, string context = "") @system
 {
     auto error = new IOError(path, "Failed to read file: " ~ errorMsg, ErrorCode.FileReadFailed);
     
@@ -515,7 +515,7 @@ IOError fileReadError(string path, string errorMsg, string context = "") @safe
 }
 
 /// Create a parse error with helpful suggestions
-ParseError parseErrorWithContext(string filePath, string message, size_t line = 0, string context = "") @safe
+ParseError parseErrorWithContext(string filePath, string message, size_t line = 0, string context = "") @system
 {
     auto error = new ParseError(filePath, message, ErrorCode.ParseFailed);
     error.line = line;
@@ -548,7 +548,7 @@ ParseError parseErrorWithContext(string filePath, string message, size_t line = 
 }
 
 /// Create a build failure error with helpful suggestions
-BuildFailureError buildFailureError(string targetId, string message, string[] failedDeps = null) @safe
+BuildFailureError buildFailureError(string targetId, string message, string[] failedDeps = null) @system
 {
     auto error = new BuildFailureError(targetId, message);
     
@@ -565,7 +565,7 @@ BuildFailureError buildFailureError(string targetId, string message, string[] fa
 }
 
 /// Create a target not found error with helpful suggestions
-AnalysisError targetNotFoundError(string targetName) @safe
+AnalysisError targetNotFoundError(string targetName) @system
 {
     auto error = new AnalysisError(targetName, "Target not found: " ~ targetName, ErrorCode.TargetNotFound);
     
@@ -579,7 +579,7 @@ AnalysisError targetNotFoundError(string targetName) @safe
 }
 
 /// Create a cache error with helpful suggestions
-CacheError cacheLoadError(string cachePath, string message) @safe
+CacheError cacheLoadError(string cachePath, string message) @system
 {
     auto error = new CacheError("Cache load failed: " ~ message, ErrorCode.CacheLoadFailed);
     error.cachePath = cachePath;
@@ -588,6 +588,105 @@ CacheError cacheLoadError(string cachePath, string message) @safe
     error.addSuggestion(ErrorSuggestion.fileCheck("Cache may be from incompatible version"));
     error.addSuggestion(ErrorSuggestion.command("Check cache permissions", "ls -la .builder-cache/"));
     error.addSuggestion(ErrorSuggestion.fileCheck("Check available disk space"));
+    
+    return error;
+}
+
+/// Create a circular dependency error with helpful suggestions
+GraphError circularDependencyError(string[] cycle) @system
+{
+    auto cycleStr = cycle.join(" -> ");
+    auto error = new GraphError("Circular dependency detected: " ~ cycleStr, ErrorCode.GraphCycle);
+    error.nodePath = cycle;
+    
+    error.addSuggestion(ErrorSuggestion.fileCheck("Break the circular dependency by removing one of the links"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Refactor code to eliminate the cycle"));
+    error.addSuggestion(ErrorSuggestion.command("View full dependency graph", "builder graph"));
+    error.addSuggestion(ErrorSuggestion.docs("See dependency management guide", "docs/architecture/ARCHITECTURE.md"));
+    
+    return error;
+}
+
+/// Create a compilation error with helpful suggestions
+LanguageError compilationError(string language, string filePath, string message, string compilerOutput = "") @system
+{
+    auto error = new LanguageError(language, "Compilation failed: " ~ message, ErrorCode.CompilationFailed);
+    error.filePath = filePath;
+    error.compilerOutput = compilerOutput;
+    
+    error.addSuggestion(ErrorSuggestion.fileCheck("Review compiler output above for specific errors"));
+    error.addSuggestion(ErrorSuggestion.command("Build with verbose output", "builder build --verbose"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Check syntax in " ~ filePath));
+    error.addSuggestion(ErrorSuggestion.docs("See " ~ language ~ " documentation", "docs/user-guides/EXAMPLES.md"));
+    
+    return error;
+}
+
+/// Create a missing dependency error with helpful suggestions
+AnalysisError missingDependencyError(string targetName, string missingDep) @system
+{
+    auto error = new AnalysisError(targetName, 
+        "Missing dependency: " ~ missingDep, ErrorCode.MissingDependency);
+    error.unresolvedImports ~= missingDep;
+    
+    error.addSuggestion(ErrorSuggestion.fileCheck("Add '" ~ missingDep ~ "' to the deps list of target '" ~ targetName ~ "'"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Check if '" ~ missingDep ~ "' target exists in Builderfile"));
+    error.addSuggestion(ErrorSuggestion.command("List all available targets", "builder list"));
+    error.addSuggestion(ErrorSuggestion.command("View dependency graph", "builder graph"));
+    
+    return error;
+}
+
+/// Create a process execution error with helpful suggestions
+SystemError processExecutionError(string command, int exitCode, string message = "") @system
+{
+    auto fullMessage = message.empty ? 
+        "Process execution failed with exit code " ~ exitCode.to!string : message;
+    
+    auto error = new SystemError(fullMessage, ErrorCode.ProcessSpawnFailed);
+    error.command = command;
+    error.exitCode = exitCode;
+    
+    error.addSuggestion(ErrorSuggestion.command("Check if command exists", "which " ~ command.split()[0]));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Verify command permissions and PATH"));
+    error.addSuggestion(ErrorSuggestion.command("Run command manually to debug", command));
+    
+    if (exitCode == 127)
+    {
+        error.addSuggestion(ErrorSuggestion.fileCheck("Command not found - install required tool"));
+    }
+    else if (exitCode == 126)
+    {
+        error.addSuggestion(ErrorSuggestion.fileCheck("Permission denied - check file permissions"));
+    }
+    
+    return error;
+}
+
+/// Create an invalid configuration error with helpful suggestions
+ParseError invalidConfigError(string filePath, string fieldName, string message) @system
+{
+    auto fullMessage = "Invalid configuration in '" ~ fieldName ~ "': " ~ message;
+    auto error = new ParseError(filePath, fullMessage, ErrorCode.InvalidFieldValue);
+    
+    error.addSuggestion(ErrorSuggestion.fileCheck("Check the '" ~ fieldName ~ "' field in " ~ filePath));
+    error.addSuggestion(ErrorSuggestion.docs("See configuration syntax", "docs/user-guides/EXAMPLES.md"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Verify field type and format"));
+    error.addSuggestion(ErrorSuggestion.command("Validate configuration", "builder check"));
+    
+    return error;
+}
+
+/// Create a language handler not found error with helpful suggestions
+BuildFailureError handlerNotFoundError(string language) @system
+{
+    auto error = new BuildFailureError("", 
+        "No handler found for language: " ~ language, ErrorCode.UnsupportedLanguage);
+    
+    error.addSuggestion(ErrorSuggestion.fileCheck("Check if language '" ~ language ~ "' is supported"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Verify 'language' field spelling in Builderfile"));
+    error.addSuggestion(ErrorSuggestion.docs("See supported languages", "docs/user-guides/EXAMPLES.md"));
+    error.addSuggestion(ErrorSuggestion.config("Use 'language: generic' for custom build scripts"));
     
     return error;
 }

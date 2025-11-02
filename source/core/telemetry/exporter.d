@@ -12,7 +12,7 @@ import errors;
 struct TelemetryExporter
 {
     /// Export sessions as JSON
-    static Result!(string, TelemetryError) toJson(BuildSession[] sessions) @safe
+    static Result!(string, TelemetryError) toJson(BuildSession[] sessions) @system
     {
         try
         {
@@ -41,7 +41,7 @@ struct TelemetryExporter
     }
     
     /// Export analytics report as JSON
-    static Result!(string, TelemetryError) reportToJson(AnalyticsReport report) pure @safe
+    static Result!(string, TelemetryError) reportToJson(AnalyticsReport report) pure @system
     {
         try
         {
@@ -82,7 +82,7 @@ struct TelemetryExporter
     }
     
     /// Export sessions as CSV
-    static Result!(string, TelemetryError) toCsv(BuildSession[] sessions) @safe
+    static Result!(string, TelemetryError) toCsv(BuildSession[] sessions) @system
     {
         try
         {
@@ -120,7 +120,7 @@ struct TelemetryExporter
     }
     
     /// Export human-readable summary
-    static Result!(string, TelemetryError) toSummary(AnalyticsReport report) pure @safe
+    static Result!(string, TelemetryError) toSummary(AnalyticsReport report) pure @system
     {
         try
         {
@@ -175,7 +175,7 @@ struct TelemetryExporter
         }
     }
     
-    private static string sessionToJson(ref const BuildSession session, int indent) @safe
+    private static string sessionToJson(ref const BuildSession session, int indent) @system
     {
         auto buffer = appender!string;
         immutable spaces = " ".replicate(indent);

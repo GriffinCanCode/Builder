@@ -5,7 +5,7 @@ import std.algorithm;
 import std.range;
 import core.atomic;
 
-@safe:
+@system:
 
 /// Interned string with O(1) equality comparison
 /// 
@@ -34,7 +34,7 @@ struct Intern
     private size_t _length;
     private hash_t _hash;  // Cached hash for O(1) hashing
     
-    private this(string s) pure nothrow @nogc @trusted
+    private this(string s) pure nothrow @nogc @system
     {
         _ptr = s.ptr;
         _length = s.length;
@@ -42,7 +42,7 @@ struct Intern
     }
     
     /// Get string representation
-    string toString() const pure nothrow @nogc @trusted
+    string toString() const pure nothrow @nogc @system
     {
         if (_ptr is null)
             return "";
@@ -88,7 +88,7 @@ struct Intern
     }
     
     /// Comparison for sorting
-    int opCmp(const Intern other) const pure nothrow @nogc @trusted
+    int opCmp(const Intern other) const pure nothrow @nogc @system
     {
         import core.stdc.string : memcmp;
         
@@ -146,7 +146,7 @@ final class StringPool
     private shared size_t totalInterns;
     
     /// Intern a string (thread-safe)
-    Intern intern(string s) @trusted
+    Intern intern(string s) @system
     {
         // Fast path: check if already interned (lock-free read)
         if (auto existing = s in pool)
@@ -173,7 +173,7 @@ final class StringPool
     }
     
     /// Get statistics
-    InternStats getStats() const @trusted
+    InternStats getStats() const @system
     {
         synchronized(cast()this)
         {
@@ -190,7 +190,7 @@ final class StringPool
     }
     
     /// Clear the pool (use with caution - invalidates existing Intern references)
-    void clear() @trusted
+    void clear() @system
     {
         synchronized(this)
         {
@@ -200,7 +200,7 @@ final class StringPool
     }
     
     /// Get pool size
-    @property size_t size() const @trusted
+    @property size_t size() const @system
     {
         synchronized(cast()this)
         {
@@ -213,7 +213,7 @@ final class StringPool
 private StringPool _threadLocalPool;
 
 /// Get thread-local string pool
-StringPool threadLocalPool() @trusted nothrow
+StringPool threadLocalPool() @system nothrow
 {
     if (_threadLocalPool is null)
         _threadLocalPool = new StringPool();
@@ -221,7 +221,7 @@ StringPool threadLocalPool() @trusted nothrow
 }
 
 /// Convenience function: intern a string using thread-local pool
-Intern intern(string s) @trusted
+Intern intern(string s) @system
 {
     return threadLocalPool().intern(s);
 }
@@ -234,7 +234,7 @@ struct DomainPools
     private StringPool targetPool;
     private StringPool importPool;
     
-    this(int dummy) @safe
+    this(int dummy) @system
     {
         pathPool = new StringPool();
         targetPool = new StringPool();
@@ -242,25 +242,25 @@ struct DomainPools
     }
     
     /// Intern a file path
-    Intern internPath(string path) @safe
+    Intern internPath(string path) @system
     {
         return pathPool.intern(path);
     }
     
     /// Intern a target name
-    Intern internTarget(string target) @safe
+    Intern internTarget(string target) @system
     {
         return targetPool.intern(target);
     }
     
     /// Intern an import statement
-    Intern internImport(string importStmt) @safe
+    Intern internImport(string importStmt) @system
     {
         return importPool.intern(importStmt);
     }
     
     /// Get combined statistics
-    InternStats getCombinedStats() const @safe
+    InternStats getCombinedStats() const @system
     {
         auto pathStats = pathPool.getStats();
         auto targetStats = targetPool.getStats();
@@ -281,7 +281,7 @@ struct DomainPools
     }
     
     /// Clear all pools
-    void clearAll() @safe
+    void clearAll() @system
     {
         pathPool.clear();
         targetPool.clear();
@@ -374,7 +374,7 @@ unittest
     assert(stats.uniqueStrings == 2);
 }
 
-@trusted unittest
+@system unittest
 {
     import std.parallelism : parallel, task, Task;
     import std.range : iota;

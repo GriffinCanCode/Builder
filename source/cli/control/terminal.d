@@ -121,7 +121,7 @@ struct Capabilities
     
     /// Detect terminal width using ioctl or environment variable
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. ioctl() is system call (inherently @system)
     /// 2. Takes pointer to stack-allocated winsize struct (safe)
     /// 3. TIOCGWINSZ is read-only query (no side effects)
@@ -138,7 +138,7 @@ struct Capabilities
     /// - ioctl fails: returns -1, we use fallback (safe)
     /// - Not a terminal: ioctl fails, we use fallback
     /// - Invalid COLUMNS env var: caught by exception, uses default
-    private static ushort detectWidth() @trusted
+    private static ushort detectWidth() @system
     {
         version(Posix)
         {
@@ -168,7 +168,7 @@ struct Capabilities
     
     /// Detect terminal height using ioctl or environment variable
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. ioctl() is system call (inherently @system)
     /// 2. Takes pointer to stack-allocated winsize struct (safe)
     /// 3. TIOCGWINSZ is read-only query (no side effects)
@@ -185,7 +185,7 @@ struct Capabilities
     /// - ioctl fails: returns -1, we use fallback (safe)
     /// - Not a terminal: ioctl fails, we use fallback
     /// - Invalid LINES env var: caught by exception, uses default
-    private static ushort detectHeight() @trusted
+    private static ushort detectHeight() @system
     {
         version(Posix)
         {
@@ -259,7 +259,7 @@ struct ANSI
     static string clearToBottom() { return ESC ~ "J"; }
     
     /// Get reset sequence
-    static string reset() @trusted { return RESET; }
+    static string reset() @system { return RESET; }
 }
 
 /// Terminal writer with buffering for performance

@@ -271,7 +271,7 @@ class GoHandler : BaseLanguageHandler
         }
     }
     
-    override Import[] analyzeImports(in string[] sources) @trusted
+    override Import[] analyzeImports(in string[] sources) @system
     {
         auto spec = getLanguageSpec(TargetLanguage.Go);
         if (spec is null)

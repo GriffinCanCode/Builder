@@ -37,7 +37,7 @@ interface VersionManager
 final class VersionManagerFactory
 {
     /// Create version manager based on configuration
-    static VersionManager create(RubyVersionManager type, string projectRoot = ".") @safe
+    static VersionManager create(RubyVersionManager type, string projectRoot = ".") @system
     {
         final switch (type)
         {
@@ -58,7 +58,7 @@ final class VersionManagerFactory
     }
     
     /// Detect best available version manager
-    static VersionManager detectBest(string projectRoot) @safe
+    static VersionManager detectBest(string projectRoot) @system
     {
         // Priority order: rbenv > chruby > rvm > asdf > system
         
@@ -144,7 +144,7 @@ final class RbenvManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".") @safe pure nothrow @nogc
+    this(string projectRoot = ".") @system pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -216,7 +216,7 @@ final class RbenvManager : VersionManager
     
     /// Check if rbenv is available
     /// 
-    /// Safety: This function is @trusted because:
+    /// Safety: This function is @system because:
     /// 1. Executes external command (rbenv --version)
     /// 2. Uses array form of execute (no shell injection)
     /// 3. Read-only operation (just checks availability)
@@ -230,7 +230,7 @@ final class RbenvManager : VersionManager
     /// What could go wrong:
     /// - rbenv not in PATH: execute throws, caught, returns false
     /// - Permission denied: caught, returns false
-    override bool isAvailable() @trusted
+    override bool isAvailable() @system
     {
         try
         {
@@ -278,7 +278,7 @@ final class RVMManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".") @safe pure nothrow @nogc
+    this(string projectRoot = ".") @system pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -367,8 +367,8 @@ final class RVMManager : VersionManager
     
     /// Check if RVM is available
     /// 
-    /// Safety: @trusted because: Executes bash with source command (requires shell), uses exception handling for safe default
-    override bool isAvailable() @trusted
+    /// Safety: @system because: Executes bash with source command (requires shell), uses exception handling for safe default
+    override bool isAvailable() @system
     {
         try
         {
@@ -444,7 +444,7 @@ final class ChrubyManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".") @safe pure nothrow @nogc
+    this(string projectRoot = ".") @system pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -531,8 +531,8 @@ final class ChrubyManager : VersionManager
     
     /// Check if chruby is available
     /// 
-    /// Safety: @trusted because: Checks file existence in known paths (file I/O), expandTilde() is system call
-    override bool isAvailable() @trusted
+    /// Safety: @system because: Checks file existence in known paths (file I/O), expandTilde() is system call
+    override bool isAvailable() @system
     {
         // chruby is just a shell function, check if script exists
         return exists("/usr/local/share/chruby/chruby.sh") ||
@@ -551,7 +551,7 @@ final class ASDFManager : VersionManager
 {
     private string projectRoot;
     
-    this(string projectRoot = ".") @safe pure nothrow @nogc
+    this(string projectRoot = ".") @system pure nothrow @nogc
     {
         this.projectRoot = projectRoot;
     }
@@ -619,8 +619,8 @@ final class ASDFManager : VersionManager
     
     /// Check if ASDF is available
     /// 
-    /// Safety: @trusted because: Executes asdf command (process execution), exception handling provides safe default
-    override bool isAvailable() @trusted
+    /// Safety: @system because: Executes asdf command (process execution), exception handling provides safe default
+    override bool isAvailable() @system
     {
         try
         {
@@ -715,7 +715,7 @@ final class SystemRubyManager : VersionManager
 final class RubyVersionUtil
 {
     /// Parse .ruby-version file
-    static string parseVersionFile(string filePath) @safe
+    static string parseVersionFile(string filePath) @system
     {
         if (!exists(filePath))
             return "";
@@ -746,7 +746,7 @@ final class RubyVersionUtil
     }
     
     /// Write .ruby-version file
-    static bool writeVersionFile(string filePath, string version_) @safe
+    static bool writeVersionFile(string filePath, string version_) @system
     {
         try
         {
@@ -761,7 +761,7 @@ final class RubyVersionUtil
     }
     
     /// Compare versions
-    static int compareVersions(string v1, string v2) @safe
+    static int compareVersions(string v1, string v2) @system
     {
         immutable parts1 = v1.split(".").map!(to!int).array;
         immutable parts2 = v2.split(".").map!(to!int).array;
@@ -785,7 +785,7 @@ final class RubyVersionUtil
     }
     
     /// Check if version satisfies requirement
-    static bool satisfiesRequirement(string version_, string requirement) @safe
+    static bool satisfiesRequirement(string version_, string requirement) @system
     {
         // Simple version matching
         // Supports: "3.3", "3.3.0", ">= 3.0", "~> 3.3"
@@ -826,7 +826,7 @@ final class RubyVersionUtil
     }
     
     /// Get Ruby version from executable
-    static string getRubyVersion(string rubyCmd = "ruby") @safe
+    static string getRubyVersion(string rubyCmd = "ruby") @system
     {
         const res = execute([rubyCmd, "--version"]);
         if (res.status == 0)
