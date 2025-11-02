@@ -1,0 +1,51 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Refined black and red gradient background -->
+  <defs>
+    <linearGradient id="bg-ignore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#1a0a0a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#330000;stop-opacity:1" />
+    </linearGradient>
+    <!-- Enhanced shadow effect -->
+    <filter id="shadow-ignore" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.2"/>
+      <feOffset dx="0" dy="1.5" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.4"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Slash shadow -->
+    <filter id="slash-shadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="32" height="32" rx="6" fill="url(#bg-ignore)"/>
+  
+  <!-- Building blocks stacked with improved spacing and shadows -->
+  <g transform="translate(6, 6)" filter="url(#shadow-ignore)">
+    <!-- Top block -->
+    <rect x="8" y="0" width="12" height="5" rx="1.2" fill="#D32F2F"/>
+    
+    <!-- Middle left block -->
+    <rect x="0" y="7" width="8" height="5" rx="1.2" fill="#C62828" opacity="0.95"/>
+    
+    <!-- Middle right block -->
+    <rect x="10" y="7" width="10" height="5" rx="1.2" fill="#C62828" opacity="0.95"/>
+    
+    <!-- Bottom block -->
+    <rect x="4" y="14" width="16" height="6" rx="1.2" fill="#D32F2F"/>
+  </g>
+  
+  <!-- Diagonal slash to indicate "ignore" -->
+  <line x1="26" y1="6" x2="6" y2="26" stroke="#000000" stroke-width="2.8" stroke-linecap="round" filter="url(#slash-shadow)" opacity="1.0"/>
+  
+  <!-- Inner border for definition -->
+  <rect x="0.5" y="0.5" width="31" height="31" rx="5.5" fill="none" stroke="#FF5252" stroke-width="0.5" opacity="0.15"/>
+</svg>
+

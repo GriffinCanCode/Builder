@@ -5,11 +5,15 @@
     },
     "builderspace": {
       "iconPath": "../icons/file-icon.svg"
+    },
+    "builderignore": {
+      "iconPath": "../icons/builderignore-icon.svg"
     }
   },
   "fileNames": {
     "Builderfile": "builderfile",
-    "Builderspace": "builderspace"
+    "Builderspace": "builderspace",
+    ".builderignore": "builderignore"
   },
   "file": "file"
 }
