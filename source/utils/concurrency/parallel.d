@@ -11,7 +11,6 @@ import utils.concurrency.balancer;
 import utils.concurrency.priority;
 import utils.concurrency.pool;
 
-@system:
 
 /// Execution mode for parallel operations
 enum ExecutionMode

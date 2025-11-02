@@ -10,8 +10,6 @@ import std.conv;
 import std.mmfile;
 import std.bitmanip;
 
-@system:
-
 /// Fast hashing utilities with intelligent size-tiered strategy
 /// Uses SIMD-accelerated BLAKE3 for 3-5x speedup over SHA-256
 /// Automatically selects optimal SIMD path (AVX-512/AVX2/NEON/SSE)

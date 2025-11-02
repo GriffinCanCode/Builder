@@ -22,7 +22,13 @@
             "targetType": "executable",
             "targetName": "builder",
             "mainSourceFile": "source/app.d",
-            "excludedSourceFiles": ["source/lsp/main.d"]
+            "excludedSourceFiles": ["source/lsp/main.d"],
+            "sourceFiles": [
+                "bin/obj/blake3.o",
+                "bin/obj/blake3_dispatch.o",
+                "bin/obj/simd_ops.o",
+                "bin/obj/cpu_detect.o"
+            ]
         },
         {
             "name": "lsp",

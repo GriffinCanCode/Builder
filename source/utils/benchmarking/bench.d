@@ -13,8 +13,6 @@ import utils.files.metadata;
 import utils.files.chunking;
 import utils.files.glob;
 
-@system:
-
 /// Performance benchmarking utilities
 struct Benchmark
 {

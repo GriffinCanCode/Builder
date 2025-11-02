@@ -10,8 +10,6 @@ import std.bitmanip : nativeToBigEndian, bigEndianToNative;
 import utils.crypto.blake3;
 import utils.simd.ops;
 
-@system:
-
 /// Content-defined chunking for incremental hashing
 /// Uses Rabin fingerprinting to identify chunk boundaries
 /// Similar to rsync and git's approach

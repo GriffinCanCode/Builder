@@ -13,8 +13,6 @@ import core.sync.mutex;
 import utils.files.ignore;
 import utils.security.validation;
 
-@system:
-
 /// Result of glob matching
 struct GlobResult
 {

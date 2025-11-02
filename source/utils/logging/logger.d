@@ -4,8 +4,6 @@ import std.stdio;
 import std.datetime;
 import std.conv;
 
-@system:
-
 /// Simple logging utility with colors
 class Logger
 {

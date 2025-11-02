@@ -1,6 +1,6 @@
 # Builder Makefile
 
-.PHONY: all build build-lsp test tests examples clean install install-lsp help tsan test-tsan extension
+.PHONY: all build build-lsp lsp test tests examples clean install install-lsp help tsan test-tsan extension
 
 all: build
 
@@ -13,6 +13,9 @@ build:
 build-lsp:
 	@echo "Building Builder LSP server..."
 	@dub build --config=lsp --build=release
+
+# Alias for build-lsp
+lsp: build-lsp
 
 # Build both builder and LSP server
 build-all: build build-lsp
@@ -147,6 +150,7 @@ help:
 	@echo "Targets:"
 	@echo "  make build             - Build release version"
 	@echo "  make build-lsp         - Build LSP server"
+	@echo "  make lsp               - Alias for build-lsp"
 	@echo "  make build-all         - Build both builder and LSP server"
 	@echo "  make debug             - Build debug version"
 	@echo "  make test              - Run tests (basic)"

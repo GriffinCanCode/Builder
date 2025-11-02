@@ -7,7 +7,6 @@ import std.range;
 import std.math;
 import utils.concurrency.priority;
 
-@system:
 
 /// Load balancing strategy for work distribution
 enum BalanceStrategy

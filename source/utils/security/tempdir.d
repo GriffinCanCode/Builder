@@ -6,20 +6,25 @@ import std.random;
 import std.conv;
 import std.algorithm;
 import std.range;
+import errors;
 
-@system:
 
 /// Atomic temporary directory creation (prevents TOCTOU attacks)
 /// Automatically cleaned up on scope exit
 struct AtomicTempDir
 {
     private string path;
-    private bool _exists;
+    private bool _shouldCleanup;  // Only the owner cleans up
     
-    @disable this(this); // Prevent copying
+    // Copying transfers to non-owning copy (original still owns)
+    // This allows Result to work but prevents double-cleanup
+    this(this) @system pure nothrow @nogc
+    {
+        _shouldCleanup = false; // Copy doesn't cleanup, original does
+    }
     
     /// Create atomic temporary directory with random name
-    /// Throws: Exception if creation fails after retries
+    /// Returns: Result with AtomicTempDir or BuildError
     /// 
     /// Safety: This function is @system because:
     /// 1. tempDir() is file system operation (inherently unsafe I/O)
@@ -34,10 +39,10 @@ struct AtomicTempDir
     /// - Multiple retries handle race conditions
     /// 
     /// What could go wrong:
-    /// - All retries exhausted: throws exception (safe failure)
+    /// - All retries exhausted: returns error (safe failure)
     /// - Permission denied: caught and retried with new name
     /// - Race condition: mitigated by atomic mkdir() and retries
-    static AtomicTempDir create(string prefix = "builder-tmp") @system
+    static Result!(AtomicTempDir, BuildError) create(string prefix = "builder-tmp") @system
     {
         AtomicTempDir tmp;
         
@@ -57,8 +62,8 @@ struct AtomicTempDir
                 if (!std.file.exists(tmp.path))
                 {
                     mkdir(tmp.path); // Atomic creation
-                    tmp._exists = true;
-                    return tmp;
+                    tmp._shouldCleanup = true;
+                    return Ok!(AtomicTempDir, BuildError)(tmp);
                 }
             }
             catch (FileException e)
@@ -68,10 +73,19 @@ struct AtomicTempDir
             }
         }
         
-        throw new Exception("Failed to create temporary directory after " ~ maxRetries.to!string ~ " attempts");
+        auto error = new IOError(
+            baseDir,
+            "Failed to create temporary directory after " ~ maxRetries.to!string ~ " attempts"
+        );
+        error.addSuggestion("Check available disk space");
+        error.addSuggestion("Check permissions on temporary directory: " ~ baseDir);
+        error.addCommand("Check disk space", "df -h");
+        error.addCommand("Check temp directory permissions", "ls -la " ~ baseDir);
+        return Err!(AtomicTempDir, BuildError)(error);
     }
     
     /// Create in specific base directory
+    /// Returns: Result with AtomicTempDir or BuildError
     /// 
     /// Safety: This function is @system because:
     /// 1. File system operations (exists, mkdirRecurse, mkdir) are unsafe I/O
@@ -85,14 +99,28 @@ struct AtomicTempDir
     /// - Random suffixes ensure uniqueness
     /// 
     /// What could go wrong:
-    /// - baseDir creation fails: exception propagates (safe failure)
-    /// - All retries exhausted: throws exception with context
-    static AtomicTempDir in_(string baseDir, string prefix = "builder-tmp") @system
+    /// - baseDir creation fails: returns error (safe failure)
+    /// - All retries exhausted: returns error with context
+    static Result!(AtomicTempDir, BuildError) in_(string baseDir, string prefix = "builder-tmp") @system
     {
         AtomicTempDir tmp;
         
-        if (!std.file.exists(baseDir))
-            mkdirRecurse(baseDir);
+        try
+        {
+            if (!std.file.exists(baseDir))
+                mkdirRecurse(baseDir);
+        }
+        catch (FileException e)
+        {
+            auto error = new IOError(
+                baseDir,
+                "Failed to create base directory: " ~ e.msg
+            );
+            error.addSuggestion("Check permissions on parent directory");
+            error.addSuggestion("Check available disk space");
+            error.addCommand("Check directory permissions", "ls -la " ~ dirName(baseDir));
+            return Err!(AtomicTempDir, BuildError)(error);
+        }
         
         immutable maxRetries = 10;
         
@@ -106,8 +134,8 @@ struct AtomicTempDir
                 if (!std.file.exists(tmp.path))
                 {
                     mkdir(tmp.path);
-                    tmp._exists = true;
-                    return tmp;
+                    tmp._shouldCleanup = true;
+                    return Ok!(AtomicTempDir, BuildError)(tmp);
                 }
             }
             catch (FileException)
@@ -116,7 +144,14 @@ struct AtomicTempDir
             }
         }
         
-        throw new Exception("Failed to create temporary directory in " ~ baseDir);
+        auto error = new IOError(
+            baseDir,
+            "Failed to create temporary directory after " ~ maxRetries.to!string ~ " attempts"
+        );
+        error.addSuggestion("Check available disk space in: " ~ baseDir);
+        error.addSuggestion("Check permissions on base directory");
+        error.addCommand("Check disk space", "df -h " ~ baseDir);
+        return Err!(AtomicTempDir, BuildError)(error);
     }
     
     /// Destructor: automatic cleanup
@@ -137,7 +172,7 @@ struct AtomicTempDir
     /// - GC/finalizer context: handled by double exception catching
     ~this() @system nothrow
     {
-        if (_exists && !path.empty)
+        if (_shouldCleanup && !path.empty)
         {
             try
             {
@@ -214,17 +249,17 @@ struct AtomicTempDir
     /// - Directory already removed: exists() check prevents error
     void remove() @system
     {
-        if (_exists && !path.empty && std.file.exists(path))
+        if (_shouldCleanup && !path.empty && std.file.exists(path))
         {
             rmdirRecurse(path);
-            _exists = false;
+            _shouldCleanup = false;
         }
     }
     
     /// Keep directory (prevent automatic cleanup)
     void keep() @system pure nothrow @nogc
     {
-        _exists = false;
+        _shouldCleanup = false;
     }
 }
 
@@ -297,7 +332,9 @@ private string generateSecureRandomSuffix() @system
     
     // Test basic creation and cleanup
     {
-        auto tmp = AtomicTempDir.create("test");
+        auto result = AtomicTempDir.create("test");
+        assert(result.isOk);
+        auto tmp = result.unwrap();
         assert(exists(tmp.get()));
         assert(isDir(tmp.get()));
         auto path = tmp.get();
@@ -310,13 +347,17 @@ private string generateSecureRandomSuffix() @system
     
     // Test custom base directory
     {
-        auto tmp = AtomicTempDir.in_(tempDir(), "custom");
+        auto result = AtomicTempDir.in_(tempDir(), "custom");
+        assert(result.isOk);
+        auto tmp = result.unwrap();
         assert(tmp.get().baseName.startsWith("custom-"));
     }
     
     // Test keep functionality
     {
-        auto tmp = AtomicTempDir.create("keep-test");
+        auto result = AtomicTempDir.create("keep-test");
+        assert(result.isOk);
+        auto tmp = result.unwrap();
         auto path = tmp.get();
         tmp.keep();
         // Destructor won't delete

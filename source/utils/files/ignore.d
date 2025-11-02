@@ -8,8 +8,6 @@ import std.file;
 import std.stdio;
 import config.schema.schema : TargetLanguage;
 
-@system:
-
 /// Language-specific dependency and build directories that should be ignored during scanning
 /// to avoid performance issues and false positives
 struct IgnorePatterns

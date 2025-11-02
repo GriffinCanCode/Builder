@@ -11,7 +11,6 @@ import std.parallelism : totalCPUs;
 import utils.concurrency.deque;
 import utils.concurrency.priority;
 
-@system:
 
 /// Work-stealing scheduler with priority support
 /// Each worker has its own deque for local tasks

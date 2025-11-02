@@ -6,7 +6,6 @@ import std.algorithm;
 import std.bitmanip;
 import utils.crypto.blake3;
 
-@system:
 
 /// BLAKE3-based HMAC for cache integrity validation
 /// Provides cryptographic verification to prevent tampering

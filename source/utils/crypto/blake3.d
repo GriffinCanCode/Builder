@@ -5,8 +5,8 @@ import std.conv;
 import std.string;
 import std.algorithm;
 import std.range;
+import errors.handling.result : Result, Ok, Err;
 
-@system:
 
 /// High-level D wrapper for BLAKE3 hashing
 /// Provides memory-safe, convenient API over the C bindings
@@ -282,32 +282,41 @@ string toHexString(const ubyte[] bytes)
 }
 
 /// Convert hex string to byte array
-ubyte[] fromHexString(string hex)
+/// Returns: Result with byte array or error message
+Result!(ubyte[], string) fromHexString(string hex)
 {
     if (hex.length % 2 != 0)
-        throw new Exception("Invalid hex string length");
+        return Err!(ubyte[], string)("Invalid hex string length: expected even number of characters, got " ~ hex.length.to!string);
     
     auto result = new ubyte[hex.length / 2];
     
     foreach (i; 0 .. result.length)
     {
-        auto hi = hexDigitValue(hex[i * 2]);
-        auto lo = hexDigitValue(hex[i * 2 + 1]);
-        result[i] = cast(ubyte)((hi << 4) | lo);
+        auto hiResult = hexDigitValue(hex[i * 2]);
+        if (hiResult.isErr)
+            return Err!(ubyte[], string)(hiResult.unwrapErr());
+        
+        auto loResult = hexDigitValue(hex[i * 2 + 1]);
+        if (loResult.isErr)
+            return Err!(ubyte[], string)(loResult.unwrapErr());
+        
+        result[i] = cast(ubyte)((hiResult.unwrap() << 4) | loResult.unwrap());
     }
     
-    return result;
+    return Ok!(ubyte[], string)(result);
 }
 
-private ubyte hexDigitValue(char c)
+/// Convert hex digit character to numeric value
+/// Returns: Result with byte value or error message
+private Result!(ubyte, string) hexDigitValue(char c)
 {
     if (c >= '0' && c <= '9')
-        return cast(ubyte)(c - '0');
+        return Ok!(ubyte, string)(cast(ubyte)(c - '0'));
     if (c >= 'a' && c <= 'f')
-        return cast(ubyte)(c - 'a' + 10);
+        return Ok!(ubyte, string)(cast(ubyte)(c - 'a' + 10));
     if (c >= 'A' && c <= 'F')
-        return cast(ubyte)(c - 'A' + 10);
-    throw new Exception("Invalid hex digit: " ~ c);
+        return Ok!(ubyte, string)(cast(ubyte)(c - 'A' + 10));
+    return Err!(ubyte, string)("Invalid hex digit: '" ~ c ~ "' (expected 0-9, a-f, or A-F)");
 }
 
 // Unit tests

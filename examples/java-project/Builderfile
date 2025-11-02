@@ -6,4 +6,3 @@ target("java-app") {
     sources: ["Main.java"];
     output: "java-app";
 }
-

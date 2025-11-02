@@ -5,7 +5,6 @@ import core.sync.mutex;
 import std.algorithm;
 import std.range;
 
-@system:
 
 /// Lock-free SPMC (Single Producer Multiple Consumer) queue using atomic operations
 /// Optimized for the build executor's ready queue pattern

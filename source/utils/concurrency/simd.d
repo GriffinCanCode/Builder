@@ -8,7 +8,6 @@ import utils.simd.ops;
 import utils.concurrency.pool;
 import core.sync.mutex;
 
-@system:
 
 /// Global thread pool for SIMD operations to avoid repeated allocation
 /// Lazily initialized on first use, shared across all mapSIMD calls

@@ -9,7 +9,6 @@ import utils.security.validation;
 import utils.logging.logger;
 import errors;
 
-@system:
 
 /// Redact sensitive information from strings for audit logging
 /// Protects against leaking sensitive paths, tokens, and environment variables in logs

@@ -7,7 +7,6 @@ import std.algorithm;
 import std.array;
 import std.regex;
 
-@system:
 
 /// Security utilities for validating and sanitizing file paths and arguments
 /// Protects against command injection and path traversal attacks

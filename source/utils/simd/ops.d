@@ -1,6 +1,5 @@
 module utils.simd.ops;
 
-@system:
 
 /// SIMD-accelerated memory operations
 /// Automatically selects optimal implementation based on CPU

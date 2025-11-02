@@ -1,6 +1,5 @@
 module utils.simd.hash;
 
-@system:
 
 import utils.simd.ops;
 import std.algorithm : min;

@@ -5,7 +5,6 @@ import std.algorithm;
 import std.range;
 import std.traits;
 
-@system:
 
 /// Lock-free work-stealing deque using Chase-Lev algorithm
 /// Optimized for single-producer (owner) and multiple-consumer (stealers) pattern

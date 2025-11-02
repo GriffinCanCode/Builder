@@ -5,7 +5,6 @@ import std.range;
 import std.traits;
 import core.atomic;
 
-@system:
 
 /// Priority level for task scheduling
 enum Priority : ubyte

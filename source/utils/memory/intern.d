@@ -5,8 +5,6 @@ import std.algorithm;
 import std.range;
 import core.atomic;
 
-@system:
-
 /// Interned string with O(1) equality comparison
 /// 
 /// Design: Flyweight pattern - maintains single copy of each unique string.

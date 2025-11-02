@@ -10,7 +10,6 @@ import std.exception;
 import std.conv : to;
 import std.parallelism : totalCPUs;
 
-@system:
 
 /// Persistent thread pool for reusable parallel execution
 /// Thread-safe: All shared state is protected by mutex or atomic operations

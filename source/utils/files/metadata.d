@@ -14,8 +14,6 @@ version(Posix)
     import core.sys.posix.sys.stat;
 }
 
-@system:
-
 /// Advanced file metadata for high-performance cache validation
 struct FileMetadata
 {
