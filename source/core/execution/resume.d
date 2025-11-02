@@ -242,7 +242,7 @@ final class ResumePlanner
             
             // Check cache validity
             auto target = node.target;
-            auto deps = node.dependencies.map!(d => d.id).array;
+            auto deps = node.dependencyIds;  // Already TargetId[]
             
             if (!cache.isCached(targetId, target.sources, deps.map!(d => d.toString()).array))
                 invalidated ~= targetId;
@@ -273,8 +273,12 @@ final class ResumePlanner
             plan.targetsToRetry ~= node.id.toString();
             
             // Recursively mark dependents
-            foreach (dependent; node.dependents)
-                markRecursive(dependent);
+            foreach (dependentId; node.dependentIds)
+            {
+                auto depKey = dependentId.toString();
+                if (depKey in graph.nodes)
+                    markRecursive(graph.nodes[depKey]);
+            }
         }
         
         // Start from changed targets
@@ -284,8 +288,12 @@ final class ResumePlanner
                 continue;
             
             auto node = graph.nodes[targetId];
-            foreach (dependent; node.dependents)
-                markRecursive(dependent);
+            foreach (dependentId; node.dependentIds)
+            {
+                auto depKey = dependentId.toString();
+                if (depKey in graph.nodes)
+                    markRecursive(graph.nodes[depKey]);
+            }
         }
     }
 }

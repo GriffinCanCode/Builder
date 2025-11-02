@@ -79,8 +79,8 @@ struct AtomicTempDir
         );
         error.addSuggestion("Check available disk space");
         error.addSuggestion("Check permissions on temporary directory: " ~ baseDir);
-        error.addCommand("Check disk space", "df -h");
-        error.addCommand("Check temp directory permissions", "ls -la " ~ baseDir);
+        error.addSuggestion("Check disk space with: df -h");
+        error.addSuggestion("Check temp directory permissions with: ls -la " ~ baseDir);
         return Err!(AtomicTempDir, BuildError)(error);
     }
     
@@ -118,7 +118,7 @@ struct AtomicTempDir
             );
             error.addSuggestion("Check permissions on parent directory");
             error.addSuggestion("Check available disk space");
-            error.addCommand("Check directory permissions", "ls -la " ~ dirName(baseDir));
+            error.addSuggestion("Check directory permissions with: ls -la " ~ dirName(baseDir));
             return Err!(AtomicTempDir, BuildError)(error);
         }
         
@@ -150,7 +150,7 @@ struct AtomicTempDir
         );
         error.addSuggestion("Check available disk space in: " ~ baseDir);
         error.addSuggestion("Check permissions on base directory");
-        error.addCommand("Check disk space", "df -h " ~ baseDir);
+        error.addSuggestion("Check disk space with: df -h " ~ baseDir);
         return Err!(AtomicTempDir, BuildError)(error);
     }
     

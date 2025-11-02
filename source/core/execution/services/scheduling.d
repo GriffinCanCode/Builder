@@ -73,7 +73,7 @@ final class SchedulingService : ISchedulingService
 {
     private ThreadPool threadPool;
     private WorkStealingScheduler!BuildNode workStealingScheduler;
-    private LockFreeQueue!BuildNode readyQueue;
+    private LockFreeQueue!BuildNode* readyQueue;
     private SchedulingMode mode;
     private size_t _workerCount;
     private bool _isActive;
@@ -101,8 +101,8 @@ final class SchedulingService : ISchedulingService
         {
             case SchedulingMode.ThreadPool:
                 threadPool = new ThreadPool(_workerCount);
-                if (readyQueue.ptr is null)
-                    readyQueue = LockFreeQueue!BuildNode(READY_QUEUE_SIZE);
+                if (readyQueue is null)
+                    readyQueue = new LockFreeQueue!BuildNode(READY_QUEUE_SIZE);
                 break;
                 
             case SchedulingMode.WorkStealing:
@@ -115,8 +115,8 @@ final class SchedulingService : ISchedulingService
             case SchedulingMode.Adaptive:
                 // Start with thread pool, can switch to work-stealing later
                 threadPool = new ThreadPool(_workerCount);
-                if (readyQueue.ptr is null)
-                    readyQueue = LockFreeQueue!BuildNode(READY_QUEUE_SIZE);
+                if (readyQueue is null)
+                    readyQueue = new LockFreeQueue!BuildNode(READY_QUEUE_SIZE);
                 break;
         }
         
@@ -134,7 +134,7 @@ final class SchedulingService : ISchedulingService
         {
             case SchedulingMode.ThreadPool:
             case SchedulingMode.Adaptive:
-                if (!readyQueue.enqueue(node))
+                if (readyQueue is null || !readyQueue.enqueue(node))
                     throw new Exception("Failed to enqueue node: " ~ node.idString);
                 break;
                 
@@ -154,6 +154,9 @@ final class SchedulingService : ISchedulingService
         
         foreach (i; 0 .. maxCount)
         {
+            if (readyQueue is null)
+                return batch;
+            
             auto node = readyQueue.tryDequeue();
             if (node is null)
                 break;

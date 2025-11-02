@@ -83,7 +83,7 @@ class DubManifest
             auto error = fileNotFoundError(manifestPath);
             error.addContext(ErrorContext("parsing DUB manifest", manifestPath));
             error.addSuggestion("Ensure dub.json or dub.sdl exists in the project root");
-            error.addCommand("Create DUB project", "dub init");
+            error.addSuggestion("Create DUB project with: dub init");
             return Err!(PackageManifest, BuildError)(error);
         }
         
@@ -100,11 +100,12 @@ class DubManifest
         else
         {
             auto error = new ParseError(
+                manifestPath,
                 "Unknown manifest format: " ~ ext ~ " (expected .json or .sdl)"
             );
             error.addSuggestion("Use dub.json or dub.sdl as the manifest file name");
             error.addContext(ErrorContext("parsing DUB manifest", manifestPath));
-            error.addDocs("DUB manifest format", "https://dub.pm/package-format-json");
+            error.addSuggestion("See DUB manifest format: https://dub.pm/package-format-json");
             return Err!(PackageManifest, BuildError)(error);
         }
     }
@@ -218,7 +219,7 @@ class DubManifest
         {
             auto error = parseErrorWithContext(path, "Failed to parse dub.json: " ~ e.msg, 0);
             error.addSuggestion("Check that dub.json is valid JSON");
-            error.addCommand("Validate JSON", "jsonlint " ~ path);
+            error.addSuggestion("Validate JSON with: jsonlint " ~ path);
             return Err!(PackageManifest, BuildError)(error);
         }
         
@@ -298,7 +299,7 @@ class DubManifest
         {
             auto error = parseErrorWithContext(path, "Failed to parse dub.sdl: " ~ e.msg, 0);
             error.addSuggestion("Check that dub.sdl is valid SDL format");
-            error.addDocs("SDL format documentation", "https://dub.pm/package-format-sdl");
+            error.addSuggestion("See SDL format: https://dub.pm/package-format-sdl");
             return Err!(PackageManifest, BuildError)(error);
         }
         

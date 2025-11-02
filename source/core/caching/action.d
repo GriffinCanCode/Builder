@@ -58,7 +58,8 @@ struct ActionId
         if (parts.length < 3)
         {
             auto error = new ParseError(
-                "Invalid ActionId format: " ~ str ~ " (expected format: targetId:type:inputHash or targetId:type:subId:inputHash)"
+                str,
+                "Invalid ActionId format (expected format: targetId:type:inputHash or targetId:type:subId:inputHash)"
             );
             error.addSuggestion("Check ActionId format - should have at least 3 colon-separated parts");
             error.addContext(ErrorContext("parsing action ID", str));
@@ -75,6 +76,7 @@ struct ActionId
         catch (Exception e)
         {
             auto error = new ParseError(
+                str,
                 "Invalid ActionType in ActionId: " ~ parts[1] ~ " (valid types: Build, Test, Run, etc.)"
             );
             error.addSuggestion("Check that action type is a valid ActionType enum value");

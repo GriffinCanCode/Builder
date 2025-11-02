@@ -55,7 +55,13 @@ class FatJARBuilder : JARBuilder
         
         // Create atomic temporary directory (prevents TOCTOU attacks)
         import utils.security.tempdir : AtomicTempDir;
-        auto atomicTemp = AtomicTempDir.in_(outputDir, ".java-fatjar-" ~ target.name.split(":")[$ - 1].replace(":", "-"));
+        auto atomicTempResult = AtomicTempDir.in_(outputDir, ".java-fatjar-" ~ target.name.split(":")[$ - 1].replace(":", "-"));
+        if (atomicTempResult.isErr)
+        {
+            result.success = false;
+            return result;
+        }
+        auto atomicTemp = atomicTempResult.unwrap();
         string tempDir = atomicTemp.get();
         
         scope(failure)

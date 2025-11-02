@@ -346,11 +346,11 @@ BuildNode[] executeQuery(Query query, BuildGraph graph) @trusted
         
         case QueryType.Dependencies:
             auto targets = executeQuery(*query.innerQuery, graph);
-            return getDependencies(targets, query.depth);
+            return getDependencies(targets, query.depth, graph);
         
         case QueryType.ReverseDependencies:
             auto targets = executeQuery(*query.innerQuery, graph);
-            return getReverseDependencies(targets);
+            return getReverseDependencies(targets, graph);
         
         case QueryType.AllPaths:
             return getAllPaths(query.args[0], query.args[1], graph);
@@ -407,7 +407,7 @@ BuildNode[] matchTargets(string pattern, BuildGraph graph) @trusted
 }
 
 /// Get dependencies of targets (up to depth)
-BuildNode[] getDependencies(BuildNode[] targets, int depth) @trusted
+BuildNode[] getDependencies(BuildNode[] targets, int depth, BuildGraph graph) @trusted
 {
     BuildNode[] results;
     bool[BuildNode] visited;
@@ -421,11 +421,13 @@ BuildNode[] getDependencies(BuildNode[] targets, int depth) @trusted
         
         if (currentDepth > 0 || depth == -1)
         {
-            foreach (dep; node.dependencies)
+            foreach (depId; node.dependencyIds)
             {
-                if (dep is null)
+                auto depKey = depId.toString();
+                if (depKey !in graph.nodes)
                     continue;
                 
+                auto dep = graph.nodes[depKey];
                 results ~= dep;
                 
                 if (depth == -1 || currentDepth < depth)
@@ -444,7 +446,7 @@ BuildNode[] getDependencies(BuildNode[] targets, int depth) @trusted
 }
 
 /// Get reverse dependencies (what depends on these targets)
-BuildNode[] getReverseDependencies(BuildNode[] targets) @trusted
+BuildNode[] getReverseDependencies(BuildNode[] targets, BuildGraph graph) @trusted
 {
     BuildNode[] results;
     bool[BuildNode] targetSet;
@@ -462,9 +464,14 @@ BuildNode[] getReverseDependencies(BuildNode[] targets) @trusted
         if (target is null)
             continue;
         
-        foreach (dependent; target.dependents)
+        foreach (dependentId; target.dependentIds)
         {
-            if (dependent is null || dependent in targetSet)
+            auto depKey = dependentId.toString();
+            if (depKey !in graph.nodes)
+                continue;
+            
+            auto dependent = graph.nodes[depKey];
+            if (dependent in targetSet)
                 continue;
             
             results ~= dependent;
@@ -509,9 +516,11 @@ BuildNode[] getAllPaths(string from, string to, BuildGraph graph) @trusted
         }
         else
         {
-            foreach (dep; node.dependencies)
+            foreach (depId; node.dependencyIds)
             {
-                dfs(dep);
+                auto depKey = depId.toString();
+                if (depKey in graph.nodes)
+                    dfs(graph.nodes[depKey]);
             }
         }
         
@@ -613,20 +622,20 @@ void displayResults(BuildNode[] results, Query query) @system
             terminal.writeColored(format("%s", node.target.type), Color.Cyan);
             terminal.writeln();
             
-            if (!node.dependencies.empty)
+            if (!node.dependencyIds.empty)
             {
                 terminal.write("    ");
                 terminal.writeColored("Dependencies:", Color.BrightBlack);
                 terminal.write(" ");
-                terminal.writeColored(format("%d", node.dependencies.length), Color.Yellow);
+                terminal.writeColored(format("%d", node.dependencyIds.length), Color.Yellow);
                 terminal.writeln();
             }
-            if (!node.dependents.empty)
+            if (!node.dependentIds.empty)
             {
                 terminal.write("    ");
                 terminal.writeColored("Dependents:", Color.BrightBlack);
                 terminal.write(" ");
-                terminal.writeColored(format("%d", node.dependents.length), Color.Magenta);
+                terminal.writeColored(format("%d", node.dependentIds.length), Color.Magenta);
                 terminal.writeln();
             }
             

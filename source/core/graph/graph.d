@@ -11,12 +11,16 @@ import errors;
 
 /// Represents a node in the build graph
 /// Thread-safe: status field is accessed atomically
+/// 
+/// Memory Optimization: Stores TargetId[] instead of BuildNode[] to avoid GC cycles
+/// from bidirectional references. This reduces memory pressure and prevents potential
+/// memory leaks from circular references between dependencies and dependents.
 final class BuildNode
 {
     TargetId id;  // Strongly-typed identifier
     Target target;
-    BuildNode[] dependencies;
-    BuildNode[] dependents;
+    TargetId[] dependencyIds;  // IDs instead of pointers to avoid GC cycles
+    TargetId[] dependentIds;   // IDs instead of pointers to avoid GC cycles
     private shared BuildStatus _status;  // Atomic access only
     string hash;
     
@@ -36,8 +40,8 @@ final class BuildNode
         atomicStore(this._pendingDeps, cast(size_t)0);
         
         // Pre-allocate reasonable capacity to avoid reallocations
-        dependencies.reserve(8);  // Most targets have <8 dependencies
-        dependents.reserve(4);    // Fewer dependents on average
+        dependencyIds.reserve(8);  // Most targets have <8 dependencies
+        dependentIds.reserve(4);    // Fewer dependents on average
     }
     
     /// Get strongly-typed target identifier (accessor for consistency)
@@ -144,10 +148,10 @@ final class BuildNode
     /// Safety: This function is @system because:
     /// 1. atomicStore() performs sequentially-consistent atomic write
     /// 2. _pendingDeps is shared - requires atomic operations
-    /// 3. dependencies.length is safe to read
+    /// 3. dependencyIds.length is safe to read
     void initPendingDeps() nothrow @system @nogc
     {
-        atomicStore(this._pendingDeps, dependencies.length);
+        atomicStore(this._pendingDeps, dependencyIds.length);
     }
     
     /// Atomically decrement pending dependencies and return new count
@@ -178,25 +182,31 @@ final class BuildNode
     
     /// Check if this node is ready to build (all deps built)
     /// Thread-safe: reads dependency status atomically
+    /// Requires graph reference to resolve dependency IDs to nodes
     /// 
     /// Safety: This function is @system because:
     /// 1. Reads _status atomically from dependency nodes
-    /// 2. dependencies array is immutable after graph construction
+    /// 2. dependencyIds array is immutable after graph construction
     /// 3. atomicLoad() ensures memory-safe concurrent reads
     /// 4. Read-only operation with no mutations
     /// 
     /// Invariants:
-    /// - dependencies array must NOT be modified after graph construction
-    /// - All dependency nodes must remain valid for the lifetime of this node
+    /// - dependencyIds array must NOT be modified after graph construction
+    /// - All dependency nodes must remain valid in the graph
     /// 
     /// What could go wrong:
-    /// - If dependencies array is modified during iteration: undefined behavior
-    /// - If dependency nodes are freed: dangling pointer access
+    /// - If dependencyIds array is modified during iteration: undefined behavior
+    /// - If dependency nodes are removed from graph: lookup fails
     /// - These are prevented by design: graph is immutable after construction
-    bool isReady() const @system nothrow
+    bool isReady(const BuildGraph graph) const @system nothrow
     {
-        foreach (dep; dependencies)
+        foreach (depId; dependencyIds)
         {
+            auto depKey = depId.toString();
+            if (depKey !in graph.nodes)
+                continue;  // Skip missing dependencies (defensive)
+            
+            auto dep = graph.nodes[depKey];
             auto depStatus = atomicLoad(dep._status);
             if (depStatus != BuildStatus.Success && depStatus != BuildStatus.Cached)
                 return false;
@@ -208,30 +218,32 @@ final class BuildNode
     private size_t _cachedDepth = size_t.max;
     
     /// Get topological depth for scheduling (memoized)
+    /// Requires graph reference to resolve dependency IDs to nodes
     /// 
     /// Performance: O(V+E) total across all nodes due to memoization.
     /// Without memoization, this would be O(E^depth) - exponential for deep graphs.
     /// 
     /// Note: Not const because it modifies internal cache (_cachedDepth) for memoization.
-    size_t depth() @system nothrow
+    size_t depth(BuildGraph graph) @system nothrow
     {
         if (_cachedDepth != size_t.max)
             return _cachedDepth;
         
-        if (dependencies.empty)
+        if (dependencyIds.empty)
         {
             _cachedDepth = 0;
             return 0;
         }
         
         size_t maxDepth = 0;
-        foreach (dep; dependencies)
+        foreach (depId; dependencyIds)
         {
-            // Safety: Skip null dependencies to prevent segfault
-            if (dep is null)
-                continue;
+            auto depKey = depId.toString();
+            if (depKey !in graph.nodes)
+                continue;  // Skip missing dependencies (defensive)
             
-            auto depDepth = dep.depth();
+            auto dep = graph.nodes[depKey];
+            auto depDepth = dep.depth(graph);
             if (depDepth > maxDepth)
                 maxDepth = depDepth;
         }
@@ -434,8 +446,8 @@ final class BuildGraph
             }
         }
         
-        fromNode.dependencies ~= toNode;
-        toNode.dependents ~= fromNode;
+        fromNode.dependencyIds ~= toNode.id;
+        toNode.dependentIds ~= fromNode.id;
         
         // Invalidate depth cache for affected nodes
         invalidateDepthCascade(fromNode);
@@ -487,8 +499,8 @@ final class BuildGraph
             }
         }
         
-        fromNode.dependencies ~= toNode;
-        toNode.dependents ~= fromNode;
+        fromNode.dependencyIds ~= toNode.id;
+        toNode.dependentIds ~= fromNode.id;
         
         // Invalidate depth cache for affected nodes
         invalidateDepthCascade(fromNode);
@@ -505,19 +517,22 @@ final class BuildGraph
     /// (cycles will be detected later during validation).
     private void invalidateDepthCascade(BuildNode node) @system nothrow
     {
-        bool[BuildNode] visited;
+        bool[string] visited;
         
         void invalidateRecursive(BuildNode n) nothrow
         {
-            if (n in visited)
+            auto key = n.id.toString();
+            if (key in visited)
                 return;
             
-            visited[n] = true;
+            visited[key] = true;
             n.invalidateDepthCache();
             
-            foreach (dependent; n.dependents)
+            foreach (dependentId; n.dependentIds)
             {
-                invalidateRecursive(dependent);
+                auto depKey = dependentId.toString();
+                if (depKey in nodes)
+                    invalidateRecursive(nodes[depKey]);
             }
         }
         
@@ -534,21 +549,27 @@ final class BuildGraph
     /// Deferred mode with a single O(V+E) topological sort.
     private bool wouldCreateCycle(BuildNode from, BuildNode to) @system
     {
-        bool[BuildNode] visited;
+        bool[string] visited;
         
         bool dfs(BuildNode node)
         {
             if (node == from)
                 return true;
-            if (node in visited)
+            
+            auto nodeKey = node.id.toString();
+            if (nodeKey in visited)
                 return false;
             
-            visited[node] = true;
+            visited[nodeKey] = true;
             
-            foreach (dep; node.dependencies)
+            foreach (depId; node.dependencyIds)
             {
-                if (dfs(dep))
-                    return true;
+                auto depKey = depId.toString();
+                if (depKey in nodes)
+                {
+                    if (dfs(nodes[depKey]))
+                        return true;
+                }
             }
             
             return false;
@@ -577,19 +598,20 @@ final class BuildGraph
     Result!(BuildNode[], BuildError) topologicalSort() @system
     {
         BuildNode[] sorted;
-        bool[BuildNode] visited;
-        bool[BuildNode] visiting;
+        bool[string] visited;
+        bool[string] visiting;
         BuildError cycleError = null;
         
         void visit(BuildNode node)
         {
             if (cycleError !is null)
                 return;
-                
-            if (node in visited)
+            
+            auto nodeKey = node.id.toString();
+            if (nodeKey in visited)
                 return;
             
-            if (node in visiting)
+            if (nodeKey in visiting)
             {
                 auto error = new GraphError("Circular dependency detected in build graph involving target: " ~ node.id.toString(), ErrorCode.GraphCycle);
                 error.addContext(ErrorContext("topological sort", "cycle detected"));
@@ -601,13 +623,17 @@ final class BuildGraph
                 return;
             }
             
-            visiting[node] = true;
+            visiting[nodeKey] = true;
             
-            foreach (dep; node.dependencies)
-                visit(dep);
+            foreach (depId; node.dependencyIds)
+            {
+                auto depKey = depId.toString();
+                if (depKey in nodes)
+                    visit(nodes[depKey]);
+            }
             
-            visiting.remove(node);
-            visited[node] = true;
+            visiting.remove(nodeKey);
+            visited[nodeKey] = true;
             sorted ~= node;
         }
         
@@ -625,7 +651,7 @@ final class BuildGraph
     BuildNode[] getReadyNodes()
     {
         return nodes.values
-            .filter!(n => n.status == BuildStatus.Pending && n.isReady())
+            .filter!(n => n.status == BuildStatus.Pending && n.isReady(this))
             .array;
     }
     
@@ -633,7 +659,7 @@ final class BuildGraph
     BuildNode[] getRoots()
     {
         return nodes.values
-            .filter!(n => n.dependencies.empty)
+            .filter!(n => n.dependencyIds.empty)
             .array;
     }
     
@@ -667,25 +693,21 @@ final class BuildGraph
             writeln("  Type: ", node.target.type);
             writeln("  Sources: ", node.target.sources.length, " files");
             
-            if (!node.dependencies.empty)
+            if (!node.dependencyIds.empty)
             {
                 writeln("  Dependencies:");
-                foreach (dep; node.dependencies)
+                foreach (depId; node.dependencyIds)
                 {
-                    // Safety: Skip null dependencies
-                    if (dep !is null)
-                        writeln("    - ", dep.id);
+                    writeln("    - ", depId);
                 }
             }
             
-            if (!node.dependents.empty)
+            if (!node.dependentIds.empty)
             {
                 writeln("  Dependents:");
-                foreach (dep; node.dependents)
+                foreach (depId; node.dependentIds)
                 {
-                    // Safety: Skip null dependents
-                    if (dep !is null)
-                        writeln("    - ", dep.id);
+                    writeln("    - ", depId);
                 }
             }
         }
@@ -698,7 +720,7 @@ final class BuildGraph
             {
                 try
                 {
-                    writeln("  ", i + 1, ". ", node.id, " (depth: ", node.depth(), ")");
+                    writeln("  ", i + 1, ". ", node.id, " (depth: ", node.depth(this), ")");
                 }
                 catch (Exception e)
                 {
@@ -728,14 +750,14 @@ final class BuildGraph
         
         foreach (node; nodes.values)
         {
-            stats.totalEdges += node.dependencies.length;
-            stats.maxDepth = max(stats.maxDepth, node.depth());
+            stats.totalEdges += node.dependencyIds.length;
+            stats.maxDepth = max(stats.maxDepth, node.depth(this));
         }
         
         // Calculate max parallelism by depth
         size_t[size_t] nodesByDepth;
         foreach (node; nodes.values)
-            nodesByDepth[node.depth()]++;
+            nodesByDepth[node.depth(this)]++;
         
         if (!nodesByDepth.empty)
             stats.parallelism = nodesByDepth.values.maxElement;
@@ -762,10 +784,14 @@ final class BuildGraph
             
             // Get max cost of dependents (reverse direction - who depends on me)
             size_t maxDependentCost = 0;
-            foreach (dependent; node.dependents)
+            foreach (dependentId; node.dependentIds)
             {
-                immutable depCost = visit(dependent);
-                maxDependentCost = max(maxDependentCost, depCost);
+                auto depKey = dependentId.toString();
+                if (depKey in nodes)
+                {
+                    immutable depCost = visit(nodes[depKey]);
+                    maxDependentCost = max(maxDependentCost, depCost);
+                }
             }
             
             // Critical path cost = own cost + max dependent cost
@@ -787,18 +813,23 @@ final class BuildGraph
             return 0;
         
         size_t maxPath = 0;
-        bool[BuildNode] visited;
+        bool[string] visited;
         
         size_t dfs(BuildNode node)
         {
-            if (node in visited)
+            auto nodeKey = node.id.toString();
+            if (nodeKey in visited)
                 return 0;
             
-            visited[node] = true;
+            visited[nodeKey] = true;
             
             size_t maxDepPath = 0;
-            foreach (dep; node.dependencies)
-                maxDepPath = max(maxDepPath, dfs(dep));
+            foreach (depId; node.dependencyIds)
+            {
+                auto depKey = depId.toString();
+                if (depKey in nodes)
+                    maxDepPath = max(maxDepPath, dfs(nodes[depKey]));
+            }
             
             return 1 + maxDepPath;
         }

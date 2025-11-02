@@ -121,7 +121,7 @@ final class ResilienceService : IResilienceService
         if (!enableCheckpoints)
         {
             return Result!(Checkpoint, BuildError).err(
-                new BuildError("Checkpoints disabled", ErrorCode.UnknownError)
+                new SystemError("Checkpoints disabled", ErrorCode.UnknownError)
             );
         }
         
@@ -129,7 +129,7 @@ final class ResilienceService : IResilienceService
         if (loadResult.isErr)
         {
             return Result!(Checkpoint, BuildError).err(
-                new BuildError(loadResult.unwrapErr(), ErrorCode.CacheLoadFailed)
+                new SystemError(loadResult.unwrapErr(), ErrorCode.CacheLoadFailed)
             );
         }
         return Result!(Checkpoint, BuildError).ok(loadResult.unwrap());
@@ -140,7 +140,7 @@ final class ResilienceService : IResilienceService
         if (!enableCheckpoints)
         {
             return Result!(ResumePlan, BuildError).err(
-                new BuildError("Checkpoints disabled", ErrorCode.UnknownError)
+                new SystemError("Checkpoints disabled", ErrorCode.UnknownError)
             );
         }
         
@@ -148,7 +148,7 @@ final class ResilienceService : IResilienceService
         if (checkpointResult.isErr)
         {
             return Result!(ResumePlan, BuildError).err(
-                new BuildError(checkpointResult.unwrapErr(), ErrorCode.CacheLoadFailed)
+                new SystemError(checkpointResult.unwrapErr(), ErrorCode.CacheLoadFailed)
             );
         }
         
@@ -157,7 +157,7 @@ final class ResilienceService : IResilienceService
         if (planResult.isErr)
         {
             return Result!(ResumePlan, BuildError).err(
-                new BuildError(planResult.unwrapErr(), ErrorCode.UnknownError)
+                new SystemError(planResult.unwrapErr(), ErrorCode.UnknownError)
             );
         }
         return Result!(ResumePlan, BuildError).ok(planResult.unwrap());
@@ -200,14 +200,14 @@ final class NullResilienceService : IResilienceService
     Result!(Checkpoint, BuildError) loadCheckpoint() @trusted
     {
         return Result!(Checkpoint, BuildError).err(
-            new BuildError("Null resilience service", ErrorCode.ConfigurationError)
+            new SystemError("Null resilience service", ErrorCode.UnknownError)
         );
     }
     
     Result!(ResumePlan, BuildError) planResume(BuildGraph graph) @trusted
     {
         return Result!(ResumePlan, BuildError).err(
-            new BuildError("Null resilience service", ErrorCode.ConfigurationError)
+            new SystemError("Null resilience service", ErrorCode.UnknownError)
         );
     }
     
