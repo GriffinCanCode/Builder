@@ -2,34 +2,49 @@
 
 The languages package provides language-specific build handlers and dependency analysis for multiple programming languages.
 
-## Modules
+## Architecture
 
-### Core
+### Core Modules
+- **registry.d** - **Central source of truth** for all language definitions, aliases, file extensions, and categorization
 - **base.d** - Base language interface and factory
 
+### Language Registry
+
+The `registry.d` module is the single source of truth for all language-related information:
+- Language name aliases (e.g., "py" → Python, "c++" → C++)
+- File extension mappings (e.g., ".ts" → TypeScript)
+- Language display labels for UI
+- Language categorization (Compiled, Scripting, JVM, .NET, Web)
+
+**Important**: When adding a new language, update `registry.d` and it will automatically appear in help text, wizard, and all other places. Never hardcode language lists elsewhere.
+
 ### Supported Languages
-- **python/** - Python with pip and virtual environments (modular)
-- **javascript/** - JavaScript/Node.js with npm/yarn (modular)
-- **typescript/** - TypeScript with type checking (modular)
-- **go/** - Go with modules support (modular)
-- **rust/** - Rust with Cargo (modular)
-- **java.d** - Java with Maven/Gradle
-- **cpp/** - C/C++ comprehensive modular support with compilers, build systems, analysis, and tools
-- **dotnet/** - .NET languages (modular)
-  - **csharp.d** - C# with .NET
-  - **fsharp/** - F# with functional programming, FAKE, Paket, Fantomas, Fable
-- **ruby.d** - Ruby with Bundler
-- **perl/** - Perl with CPAN/cpanm (modular - scripts, modules, CPAN distributions, testing)
-- **php/** - PHP with Composer (modular - analysis, formatting, packaging)
-- **swift.d** - Swift with SPM
-- **kotlin.d** - Kotlin with Gradle
-- **scala.d** - Scala with sbt
-- **elixir.d** - Elixir with Mix
-- **lua.d** - Lua language support
-- **nim.d** - Nim language support
-- **zig.d** - Zig language support
-- **ocaml/** - OCaml with dune/ocamlopt/ocamlc (modular - functional programming)
-- **protobuf/** - Protocol Buffers with protoc/buf (modular - multi-language code generation)
+
+Languages are organized by category. See `registry.d` for the complete list:
+
+#### Compiled Languages
+C, C++, D, Zig, Rust, Go, Nim, OCaml, Haskell, Swift, Protobuf
+
+#### Scripting Languages  
+Python, Ruby, Perl, PHP, Lua, R, Elixir
+
+#### JVM Languages
+Java, Kotlin, Scala
+
+#### .NET Languages
+C#, F#
+
+#### Web Languages
+JavaScript, TypeScript, CSS, Elm
+
+### Module Structure
+
+Each language has a modular structure with:
+- **core/** - Core handler and configuration
+- **analysis/** - Dependency analysis and detection
+- **tooling/** - Language-specific tools (compilers, formatters, linters)
+- **managers/** - Package manager integration
+- **builders/** - Build system integration
 
 ## Usage
 

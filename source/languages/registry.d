@@ -279,6 +279,130 @@ string getLanguageDisplayName(TargetLanguage language)
     return language.to!string;
 }
 
+/// Get user-friendly label for a language (suitable for UI display)
+/// This returns nicely formatted names like "C++", "C#", "JavaScript/TypeScript", etc.
+pure nothrow @system
+string getLanguageLabel(TargetLanguage language)
+{
+    switch (language)
+    {
+        case TargetLanguage.D: return "D";
+        case TargetLanguage.Python: return "Python";
+        case TargetLanguage.JavaScript: return "JavaScript";
+        case TargetLanguage.TypeScript: return "TypeScript";
+        case TargetLanguage.Go: return "Go";
+        case TargetLanguage.Rust: return "Rust";
+        case TargetLanguage.Cpp: return "C++";
+        case TargetLanguage.C: return "C";
+        case TargetLanguage.Java: return "Java";
+        case TargetLanguage.Kotlin: return "Kotlin";
+        case TargetLanguage.CSharp: return "C#";
+        case TargetLanguage.FSharp: return "F#";
+        case TargetLanguage.Zig: return "Zig";
+        case TargetLanguage.Swift: return "Swift";
+        case TargetLanguage.Ruby: return "Ruby";
+        case TargetLanguage.Perl: return "Perl";
+        case TargetLanguage.PHP: return "PHP";
+        case TargetLanguage.Scala: return "Scala";
+        case TargetLanguage.Elixir: return "Elixir";
+        case TargetLanguage.Nim: return "Nim";
+        case TargetLanguage.Lua: return "Lua";
+        case TargetLanguage.R: return "R";
+        case TargetLanguage.CSS: return "CSS";
+        case TargetLanguage.Protobuf: return "Protobuf";
+        case TargetLanguage.OCaml: return "OCaml";
+        case TargetLanguage.Haskell: return "Haskell";
+        case TargetLanguage.Elm: return "Elm";
+        case TargetLanguage.Generic: return "Generic";
+        default: return "Unknown";
+    }
+}
+
+/// Language category for organization and display
+enum LanguageCategory
+{
+    Compiled,
+    Scripting,
+    JVM,
+    DotNet,
+    Web
+}
+
+/// Get the category for a language
+pure nothrow @system
+LanguageCategory getLanguageCategory(TargetLanguage language)
+{
+    switch (language)
+    {
+        case TargetLanguage.C:
+        case TargetLanguage.Cpp:
+        case TargetLanguage.D:
+        case TargetLanguage.Zig:
+        case TargetLanguage.Rust:
+        case TargetLanguage.Go:
+        case TargetLanguage.Nim:
+        case TargetLanguage.OCaml:
+        case TargetLanguage.Haskell:
+        case TargetLanguage.Swift:
+        case TargetLanguage.Protobuf:
+            return LanguageCategory.Compiled;
+            
+        case TargetLanguage.Python:
+        case TargetLanguage.Ruby:
+        case TargetLanguage.Perl:
+        case TargetLanguage.PHP:
+        case TargetLanguage.Lua:
+        case TargetLanguage.R:
+        case TargetLanguage.Elixir:
+            return LanguageCategory.Scripting;
+            
+        case TargetLanguage.Java:
+        case TargetLanguage.Kotlin:
+        case TargetLanguage.Scala:
+            return LanguageCategory.JVM;
+            
+        case TargetLanguage.CSharp:
+        case TargetLanguage.FSharp:
+            return LanguageCategory.DotNet;
+            
+        case TargetLanguage.JavaScript:
+        case TargetLanguage.TypeScript:
+        case TargetLanguage.CSS:
+        case TargetLanguage.Elm:
+            return LanguageCategory.Web;
+            
+        default:
+            return LanguageCategory.Scripting;
+    }
+}
+
+/// Get all languages in a specific category
+pure @system
+TargetLanguage[] getLanguagesByCategory(LanguageCategory category)
+{
+    TargetLanguage[] result;
+    
+    import std.traits : EnumMembers;
+    static foreach (lang; EnumMembers!TargetLanguage)
+    {
+        if (getLanguageCategory(lang) == category && lang != TargetLanguage.Generic)
+            result ~= lang;
+    }
+    
+    return result;
+}
+
+/// Get formatted list of language names for a category (for help text)
+pure @system
+string getLanguageCategoryList(LanguageCategory category)
+{
+    import std.algorithm : map;
+    import std.array : join;
+    
+    auto languages = getLanguagesByCategory(category);
+    return languages.map!(l => getLanguageLabel(l)).join(", ");
+}
+
 // Unit tests
 unittest
 {

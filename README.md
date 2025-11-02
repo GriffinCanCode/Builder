@@ -13,7 +13,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 - **Event-Driven CLI**: Multiple render modes (interactive, plain, verbose, quiet) with lock-free progress tracking
 - **Build Telemetry**: Comprehensive analytics, bottleneck identification, and performance regression detection
 - **Query Language**: Powerful Bazel inspired query syntax for exploring dependencies and target relationships
-- **Extensive Multi-language Support**: 26+ languages including Python, JavaScript/TypeScript, Elm, Go, Rust, C/C++, Java, Kotlin, C#, Zig, Swift, Ruby, Perl, PHP, R, Scala, Elixir, Nim, Lua, OCaml, Haskell, and D
+- **Extensive Multi-language Support**: 26+ languages with centralized registry for consistent language handling (see `source/languages/registry.d` for complete list)
 - **Incremental Builds**: Smart caching with BLAKE3 content hashing and configurable eviction policies
 - **Action-Level Caching**: Fine-grained caching for individual build steps (compile, link, test) with 2-3x better cache utilization
 - **Parallel Execution**: Wave-based parallel builds with thread pool management and optimal CPU utilization

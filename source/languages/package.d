@@ -4,6 +4,7 @@ module languages;
 /// Language-specific build handlers and dependency analysis
 /// 
 /// Architecture:
+///   registry.d   - **Central source of truth** for all language definitions, aliases, and metadata
 ///   base.d       - Base language interface
 ///   python/      - Python language support (modular)
 ///   javascript/  - JavaScript/Node.js support (modular)
@@ -11,27 +12,39 @@ module languages;
 ///   go/          - Go language support (modular)
 ///   rust/        - Rust language support (modular)
 ///   java/        - Java language support (modular - Maven, Gradle, builders, formatters, analysis)
-///   cpp.d        - C++ language support
+///   cpp/         - C/C++ language support (modular)
 ///   csharp/      - C# language support (modular - dotnet, MSBuild, Native AOT, formatters, analyzers)
-///   ruby.d       - Ruby language support
+///   fsharp/      - F# language support (modular)
+///   ruby/        - Ruby language support (modular)
 ///   perl/        - Perl language support (modular - scripts, modules, CPAN, prove)
 ///   php/         - PHP language support (modular)
 ///   r/           - R language support (modular - scripts, packages, Shiny, RMarkdown)
 ///   swift/       - Swift language support (modular - SPM, Xcode, cross-compilation)
 ///   kotlin/      - Kotlin language support (modular - Gradle, Maven, multiplatform, Android, KSP, detekt)
-///   scala.d      - Scala language support
+///   scala/       - Scala language support (modular)
 ///   elixir/      - Elixir language support (modular - scripts, Mix, Phoenix, Umbrella, Escript, Nerves)
 ///   lua/         - Lua language support (modular - runtimes, LuaRocks, LuaJIT, formatters, linters, testers)
 ///   nim/         - Nim language support (modular)
-///   zig.d        - Zig language support
+///   zig/         - Zig language support (modular)
 ///   haskell/     - Haskell language support (modular - GHC, Cabal, Stack, HLint, Ormolu)
 ///   ocaml/       - OCaml language support (modular - dune, ocamlopt, ocamlc, opam)
 ///   protobuf/    - Protocol Buffers support (modular - protoc, buf, code generation)
 ///   elm/         - Elm language support (functional, web, compiles to JavaScript)
 ///
+/// IMPORTANT: When adding support for a new language:
+/// 1. Add the language to the TargetLanguage enum in config/schema/schema.d
+/// 2. Register it in languages/registry.d (aliases, extensions, category)
+/// 3. Implement the language-specific handler
+/// 4. The language will automatically appear in help text, wizard, and all other places
+///
 /// Usage:
 ///   import languages;
+///   import languages.registry;
 ///   
+///   // Query supported languages
+///   auto supported = getSupportedLanguageNames();
+///   
+///   // Create language handler
 ///   auto handler = LanguageFactory.create("python");
 ///   auto deps = handler.analyzeDependencies(sourceFile);
 ///   handler.build(target);
