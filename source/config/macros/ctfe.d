@@ -148,12 +148,17 @@ struct TargetTemplate
         
         auto sources = sourcePattern.replace("{name}", name);
         
+        // Create mutable copy of commonEnv
+        string[string] envCopy;
+        foreach (k, v; commonEnv)
+            envCopy[k] = v;
+        
         auto target = TargetBuilder.create(name)
             .type(type)
             .language(language)
             .sources([sources])
             .flags(commonFlags.dup)
-            .env(commonEnv.dup)
+            .env(envCopy)
             .build();
         
         // Apply overrides

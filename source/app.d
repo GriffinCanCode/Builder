@@ -516,6 +516,6 @@ void watchCommand(
     in long debounceMs,
     in bool remoteExecution = false) @system
 {
-    WatchCommand.execute(target, clearScreen, showGraph, modeStr, verbose, debounceMs, remoteExecution);
+    WatchCommand.execute(target, clearScreen, showGraph, modeStr, verbose, debounceMs);
 }
 

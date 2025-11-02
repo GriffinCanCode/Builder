@@ -44,7 +44,7 @@ final class CdnManager
     }
     
     /// Generate cache control headers
-    string[string] getCacheHeaders(string contentHash, bool immutable_ = true) const pure @safe
+    string[string] getCacheHeaders(string contentHash, bool immutable_ = true) const @safe
     {
         string[string] headers;
         
@@ -218,7 +218,7 @@ final class CdnManager
         return Base64URL.encode(hash);
     }
     
-    private string generateExpiry(Duration duration) const pure @trusted
+    private string generateExpiry(Duration duration) const @trusted
     {
         import std.datetime.systime : SysTime;
         import std.datetime.timezone : UTC;
@@ -226,7 +226,7 @@ final class CdnManager
         auto expiry = Clock.currTime(UTC()) + duration;
         
         // RFC 7231 HTTP date format (RFC 822/1123 format)
-        return expiry.toSimpleString();
+        return expiry.toISOExtString();
     }
 }
 
