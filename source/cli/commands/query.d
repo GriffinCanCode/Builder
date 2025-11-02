@@ -7,9 +7,9 @@ import std.array;
 import std.conv;
 import config.parsing.parser;
 import config.schema.schema;
-import core.graph.graph;
-import core.services.services;
-import core.query;
+import graph.graph;
+import runtime.services.services;
+import query;
 import utils.logging.logger;
 import cli.control.terminal;
 import cli.display.format;
@@ -69,7 +69,7 @@ struct QueryCommand
         auto graph = graphResult.unwrap();
         
         // Execute query using new bldrquery engine
-        auto queryResult = query(queryExpression, graph);
+        auto queryResult = executeQuery(queryExpression, graph);
         if (queryResult.isErr)
         {
             Logger.error("Query error: " ~ queryResult.unwrapErr());

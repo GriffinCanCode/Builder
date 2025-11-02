@@ -7,7 +7,7 @@ import std.string;
 import std.path : baseName, dirName;
 import utils.security.validation;
 import utils.logging.logger;
-import core.execution.hermetic;
+import runtime.hermetic;
 import errors;
 
 
@@ -357,7 +357,7 @@ struct SecureExecutor
                 if (executorResult.isErr)
                 {
                     return Err!(ProcessResult, BuildError)(
-                        securityError("Hermetic executor creation failed: " ~ executorResult.unwrapErr(), 
+                        securityError("Hermetic executor creation failed: " ~ executorResult.unwrapErr().message(), 
                                     SecurityCode.ExecutionFailure));
                 }
                 
@@ -367,7 +367,7 @@ struct SecureExecutor
                 if (result.isErr)
                 {
                     return Err!(ProcessResult, BuildError)(
-                        securityError("Hermetic execution failed: " ~ result.unwrapErr(), 
+                        securityError("Hermetic execution failed: " ~ result.unwrapErr().message(), 
                                     SecurityCode.ExecutionFailure));
                 }
                 
@@ -468,11 +468,11 @@ private ErrorCode toErrorCode(SecurityCode code) pure nothrow @safe @nogc
         case SecurityCode.Unknown:
             return ErrorCode.InternalError;
         case SecurityCode.InvalidCommand:
-            return ErrorCode.InvalidCommand;
+            return ErrorCode.InvalidInput;
         case SecurityCode.InjectionAttempt:
-            return ErrorCode.SecurityViolation;
+            return ErrorCode.ValidationFailed;
         case SecurityCode.PathTraversal:
-            return ErrorCode.PathTraversal;
+            return ErrorCode.PermissionDenied;
         case SecurityCode.ExecutionFailure:
             return ErrorCode.ProcessSpawnFailed;
         case SecurityCode.AccessDenied:

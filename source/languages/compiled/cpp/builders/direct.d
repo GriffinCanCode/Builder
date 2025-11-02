@@ -15,7 +15,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Direct compiler builder - compiles without external build system with action-level caching
 class DirectBuilder : BaseCppBuilder

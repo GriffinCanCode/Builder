@@ -1,7 +1,7 @@
 module cli.events.events;
 
 import std.datetime : Duration;
-import core.graph.graph : BuildStatus;
+import graph.graph : BuildStatus;
 
 /// Strongly-typed build events for event-driven rendering
 /// Events are immutable to enable lock-free publishing

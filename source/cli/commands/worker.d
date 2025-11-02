@@ -3,7 +3,7 @@ module cli.commands.worker;
 import std.stdio;
 import std.conv : to;
 import std.string : strip;
-import core.distributed.worker : Worker, WorkerConfig;
+import distributed.worker : Worker, WorkerConfig;
 import utils.logging.logger;
 import errors;
 

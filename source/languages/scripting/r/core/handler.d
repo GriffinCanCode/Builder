@@ -23,7 +23,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// R language handler with action-level caching for linting, formatting, package building, and tests
 class RHandler : BaseLanguageHandler

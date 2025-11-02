@@ -9,7 +9,7 @@ import languages.scripting.go.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Cross-compilation builder - handles GOOS/GOARCH compilation
 class CrossBuilder : StandardBuilder

@@ -6,7 +6,7 @@ import languages.scripting.go.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Plugin builder - builds Go plugins (deprecated but still supported)
 class PluginBuilder : StandardBuilder

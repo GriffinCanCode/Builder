@@ -2,7 +2,7 @@ module languages.scripting.perl.services.quality;
 
 import languages.scripting.perl.core.config;
 import config.schema.schema : LanguageBuildResult;
-import core.caching.actions.action;
+import caching.actions.action;
 import utils.files.hash;
 import utils.logging.logger;
 import std.range : empty;

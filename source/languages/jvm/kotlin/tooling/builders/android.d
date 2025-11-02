@@ -13,7 +13,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Android Kotlin builder (AAR/APK)
 class AndroidBuilder : KotlinBuilder

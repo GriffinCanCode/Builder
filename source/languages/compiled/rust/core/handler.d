@@ -19,7 +19,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Advanced Rust build handler with cargo, rustup, and toolchain support with action-level caching
 class RustHandler : BaseLanguageHandler

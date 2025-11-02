@@ -21,7 +21,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionId, ActionType;
+import caching.actions.action : ActionId, ActionType;
 
 /// Java build handler - comprehensive and modular with action-level caching
 class JavaHandler : BaseLanguageHandler

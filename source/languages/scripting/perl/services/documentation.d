@@ -1,7 +1,7 @@
 module languages.scripting.perl.services.documentation;
 
 import languages.scripting.perl.core.config;
-import core.caching.actions.action;
+import caching.actions.action;
 import utils.files.hash;
 import utils.logging.logger;
 

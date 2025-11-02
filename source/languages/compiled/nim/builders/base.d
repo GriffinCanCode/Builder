@@ -6,7 +6,7 @@ import std.string;
 import languages.compiled.nim.core.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Base interface for Nim builders
 interface NimBuilder

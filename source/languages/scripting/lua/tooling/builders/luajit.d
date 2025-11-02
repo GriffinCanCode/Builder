@@ -15,7 +15,7 @@ import config.schema.schema;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// LuaJIT builder - uses LuaJIT for JIT compilation or bytecode generation
 class LuaJITBuilder : LuaBuilder

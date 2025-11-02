@@ -3,7 +3,7 @@ module languages.base.mixins;
 import std.conv : to;
 import std.path : buildPath;
 import std.array : split, empty;
-import core.caching.actions.action : ActionCache, ActionCacheConfig;
+import caching.actions.action : ActionCache, ActionCacheConfig;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash : FastHash;
@@ -13,8 +13,8 @@ import utils.logging.logger : Logger;
 /// Usage: mixin CachingHandlerMixin!"python";
 mixin template CachingHandlerMixin(string languageName)
 {
-    import core.caching.actions.action : ActionCache, ActionCacheConfig;
-    import core.shutdown.shutdown : ShutdownCoordinator;
+    import caching.actions.action : ActionCache, ActionCacheConfig;
+    import runtime.shutdown.shutdown : ShutdownCoordinator;
     
     private ActionCache actionCache;
     

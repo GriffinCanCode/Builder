@@ -3,7 +3,7 @@ module cli.commands.cacheserver;
 import std.stdio : writeln, writefln;
 import std.conv : to;
 import std.getopt;
-import core.caching.distributed.remote.server : CacheServer;
+import caching.distributed.remote.server : CacheServer;
 import utils.logging.logger : Logger;
 
 /// Cache server command

@@ -3,8 +3,8 @@ module cli.commands.coordinator;
 import std.stdio;
 import std.conv : to;
 import std.string : strip;
-import core.graph.graph : BuildGraph;
-import core.distributed.coordinator : Coordinator, CoordinatorConfig;
+import graph.graph : BuildGraph;
+import distributed.coordinator : Coordinator, CoordinatorConfig;
 import utils.logging.logger;
 import errors;
 

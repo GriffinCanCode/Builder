@@ -14,7 +14,7 @@ import languages.compiled.swift.managers.spm;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Swift Package Manager builder with action-level caching
 class SPMBuilder : SwiftBuilder

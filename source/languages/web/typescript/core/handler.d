@@ -21,7 +21,7 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process.checker : isCommandAvailable;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// TypeScript build handler with action-level caching for separate compile + bundle steps
 class TypeScriptHandler : BaseLanguageHandler

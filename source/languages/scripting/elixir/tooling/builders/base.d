@@ -9,7 +9,7 @@ import languages.base.base;
 import languages.scripting.elixir.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Build result structure
 struct ElixirBuildResult

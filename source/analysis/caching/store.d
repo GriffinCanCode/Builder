@@ -7,7 +7,7 @@ import std.array;
 import std.conv;
 import core.sync.mutex;
 import analysis.targets.types;
-import core.caching.storage.cas;
+import caching.storage.cas;
 import utils.files.hash;
 import errors;
 

@@ -15,7 +15,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Modular JAR builder (Java 9+ module system)
 class ModularJARBuilder : JARBuilder

@@ -19,7 +19,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionCacheConfig;
+import caching.actions.action : ActionCache, ActionCacheConfig;
 
 /// Comprehensive Nim build handler with multi-backend support and action-level caching
 class NimHandler : BaseLanguageHandler

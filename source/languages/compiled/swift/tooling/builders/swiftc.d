@@ -15,7 +15,7 @@ import languages.compiled.swift.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Direct swiftc compiler builder with action-level caching
 class SwiftcBuilder : SwiftBuilder

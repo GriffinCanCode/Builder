@@ -3,7 +3,7 @@ module cli.commands.telemetry;
 import std.stdio;
 import std.conv : to;
 import std.algorithm : min;
-import core.telemetry;
+import telemetry;
 import utils.logging.logger;
 
 /// Telemetry command - display build analytics and insights

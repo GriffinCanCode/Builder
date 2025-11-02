@@ -3,11 +3,11 @@ import std.getopt;
 import std.algorithm;
 import std.array;
 import std.conv;
-import core.graph.graph;
-import core.execution.core.engine;
-import core.services.services;
-import core.shutdown.shutdown;
-import core.telemetry;
+import graph.graph;
+import runtime.core.engine;
+import runtime.services.services;
+import runtime.shutdown.shutdown;
+import telemetry;
 import config.parsing.parser;
 import analysis.inference.analyzer;
 import utils.logging.logger;
@@ -383,8 +383,8 @@ void graphCommand(in string target) @system
 /// Resume command handler - continues build from checkpoint (refactored with DI)
 void resumeCommand(in string modeStr) @system
 {
-    import core.execution.recovery.checkpoint : CheckpointManager;
-    import core.execution.recovery.resume : ResumePlanner, ResumeConfig;
+    import runtime.recovery.checkpoint : CheckpointManager;
+    import runtime.recovery.resume : ResumePlanner, ResumeConfig;
     
     Logger.info("Checking for build checkpoint...");
     

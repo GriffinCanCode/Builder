@@ -3,7 +3,7 @@ module languages.jvm.scala.tooling.builders.base;
 import languages.jvm.scala.core.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Build result for Scala builds
 struct ScalaBuildResult

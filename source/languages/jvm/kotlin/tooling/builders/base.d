@@ -3,7 +3,7 @@ module languages.jvm.kotlin.tooling.builders.base;
 import languages.jvm.kotlin.core.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Build result for Kotlin builds
 struct KotlinBuildResult

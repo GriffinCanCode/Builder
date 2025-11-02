@@ -10,7 +10,7 @@ import std.conv;
 import languages.compiled.protobuf.core.config;
 import utils.logging.logger;
 import utils.files.hash;
-import core.caching.actions.action : ActionCache, ActionId, ActionType;
+import caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Result of protoc compilation
 struct ProtocResult

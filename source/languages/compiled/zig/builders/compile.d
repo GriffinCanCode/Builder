@@ -15,7 +15,7 @@ import languages.compiled.zig.builders.base;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Builder using direct zig compile commands with action-level caching
 class CompileBuilder : ZigBuilder

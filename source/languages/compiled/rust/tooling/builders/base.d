@@ -3,7 +3,7 @@ module languages.compiled.rust.tooling.builders.base;
 import std.range;
 import languages.compiled.rust.core.config;
 import config.schema.schema;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Base interface for Rust builders
 interface RustBuilder
@@ -37,7 +37,7 @@ class RustBuilderFactory
     {
         import languages.compiled.rust.tooling.builders.cargo;
         import languages.compiled.rust.tooling.builders.rustc;
-        import core.caching.actions.action : ActionCache;
+        import caching.actions.action : ActionCache;
         
         final switch (compiler)
         {

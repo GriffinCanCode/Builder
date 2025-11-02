@@ -40,7 +40,7 @@ module utils.security;
 ///     import utils.security : execute;  // Secure drop-in replacement
 
 public import utils.security.validation;
-public import utils.security.executor : SecureExecutor, ProcessResult, SecurityError, SecurityCode, execute;
+public import utils.security.executor : SecureExecutor, ProcessResult, SecurityCode, execute;
 public import utils.security.integrity;
 public import utils.security.tempdir;
 

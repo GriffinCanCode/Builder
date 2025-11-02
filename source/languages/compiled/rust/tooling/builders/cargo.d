@@ -14,7 +14,7 @@ import languages.compiled.rust.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Cargo builder - uses cargo for compilation with action-level caching
 class CargoBuilder : RustBuilder

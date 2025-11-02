@@ -20,7 +20,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Generate PCH header file from suggested headers
 private string generatePchHeader(string[] headers, string outputDir)

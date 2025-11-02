@@ -21,7 +21,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Ruby build handler with action-level caching
 class RubyHandler : BaseLanguageHandler

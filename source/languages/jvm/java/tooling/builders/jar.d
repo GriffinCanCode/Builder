@@ -16,7 +16,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionId, ActionType;
+import caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Standard JAR builder with action-level caching for per-file compilation
 class JARBuilder : JavaBuilder

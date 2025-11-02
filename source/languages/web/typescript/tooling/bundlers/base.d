@@ -3,7 +3,7 @@ module languages.web.typescript.tooling.bundlers.base;
 import std.array;
 import languages.web.typescript.core.config;
 import config.schema.schema;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// Base interface for TypeScript compilers/bundlers
 interface TSBundler

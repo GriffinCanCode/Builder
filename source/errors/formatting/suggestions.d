@@ -1,6 +1,6 @@
 module errors.formatting.suggestions;
 
-import errors.types.types : BuildError, BuildFailureError, ParseError, FileNotFoundError;
+import errors.types.types : BuildError, BaseBuildError, BuildFailureError, ParseError;
 import errors.handling.codes : ErrorCode;
 import errors.types.context : ErrorSuggestion;
 
@@ -15,7 +15,7 @@ struct SuggestionGenerator
     /// Generate suggestions for an error
     /// 
     /// Responsibility: Analyze error and return relevant suggestions
-    static const(ErrorSuggestion)[] generate(const BuildError error) @safe
+    static const(ErrorSuggestion)[] generate(const BuildError error) @trusted
     {
         // Try to get typed suggestions from error first
         if (auto baseErr = cast(const BaseBuildError)error)
@@ -32,7 +32,7 @@ struct SuggestionGenerator
     /// Generate suggestions based on error code
     /// 
     /// Responsibility: Provide generic suggestions for common error codes
-    private static const(ErrorSuggestion)[] generateFromCode(ErrorCode code) @safe
+    private static const(ErrorSuggestion)[] generateFromCode(ErrorCode code) @trusted
     {
         ErrorSuggestion[] suggestions;
         
@@ -40,76 +40,76 @@ struct SuggestionGenerator
         {
             case ErrorCode.FileNotFound:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.FileCheck,
                     "Verify the file path is correct and the file exists",
+                    ErrorSuggestion.Type.FileCheck,
                     ""
                 );
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Command,
                     "Check current directory contents",
+                    ErrorSuggestion.Type.Command,
                     "ls -la"
                 );
                 break;
                 
-            case ErrorCode.ParseError:
+            case ErrorCode.ParseFailed:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Documentation,
                     "Review Builderfile syntax documentation",
+                    ErrorSuggestion.Type.Documentation,
                     "https://docs.builder.dev/syntax"
                 );
                 break;
                 
-            case ErrorCode.DependencyCycle:
+            case ErrorCode.CircularDependency:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Command,
                     "Visualize dependency graph to identify cycle",
+                    ErrorSuggestion.Type.Command,
                     "builder query --graph"
                 );
                 break;
                 
-            case ErrorCode.CommandFailed:
+            case ErrorCode.ProcessSpawnFailed:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Command,
                     "Run command directly to see full error output",
+                    ErrorSuggestion.Type.Command,
                     ""
                 );
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.FileCheck,
                     "Check if required tools are installed and in PATH",
+                    ErrorSuggestion.Type.FileCheck,
                     ""
                 );
                 break;
                 
             case ErrorCode.PermissionDenied:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Command,
                     "Check file permissions",
+                    ErrorSuggestion.Type.Command,
                     "ls -l <file>"
                 );
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Command,
                     "Try running with appropriate permissions",
+                    ErrorSuggestion.Type.Command,
                     "chmod +x <file>"
                 );
                 break;
                 
             case ErrorCode.NetworkError:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.General,
                     "Check network connectivity",
+                    ErrorSuggestion.Type.General,
                     ""
                 );
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.General,
                     "Verify proxy settings if behind a firewall",
+                    ErrorSuggestion.Type.General,
                     ""
                 );
                 break;
                 
             case ErrorCode.CacheCorrupted:
                 suggestions ~= ErrorSuggestion(
-                    ErrorSuggestion.Type.Command,
                     "Clear the cache and rebuild",
+                    ErrorSuggestion.Type.Command,
                     "builder clean --cache"
                 );
                 break;

@@ -19,7 +19,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionCacheConfig;
+import caching.actions.action : ActionCache, ActionCacheConfig;
 
 /// Haskell build handler with GHC, Cabal, and Stack support and action-level caching
 class HaskellHandler : BaseLanguageHandler

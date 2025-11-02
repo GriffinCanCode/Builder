@@ -9,7 +9,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
 import utils.process : isCommandAvailable;
-import core.caching.actions.action : ActionCache;
+import caching.actions.action : ActionCache;
 
 /// CGO builder - handles C interop compilation
 class CGoBuilder : StandardBuilder

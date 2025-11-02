@@ -13,8 +13,8 @@ import languages.scripting.perl.services;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionCacheConfig;
-import core.shutdown.shutdown : ShutdownCoordinator;
+import caching.actions.action : ActionCache, ActionCacheConfig;
+import runtime.shutdown.shutdown : ShutdownCoordinator;
 
 /// Thin orchestration layer for Perl builds
 /// Delegates all work to specialized services

@@ -15,7 +15,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.actions.action : ActionCache, ActionId, ActionType;
+import caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Direct Nim compiler builder - for direct nim c/cpp/js invocations with action-level caching
 class CompileBuilder : NimBuilder

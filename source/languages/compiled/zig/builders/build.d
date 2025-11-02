@@ -17,7 +17,7 @@ import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.security.validation;
-import core.caching.actions.action;
+import caching.actions.action;
 
 /// Builder using build.zig build system with action-level caching
 class BuildZigBuilder : ZigBuilder
