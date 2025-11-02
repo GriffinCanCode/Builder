@@ -15,7 +15,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// JavaScript backend builder - compiles Nim to JavaScript
 class JsBuilder : NimBuilder

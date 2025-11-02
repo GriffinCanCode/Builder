@@ -1,4 +1,4 @@
-module core.caching.actionstore;
+module core.caching.actions.storage;
 
 import std.stdio;
 import std.file;
@@ -10,7 +10,7 @@ import std.datetime;
 import std.bitmanip;
 import std.exception : assumeUnique;
 import core.memory : GC;
-import core.caching.action;
+import core.caching.actions.action;
 import utils.simd.ops;
 
 /// High-performance binary storage for action cache entries

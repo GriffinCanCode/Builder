@@ -3,8 +3,8 @@ module core.services.services;
 import std.stdio;
 import std.conv : to;
 import core.graph.graph;
-import core.execution.engine : ExecutionEngine;
-import core.caching.cache;
+import core.execution.core.engine : ExecutionEngine;
+import core.caching.targets.cache;
 import core.telemetry;
 import core.telemetry.distributed.tracing;
 import utils.logging.structured;
@@ -245,7 +245,7 @@ final class BuildServices
         bool enableRetries = true,
         bool useWorkStealing = true)
     {
-        import core.execution.engine;
+        import core.execution.core.engine;
         import core.execution.services;
         
         // Create scheduling service

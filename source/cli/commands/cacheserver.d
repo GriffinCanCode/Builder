@@ -3,7 +3,7 @@ module cli.commands.cacheserver;
 import std.stdio : writeln, writefln;
 import std.conv : to;
 import std.getopt;
-import core.caching.remote.server : CacheServer;
+import core.caching.distributed.remote.server : CacheServer;
 import utils.logging.logger : Logger;
 
 /// Cache server command
@@ -53,27 +53,29 @@ struct CacheServerCommand
             
             // Handle Ctrl+C gracefully
             import core.sys.posix.signal : signal, SIGINT, SIGTERM;
-            import std.functional : toDelegate;
+            import core.thread : Thread;
+            import core.time : msecs;
             
-            __gshared CacheServer globalServer;
-            globalServer = server;
+            __gshared bool shutdownRequested = false;
             
             extern(C) void signalHandler(int sig) nothrow @nogc @system
             {
-                if (globalServer !is null)
-                {
-                    try
-                    {
-                        globalServer.stop();
-                    }
-                    catch (Exception) {}
-                }
+                shutdownRequested = true;
             }
             
             signal(SIGINT, &signalHandler);
             signal(SIGTERM, &signalHandler);
             
             server.start();
+            
+            // Check for shutdown signal periodically
+            while (!shutdownRequested)
+            {
+                Thread.sleep(100.msecs);
+            }
+            
+            Logger.info("Shutdown signal received, stopping server...");
+            server.stop();
         }
         catch (Exception e)
         {

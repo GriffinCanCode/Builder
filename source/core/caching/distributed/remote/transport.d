@@ -1,4 +1,4 @@
-module core.caching.remote.transport;
+module core.caching.distributed.remote.transport;
 
 import std.socket;
 import std.uri : encode, decode;
@@ -7,7 +7,7 @@ import std.string : split, strip, startsWith, indexOf, format;
 import std.algorithm : canFind;
 import std.datetime : Duration, Clock, SysTime;
 import std.array : Appender;
-import core.caching.remote.protocol;
+import core.caching.distributed.remote.protocol;
 import errors;
 
 /// HTTP transport for remote cache
@@ -60,7 +60,9 @@ final class HttpTransport
         auto result = executeRequest("PUT", path, data);
         
         if (result.isErr)
-            return Err!BuildError(result.unwrapErr());
+        {
+            return Result!BuildError.err(result.unwrapErr());
+        }
         
         return Ok!BuildError();
     }
@@ -93,7 +95,7 @@ final class HttpTransport
         auto result = executeRequest("DELETE", path, null);
         
         if (result.isErr)
-            return Err!BuildError(result.unwrapErr());
+            return Result!BuildError.err(result.unwrapErr());
         
         return Ok!BuildError();
     }
@@ -189,7 +191,7 @@ final class HttpTransport
         string path;
     }
     
-    private Result!(UrlInfo, BuildError) parseUrl(string url) pure @safe
+    private Result!(UrlInfo, BuildError) parseUrl(string url) pure @trusted
     {
         UrlInfo info;
         

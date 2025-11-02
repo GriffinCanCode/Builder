@@ -1,4 +1,4 @@
-module core.caching.remote;
+module core.caching.distributed.remote;
 
 /// Remote caching module
 /// Provides distributed cache for build artifacts across teams and CI/CD
@@ -22,9 +22,9 @@ module core.caching.remote;
 /// server.start();
 /// ```
 
-public import core.caching.remote.protocol;
-public import core.caching.remote.transport;
-public import core.caching.remote.client;
-public import core.caching.remote.server;
+public import core.caching.distributed.remote.protocol;
+public import core.caching.distributed.remote.transport;
+public import core.caching.distributed.remote.client;
+public import core.caching.distributed.remote.server;
 
 

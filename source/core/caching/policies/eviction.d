@@ -1,4 +1,4 @@
-module core.caching.eviction;
+module core.caching.policies.eviction;
 
 import std.algorithm;
 import std.array;

@@ -16,7 +16,7 @@ import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process.checker : isCommandAvailable;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Elm build handler with action-level caching
 class ElmHandler : BaseLanguageHandler

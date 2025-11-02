@@ -222,7 +222,7 @@ final class ResumePlanner
         BuildGraph graph
     ) const @system
     {
-        import core.caching.cache : BuildCache, CacheConfig;
+        import core.caching.targets.cache : BuildCache, CacheConfig;
         
         string[] invalidated;
         

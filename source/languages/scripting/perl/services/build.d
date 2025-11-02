@@ -4,7 +4,7 @@ import languages.scripting.perl.core.config;
 import config.schema.schema : LanguageBuildResult;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.action;
+import core.caching.actions.action;
 import utils.files.hash;
 import utils.logging.logger;
 

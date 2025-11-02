@@ -24,7 +24,7 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.process : isCommandAvailable;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Lua language build handler with action-level caching - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler

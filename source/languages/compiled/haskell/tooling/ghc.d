@@ -11,7 +11,7 @@ import std.conv;
 import languages.compiled.haskell.core.config;
 import config.schema.schema;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionId, ActionType;
 import utils.files.hash : FastHash;
 
 /// GHC compiler wrapper with action-level caching

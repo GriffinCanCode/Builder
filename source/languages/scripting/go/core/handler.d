@@ -19,7 +19,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionId, ActionType;
+import core.caching.actions.action : ActionId, ActionType;
 
 /// Go build handler - modular and extensible with action-level caching
 class GoHandler : BaseLanguageHandler

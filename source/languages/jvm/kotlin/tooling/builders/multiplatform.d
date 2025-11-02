@@ -14,7 +14,7 @@ import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.security.validation;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Kotlin Multiplatform builder
 class MultiplatformBuilder : KotlinBuilder

@@ -16,7 +16,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// OCaml build handler with support for dune, ocamlopt, and ocamlc with action-level caching
 class OCamlHandler : BaseLanguageHandler

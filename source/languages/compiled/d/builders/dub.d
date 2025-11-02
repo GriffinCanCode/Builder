@@ -15,7 +15,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// DUB builder implementation with action-level caching
 class DubBuilder : DBuilder

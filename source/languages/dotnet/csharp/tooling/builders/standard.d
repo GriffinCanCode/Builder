@@ -14,7 +14,7 @@ import analysis.targets.spec;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 import core.shutdown.shutdown : ShutdownCoordinator;
 
 /// Standard builder using dotnet build with action-level caching

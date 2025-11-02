@@ -1,12 +1,12 @@
-module core.caching.distributed;
+module core.caching.distributed.coordinator;
 
 import std.file : exists, read, write, mkdirRecurse, isDir;
 import std.path : buildPath, dirName;
 import std.algorithm : min;
 import std.conv : to;
-import core.caching.cache : BuildCache;
-import core.caching.action : ActionCache, ActionId;
-import core.caching.remote.client : RemoteCacheClient;
+import core.caching.targets.cache : BuildCache;
+import core.caching.actions.action : ActionCache, ActionId;
+import core.caching.distributed.remote.client : RemoteCacheClient;
 import utils.files.hash : FastHash;
 import errors;
 
@@ -174,7 +174,9 @@ final class DistributedCache
             // Fetch artifact from remote
             auto fetchResult = remoteCache.get(targetHash);
             if (fetchResult.isErr)
-                return Err!BuildError(fetchResult.unwrapErr());
+            {
+                return Result!BuildError.err(fetchResult.unwrapErr());
+            }
             
             auto artifactData = fetchResult.unwrap();
             
@@ -191,11 +193,11 @@ final class DistributedCache
         }
         catch (Exception e)
         {
-            auto error = new CacheError(
+            BuildError error = new CacheError(
                 "Failed to pull from remote cache: " ~ e.msg,
                 ErrorCode.CacheLoadFailed
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
     }
     

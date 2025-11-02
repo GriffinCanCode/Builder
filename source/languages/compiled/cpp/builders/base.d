@@ -6,7 +6,7 @@ import std.conv;
 import languages.compiled.cpp.core.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Base interface for C++ builders
 interface CppBuilder

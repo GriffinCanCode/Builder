@@ -12,7 +12,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Script builder - for simple .ex/.exs files
 class ScriptBuilder : ElixirBuilder

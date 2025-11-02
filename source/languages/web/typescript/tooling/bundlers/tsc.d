@@ -13,7 +13,7 @@ import std.conv;
 import std.string;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Official TypeScript compiler (tsc) with per-file action caching
 class TSCBundler : TSBundler

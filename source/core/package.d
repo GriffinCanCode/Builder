@@ -25,10 +25,10 @@ module core;
 ///   }
 
 public import core.graph.graph;
-public import core.execution.engine;
-public import core.caching.cache;
-public import core.caching.storage;
-public import core.caching.eviction;
+public import core.execution;
+public import core.caching.targets.cache;
+public import core.caching.targets.storage;
+public import core.caching.policies.eviction;
 public import core.telemetry;
 public import core.services.services;
 public import core.shutdown.shutdown;

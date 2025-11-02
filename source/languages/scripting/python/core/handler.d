@@ -21,7 +21,7 @@ import utils.python.pycheck;
 import utils.python.pywrap;
 import utils.security : execute;
 import std.process : Config;
-import core.caching.action : ActionId, ActionType;
+import core.caching.actions.action : ActionId, ActionType;
 
 /// Python build handler - comprehensive and modular with action-level caching
 class PythonHandler : BaseLanguageHandler

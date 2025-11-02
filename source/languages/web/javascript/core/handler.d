@@ -21,7 +21,7 @@ import utils.process.checker : isCommandAvailable;
 // SECURITY: Use secure execute with automatic path validation
 import utils.security : execute;
 import std.process : Config;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// JavaScript/TypeScript build handler with bundler support and action-level caching
 class JavaScriptHandler : BaseLanguageHandler

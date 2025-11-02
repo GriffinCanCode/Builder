@@ -1,4 +1,4 @@
-module core.caching.remote.protocol;
+module core.caching.distributed.remote.protocol;
 
 import std.datetime : SysTime, Duration;
 import core.time : seconds;
@@ -54,7 +54,7 @@ struct ArtifactMetadata
     }
     
     /// Deserialize from binary format
-    static Result!(ArtifactMetadata, BuildError) deserialize(const(ubyte)[] data) pure @system
+    static Result!(ArtifactMetadata, BuildError) deserialize(const(ubyte)[] data) @system
     {
         import std.bitmanip : read;
         import std.utf : toUTF16;
@@ -71,10 +71,14 @@ struct ArtifactMetadata
         ArtifactMetadata meta;
         size_t offset = 0;
         
+        // Make a mutable copy for read operations
+        ubyte[] mutableData = cast(ubyte[])data.dup;
+        
         try
         {
             // Content hash
-            immutable hashLen = data[offset .. offset + 4].read!uint();
+            auto hashSlice = mutableData[offset .. offset + 4];
+            immutable hashLen = hashSlice.read!uint();
             offset += 4;
             if (offset + hashLen > data.length)
                 throw new Exception("Invalid hash length");
@@ -82,18 +86,22 @@ struct ArtifactMetadata
             offset += hashLen;
             
             // Sizes
-            meta.size = data[offset .. offset + 8].read!ulong();
+            auto sizeSlice = mutableData[offset .. offset + 8];
+            meta.size = sizeSlice.read!ulong();
             offset += 8;
-            meta.compressedSize = data[offset .. offset + 8].read!ulong();
+            auto compSizeSlice = mutableData[offset .. offset + 8];
+            meta.compressedSize = compSizeSlice.read!ulong();
             offset += 8;
             
             // Timestamp
-            immutable stdTime = data[offset .. offset + 8].read!long();
+            auto timeSlice = mutableData[offset .. offset + 8];
+            immutable stdTime = timeSlice.read!long();
             offset += 8;
             meta.timestamp = SysTime(stdTime);
             
             // Workspace
-            immutable wsLen = data[offset .. offset + 4].read!uint();
+            auto wsLenSlice = mutableData[offset .. offset + 4];
+            immutable wsLen = wsLenSlice.read!uint();
             offset += 4;
             if (offset + wsLen > data.length)
                 throw new Exception("Invalid workspace length");

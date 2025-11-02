@@ -19,7 +19,7 @@ import utils.logging.logger;
 /// Scala Native builder - compiles Scala to native binary via LLVM
 class ScalaNativeBuilder : ScalaBuilder
 {
-    import core.caching.action : ActionCache;
+    import core.caching.actions.action : ActionCache;
     this(ActionCache cache = null) {}
     
     override ScalaBuildResult build(

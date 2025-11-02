@@ -189,7 +189,7 @@ class FSharpHandler : BaseLanguageHandler
             mkdirRecurse(outputDir);
         
         // Build metadata for cache validation
-        import core.caching.action : ActionId, ActionType;
+        import core.caching.actions.action : ActionId, ActionType;
         
         string[string] metadata;
         metadata["buildTool"] = "dotnet";
@@ -298,7 +298,7 @@ class FSharpHandler : BaseLanguageHandler
         
         bool success = (res.status == 0);
         
-        import core.caching.action : ActionId, ActionType;
+        import core.caching.actions.action : ActionId, ActionType;
         ActionId actionId2;
         actionId2.targetId = target.name;
         actionId2.type = ActionType.Package;
@@ -410,7 +410,7 @@ class FSharpHandler : BaseLanguageHandler
             mkdirRecurse(outputDir);
         
         // Build metadata for cache validation
-        import core.caching.action : ActionId, ActionType;
+        import core.caching.actions.action : ActionId, ActionType;
         
         string[string] metadata;
         metadata["compiler"] = "fsc";

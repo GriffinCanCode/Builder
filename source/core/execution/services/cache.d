@@ -1,8 +1,8 @@
 module core.execution.services.cache;
 
-import core.caching.cache : BuildCache, CacheConfig;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId;
-import core.caching.remote : RemoteCacheClient, RemoteCacheConfig;
+import core.caching.targets.cache : BuildCache, CacheConfig;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId;
+import core.caching.distributed.remote : RemoteCacheClient, RemoteCacheConfig;
 import core.shutdown.shutdown : ShutdownCoordinator;
 import errors;
 
@@ -299,7 +299,7 @@ final class CacheService : ICacheService
         // Remote cache statistics
         if (remoteCache !is null)
         {
-            import core.caching.remote.protocol : RemoteCacheStats;
+            import core.caching.distributed.remote.protocol : RemoteCacheStats;
             auto remoteStats = remoteCache.getStats();
             stats.remoteGetRequests = remoteStats.getRequests;
             stats.remotePutRequests = remoteStats.putRequests;

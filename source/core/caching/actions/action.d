@@ -1,4 +1,4 @@
-module core.caching.action;
+module core.caching.actions.action;
 
 import std.stdio;
 import std.file;
@@ -11,10 +11,10 @@ import std.typecons : tuple, Tuple;
 import core.sync.mutex;
 import utils.files.hash;
 import utils.simd.hash;
-import core.caching.eviction;
+import core.caching.policies.eviction;
 import utils.security.integrity;
 import utils.concurrency.lockfree;
-import core.caching.actionstore;
+import core.caching.actions.storage;
 import errors;
 
 /// Action types for fine-grained caching
@@ -594,4 +594,3 @@ struct ActionCacheConfig
         return config;
     }
 }
-

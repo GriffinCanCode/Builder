@@ -3,7 +3,7 @@ module languages.scripting.lua.tooling.builders.base;
 import languages.scripting.lua.core.config;
 import config.schema.schema;
 import analysis.targets.spec;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Build result structure
 struct BuildResult

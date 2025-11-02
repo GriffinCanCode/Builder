@@ -4,7 +4,7 @@ import std.conv : to;
 import config.schema.schema;
 import analysis.targets.types;
 import core.telemetry.distributed.tracing;
-import core.caching.action;
+import core.caching.actions.action;
 import utils.logging.structured;
 import utils.simd.capabilities;
 import errors;

@@ -16,7 +16,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Standard Go builder - uses go build command with action-level caching
 class StandardBuilder : GoBuilder

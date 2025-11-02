@@ -13,7 +13,7 @@ import config.schema.schema;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Script builder - creates executable wrappers for Lua scripts
 class ScriptBuilder : LuaBuilder

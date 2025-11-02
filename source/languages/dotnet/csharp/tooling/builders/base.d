@@ -4,7 +4,7 @@ import std.string;
 import languages.dotnet.csharp.core.config;
 import analysis.targets.spec;
 import config.schema.schema;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Build result structure
 struct BuildResult

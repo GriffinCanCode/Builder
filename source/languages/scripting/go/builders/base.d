@@ -3,7 +3,7 @@ module languages.scripting.go.builders.base;
 import languages.scripting.go.core.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Base interface for Go builders
 interface GoBuilder

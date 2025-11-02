@@ -1,4 +1,4 @@
-module core.caching.remote.server;
+module core.caching.distributed.remote.server;
 
 import std.socket;
 import std.stdio : writeln, writefln;
@@ -12,7 +12,7 @@ import std.array : Appender;
 import std.uri : decode;
 import core.thread : Thread;
 import core.sync.mutex;
-import core.caching.remote.protocol;
+import core.caching.distributed.remote.protocol;
 import utils.files.hash : FastHash;
 import utils.security.integrity : IntegrityValidator;
 import errors;
@@ -109,16 +109,20 @@ final class CacheServer
         }
     }
     
+    private void cleanupClient(Socket client) nothrow
+    {
+        try { client.shutdown(SocketShutdown.BOTH); } catch (Exception) {}
+        try { client.close(); } catch (Exception) {}
+    }
+    
     private void handleClient(Socket client) @trusted
     {
+        import core.time : seconds;
+        
         scope(exit)
         {
-            try
-            {
-                client.shutdown(SocketShutdown.BOTH);
-                client.close();
-            }
-            catch (Exception) {}
+            // Clean up client connection
+            cleanupClient(client);
         }
         
         try

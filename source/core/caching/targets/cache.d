@@ -1,4 +1,4 @@
-module core.caching.cache;
+module core.caching.targets.cache;
 
 import std.stdio;
 import std.file;
@@ -11,8 +11,8 @@ import std.typecons : tuple;
 import core.sync.mutex;
 import utils.files.hash;
 import utils.simd.hash;
-import core.caching.storage;
-import core.caching.eviction;
+import core.caching.targets.storage;
+import core.caching.policies.eviction;
 import utils.security.integrity;
 import utils.concurrency.lockfree;
 import errors;

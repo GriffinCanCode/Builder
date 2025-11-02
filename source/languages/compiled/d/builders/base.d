@@ -4,7 +4,7 @@ import languages.compiled.d.core.config;
 import config.schema.schema;
 import analysis.targets.types;
 import std.range : empty;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Base interface for D builders
 interface DBuilder

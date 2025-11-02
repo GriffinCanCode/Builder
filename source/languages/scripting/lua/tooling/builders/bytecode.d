@@ -14,7 +14,7 @@ import config.schema.schema;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Bytecode builder with action-level caching - compiles Lua to bytecode using luac
 class BytecodeBuilder : LuaBuilder

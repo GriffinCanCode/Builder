@@ -3,7 +3,7 @@ module languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.core.config;
 import config.schema.schema;
 import analysis.targets.types;
-import core.caching.action : ActionCache;
+import core.caching.actions.action : ActionCache;
 
 /// Build result for Java builds
 struct JavaBuildResult

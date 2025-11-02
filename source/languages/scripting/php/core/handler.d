@@ -23,7 +23,7 @@ import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
 import utils.security.validation;
-import core.caching.action;
+import core.caching.actions.action;
 
 /// PHP build handler with action-level caching for syntax validation, analysis, and packaging
 class PHPHandler : BaseLanguageHandler

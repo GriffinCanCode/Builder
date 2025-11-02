@@ -13,7 +13,7 @@ import languages.compiled.rust.managers.toolchain;
 import config.schema.schema;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action;
+import core.caching.actions.action;
 
 /// Direct rustc builder - compiles without cargo with action-level caching
 class RustcBuilder : RustBuilder

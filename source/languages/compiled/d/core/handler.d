@@ -21,7 +21,7 @@ import analysis.targets.types;
 import analysis.targets.spec;
 import utils.files.hash;
 import utils.logging.logger;
-import core.caching.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import core.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Advanced D build handler with dub, compiler detection, and tooling support with action-level caching
 class DHandler : BaseLanguageHandler

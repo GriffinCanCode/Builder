@@ -17,7 +17,7 @@ import utils.logging.logger;
 /// Native AOT builder
 class AOTBuilder : CSharpBuilder
 {
-    import core.caching.action : ActionCache;
+    import core.caching.actions.action : ActionCache;
     this(ActionCache cache = null) {}
     
     override BuildResult build(

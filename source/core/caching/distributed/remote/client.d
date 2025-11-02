@@ -1,12 +1,12 @@
-module core.caching.remote.client;
+module core.caching.distributed.remote.client;
 
 import std.datetime : Clock, Duration, dur;
 import std.file : exists, read, write, remove;
 import std.path : buildPath;
 import std.algorithm : min;
 import core.sync.mutex;
-import core.caching.remote.protocol;
-import core.caching.remote.transport;
+import core.caching.distributed.remote.protocol;
+import core.caching.distributed.remote.transport;
 import utils.files.hash : FastHash;
 import utils.security.integrity : IntegrityValidator;
 import utils.compression.compress;
@@ -116,21 +116,21 @@ final class RemoteCacheClient
     {
         if (!config.enabled())
         {
-            auto error = new CacheError(
+            BuildError error = new CacheError(
                 "Remote cache not configured",
                 ErrorCode.CacheDisabled
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
         
         // Check size limit
         if (data.length > config.maxArtifactSize)
         {
-            auto error = new CacheError(
+            BuildError error = new CacheError(
                 "Artifact exceeds maximum size",
                 ErrorCode.CacheTooLarge
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
         
         immutable startTime = Clock.currStdTime();
@@ -156,7 +156,10 @@ final class RemoteCacheClient
         }
         
         // Execute with retry logic
-        auto result = executeWithRetry(() => transport.put(contentHash, payload));
+        auto result = executeWithRetry!BuildError(() @trusted {
+            Result!(BuildError, BuildError) r = transport.put(contentHash, payload);
+            return r;
+        });
         
         synchronized (statsMutex)
         {
@@ -288,7 +291,7 @@ final class RemoteCacheClient
         return lastResult;
     }
     
-    private bool isRetryable(BuildError error) pure @safe nothrow
+    private bool isRetryable(BuildError error) pure @trusted nothrow
     {
         try
         {

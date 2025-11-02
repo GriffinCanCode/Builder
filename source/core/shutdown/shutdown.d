@@ -3,8 +3,8 @@ module core.shutdown.shutdown;
 import std.stdio;
 import core.sync.mutex;
 import core.stdc.signal;
-import core.caching.cache : BuildCache;
-import core.caching.action : ActionCache;
+import core.caching.targets.cache : BuildCache;
+import core.caching.actions.action : ActionCache;
 
 /// Shutdown coordinator for explicit resource cleanup
 /// 

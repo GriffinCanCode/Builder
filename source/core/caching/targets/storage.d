@@ -1,4 +1,4 @@
-module core.caching.storage;
+module core.caching.targets.storage;
 
 import std.stdio;
 import std.file;
