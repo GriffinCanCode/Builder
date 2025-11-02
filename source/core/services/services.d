@@ -1,4 +1,4 @@
-module core.services;
+module core.services.services;
 
 import std.stdio;
 import std.conv : to;

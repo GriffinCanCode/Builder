@@ -1,5 +1,0 @@
-    Starting Performing "$DFLAGS" build using ldc2 for aarch64, arm_hardfloat.
-    Building realworld-benchmark ~master: building configuration [application]
-     Linking realworld-benchmark
-clang: warning: overriding deployment version from '16' to '26.0' [-Woverriding-deployment-version]
-     Running tests/bench/realworld-benchmark 

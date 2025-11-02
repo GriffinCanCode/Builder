@@ -25,19 +25,21 @@ static const uint8_t MSG_SCHEDULE[7][16] = {
     {11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13},
 };
 
-INLINE uint32x4_t rotr32_neon(uint32x4_t x, int n) {
-    return vorrq_u32(vshrq_n_u32(x, n), vshlq_n_u32(x, 32 - n));
-}
+/* NEON rotate right - use macros because intrinsics require compile-time constants */
+#define rotr32_16(x) vorrq_u32(vshrq_n_u32((x), 16), vshlq_n_u32((x), 16))
+#define rotr32_12(x) vorrq_u32(vshrq_n_u32((x), 12), vshlq_n_u32((x), 20))
+#define rotr32_8(x)  vorrq_u32(vshrq_n_u32((x), 8), vshlq_n_u32((x), 24))
+#define rotr32_7(x)  vorrq_u32(vshrq_n_u32((x), 7), vshlq_n_u32((x), 25))
 
 INLINE void g_neon(uint32x4_t* state, int a, int b, int c, int d, uint32x4_t mx, uint32x4_t my) {
     state[a] = vaddq_u32(state[a], vaddq_u32(state[b], mx));
-    state[d] = rotr32_neon(veorq_u32(state[d], state[a]), 16);
+    state[d] = rotr32_16(veorq_u32(state[d], state[a]));
     state[c] = vaddq_u32(state[c], state[d]);
-    state[b] = rotr32_neon(veorq_u32(state[b], state[c]), 12);
+    state[b] = rotr32_12(veorq_u32(state[b], state[c]));
     state[a] = vaddq_u32(state[a], vaddq_u32(state[b], my));
-    state[d] = rotr32_neon(veorq_u32(state[d], state[a]), 8);
+    state[d] = rotr32_8(veorq_u32(state[d], state[a]));
     state[c] = vaddq_u32(state[c], state[d]);
-    state[b] = rotr32_neon(veorq_u32(state[b], state[c]), 7);
+    state[b] = rotr32_7(veorq_u32(state[b], state[c]));
 }
 
 INLINE void round_neon(uint32x4_t* state, const uint32x4_t* msg, size_t round) {
@@ -137,10 +139,16 @@ void blake3_hash_many_neon(
             }
         }
         
+        /* Extract results - store vectors to memory and read back (NEON doesn't support dynamic lane access) */
+        uint32_t cv_tmp[8][4];
+        for (int i = 0; i < 8; i++) {
+            vst1q_u32(cv_tmp[i], cv[i]);
+        }
+        
         for (size_t lane = 0; lane < batch_size; lane++) {
             uint8_t* output = out + (base + lane) * 32;
             for (int i = 0; i < 8; i++) {
-                ((uint32_t*)output)[i] = vgetq_lane_u32(cv[i], lane);
+                ((uint32_t*)output)[i] = cv_tmp[i][lane];
             }
         }
     }

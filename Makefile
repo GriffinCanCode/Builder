@@ -1,16 +1,24 @@
 # Builder Makefile
 
-.PHONY: all build build-lsp lsp test tests examples clean install install-lsp help tsan test-tsan extension
+.PHONY: all build build-c build-lsp lsp test tests examples clean install install-lsp help tsan test-tsan extension
 
 all: build
 
 # Build the project
-build:
+build: build-c
 	@echo "Building Builder..."
 	@dub build --build=release
 
+# Build C libraries (SIMD)
+build-c:
+	@echo "Building C SIMD libraries..."
+	@mkdir -p bin/obj
+	@cd source/utils/simd/c && $(MAKE) clean && $(MAKE)
+	@cp source/utils/simd/c/*.o bin/obj/ 2>/dev/null || true
+	@echo "C libraries built"
+
 # Build LSP server
-build-lsp:
+build-lsp: build-c
 	@echo "Building Builder LSP server..."
 	@dub build --config=lsp --build=release
 
@@ -57,6 +65,7 @@ clean:
 	@rm -rf bin/
 	@rm -rf .builder-cache/
 	@rm -f *.lst
+	@cd source/utils/simd/c && $(MAKE) clean 2>/dev/null || true
 	@find . -name "*.o" -delete
 	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 

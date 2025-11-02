@@ -14,7 +14,7 @@ import utils.logging.logger : Logger;
 mixin template CachingHandlerMixin(string languageName)
 {
     import core.caching.action : ActionCache, ActionCacheConfig;
-    import core.shutdown : ShutdownCoordinator;
+    import core.shutdown.shutdown : ShutdownCoordinator;
     
     private ActionCache actionCache;
     

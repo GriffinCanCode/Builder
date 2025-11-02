@@ -10,7 +10,7 @@ import std.regex;
 import config.parsing.parser;
 import config.schema.schema;
 import core.graph.graph;
-import core.services;
+import core.services.services;
 import utils.logging.logger;
 import cli.control.terminal;
 import cli.display.format;

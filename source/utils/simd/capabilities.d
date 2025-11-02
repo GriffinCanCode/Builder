@@ -21,12 +21,13 @@ final class SIMDCapabilities
     private ThreadPool _threadPool;
     private Mutex _poolMutex;
     private bool _initialized;
+    private size_t _threadPoolSize;
     
     /// Detect SIMD capabilities and initialize dispatch
     /// 
     /// Safety: @system because:
     /// 1. Calls blake3_simd_init() which is extern(C) @system
-    /// 2. Creates thread pool (allocation and threading)
+    /// 2. Thread pool created lazily on first use (not in constructor)
     /// 3. All state is properly synchronized
     this(size_t threadPoolSize = 0) @system
     {
@@ -42,9 +43,8 @@ final class SIMDCapabilities
         blake3_simd_init();
         _initialized = true;
         
-        // Create dedicated thread pool for SIMD operations
-        auto poolSize = threadPoolSize == 0 ? totalCPUs : threadPoolSize;
-        _threadPool = new ThreadPool(poolSize);
+        // Store thread pool size for lazy initialization
+        _threadPoolSize = threadPoolSize == 0 ? totalCPUs : threadPoolSize;
         _poolMutex = new Mutex();
     }
     
@@ -117,16 +117,23 @@ final class SIMDCapabilities
     
     /// Access thread pool for parallel SIMD operations
     /// Thread-safe: Mutex-protected access
+    /// Lazy initialization: pool created on first access
     ThreadPool threadPool() @system
     {
         synchronized (_poolMutex)
         {
+            // Lazy initialization of thread pool
+            if (_threadPool is null)
+            {
+                _threadPool = new ThreadPool(_threadPoolSize);
+            }
             return _threadPool;
         }
     }
     
     /// Execute parallel SIMD map operation
     /// Thread-safe: Uses internal thread pool with mutex protection
+    /// Lazy initialization: pool created on first use
     auto parallelMap(T, F)(T[] items, F func) @system
     {
         import std.traits : ReturnType;
@@ -140,13 +147,9 @@ final class SIMDCapabilities
         if (items.length == 1)
             return [func(items[0])];
         
-        synchronized (_poolMutex)
-        {
-            if (_threadPool is null)
-                throw new Exception("SIMD thread pool not initialized");
-            
-            return _threadPool.map(items, func);
-        }
+        // Get or create thread pool (lazy initialization)
+        auto pool = threadPool();
+        return pool.map(items, func);
     }
     
     /// Create SIMD capabilities by detecting hardware
@@ -156,7 +159,8 @@ final class SIMDCapabilities
         return new SIMDCapabilities(threadPoolSize);
     }
     
-    /// Create mock capabilities for testing (no SIMD, no thread pool)
+    /// Create mock capabilities for testing (no SIMD, minimal thread pool)
+    /// Thread pool created lazily, so no threads spawned until actually used
     static SIMDCapabilities createMock() @system
     {
         auto caps = new SIMDCapabilities(1);

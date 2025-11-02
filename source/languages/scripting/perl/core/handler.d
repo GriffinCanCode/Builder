@@ -14,7 +14,7 @@ import config.schema.schema;
 import analysis.targets.types;
 import utils.logging.logger;
 import core.caching.action : ActionCache, ActionCacheConfig;
-import core.shutdown : ShutdownCoordinator;
+import core.shutdown.shutdown : ShutdownCoordinator;
 
 /// Thin orchestration layer for Perl builds
 /// Delegates all work to specialized services

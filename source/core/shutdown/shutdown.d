@@ -1,4 +1,4 @@
-module core.shutdown;
+module core.shutdown.shutdown;
 
 import std.stdio;
 import core.sync.mutex;
@@ -336,4 +336,5 @@ struct ShutdownGuard
         released = true;
     }
 }
+
 

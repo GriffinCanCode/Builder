@@ -2,7 +2,7 @@ module core.execution.services.cache;
 
 import core.caching.cache : BuildCache, CacheConfig;
 import core.caching.action : ActionCache, ActionCacheConfig, ActionId;
-import core.shutdown : ShutdownCoordinator;
+import core.shutdown.shutdown : ShutdownCoordinator;
 import errors;
 
 /// Unified cache statistics for service layer
