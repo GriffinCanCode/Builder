@@ -279,6 +279,12 @@ struct Terminal
         this.bufferPos = 0;
     }
     
+    /// Get terminal capabilities
+    @property Capabilities capabilities() const pure nothrow
+    {
+        return caps;
+    }
+    
     /// Write colored text
     void writeColored(string text, Color fg, Style style = Style.None)
     {

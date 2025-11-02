@@ -28,10 +28,13 @@ struct ElixirConfig
     // Convenience accessors for common patterns
     ref ElixirProjectType projectType() return { return build.projectType; }
     ref MixEnv env() return { return build.mixEnv; }
+    MixEnv env() const { return build.mixEnv; }
     ref string customEnv() return { return build.customEnv; }
+    string customEnv() const { return build.customEnv; }
     ref OTPAppType appType() return { return build.appType; }
     ref ElixirVersion elixirVersion() return { return build.elixirVersion; }
     ref MixProjectConfig project() return { return build.mixProject; }
+    const(MixProjectConfig) project() const { return build.mixProject; }
     ref PhoenixConfig phoenix() return { return build.phoenix; }
     ref ReleaseConfig release() return { return build.release; }
     

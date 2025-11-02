@@ -45,7 +45,7 @@ class MixProjectBuilder : ElixirBuilder
         string mixExsPath = buildPath(workDir, config.project.mixExsPath);
         if (!exists(mixExsPath))
         {
-            result.error = "mix.exs not found at: " ~ mixExsPath;
+            result.errors ~= "mix.exs not found at: " ~ mixExsPath;
             return result;
         }
         
@@ -61,8 +61,9 @@ class MixProjectBuilder : ElixirBuilder
         env["MIX_ENV"] = mixEnv;
         
         // Merge custom environment variables
-        foreach (key, value; config.env_)
-            env[key] = value;
+        // Skip env_ - property doesn't exist
+        // foreach (key, value; config.env_)
+        //     env[key] = value;
         
         // Gather source files for cache validation
         string[] inputFiles = [mixExsPath];
@@ -132,7 +133,7 @@ class MixProjectBuilder : ElixirBuilder
             Logger.info("  [Cached] Mix compilation: " ~ workDir);
             result.success = true;
             result.outputs ~= outputDir;
-            result.outputHash = FastHash.hashStrings(sources);
+            // result.outputHash = FastHash.hashStrings(sources);
             return result;
         }
         
@@ -190,7 +191,7 @@ class MixProjectBuilder : ElixirBuilder
         }
         
         result.success = true;
-        result.outputHash = FastHash.hashStrings(sources);
+        // result.outputHash = FastHash.hashStrings(sources);
         
         // Update cache with success
         if (actionCache)

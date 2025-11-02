@@ -2,6 +2,7 @@ module languages.dotnet.csharp.config.build;
 
 import std.json;
 import std.conv;
+import std.range;
 
 /// C# build modes
 enum CSharpBuildMode

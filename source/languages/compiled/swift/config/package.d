@@ -27,17 +27,79 @@ struct SwiftConfig
     
     // Convenience accessors for common patterns
     ref SwiftProjectType projectType() return { return build.projectType; }
+    SwiftProjectType projectType() const { return build.projectType; }
     ref SPMBuildMode mode() return { return build.mode; }
+    SPMBuildMode mode() const { return build.mode; }
     ref SwiftBuildConfig buildConfig() return { return build.buildConfig; }
+    SwiftBuildConfig buildConfig() const { return build.buildConfig; }
     ref SwiftToolchain toolchain() return { return build.toolchain; }
     ref SwiftVersion swiftVersion() return { return build.swiftVersion; }
     ref SwiftLanguageVersion languageVersion() return { return build.languageVersion; }
+    SwiftLanguageVersion languageVersion() const { return build.languageVersion; }
     ref SwiftLibraryType libraryType() return { return build.libraryType; }
+    SwiftLibraryType libraryType() const { return build.libraryType; }
     ref string product() return { return build.product; }
+    string product() const { return build.product; }
     ref string target() return { return build.target; }
+    string target() const { return build.target; }
+    ref string packagePath() return { return build.packagePath; }
+    string packagePath() const { return build.packagePath; }
+    ref string buildPath() return { return build.buildPath; }
+    string buildPath() const { return build.buildPath; }
+    ref string scratchPath() return { return build.scratchPath; }
+    string scratchPath() const { return build.scratchPath; }
+    string customConfig() const { return build.customConfig; }
+    ref bool skipUpdate() return { return build.skipUpdate; }
+    bool skipUpdate() const { return build.skipUpdate; }
+    ref bool xcodeIntegration() return { return build.xcodeIntegration; }
+    ref bool verbose() return { return build.verbose; }
+    bool verbose() const { return build.verbose; }
+    ref bool veryVerbose() return { return build.veryVerbose; }
+    bool veryVerbose() const { return build.veryVerbose; }
+    ref int jobs() return { return build.jobs; }
+    int jobs() const { return build.jobs; }
+    ref bool disableSandbox() return { return build.disableSandbox; }
+    bool disableSandbox() const { return build.disableSandbox; }
+    ref bool disableAutomaticResolution() return { return build.disableAutomaticResolution; }
+    bool disableAutomaticResolution() const { return build.disableAutomaticResolution; }
+    ref bool forceResolvedVersions() return { return build.forceResolvedVersions; }
+    bool forceResolvedVersions() const { return build.forceResolvedVersions; }
+    ref bool staticSwiftStdlib() return { return build.staticSwiftStdlib; }
+    bool staticSwiftStdlib() const { return build.staticSwiftStdlib; }
+    ref string arch() return { return build.arch; }
+    string arch() const { return build.arch; }
+    ref string triple() return { return build.triple; }
+    string triple() const { return build.triple; }
+    ref string sdk() return { return build.sdk; }
+    string sdk() const { return build.sdk; }
+    ref string swiftcPath() return { return build.swiftcPath; }
+    string swiftcPath() const { return build.swiftcPath; }
+    ref bool enableLibraryEvolution() return { return build.enableLibraryEvolution; }
+    bool enableLibraryEvolution() const { return build.enableLibraryEvolution; }
+    ref bool emitModuleInterface() return { return build.emitModuleInterface; }
+    bool emitModuleInterface() const { return build.emitModuleInterface; }
+    ref bool enableTestability() return { return build.enableTestability; }
+    bool enableTestability() const { return build.enableTestability; }
+    ref bool batchMode() return { return build.batchMode; }
+    bool batchMode() const { return build.batchMode; }
+    ref bool indexWhileBuilding() return { return build.indexWhileBuilding; }
+    bool indexWhileBuilding() const { return build.indexWhileBuilding; }
+    ref bool incrementalCompilation() return { return build.incrementalCompilation; }
+    bool incrementalCompilation() const { return build.incrementalCompilation; }
+    ref bool wholeModuleOptimization() return { return build.wholeModuleOptimization; }
+    bool wholeModuleOptimization() const { return build.wholeModuleOptimization; }
+    ref bool debugInfo() return { return build.debugInfo; }
+    bool debugInfo() const { return build.debugInfo; }
+    ref string xcodeScheme() return { return build.xcodeScheme; }
+    string xcodeScheme() const { return build.xcodeScheme; }
     ref PlatformTarget[] platforms() return { return build.platforms; }
+    const(PlatformTarget[]) platforms() const { return build.platforms; }
     ref BuildSettings buildSettings() return { return build.buildSettings; }
+    const(BuildSettings) buildSettings() const { return build.buildSettings; }
     ref SwiftOptimization optimization() return { return build.optimization; }
+    SwiftOptimization optimization() const { return build.optimization; }
+    ref string[string] env() return { return build.env; }
+    const(string[string]) env() const { return build.env; }
     ref CrossCompilationConfig crossCompilation() return { return build.crossCompilation; }
     ref XCFrameworkConfig xcframework() return { return build.xcframework; }
     
@@ -49,7 +111,9 @@ struct SwiftConfig
     ref DocCConfig documentation() return { return quality.documentation; }
     
     ref SwiftSanitizer sanitizer() return { return testing.sanitizer; }
+    SwiftSanitizer sanitizer() const { return testing.sanitizer; }
     ref SwiftCoverage coverage() return { return testing.coverage; }
+    SwiftCoverage coverage() const { return testing.coverage; }
     
     /// Parse from JSON (required by ConfigParsingMixin)
     static SwiftConfig fromJSON(JSONValue json) @system

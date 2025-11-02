@@ -6,6 +6,7 @@ import std.algorithm : map, filter;
 import std.array : array, join, replicate, split;
 import std.conv : to;
 import std.string : strip;
+import std.range : empty;
 import std.datetime : Duration;
 import core.testing.results;
 import cli.control.terminal;
@@ -24,7 +25,7 @@ class TestReporter
     {
         this.terminal = terminal;
         this.formatter = formatter;
-        this.useColor = terminal.caps.color;
+        this.useColor = terminal.capabilities.supportsColor;
         this.verbose = verbose;
     }
     

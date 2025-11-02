@@ -1,8 +1,10 @@
 module core.testing.discovery;
 
-import std.algorithm : filter, canFind, startsWith, endsWith;
+import std.algorithm : filter, canFind, startsWith, endsWith, countUntil;
 import std.array : array;
-import std.string : toLower, strip;
+import std.string : toLower, strip, indexOf;
+import std.range : empty;
+import std.conv : to;
 import std.regex : regex, matchFirst;
 import config.schema.schema : Target, TargetType, WorkspaceConfig;
 import utils.logging.logger;

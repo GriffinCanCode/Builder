@@ -225,12 +225,13 @@ struct TestCommand
         // Export JUnit XML if requested
         if (config.generateJUnit)
         {
-            auto junitResult = exportJUnit(results, config.junitPath);
-            if (junitResult.isErr)
+            try
             {
-                import errors.formatting.format : formatError = format;
-                Logger.warning("Failed to export JUnit XML: " ~ 
-                    formatError(junitResult.unwrapErr()));
+                exportJUnit(results, config.junitPath);
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to export JUnit XML: " ~ e.msg);
             }
         }
         

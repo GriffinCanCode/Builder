@@ -5,6 +5,7 @@ import std.format : format;
 import std.array : array;
 import std.algorithm : map, filter;
 import std.string : strip, replace;
+import std.range : empty;
 import std.datetime : Duration;
 import std.path : buildPath, dirName;
 import std.file : exists, mkdirRecurse;
@@ -24,7 +25,7 @@ class JUnitExporter
     }
     
     /// Export test results to JUnit XML format
-    Result!BuildError export_(const TestResult[] results) @system
+    void export_(const TestResult[] results) @system
     {
         try
         {
@@ -42,15 +43,11 @@ class JUnitExporter
             writeTestSuites(file, results);
             
             Logger.info("Exported JUnit XML report to: " ~ outputPath);
-            return Ok!(BuildError)();
         }
         catch (Exception e)
         {
-            auto error = new BuildError(
-                "Failed to export JUnit XML: " ~ e.msg,
-                BuildErrorCode.IoError
-            );
-            return Err!(BuildError)(error);
+            Logger.error("Failed to export JUnit XML: " ~ e.msg);
+            throw e;
         }
     }
     
@@ -146,9 +143,9 @@ class JUnitExporter
 }
 
 /// Helper function to export test results
-Result!BuildError exportJUnit(const TestResult[] results, string outputPath) @system
+void exportJUnit(const TestResult[] results, string outputPath) @system
 {
     auto exporter = new JUnitExporter(outputPath);
-    return exporter.export_(results);
+    exporter.export_(results);
 }
 

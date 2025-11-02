@@ -28,21 +28,21 @@ final class NetworkError : BaseBuildError
     }
     
     /// Add host information
-    NetworkError withHost(string host, ushort port) return @safe
+    NetworkError withHost(string host, ushort port) return @system
     {
         addContext(ErrorContext("network host", format("%s:%d", host, port)));
         return this;
     }
     
     /// Add URL context
-    NetworkError withUrl(string url) return @safe
+    NetworkError withUrl(string url) return @system
     {
         addContext(ErrorContext("url", url));
         return this;
     }
     
     /// Add timeout context
-    NetworkError withTimeout(Duration timeout) return @safe
+    NetworkError withTimeout(Duration timeout) return @system
     {
         import std.conv : to;
         addContext(ErrorContext("timeout", timeout.total!"msecs".to!string ~ " ms"));

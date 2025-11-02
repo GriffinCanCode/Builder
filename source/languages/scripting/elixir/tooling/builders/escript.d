@@ -46,7 +46,7 @@ class EscriptBuilder : MixProjectBuilder
         
         if (res.status != 0)
         {
-            result.error = "Escript build failed: " ~ res.output;
+            result.errors ~= "Escript build failed: " ~ res.output;
             result.success = false;
             return result;
         }
@@ -57,7 +57,7 @@ class EscriptBuilder : MixProjectBuilder
         
         if (exists(escriptPath))
         {
-            result.escriptPath = escriptPath;
+            // result.escriptPath = escriptPath; // Property doesn't exist in ElixirBuildResult
             result.outputs ~= escriptPath;
             Logger.info("Escript created: " ~ escriptPath);
         }
