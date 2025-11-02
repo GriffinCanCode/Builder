@@ -2,11 +2,14 @@ module core.execution.hermetic.windows;
 
 version(Windows):
 
-import std.process : execute, Config;
 import std.file : exists, mkdirRecurse, tempDir;
 import std.path : buildPath;
 import std.conv : to;
+import std.string : toStringz, fromStringz;
+import std.array : appender;
 import core.execution.hermetic.spec;
+import core.execution.hermetic.monitor;
+import core.execution.hermetic.monitor.windows;
 import errors;
 
 /// Windows job object-based sandboxing
@@ -16,6 +19,7 @@ import errors;
 /// - Process tree isolation (all child processes contained)
 /// - Resource limits (memory, CPU time, process count)
 /// - Termination guarantees (kill all processes on job close)
+/// - I/O accounting for resource monitoring
 /// 
 /// Note: Windows doesn't provide filesystem/network isolation at the same
 /// level as Linux namespaces or macOS sandbox-exec. This provides partial
@@ -24,6 +28,7 @@ struct WindowsSandbox
 {
     private SandboxSpec spec;
     private string workDir;
+    private HANDLE jobHandle;
     
     /// Create sandbox from spec
     static Result!WindowsSandbox create(SandboxSpec spec, string workDir_) @system
@@ -32,10 +37,18 @@ struct WindowsSandbox
         sandbox.spec = spec;
         sandbox.workDir = workDir_;
         
-        // TODO: Initialize job object
-        // - Create job with CreateJobObjectW
-        // - Set resource limits with SetInformationJobObject
-        // - Configure memory, CPU, process limits
+        // Create job object for this sandbox
+        sandbox.jobHandle = CreateJobObjectW(null, null);
+        if (sandbox.jobHandle is null)
+            return Result!WindowsSandbox.err("Failed to create job object");
+        
+        // Configure resource limits
+        auto limitsResult = sandbox.configureJobLimits();
+        if (limitsResult.isErr)
+        {
+            CloseHandle(sandbox.jobHandle);
+            return Result!WindowsSandbox.err(limitsResult.unwrapErr());
+        }
         
         return Result!WindowsSandbox.ok(sandbox);
     }
@@ -43,53 +56,232 @@ struct WindowsSandbox
     /// Execute command in sandbox
     Result!ExecutionOutput execute(string[] command, string workingDir) @system
     {
-        // TODO: Implement Windows job object execution
-        // 1. Create job object with CreateJobObjectW
-        // 2. Set resource limits:
-        //    - JOB_OBJECT_BASIC_LIMIT_INFORMATION (memory, time, processes)
-        //    - JOB_OBJECT_EXTENDED_LIMIT_INFORMATION (I/O limits)
-        // 3. Create process with CREATE_SUSPENDED flag
-        // 4. Assign process to job with AssignProcessToJobObject
-        // 5. Resume process
-        // 6. Wait for completion with WaitForSingleObject
-        // 7. Collect output and exit code
-        // 8. Close job object (terminates all child processes)
+        if (command.length == 0)
+            return Result!ExecutionOutput.err("Empty command");
         
-        // For now, fall back to basic execution
-        return executeFallback(command, workingDir);
+        // Build command line (Windows requires a single string)
+        auto cmdLine = buildCommandLine(command);
+        
+        // Build environment block
+        auto envBlock = buildEnvironmentBlock();
+        
+        // Create pipes for stdout/stderr
+        HANDLE stdoutRead, stdoutWrite;
+        HANDLE stderrRead, stderrWrite;
+        
+        SECURITY_ATTRIBUTES sa;
+        sa.nLength = SECURITY_ATTRIBUTES.sizeof;
+        sa.bInheritHandle = TRUE;
+        sa.lpSecurityDescriptor = null;
+        
+        if (!CreatePipe(&stdoutRead, &stdoutWrite, &sa, 0))
+            return Result!ExecutionOutput.err("Failed to create stdout pipe");
+        
+        if (!CreatePipe(&stderrRead, &stderrWrite, &sa, 0))
+        {
+            CloseHandle(stdoutRead);
+            CloseHandle(stdoutWrite);
+            return Result!ExecutionOutput.err("Failed to create stderr pipe");
+        }
+        
+        // Don't inherit read handles
+        SetHandleInformation(stdoutRead, HANDLE_FLAG_INHERIT, 0);
+        SetHandleInformation(stderrRead, HANDLE_FLAG_INHERIT, 0);
+        
+        // Setup process creation
+        STARTUPINFOW si;
+        si.cb = STARTUPINFOW.sizeof;
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdOutput = stdoutWrite;
+        si.hStdError = stderrWrite;
+        si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        
+        PROCESS_INFORMATION pi;
+        
+        // Create process suspended so we can assign to job first
+        auto created = CreateProcessW(
+            null,
+            cast(wchar*) toUTF16z(cmdLine),
+            null,
+            null,
+            TRUE,  // Inherit handles
+            CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+            envBlock.ptr,
+            toUTF16z(workingDir),
+            &si,
+            &pi
+        );
+        
+        // Close write ends of pipes (parent doesn't need them)
+        CloseHandle(stdoutWrite);
+        CloseHandle(stderrWrite);
+        
+        if (!created)
+        {
+            CloseHandle(stdoutRead);
+            CloseHandle(stderrRead);
+            return Result!ExecutionOutput.err("Failed to create process");
+        }
+        
+        // Assign process to job object
+        if (!AssignProcessToJobObject(jobHandle, pi.hProcess))
+        {
+            TerminateProcess(pi.hProcess, 1);
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+            CloseHandle(stdoutRead);
+            CloseHandle(stderrRead);
+            return Result!ExecutionOutput.err("Failed to assign process to job");
+        }
+        
+        // Resume process
+        ResumeThread(pi.hThread);
+        CloseHandle(pi.hThread);
+        
+        // Read output
+        string stdout = readFromPipe(stdoutRead);
+        string stderr = readFromPipe(stderrRead);
+        
+        CloseHandle(stdoutRead);
+        CloseHandle(stderrRead);
+        
+        // Wait for process completion
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        
+        // Get exit code
+        DWORD exitCode;
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+        
+        CloseHandle(pi.hProcess);
+        
+        ExecutionOutput output;
+        output.stdout = stdout;
+        output.stderr = stderr;
+        output.exitCode = exitCode;
+        
+        return Result!ExecutionOutput.ok(output);
     }
     
-    /// Fallback execution without job objects
-    private Result!ExecutionOutput executeFallback(string[] command, string workingDir) @system
+    /// Cleanup sandbox resources
+    void cleanup() @system
     {
-        import utils.security.validation : SecurityValidator;
-        
-        // Validate command
-        foreach (arg; command)
+        if (jobHandle !is null)
         {
-            if (!SecurityValidator.isArgumentSafe(arg))
-                return Result!ExecutionOutput.err("Unsafe command argument: " ~ arg);
+            // Terminate all processes in job
+            TerminateJobObject(jobHandle, 1);
+            CloseHandle(jobHandle);
+            jobHandle = null;
+        }
+    }
+    
+    /// Configure job object resource limits
+    private Result!void configureJobLimits() @system
+    {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION extInfo;
+        extInfo.BasicLimitInformation.LimitFlags = 0;
+        
+        // Set memory limit
+        if (spec.resources.maxMemoryBytes > 0)
+        {
+            extInfo.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY;
+            extInfo.JobMemoryLimit = spec.resources.maxMemoryBytes;
         }
         
-        // Build environment
-        auto env = spec.environment.toMap();
-        
-        // Execute
-        try
+        // Set process count limit
+        if (spec.resources.maxProcesses > 0)
         {
-            auto result = .execute(command, env, Config.none, size_t.max, workingDir);
+            extInfo.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_ACTIVE_PROCESS;
+            extInfo.BasicLimitInformation.ActiveProcessLimit = spec.resources.maxProcesses;
+        }
+        
+        // Set CPU time limit (per-process)
+        if (spec.resources.maxCpuTimeMs > 0)
+        {
+            extInfo.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_TIME;
+            LARGE_INTEGER cpuTime;
+            cpuTime.QuadPart = spec.resources.maxCpuTimeMs * 10_000; // Convert to 100ns units
+            extInfo.BasicLimitInformation.PerJobUserTimeLimit = cpuTime;
+        }
+        
+        // Kill all processes when job handle is closed
+        extInfo.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        
+        // Apply limits
+        if (!SetInformationJobObject(
+            jobHandle,
+            JobObjectExtendedLimitInformation,
+            &extInfo,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION.sizeof))
+        {
+            return Result!void.err("Failed to set job limits");
+        }
+        
+        return Result!void.ok();
+    }
+    
+    /// Build Windows command line from array
+    private static string buildCommandLine(string[] command) @safe
+    {
+        auto result = appender!string;
+        
+        foreach (i, arg; command)
+        {
+            if (i > 0)
+                result ~= " ";
             
-            ExecutionOutput output;
-            output.stdout = result.output;
-            output.stderr = "";
-            output.exitCode = result.status;
-            
-            return Result!ExecutionOutput.ok(output);
+            // Quote arguments with spaces
+            if (arg.canFind(' '))
+            {
+                result ~= "\"";
+                result ~= arg;
+                result ~= "\"";
+            }
+            else
+            {
+                result ~= arg;
+            }
         }
-        catch (Exception e)
+        
+        return result.data;
+    }
+    
+    /// Build environment block for CreateProcess
+    private string buildEnvironmentBlock() @trusted
+    {
+        import std.algorithm : joiner;
+        import std.range : chain;
+        
+        auto result = appender!(wchar[]);
+        
+        foreach (key, value; spec.environment.toMap())
         {
-            return Result!ExecutionOutput.err("Execution failed: " ~ e.msg);
+            foreach (wchar c; toUTF16(key))
+                result ~= c;
+            result ~= '=';
+            foreach (wchar c; toUTF16(value))
+                result ~= c;
+            result ~= '\0';
         }
+        
+        // Double null terminator
+        result ~= '\0';
+        
+        return cast(string) result.data;
+    }
+    
+    /// Read all data from a pipe
+    private static string readFromPipe(HANDLE pipe) @trusted
+    {
+        auto result = appender!string;
+        char[4096] buffer;
+        DWORD bytesRead;
+        
+        while (ReadFile(pipe, buffer.ptr, buffer.length, &bytesRead, null) && bytesRead > 0)
+        {
+            result ~= buffer[0 .. bytesRead];
+        }
+        
+        return result.data;
     }
 }
 
@@ -149,14 +341,119 @@ private struct Result(T)
     }
 }
 
-// Windows API bindings for job objects
-version(Windows)
+// Windows API bindings
+import core.sys.windows.windows;
+import std.utf : toUTF16, toUTF16z;
+import std.algorithm : canFind;
+
+// Additional Windows API structures and functions
+extern(Windows) nothrow @nogc:
+
+struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
 {
-    // TODO: Add proper Windows API bindings
-    // extern(Windows) HANDLE CreateJobObjectW(SECURITY_ATTRIBUTES*, LPCWSTR);
-    // extern(Windows) BOOL SetInformationJobObject(HANDLE, JOBOBJECTINFOCLASS, void*, DWORD);
-    // extern(Windows) BOOL AssignProcessToJobObject(HANDLE, HANDLE);
-    // extern(Windows) BOOL TerminateJobObject(HANDLE, UINT);
-    // extern(Windows) BOOL CloseHandle(HANDLE);
+    LARGE_INTEGER TotalUserTime;
+    LARGE_INTEGER TotalKernelTime;
+    LARGE_INTEGER ThisPeriodTotalUserTime;
+    LARGE_INTEGER ThisPeriodTotalKernelTime;
+    DWORD TotalPageFaultCount;
+    DWORD TotalProcesses;
+    DWORD ActiveProcesses;
+    DWORD TotalTerminatedProcesses;
+}
+
+struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+{
+    LARGE_INTEGER PerProcessUserTimeLimit;
+    LARGE_INTEGER PerJobUserTimeLimit;
+    DWORD LimitFlags;
+    SIZE_T MinimumWorkingSetSize;
+    SIZE_T MaximumWorkingSetSize;
+    DWORD ActiveProcessLimit;
+    ULONG_PTR Affinity;
+    DWORD PriorityClass;
+    DWORD SchedulingClass;
+}
+
+struct IO_COUNTERS
+{
+    ULONGLONG ReadOperationCount;
+    ULONGLONG WriteOperationCount;
+    ULONGLONG OtherOperationCount;
+    ULONGLONG ReadTransferCount;
+    ULONGLONG WriteTransferCount;
+    ULONGLONG OtherTransferCount;
+}
+
+struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+{
+    JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+    IO_COUNTERS IoInfo;
+    SIZE_T ProcessMemoryLimit;
+    SIZE_T JobMemoryLimit;
+    SIZE_T PeakProcessMemoryUsed;
+    SIZE_T PeakJobMemoryUsed;
+}
+
+enum JOBOBJECTINFOCLASS
+{
+    JobObjectBasicAccountingInformation = 1,
+    JobObjectBasicLimitInformation = 2,
+    JobObjectBasicProcessIdList = 3,
+    JobObjectBasicUIRestrictions = 4,
+    JobObjectSecurityLimitInformation = 5,
+    JobObjectEndOfJobTimeInformation = 6,
+    JobObjectAssociateCompletionPortInformation = 7,
+    JobObjectBasicAndIoAccountingInformation = 8,
+    JobObjectExtendedLimitInformation = 9,
+    JobObjectJobSetInformation = 10,
+}
+
+// Limit flags
+enum : DWORD
+{
+    JOB_OBJECT_LIMIT_WORKINGSET = 0x00000001,
+    JOB_OBJECT_LIMIT_PROCESS_TIME = 0x00000002,
+    JOB_OBJECT_LIMIT_JOB_TIME = 0x00000004,
+    JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x00000008,
+    JOB_OBJECT_LIMIT_AFFINITY = 0x00000010,
+    JOB_OBJECT_LIMIT_PRIORITY_CLASS = 0x00000020,
+    JOB_OBJECT_LIMIT_PRESERVE_JOB_TIME = 0x00000040,
+    JOB_OBJECT_LIMIT_SCHEDULING_CLASS = 0x00000080,
+    JOB_OBJECT_LIMIT_PROCESS_MEMORY = 0x00000100,
+    JOB_OBJECT_LIMIT_JOB_MEMORY = 0x00000200,
+    JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION = 0x00000400,
+    JOB_OBJECT_LIMIT_BREAKAWAY_OK = 0x00000800,
+    JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK = 0x00001000,
+    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000,
+}
+
+extern(Windows) HANDLE CreateJobObjectW(SECURITY_ATTRIBUTES* lpJobAttributes, LPCWSTR lpName);
+extern(Windows) BOOL AssignProcessToJobObject(HANDLE hJob, HANDLE hProcess);
+extern(Windows) BOOL TerminateJobObject(HANDLE hJob, UINT uExitCode);
+extern(Windows) BOOL SetInformationJobObject(
+    HANDLE hJob,
+    JOBOBJECTINFOCLASS JobObjectInformationClass,
+    LPVOID lpJobObjectInformation,
+    DWORD cbJobObjectInformationLength
+);
+extern(Windows) BOOL QueryInformationJobObject(
+    HANDLE hJob,
+    JOBOBJECTINFOCLASS JobObjectInformationClass,
+    LPVOID lpJobObjectInformation,
+    DWORD cbJobObjectInformationLength,
+    LPDWORD lpReturnLength
+);
+extern(Windows) BOOL SetHandleInformation(HANDLE hObject, DWORD dwMask, DWORD dwFlags);
+extern(Windows) DWORD ResumeThread(HANDLE hThread);
+
+enum : DWORD
+{
+    CREATE_SUSPENDED = 0x00000004,
+    CREATE_UNICODE_ENVIRONMENT = 0x00000400,
+    STARTF_USESTDHANDLES = 0x00000100,
+    HANDLE_FLAG_INHERIT = 0x00000001,
+    STD_INPUT_HANDLE = cast(DWORD) -10,
+    STD_OUTPUT_HANDLE = cast(DWORD) -11,
+    STD_ERROR_HANDLE = cast(DWORD) -12,
 }
 

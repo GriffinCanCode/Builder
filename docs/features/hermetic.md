@@ -1,12 +1,14 @@
 # Hermetic Builds
 
+**Status:** ✅ **PRODUCTION READY** - All platforms supported with resource monitoring
+
 ## Overview
 
 Hermetic builds ensure reproducibility and security by isolating build processes from the host system. Builder implements platform-specific sandboxing to achieve true hermetic execution:
 
-- **Linux**: Namespace-based isolation (mount, PID, network, IPC, UTS, user)
-- **macOS**: `sandbox-exec` with Sandbox Profile Language (SBPL)
-- **Windows**: (Future) Job objects
+- **Linux**: Namespace-based isolation (mount, PID, network, IPC, UTS, user) + cgroup v2 resource monitoring
+- **macOS**: `sandbox-exec` with Sandbox Profile Language (SBPL) + rusage resource monitoring
+- **Windows**: Job objects with resource limits + I/O accounting
 
 ## Architecture
 
@@ -31,8 +33,16 @@ Hermetic builds are modeled using set theory for provable correctness:
 hermetic/
 ├── spec.d          # Sandbox specification (set theory model)
 ├── executor.d      # Platform-agnostic execution interface
+├── monitor.d       # Unified resource monitoring interface
+├── timeout.d       # Timeout enforcement
+├── audit.d         # Violation logging and tracking
 ├── linux.d         # Linux namespace implementation
 ├── macos.d         # macOS sandbox-exec implementation
+├── windows.d       # Windows job object implementation
+├── monitor/
+│   ├── linux.d     # Linux cgroup v2 resource monitor
+│   ├── macos.d     # macOS rusage resource monitor
+│   └── windows.d   # Windows job object resource monitor
 └── package.d       # Public API
 ```
 
@@ -125,6 +135,64 @@ policy.maxChildren = 16;
 policy.killOnParentExit = true;
 
 .withProcess(policy)
+```
+
+### Resource Monitoring
+
+Builder provides comprehensive resource monitoring across all platforms:
+
+```d
+import core.execution.hermetic;
+
+// Create monitor
+auto limits = ResourceLimits.hermetic();
+auto monitor = createMonitor(limits);
+
+// Start monitoring
+monitor.start();
+
+// Execute your build...
+
+// Get resource usage snapshot
+auto usage = monitor.snapshot();
+writeln("CPU time: ", usage.cpuTime);
+writeln("Peak memory: ", usage.peakMemory);
+writeln("Disk read: ", usage.diskRead);
+writeln("Disk write: ", usage.diskWrite);
+
+// Stop monitoring and check violations
+monitor.stop();
+if (monitor.isViolated())
+{
+    foreach (violation; monitor.violations())
+    {
+        writeln("Violation: ", violation.message);
+        writeln("  Actual: ", violation.actual);
+        writeln("  Limit: ", violation.limit);
+    }
+}
+```
+
+### Timeout Enforcement
+
+Prevent builds from hanging indefinitely:
+
+```d
+import core.execution.hermetic.timeout;
+
+// Create timeout enforcer with PID
+auto enforcer = createTimeoutEnforcer(processId);
+enforcer.start(5.minutes);
+
+// Execute build...
+
+// Check if timeout occurred
+if (enforcer.isTimedOut())
+{
+    writeln("Build timed out!");
+}
+
+enforcer.stop();
 ```
 
 ## Linux Implementation
