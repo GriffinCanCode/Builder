@@ -7,6 +7,7 @@ import std.string;
 import std.path : baseName, dirName;
 import utils.security.validation;
 import utils.logging.logger;
+import core.execution.hermetic;
 import errors;
 
 
@@ -137,6 +138,8 @@ struct SecureExecutor
     private string[string] environment;
     private bool validatePaths = true;
     private bool auditLog = false;
+    private bool useHermetic = false;
+    private SandboxSpec* hermeticSpec = null;
     
     /// Builder pattern for configuration
     static SecureExecutor create() @system nothrow
@@ -176,6 +179,42 @@ struct SecureExecutor
     ref typeof(this) audit() @system return nothrow
     {
         this.auditLog = true;
+        return this;
+    }
+    
+    /// Enable hermetic execution (sandboxed with filesystem/network isolation)
+    ref typeof(this) hermetic(SandboxSpec spec) @system return
+    {
+        this.useHermetic = true;
+        this.hermeticSpec = new SandboxSpec(spec);
+        return this;
+    }
+    
+    /// Enable hermetic execution with auto-generated spec
+    ref typeof(this) hermetic(string[] inputPaths, string[] outputPaths) @system return
+    {
+        auto builder = SandboxSpecBuilder.create();
+        
+        foreach (inPath; inputPaths)
+            builder.input(inPath);
+        
+        foreach (outPath; outputPaths)
+            builder.output(outPath);
+        
+        if (!workDir.empty)
+            builder.temp(workDir);
+        
+        // Add environment variables
+        foreach (key, value; environment)
+            builder.env(key, value);
+        
+        auto specResult = builder.build();
+        if (specResult.isOk)
+        {
+            this.useHermetic = true;
+            this.hermeticSpec = new SandboxSpec(specResult.unwrap());
+        }
+        
         return this;
     }
     
@@ -304,6 +343,40 @@ struct SecureExecutor
             {
                 auto envKeys = environment.keys.array;
                 Logger.debugLog("[AUDIT]   EnvVars: " ~ AuditRedactor.redactEnvKeys(envKeys));
+            }
+        }
+        
+        // Execute with hermetic sandboxing if enabled
+        if (useHermetic && hermeticSpec !is null)
+        {
+            try
+            {
+                auto executorResult = HermeticExecutor.create(*hermeticSpec, workDir);
+                if (executorResult.isErr)
+                {
+                    return Err!(ProcessResult, SecurityError)(
+                        SecurityError("Hermetic executor creation failed: " ~ executorResult.unwrapErr(), 
+                                    SecurityCode.ExecutionFailure));
+                }
+                
+                auto executor = executorResult.unwrap();
+                auto result = executor.execute(cast(string[])cmd, workDir);
+                
+                if (result.isErr)
+                {
+                    return Err!(ProcessResult, SecurityError)(
+                        SecurityError("Hermetic execution failed: " ~ result.unwrapErr(), 
+                                    SecurityCode.ExecutionFailure));
+                }
+                
+                auto output = result.unwrap();
+                return Ok!(ProcessResult, SecurityError)(
+                    ProcessResult(output.exitCode, output.stdout));
+            }
+            catch (Exception e)
+            {
+                return Err!(ProcessResult, SecurityError)(
+                    SecurityError("Hermetic execution exception: " ~ e.msg, SecurityCode.ExecutionFailure));
             }
         }
         

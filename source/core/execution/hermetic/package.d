@@ -22,6 +22,7 @@ module core.execution.hermetic;
 
 public import core.execution.hermetic.spec;
 public import core.execution.hermetic.executor;
+public import core.execution.hermetic.audit;
 
 version(linux)
 {
@@ -31,5 +32,10 @@ version(linux)
 version(OSX)
 {
     public import core.execution.hermetic.macos;
+}
+
+version(Windows)
+{
+    public import core.execution.hermetic.windows;
 }
 

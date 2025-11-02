@@ -7,6 +7,7 @@ import std.datetime : Duration;
 import std.conv : to;
 import std.range : empty;
 import core.execution.hermetic.spec;
+import core.execution.hermetic.audit;
 import errors;
 
 // Platform-specific imports
@@ -17,6 +18,10 @@ version(linux)
 version(OSX)
 {
     import core.execution.hermetic.macos;
+}
+version(Windows)
+{
+    import core.execution.hermetic.windows;
 }
 
 /// Unified hermetic execution interface
@@ -86,6 +91,10 @@ struct HermeticExecutor
         // Ensure working directory is in allowed paths
         if (!spec.canRead(execDir) && !spec.canWrite(execDir))
         {
+            // Log violation
+            auto auditLogger = getAuditLogger();
+            auditLogger.logFilesystemAccess(execDir, "working_directory", command[0], false);
+            
             return Result!(Output, string).err(
                 "Working directory not in allowed paths: " ~ execDir);
         }
@@ -98,6 +107,10 @@ struct HermeticExecutor
         else version(OSX)
         {
             return executeMacOS(command, execDir);
+        }
+        else version(Windows)
+        {
+            return executeWindows(command, execDir);
         }
         else
         {
@@ -190,6 +203,32 @@ struct HermeticExecutor
             output.stderr = macOutput.stderr;
             output.exitCode = macOutput.exitCode;
             output.hermetic = true;
+            
+            return Result!(Output, string).ok(output);
+        }
+    }
+    
+    version(Windows)
+    {
+        /// Execute using Windows job objects
+        private Result!(Output, string) executeWindows(string[] command, string workingDir) @system
+        {
+            auto sandboxResult = WindowsSandbox.create(spec, workDir);
+            if (sandboxResult.isErr)
+                return Result!(Output, string).err(sandboxResult.unwrapErr());
+            
+            auto sandbox = sandboxResult.unwrap();
+            auto execResult = sandbox.execute(command, workingDir);
+            
+            if (execResult.isErr)
+                return Result!(Output, string).err(execResult.unwrapErr());
+            
+            auto winOutput = execResult.unwrap();
+            Output output;
+            output.stdout = winOutput.stdout;
+            output.stderr = winOutput.stderr;
+            output.exitCode = winOutput.exitCode;
+            output.hermetic = false;  // Windows implementation is partial
             
             return Result!(Output, string).ok(output);
         }

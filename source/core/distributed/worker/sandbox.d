@@ -219,9 +219,8 @@ version(linux)
             
             auto executor = executorResult.unwrap();
             
-            // Parse command (simple shell splitting)
-            import std.string : split;
-            auto cmdArray = command.split(" ");
+            // Parse command with proper shell quoting support
+            auto cmdArray = parseCommand(command);
             
             // Execute hermetically
             auto result = executor.execute(cmdArray, workDir);
@@ -244,7 +243,44 @@ version(linux)
         ResourceUsage resourceUsage() @safe
         {
             ResourceUsage usage;
-            // TODO: Collect actual resource usage from cgroups
+            
+            // Collect resource usage from cgroups if available
+            version(linux) {
+                try {
+                    import std.file : readText, exists;
+                    import std.conv : to;
+                    import std.string : strip, lineSplitter, splitter;
+                    import std.algorithm : filter;
+                    import std.path : buildPath;
+                    
+                    // Try to read cgroup stats (best-effort)
+                    immutable cgroupBase = "/sys/fs/cgroup";
+                    if (exists(cgroupBase)) {
+                        // Try cgroup v2 memory usage
+                        auto memCurrent = buildPath(cgroupBase, "memory.current");
+                        if (exists(memCurrent)) {
+                            usage.memoryBytes = readText(memCurrent).strip.to!ulong;
+                        }
+                        
+                        // Try cgroup v2 CPU usage
+                        auto cpuStat = buildPath(cgroupBase, "cpu.stat");
+                        if (exists(cpuStat)) {
+                            foreach (line; readText(cpuStat).lineSplitter) {
+                                auto parts = line.splitter(" ");
+                                if (!parts.empty && parts.front == "usage_usec") {
+                                    parts.popFront();
+                                    if (!parts.empty) {
+                                        usage.cpuTimeMs = parts.front.to!ulong / 1000;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception) {
+                    // Best-effort - silently fail if cgroups unavailable
+                }
+            }
+            
             return usage;
         }
         
@@ -343,9 +379,8 @@ version(OSX)
             
             auto executor = executorResult.unwrap();
             
-            // Parse command (simple shell splitting)
-            import std.string : split;
-            auto cmdArray = command.split(" ");
+            // Parse command with proper shell quoting support
+            auto cmdArray = parseCommand(command);
             
             // Execute hermetically
             auto result = executor.execute(cmdArray, workDir);
@@ -368,7 +403,14 @@ version(OSX)
         ResourceUsage resourceUsage() @safe
         {
             ResourceUsage usage;
-            // TODO: Collect actual resource usage
+            
+            // macOS doesn't expose sandbox resource usage easily
+            // Could use getrusage() for the current process tree
+            version(OSX) {
+                // Best-effort: not easily available from sandbox-exec
+                // Would need to track process tree and aggregate rusage
+            }
+            
             return usage;
         }
         
@@ -401,6 +443,66 @@ version(Windows)
                 new DistributedError("Windows sandbox not yet implemented"));
         }
     }
+}
+
+/// Parse command string with shell quoting support
+/// Handles single quotes, double quotes, and escaped spaces
+private string[] parseCommand(string command) @safe
+{
+    import std.array : appender;
+    import std.string : strip;
+    
+    auto result = appender!(string[]);
+    auto current = appender!string;
+    bool inSingleQuote = false;
+    bool inDoubleQuote = false;
+    bool escaped = false;
+    
+    foreach (char c; command)
+    {
+        if (escaped)
+        {
+            current ~= c;
+            escaped = false;
+            continue;
+        }
+        
+        if (c == '\\' && !inSingleQuote)
+        {
+            escaped = true;
+            continue;
+        }
+        
+        if (c == '\'' && !inDoubleQuote)
+        {
+            inSingleQuote = !inSingleQuote;
+            continue;
+        }
+        
+        if (c == '"' && !inSingleQuote)
+        {
+            inDoubleQuote = !inDoubleQuote;
+            continue;
+        }
+        
+        if (c == ' ' && !inSingleQuote && !inDoubleQuote)
+        {
+            if (current.data.length > 0)
+            {
+                result ~= current.data;
+                current = appender!string;
+            }
+            continue;
+        }
+        
+        current ~= c;
+    }
+    
+    // Add final token
+    if (current.data.length > 0)
+        result ~= current.data;
+    
+    return result.data;
 }
 
 /// Create platform-appropriate sandbox
