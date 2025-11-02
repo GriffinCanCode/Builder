@@ -2,6 +2,7 @@ module utils.files.hash;
 
 import utils.crypto.blake3;
 import utils.simd.ops;
+import utils.simd.capabilities : SIMDCapabilities;
 import std.file;
 import std.stdio;
 import std.algorithm;
@@ -397,15 +398,18 @@ struct FastHash
     
     /// Hash multiple files together with SIMD-aware parallel processing
     /// 
+    /// Context-aware version: accepts SIMDCapabilities for hardware acceleration
+    /// Pass null for sequential execution (testing/fallback)
+    /// 
     /// Safety: This function is @system because:
     /// 1. Delegates to trusted hashFile() for individual files
-    /// 2. SIMDParallel.mapSIMD() is trusted parallel execution
+    /// 2. Context-based parallel execution is trusted
     /// 3. Cast operations for combining hashes are memory-safe
     /// 4. exists() check prevents errors on missing files
     /// 5. Missing files are hashed by path (deterministic fallback)
     /// 
     /// Invariants:
-    /// - Files are processed in parallel when beneficial (>8 files)
+    /// - Files are processed in parallel when beneficial (>8 files) and context available
     /// - Sequential processing for small file counts (avoid overhead)
     /// - Missing files contribute their path to hash (deterministic)
     /// - Final hash combines all individual hashes
@@ -415,16 +419,17 @@ struct FastHash
     /// - Parallel execution overhead: mitigated by threshold check
     /// - Memory usage for many files: bounded by file count
     @system
-    static string hashFiles(string[] filePaths)
+    static string hashFiles(string[] filePaths, SIMDCapabilities caps = null)
     {
         import std.file : exists;
+        import utils.simd.context : createSIMDContext;
         
-        // For many files, use parallel SIMD hashing
-        if (filePaths.length > PARALLEL_FILE_THRESHOLD) {
-            import utils.concurrency.simd;
+        // For many files and SIMD available, use parallel hashing
+        if (filePaths.length > PARALLEL_FILE_THRESHOLD && caps !is null) {
+            auto ctx = createSIMDContext(caps);
             
             // Hash files in parallel
-            auto hashes = SIMDParallel.mapSIMD(filePaths, (string path) {
+            auto hashes = ctx.mapParallel(filePaths, (string path) {
                 if (exists(path))
                     return hashFile(path);
                 else
@@ -438,7 +443,7 @@ struct FastHash
             return hash.finishHex();
         }
         
-        // Sequential for few files
+        // Sequential for few files or no SIMD context
         auto hash = Blake3(0);
         foreach (path; filePaths)
         {

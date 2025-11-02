@@ -13,63 +13,29 @@ import core.caching.actions.action : ActionCache;
 /// - Explicit is better than implicit
 /// - Idempotent operations (safe to call multiple times)
 /// - Signal-safe cleanup for abnormal termination
+/// - Dependency injection through BuildServices
 /// 
 /// Usage:
 /// ```d
-/// auto coordinator = ShutdownCoordinator.instance();
+/// // Get from BuildServices:
+/// auto coordinator = services.shutdownCoordinator;
+/// 
+/// // Register resources:
 /// coordinator.registerCache(myCache);
-/// // ... do work ...
-/// coordinator.shutdown(); // Explicit cleanup
+/// 
+/// // Explicit cleanup:
+/// coordinator.shutdown();
 /// ```
 final class ShutdownCoordinator
 {
-    private static __gshared ShutdownCoordinator _instance;
-    private static __gshared Mutex _instanceMutex;
-    
     private Mutex mutex;
     private bool isShutdown = false;
     private BuildCache[] buildCaches;
     private ActionCache[] actionCaches;
     private void delegate()[] cleanupCallbacks;
     
-    /// Shared static constructor: Initialize singleton
-    shared static this()
-    {
-        _instanceMutex = new Mutex();
-    }
-    
-    /// Get singleton instance (thread-safe double-checked locking)
-    static ShutdownCoordinator instance() @trusted nothrow
-    {
-        if (_instance is null)
-        {
-            try
-            {
-                synchronized (_instanceMutex)
-                {
-                    if (_instance is null)
-                    {
-                        _instance = new ShutdownCoordinator();
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Fallback: create new instance (shouldn't happen)
-                try
-                {
-                    _instance = new ShutdownCoordinator();
-                }
-                catch (Exception)
-                {
-                    // Fatal: can't create coordinator
-                }
-            }
-        }
-        return _instance;
-    }
-    
-    private this() nothrow
+    /// Constructor for dependency injection
+    this() nothrow
     {
         try
         {
@@ -286,24 +252,6 @@ void installSignalHandlers() @trusted nothrow
     }
 }
 
-/// Shared static destructor: ensure cleanup on program exit
-/// This is a last-resort fallback - explicit shutdown() is preferred
-shared static ~this()
-{
-    try
-    {
-        auto coordinator = ShutdownCoordinator.instance();
-        if (coordinator !is null)
-        {
-            coordinator.shutdown();
-        }
-    }
-    catch (Exception)
-    {
-        // Best effort - ignore errors during program termination
-    }
-}
-
 /// RAII guard for automatic shutdown coordination
 /// Ensures cleanup even with early returns or exceptions
 struct ShutdownGuard
@@ -313,12 +261,10 @@ struct ShutdownGuard
     
     @disable this(this); // No copying
     
-    /// Create guard and register with coordinator
-    static ShutdownGuard create() @trusted nothrow
+    /// Create guard with coordinator from BuildServices
+    this(ShutdownCoordinator coordinator) @safe nothrow @nogc
     {
-        ShutdownGuard guard;
-        guard.coordinator = ShutdownCoordinator.instance();
-        return guard;
+        this.coordinator = coordinator;
     }
     
     /// Destructor: ensure cleanup

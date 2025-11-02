@@ -8,6 +8,7 @@ import std.array : appender;
 import std.bitmanip : nativeToBigEndian, bigEndianToNative;
 import utils.crypto.blake3;
 import utils.simd.ops;
+import utils.simd.capabilities : SIMDCapabilities;
 
 version(Posix)
 {
@@ -235,28 +236,45 @@ struct MetadataChecker
     }
     
     /// Batch check multiple files in parallel with SIMD-aware execution
+    /// 
+    /// Context-aware version: accepts SIMDCapabilities for hardware acceleration
+    /// Pass null for sequential execution (testing/fallback)
     @system // Parallel processing and file operations
-    static CheckLevel[] checkBatch(FileMetadata[] oldFiles, string[] paths)
+    static CheckLevel[] checkBatch(FileMetadata[] oldFiles, string[] paths, SIMDCapabilities caps = null)
     {
-        import utils.concurrency.simd;
+        import utils.simd.context : createSIMDContext;
         import std.range : iota, array, empty;
         
         if (paths.empty)
             return [];
         
-        // Use SIMD-aware parallel processing
-        auto results = SIMDParallel.mapSIMD(
-            iota(paths.length).array,
-            (ulong i) {
-                auto newMeta = FileMetadata.from(paths[i]);
-                
-                if (i < oldFiles.length)
-                    return check(oldFiles[i], newMeta);
-                else
-                    return CheckLevel.Different;
-            }
-        );
+        // Use SIMD-aware parallel processing if context available
+        if (caps !is null && paths.length > 8) {
+            auto ctx = createSIMDContext(caps);
+            auto results = ctx.mapParallel(
+                iota(paths.length).array,
+                (ulong i) {
+                    auto newMeta = FileMetadata.from(paths[i]);
+                    
+                    if (i < oldFiles.length)
+                        return check(oldFiles[i], newMeta);
+                    else
+                        return CheckLevel.Different;
+                }
+            );
+            return results;
+        }
         
+        // Sequential fallback
+        CheckLevel[] results;
+        results.reserve(paths.length);
+        foreach (i, path; paths) {
+            auto newMeta = FileMetadata.from(path);
+            if (i < oldFiles.length)
+                results ~= check(oldFiles[i], newMeta);
+            else
+                results ~= CheckLevel.Different;
+        }
         return results;
     }
 }

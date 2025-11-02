@@ -29,9 +29,7 @@ class StandardBuilder : CSharpBuilder
             auto cacheConfig = ActionCacheConfig.fromEnvironment();
             actionCache = new ActionCache(".builder-cache/actions/csharp", cacheConfig);
             
-            // Register with shutdown coordinator for explicit cleanup
-            auto coordinator = ShutdownCoordinator.instance();
-            coordinator.registerCache(actionCache);
+            // Note: BuildServices handles cache cleanup via shutdown coordinator
         }
         else
         {

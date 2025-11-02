@@ -233,9 +233,7 @@ struct TestCommand
         // Create services
         auto services = new BuildServices(wsConfig, wsConfig.options);
         
-        // Register cache for cleanup
-        auto coordinator = ShutdownCoordinator.instance();
-        coordinator.registerCache(services.cache);
+        // Shutdown coordinator automatically registered in BuildServices
         
         // Set render mode
         import app : parseRenderMode;

@@ -34,8 +34,7 @@ final class PerlHandler : BaseLanguageHandler
         auto cacheConfig = ActionCacheConfig.fromEnvironment();
         actionCache = new ActionCache(".builder-cache/actions/perl", cacheConfig);
         
-        auto coordinator = ShutdownCoordinator.instance();
-        coordinator.registerCache(actionCache);
+        // Note: BuildServices handles cache cleanup via shutdown coordinator
         
         // Initialize services
         configService = new PerlConfigService();

@@ -308,20 +308,11 @@ final class RetryOrchestrator
     }
 }
 
-/// Convenience function for retry with default orchestrator
-private __gshared RetryOrchestrator defaultOrchestrator;
-
-shared static this()
-{
-    defaultOrchestrator = new RetryOrchestrator();
-}
-
-/// Execute with automatic retry using default orchestrator
-Result!(T, BuildError) retry(T)(
-    string operationId,
-    Result!(T, BuildError) delegate() operation
-) @system
-{
-    return defaultOrchestrator.withRetry(operationId, operation);
-}
+/// NOTE: Global retry function removed.
+/// Use ResilienceService through dependency injection:
+///
+/// ```d
+/// // Get ResilienceService from ExecutionEngine
+/// auto result = resilience.withRetry("myOp", () => doWork(), policy);
+/// ```
 

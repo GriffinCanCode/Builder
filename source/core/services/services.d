@@ -7,6 +7,7 @@ import core.execution.core.engine : ExecutionEngine;
 import core.execution.services.registry : HandlerRegistry;
 import core.execution.remote : RemoteExecutionService, RemoteServiceBuilder;
 import core.caching.targets.cache;
+import core.shutdown.shutdown : ShutdownCoordinator;
 import core.telemetry;
 import core.telemetry.distributed.tracing;
 import utils.logging.structured;
@@ -42,12 +43,16 @@ final class BuildServices
     private SIMDCapabilities _simdCapabilities;
     private HandlerRegistry _registry;
     private RemoteExecutionService _remoteService;
+    private ShutdownCoordinator _shutdownCoordinator;
     
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
     {
         this._config = config;
         this._renderMode = RenderMode.Auto;
+        
+        // Initialize shutdown coordinator (non-singleton, DI-based)
+        this._shutdownCoordinator = new ShutdownCoordinator();
         
         // Initialize SIMD capabilities early (detect hardware once)
         this._initializeSIMD();
@@ -65,6 +70,9 @@ final class BuildServices
         // For backwards compatibility, extract the internal BuildCache
         // TODO: Refactor to use CacheService directly throughout
         this._cache = cacheService.getInternalCache();
+        
+        // Register cache with shutdown coordinator
+        this._shutdownCoordinator.registerCache(this._cache);
         
         // Initialize analyzer
         this._analyzer = new DependencyAnalyzer(config);
@@ -237,6 +245,9 @@ final class BuildServices
     
     /// Get handler registry
     @property HandlerRegistry registry() { return _registry; }
+    
+    /// Get shutdown coordinator
+    @property ShutdownCoordinator shutdownCoordinator() { return _shutdownCoordinator; }
     
     /// Set render mode for UI
     void setRenderMode(RenderMode mode)
@@ -428,10 +439,10 @@ final class BuildServices
         // Flush any pending output
         flush();
         
-        // Explicitly close cache - don't rely on destructor
-        if (_cache !is null)
+        // Shutdown coordinator handles all cache cleanup
+        if (_shutdownCoordinator !is null)
         {
-            _cache.close();
+            _shutdownCoordinator.shutdown();
         }
         
         // Save telemetry

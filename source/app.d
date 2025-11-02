@@ -21,10 +21,6 @@ enum VERSION = "1.0.0";
 
 void main(string[] args)
 {
-    // Initialize shutdown coordinator for explicit cleanup
-    auto shutdownGuard = ShutdownGuard.create();
-    scope(exit) ShutdownCoordinator.instance().shutdown();
-    
     // Install signal handlers for graceful shutdown on SIGINT/SIGTERM
     installSignalHandlers();
     
@@ -220,9 +216,7 @@ void buildCommand(in string target, in bool showGraph, in string modeStr, in boo
     // Create services with dependency injection
     auto services = new BuildServices(config, config.options);
     
-    // Register cache for explicit cleanup
-    auto coordinator = ShutdownCoordinator.instance();
-    coordinator.registerCache(services.cache);
+    // Shutdown coordinator automatically registered in BuildServices
     
     // Set render mode
     immutable renderMode = parseRenderMode(modeStr);
@@ -351,9 +345,7 @@ void graphCommand(in string target) @system
         // Create services (lightweight for analysis-only operation)
         auto services = new BuildServices(config, config.options);
         
-        // Register cache for explicit cleanup
-        auto coordinator = ShutdownCoordinator.instance();
-        coordinator.registerCache(services.cache);
+        // Shutdown coordinator automatically registered in BuildServices
         
         // Analyze with error recovery
         auto graphResult = services.analyzer.analyze(target);
@@ -444,9 +436,7 @@ void resumeCommand(in string modeStr) @system
     // Create services with dependency injection
     auto services = new BuildServices(config, config.options);
     
-    // Register cache for explicit cleanup
-    auto coordinator = ShutdownCoordinator.instance();
-    coordinator.registerCache(services.cache);
+    // Shutdown coordinator automatically registered in BuildServices
     
     // Set render mode
     immutable renderMode = parseRenderMode(modeStr);

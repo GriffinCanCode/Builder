@@ -90,9 +90,7 @@ final class CacheService : ICacheService
         auto config = CoordinatorConfig.init;
         this.coordinator = new CacheCoordinator(cacheDir, publisher, config);
         
-        // Register with shutdown coordinator for explicit cleanup
-        auto shutdownCoord = ShutdownCoordinator.instance();
-        // Note: Coordinator handles internal cache cleanup
+        // Note: BuildServices automatically registers coordinator for cleanup
     }
     
     // Constructor for dependency injection (testing)
