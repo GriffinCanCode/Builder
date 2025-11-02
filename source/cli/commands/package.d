@@ -13,4 +13,5 @@ public import cli.commands.help;
 public import cli.commands.query;
 public import cli.commands.wizard;
 public import cli.commands.watch;
+public import cli.commands.cacheserver;
 

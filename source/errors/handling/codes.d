@@ -50,6 +50,12 @@ enum ErrorCode
     CacheSaveFailed,
     CacheCorrupted,
     CacheEvictionFailed,
+    CacheNotFound,
+    CacheDisabled,
+    CacheUnauthorized,
+    CacheTooLarge,
+    CacheTimeout,
+    NetworkError,
     
     // IO errors (5000-5999)
     FileNotFound = 5000,
@@ -124,6 +130,8 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.BuildTimeout:
         case ErrorCode.CacheLoadFailed:
         case ErrorCode.CacheEvictionFailed:
+        case ErrorCode.CacheTimeout:
+        case ErrorCode.NetworkError:
         case ErrorCode.ProcessTimeout:
             return true;
             
@@ -147,6 +155,10 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.InvalidImport:
         case ErrorCode.CacheSaveFailed:
         case ErrorCode.CacheCorrupted:
+        case ErrorCode.CacheNotFound:
+        case ErrorCode.CacheDisabled:
+        case ErrorCode.CacheUnauthorized:
+        case ErrorCode.CacheTooLarge:
         case ErrorCode.FileNotFound:
         case ErrorCode.FileReadFailed:
         case ErrorCode.FileWriteFailed:
@@ -206,6 +218,12 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.CacheSaveFailed: return "Failed to save cache";
         case ErrorCode.CacheCorrupted: return "Cache data corrupted";
         case ErrorCode.CacheEvictionFailed: return "Cache eviction failed";
+        case ErrorCode.CacheNotFound: return "Artifact not found in cache";
+        case ErrorCode.CacheDisabled: return "Remote cache not configured";
+        case ErrorCode.CacheUnauthorized: return "Cache authentication failed";
+        case ErrorCode.CacheTooLarge: return "Artifact exceeds maximum size";
+        case ErrorCode.CacheTimeout: return "Cache operation timed out";
+        case ErrorCode.NetworkError: return "Network communication error";
         case ErrorCode.FileNotFound: return "File not found";
         case ErrorCode.FileReadFailed: return "Failed to read file";
         case ErrorCode.FileWriteFailed: return "Failed to write file";

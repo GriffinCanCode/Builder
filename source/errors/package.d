@@ -36,6 +36,7 @@ public import errors.handling.codes;
 public import errors.handling.extensions;
 public import errors.types.types;
 public import errors.types.context;
+public import errors.types.network;
 public import errors.formatting.format;
 public import errors.handling.recovery;
 public import errors.handling.aggregate;
