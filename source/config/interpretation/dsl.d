@@ -485,14 +485,12 @@ struct SemanticAnalyzer
         }
         
         auto sourcesField = decl.getField("sources");
-        try
-        {
-            target.sources = sourcesField.value.asStringArray();
-        }
-        catch (Exception e)
+        auto sourcesResult = sourcesField.value.asStringArray();
+        if (sourcesResult.isErr)
         {
             return error!(Target)(decl, "Field 'sources' must be an array of strings");
         }
+        target.sources = sourcesResult.unwrap();
         
         // Infer language if not specified
         if (target.language == TargetLanguage.Generic && !target.sources.empty)
@@ -505,66 +503,56 @@ struct SemanticAnalyzer
         if (decl.hasField("deps"))
         {
             auto depsField = decl.getField("deps");
-            try
-            {
-                target.deps = depsField.value.asStringArray();
-            }
-            catch (Exception e)
+            auto depsResult = depsField.value.asStringArray();
+            if (depsResult.isErr)
             {
                 return error!(Target)(decl, "Field 'deps' must be an array of strings");
             }
+            target.deps = depsResult.unwrap();
         }
         
         if (decl.hasField("flags"))
         {
             auto flagsField = decl.getField("flags");
-            try
-            {
-                target.flags = flagsField.value.asStringArray();
-            }
-            catch (Exception e)
+            auto flagsResult = flagsField.value.asStringArray();
+            if (flagsResult.isErr)
             {
                 return error!(Target)(decl, "Field 'flags' must be an array of strings");
             }
+            target.flags = flagsResult.unwrap();
         }
         
         if (decl.hasField("env"))
         {
             auto envField = decl.getField("env");
-            try
-            {
-                target.env = envField.value.asMap();
-            }
-            catch (Exception e)
+            auto envResult = envField.value.asMap();
+            if (envResult.isErr)
             {
                 return error!(Target)(decl, "Field 'env' must be a map of strings");
             }
+            target.env = envResult.unwrap();
         }
         
         if (decl.hasField("output"))
         {
             auto outputField = decl.getField("output");
-            try
-            {
-                target.outputPath = outputField.value.asString();
-            }
-            catch (Exception e)
+            auto outputResult = outputField.value.asString();
+            if (outputResult.isErr)
             {
                 return error!(Target)(decl, "Field 'output' must be a string");
             }
+            target.outputPath = outputResult.unwrap();
         }
         
         if (decl.hasField("includes"))
         {
             auto includesField = decl.getField("includes");
-            try
-            {
-                target.includes = includesField.value.asStringArray();
-            }
-            catch (Exception e)
+            auto includesResult = includesField.value.asStringArray();
+            if (includesResult.isErr)
             {
                 return error!(Target)(decl, "Field 'includes' must be an array of strings");
             }
+            target.includes = includesResult.unwrap();
         }
         
         // Parse language-specific configuration

@@ -334,7 +334,7 @@ final class BuildGraph
     
     /// Add a target to the graph (uses TargetId internally)
     /// Returns: Ok on success, Err if target with same ID already exists
-    Result!BuildError addTargetChecked(Target target) @system
+    Result!BuildError addTarget(Target target) @system
     {
         auto id = target.id;
         auto key = id.toString();
@@ -356,23 +356,9 @@ final class BuildGraph
         return Ok!BuildError();
     }
     
-    /// Add a target to the graph (backward compatible, throws on duplicate)
-    /// 
-    /// Deprecated: Use addTargetChecked for Result-based error handling
-    /// Throws: Exception if target with same ID already exists
-    void addTarget(Target target) @system
-    {
-        auto result = addTargetChecked(target);
-        if (result.isErr)
-        {
-            import errors.formatting.format : format;
-            throw new Exception(format(result.unwrapErr()));
-        }
-    }
-    
     /// Add a target to the graph using TargetId
     /// Returns: Ok on success, Err if target with same ID already exists
-    Result!BuildError addTargetByIdChecked(TargetId id, Target target) @system
+    Result!BuildError addTargetById(TargetId id, Target target) @system
     {
         auto key = id.toString();
         if (key in nodes)
@@ -390,20 +376,6 @@ final class BuildGraph
         auto node = new BuildNode(id, target);
         nodes[key] = node;
         return Ok!BuildError();
-    }
-    
-    /// Add a target to the graph using TargetId (backward compatible, throws on duplicate)
-    /// 
-    /// Deprecated: Use addTargetByIdChecked for Result-based error handling
-    /// Throws: Exception if target with same ID already exists
-    void addTargetById(TargetId id, Target target) @system
-    {
-        auto result = addTargetByIdChecked(id, target);
-        if (result.isErr)
-        {
-            import errors.formatting.format : format;
-            throw new Exception(format(result.unwrapErr()));
-        }
     }
     
     /// Get node by TargetId

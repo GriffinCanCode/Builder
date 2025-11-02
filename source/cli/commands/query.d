@@ -12,6 +12,8 @@ import config.schema.schema;
 import core.graph.graph;
 import core.services;
 import utils.logging.logger;
+import cli.control.terminal;
+import cli.display.format;
 import errors;
 
 /// Query command - executes graph queries like "deps(//...)"
@@ -41,7 +43,13 @@ struct QueryCommand
         
         // Create services and build graph
         auto services = new BuildServices(config, config.options);
-        auto graph = services.analyzer.analyze("");
+        auto graphResult = services.analyzer.analyze("");
+        if (graphResult.isErr)
+        {
+            Logger.error("Failed to analyze dependencies: " ~ format(graphResult.unwrapErr()));
+            return;
+        }
+        auto graph = graphResult.unwrap();
         
         // Parse and execute query
         auto queryResult = parseQuery(queryExpression);
@@ -61,24 +69,80 @@ struct QueryCommand
     
     private static void showQueryHelp()
     {
-        writeln();
-        writeln("Query Syntax:");
-        writeln("  //...                    All targets");
-        writeln("  //path/...               All targets in path");
-        writeln("  //path:target            Specific target");
-        writeln("  deps(expr)               Direct dependencies of expr");
-        writeln("  deps(expr, depth)        Dependencies up to depth");
-        writeln("  rdeps(expr)              Reverse dependencies (what depends on expr)");
-        writeln("  allpaths(from, to)       All paths between two targets");
-        writeln("  kind(type, expr)         Filter by target type");
-        writeln("  attr(name, value, expr)  Filter by attribute");
-        writeln();
-        writeln("Examples:");
-        writeln("  builder query '//...'");
-        writeln("  builder query 'deps(//src:app)'");
-        writeln("  builder query 'rdeps(//lib:utils)'");
-        writeln("  builder query 'kind(binary, //...)'");
-        writeln();
+        auto caps = Capabilities.detect();
+        auto terminal = Terminal(caps);
+        auto formatter = Formatter(caps);
+        
+        terminal.writeln();
+        terminal.writeColored("📊 Query Syntax", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
+        
+        terminal.writeColored("  Target Patterns:", Color.Magenta, Style.Bold);
+        terminal.writeln();
+        printQuerySyntax(terminal, "//...", "All targets");
+        printQuerySyntax(terminal, "//path/...", "All targets in path");
+        printQuerySyntax(terminal, "//path:target", "Specific target");
+        terminal.writeln();
+        
+        terminal.writeColored("  Query Functions:", Color.Magenta, Style.Bold);
+        terminal.writeln();
+        printQuerySyntax(terminal, "deps(expr)", "Direct dependencies of expr");
+        printQuerySyntax(terminal, "deps(expr, depth)", "Dependencies up to depth");
+        printQuerySyntax(terminal, "rdeps(expr)", "Reverse dependencies (what depends on expr)");
+        printQuerySyntax(terminal, "allpaths(from, to)", "All paths between two targets");
+        printQuerySyntax(terminal, "kind(type, expr)", "Filter by target type");
+        printQuerySyntax(terminal, "attr(name, value, expr)", "Filter by attribute");
+        terminal.writeln();
+        
+        terminal.writeColored("  Examples:", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.write("    ");
+        terminal.writeColored("builder query", Color.Green);
+        terminal.write(" ");
+        terminal.writeColored("'//...'", Color.Yellow);
+        terminal.writeln();
+        
+        terminal.write("    ");
+        terminal.writeColored("builder query", Color.Green);
+        terminal.write(" ");
+        terminal.writeColored("'deps(//src:app)'", Color.Yellow);
+        terminal.writeln();
+        
+        terminal.write("    ");
+        terminal.writeColored("builder query", Color.Green);
+        terminal.write(" ");
+        terminal.writeColored("'rdeps(//lib:utils)'", Color.Yellow);
+        terminal.writeln();
+        
+        terminal.write("    ");
+        terminal.writeColored("builder query", Color.Green);
+        terminal.write(" ");
+        terminal.writeColored("'kind(binary, //...)'", Color.Yellow);
+        terminal.writeln();
+        terminal.writeln();
+        
+        terminal.flush();
+    }
+    
+    private static void printQuerySyntax(Terminal terminal, string syntax, string description)
+    {
+        terminal.write("    ");
+        terminal.writeColored(syntax, Color.Green, Style.Bold);
+        
+        auto padding = 30 - syntax.length;
+        if (padding > 0)
+        {
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+        }
+        else
+        {
+            terminal.write("  ");
+        }
+        
+        terminal.writeColored(description, Color.BrightBlack);
+        terminal.writeln();
     }
 }
 
@@ -500,40 +564,78 @@ BuildNode[] filterByAttr(BuildNode[] targets, string attrName, string attrValue)
 /// Display query results
 void displayResults(BuildNode[] results, Query query) @system
 {
+    auto caps = Capabilities.detect();
+    auto terminal = Terminal(caps);
+    auto formatter = Formatter(caps);
+    
+    terminal.writeln();
+    
     if (results.empty)
     {
-        Logger.warning("No targets matched the query");
+        terminal.writeColored("⚠️  ", Color.Yellow);
+        terminal.writeColored("No Matches Found", Color.Yellow, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
+        terminal.write("  No targets matched the query");
+        terminal.writeln();
+        terminal.writeln();
+        terminal.flush();
         return;
     }
     
-    writeln();
-    Logger.success("Query matched " ~ results.length.to!string ~ " target(s):\n");
+    terminal.writeColored("✨ ", Color.Green);
+    terminal.writeColored("Query Results", Color.Green, Style.Bold);
+    terminal.write(" ");
+    terminal.writeColored(format("(%d target(s))", results.length), Color.BrightBlack);
+    terminal.writeln();
+    terminal.writeln();
     
     // Sort by target name for consistent output
     auto sorted = results.sort!((a, b) => a.id < b.id).array;
     
-    foreach (node; sorted)
+    foreach (i, node; sorted)
     {
         if (node is null)
             continue;
         
-        writeln("  ", node.id);
+        terminal.write("  ");
+        terminal.writeColored("▸", Color.BrightCyan);
+        terminal.write(" ");
+        terminal.writeColored(node.idString, Color.BrightWhite, Style.Bold);
+        terminal.writeln();
         
         // Show additional details for non-list queries
         if (query.type != QueryType.AllTargets)
         {
-            writeln("    Type: ", node.target.type);
+            terminal.write("    ");
+            terminal.writeColored("Type:", Color.BrightBlack);
+            terminal.write(" ");
+            terminal.writeColored(format("%s", node.target.type), Color.Cyan);
+            terminal.writeln();
+            
             if (!node.dependencies.empty)
             {
-                writeln("    Dependencies: ", node.dependencies.length);
+                terminal.write("    ");
+                terminal.writeColored("Dependencies:", Color.BrightBlack);
+                terminal.write(" ");
+                terminal.writeColored(format("%d", node.dependencies.length), Color.Yellow);
+                terminal.writeln();
             }
             if (!node.dependents.empty)
             {
-                writeln("    Dependents: ", node.dependents.length);
+                terminal.write("    ");
+                terminal.writeColored("Dependents:", Color.BrightBlack);
+                terminal.write(" ");
+                terminal.writeColored(format("%d", node.dependents.length), Color.Magenta);
+                terminal.writeln();
             }
+            
+            if (i < sorted.length - 1)
+                terminal.writeln();
         }
     }
     
-    writeln();
+    terminal.writeln();
+    terminal.flush();
 }
 

@@ -415,69 +415,59 @@ struct WorkspaceAnalyzer
         if (decl.hasField("cacheDir"))
         {
             auto field = decl.getField("cacheDir");
-            try
-            {
-                config.options.cacheDir = field.value.asString();
-            }
-            catch (Exception e)
+            auto result = field.value.asString();
+            if (result.isErr)
             {
                 return error("Field 'cacheDir' must be a string");
             }
+            config.options.cacheDir = result.unwrap();
         }
         
         if (decl.hasField("outputDir"))
         {
             auto field = decl.getField("outputDir");
-            try
-            {
-                config.options.outputDir = field.value.asString();
-            }
-            catch (Exception e)
+            auto result = field.value.asString();
+            if (result.isErr)
             {
                 return error("Field 'outputDir' must be a string");
             }
+            config.options.outputDir = result.unwrap();
         }
         
         if (decl.hasField("parallel"))
         {
             auto field = decl.getField("parallel");
-            try
-            {
-                string val = field.value.asString().toLower;
-                config.options.parallel = (val == "true" || val == "1");
-            }
-            catch (Exception e)
+            auto result = field.value.asString();
+            if (result.isErr)
             {
                 return error("Field 'parallel' must be a boolean (true/false)");
             }
+            string val = result.unwrap().toLower;
+            config.options.parallel = (val == "true" || val == "1");
         }
         
         if (decl.hasField("incremental"))
         {
             auto field = decl.getField("incremental");
-            try
-            {
-                string val = field.value.asString().toLower;
-                config.options.incremental = (val == "true" || val == "1");
-            }
-            catch (Exception e)
+            auto result = field.value.asString();
+            if (result.isErr)
             {
                 return error("Field 'incremental' must be a boolean (true/false)");
             }
+            string val = result.unwrap().toLower;
+            config.options.incremental = (val == "true" || val == "1");
         }
         
         if (decl.hasField("verbose"))
         {
             auto field = decl.getField("verbose");
-            try
-            {
-                string val = field.value.asString().toLower;
-                config.options.verbose = (val == "true" || val == "1");
-            }
-            catch (Exception e)
+            auto result = field.value.asString();
+            if (result.isErr)
             {
                 return error("Field 'verbose' must be a boolean (true/false)");
             }
+            string val = result.unwrap().toLower;
+            config.options.verbose = (val == "true" || val == "1");
         }
         
         if (decl.hasField("maxJobs"))
@@ -491,7 +481,12 @@ struct WorkspaceAnalyzer
                 }
                 else
                 {
-                    config.options.maxJobs = field.value.asString().to!size_t;
+                    auto result = field.value.asString();
+                    if (result.isErr)
+                    {
+                        return error("Field 'maxJobs' must be a number");
+                    }
+                    config.options.maxJobs = result.unwrap().to!size_t;
                 }
             }
             catch (Exception e)
@@ -504,14 +499,12 @@ struct WorkspaceAnalyzer
         if (decl.hasField("env"))
         {
             auto field = decl.getField("env");
-            try
-            {
-                config.globalEnv = field.value.asMap();
-            }
-            catch (Exception e)
+            auto result = field.value.asMap();
+            if (result.isErr)
             {
                 return error("Field 'env' must be a map of strings");
             }
+            config.globalEnv = result.unwrap();
         }
         
         // Warn about unimplemented/unknown fields

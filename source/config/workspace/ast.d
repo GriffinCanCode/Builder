@@ -236,13 +236,13 @@ struct ExpressionValue
     
     /// Convert to string (Result-based version for type-safe conversion)
     /// Returns: Ok with string value, Err if expression cannot be converted
-    Result!(string, BuildError) tryAsString() const
+    Result!(string, BuildError) asString() const
     {
         final switch (kind)
         {
             case Kind.String: return Ok!(string, BuildError)(_storage.stringValue.value);
             case Kind.Identifier: return Ok!(string, BuildError)(_storage.identifierValue.name);
-            case Kind.Number: return Ok!(string, BuildError)(_storage.numberValue.value.to!string);
+            case Kind.Number: return Ok!(string, BuildError)(_storage.stringValue.value.to!string);
             case Kind.Array:
                 auto error = ErrorBuilder!ParseError
                     .create("", "Cannot convert array expression to string", ErrorCode.InvalidFieldValue)
@@ -260,25 +260,9 @@ struct ExpressionValue
         }
     }
     
-    /// Convert to string (backward compatible, throws on error)
-    /// 
-    /// Deprecated: Use tryAsString for Result-based error handling
-    /// Throws: Exception if expression is an array or map
-    string asString() const
-    {
-        final switch (kind)
-        {
-            case Kind.String: return _storage.stringValue.value;
-            case Kind.Identifier: return _storage.identifierValue.name;
-            case Kind.Number: return _storage.numberValue.value.to!string;
-            case Kind.Array: throw new Exception("Cannot convert array to string");
-            case Kind.Map: throw new Exception("Cannot convert map to string");
-        }
-    }
-    
     /// Convert to string array (Result-based version for type-safe conversion)
     /// Returns: Ok with string array, Err if expression is not an array
-    Result!(string[], BuildError) tryAsStringArray() const
+    Result!(string[], BuildError) asStringArray() const
     {
         if (kind != Kind.Array)
         {
@@ -296,7 +280,7 @@ struct ExpressionValue
         
         foreach (elem; _storage.arrayValue.elements)
         {
-            auto elemResult = elem.tryAsString();
+            auto elemResult = elem.asString();
             if (elemResult.isErr)
                 return Err!(string[], BuildError)(elemResult.unwrapErr());
             result ~= elemResult.unwrap();
@@ -305,21 +289,9 @@ struct ExpressionValue
         return Ok!(string[], BuildError)(result);
     }
     
-    /// Convert to string array (backward compatible, throws on error)
-    /// 
-    /// Deprecated: Use tryAsStringArray for Result-based error handling
-    /// Throws: Exception if expression is not an array
-    string[] asStringArray() const
-    {
-        if (kind != Kind.Array)
-            throw new Exception("Expression is not an array");
-        
-        return _storage.arrayValue.elements.map!(e => e.asString()).array;
-    }
-    
     /// Convert to map (Result-based version for type-safe conversion)
     /// Returns: Ok with string map, Err if expression is not a map
-    Result!(string[string], BuildError) tryAsMap() const
+    Result!(string[string], BuildError) asMap() const
     {
         if (kind != Kind.Map)
         {
@@ -334,30 +306,13 @@ struct ExpressionValue
         string[string] result;
         foreach (key, value; _storage.mapValue.pairs)
         {
-            auto valueResult = value.tryAsString();
+            auto valueResult = value.asString();
             if (valueResult.isErr)
                 return Err!(string[string], BuildError)(valueResult.unwrapErr());
             result[key] = valueResult.unwrap();
         }
         
         return Ok!(string[string], BuildError)(result);
-    }
-    
-    /// Convert to map (backward compatible, throws on error)
-    /// 
-    /// Deprecated: Use tryAsMap for Result-based error handling
-    /// Throws: Exception if expression is not a map
-    string[string] asMap() const
-    {
-        if (kind != Kind.Map)
-            throw new Exception("Expression is not a map");
-        
-        string[string] result;
-        foreach (key, value; _storage.mapValue.pairs)
-        {
-            result[key] = value.asString();
-        }
-        return result;
     }
     
     // Utility methods

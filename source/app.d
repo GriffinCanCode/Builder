@@ -76,6 +76,9 @@ void main(string[] args)
             case "infer":
                 InferCommand.execute();
                 break;
+            case "wizard":
+                WizardCommand.execute();
+                break;
             case "resume":
                 resumeCommand(mode);
                 break;
@@ -147,7 +150,16 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @syste
     auto renderer = services.getRenderer();
     
     // Analyze dependencies
-    auto graph = services.analyzer.analyze(target);
+    auto graphResult = services.analyzer.analyze(target);
+    if (graphResult.isErr)
+    {
+        Logger.error("Failed to analyze dependencies");
+        import errors.formatting.format : format;
+        Logger.error(format(graphResult.unwrapErr()));
+        import core.stdc.stdlib : exit;
+        exit(1);
+    }
+    auto graph = graphResult.unwrap();
     
     if (showGraph)
     {
@@ -260,7 +272,14 @@ void graphCommand(in string target) @system
         auto services = new BuildServices(config, config.options);
         
         // Analyze with error recovery
-        auto graph = services.analyzer.analyze(target);
+        auto graphResult = services.analyzer.analyze(target);
+        if (graphResult.isErr)
+        {
+            Logger.error("Failed to analyze dependencies: " ~ format(graphResult.unwrapErr()));
+            import core.stdc.stdlib : exit;
+            exit(1);
+        }
+        auto graph = graphResult.unwrap();
         
         // Print with error handling
         graph.print();
@@ -347,7 +366,14 @@ void resumeCommand(in string modeStr) @system
     auto renderer = services.getRenderer();
     
     // Rebuild graph
-    auto graph = services.analyzer.analyze("");
+        auto graphResult = services.analyzer.analyze("");
+        if (graphResult.isErr)
+        {
+            Logger.error("Failed to analyze dependencies: " ~ format(graphResult.unwrapErr()));
+            import core.stdc.stdlib : exit;
+            exit(1);
+        }
+        auto graph = graphResult.unwrap();
     
     // Validate checkpoint
     if (!checkpoint.isValid(graph))
