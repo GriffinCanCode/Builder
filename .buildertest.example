@@ -1,0 +1,34 @@
+{
+  // Execution settings
+  "parallel": true,
+  "jobs": 0,  // 0 = auto-detect CPU count
+  
+  // Sharding (parallel test distribution)
+  "shard": true,
+  "shardCount": 0,  // 0 = auto-calculate optimal
+  "shardStrategy": "adaptive",  // adaptive | content | round-robin | load
+  
+  // Caching (skip unchanged tests)
+  "cache": true,
+  "cacheDir": ".builder-cache/tests",
+  "cacheMaxAge": 30,  // days
+  "hermetic": true,   // Verify environment hasn't changed
+  
+  // Retry & Flaky Detection
+  "retry": true,
+  "maxRetries": 3,
+  "detectFlaky": true,
+  "quarantineFlaky": true,
+  "skipQuarantined": false,
+  
+  // Reporting
+  "analytics": false,
+  "verbose": false,
+  "showPassed": false,
+  "failFast": false,
+  
+  // Output formats
+  "junit": false,
+  "junitPath": "test-results.xml"
+}
+

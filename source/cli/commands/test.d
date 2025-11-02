@@ -12,6 +12,9 @@ import config.schema.schema;
 import core.graph.graph;
 import core.services.services;
 import core.testing;
+import core.testing.config;
+import core.testing.execution;
+import core.testing.analytics;
 import core.shutdown.shutdown;
 import utils.logging.logger;
 import cli.control.terminal;
@@ -42,10 +45,13 @@ struct TestCommand
     {
         init();
         
-        // Parse arguments
-        TestConfig config;
+        // Load configuration from .buildertest (if exists)
+        auto testConfig = BuilderTestConfig.load();
+        
+        // Parse command-line arguments (override config file)
         string targetSpec = "";
         string renderMode = "auto";
+        bool initConfig = false;
         
         size_t i = 1; // Skip "test" command itself
         while (i < args.length)
@@ -54,48 +60,81 @@ struct TestCommand
             
             if (arg == "--verbose" || arg == "-v")
             {
-                config.verbose = true;
+                testConfig.verbose = true;
                 i++;
             }
             else if (arg == "--quiet" || arg == "-q")
             {
-                config.quiet = true;
+                testConfig.verbose = false;
                 i++;
             }
             else if (arg == "--show-passed")
             {
-                config.showPassed = true;
+                testConfig.showPassed = true;
                 i++;
             }
             else if (arg == "--fail-fast")
             {
-                config.failFast = true;
+                testConfig.failFast = true;
                 i++;
             }
             else if (arg == "--filter" && i + 1 < args.length)
             {
-                config.filter = args[i + 1];
+                // Legacy filter support
                 i += 2;
             }
-            else if (arg == "--coverage")
+            else if (arg == "--jobs" || arg == "-j" && i + 1 < args.length)
             {
-                // Coverage flag reserved for future implementation
-                Logger.info("Coverage reporting will be available in a future release");
+                testConfig.jobs = args[i + 1].to!size_t;
+                i += 2;
+            }
+            else if (arg == "--shards" && i + 1 < args.length)
+            {
+                testConfig.shardCount = args[i + 1].to!size_t;
+                i += 2;
+            }
+            else if (arg == "--no-shard")
+            {
+                testConfig.shard = false;
+                i++;
+            }
+            else if (arg == "--no-cache")
+            {
+                testConfig.cache = false;
+                i++;
+            }
+            else if (arg == "--no-retry")
+            {
+                testConfig.retry = false;
+                i++;
+            }
+            else if (arg == "--max-retries" && i + 1 < args.length)
+            {
+                testConfig.maxRetries = args[i + 1].to!size_t;
+                i += 2;
+            }
+            else if (arg == "--analytics")
+            {
+                testConfig.analytics = true;
                 i++;
             }
             else if (arg == "--junit")
             {
-                config.generateJUnit = true;
+                testConfig.junit = true;
                 if (i + 1 < args.length && !args[i + 1].startsWith("--"))
                 {
-                    config.junitPath = args[i + 1];
+                    testConfig.junitPath = args[i + 1];
                     i += 2;
                 }
                 else
                 {
-                    config.junitPath = "test-results.xml";
                     i++;
                 }
+            }
+            else if (arg == "--init-config")
+            {
+                initConfig = true;
+                i++;
             }
             else if (arg == "--mode" && i + 1 < args.length)
             {
@@ -109,7 +148,6 @@ struct TestCommand
             }
             else if (!arg.startsWith("--"))
             {
-                // Target specification
                 targetSpec = arg;
                 i++;
             }
@@ -121,12 +159,37 @@ struct TestCommand
             }
         }
         
+        // Handle --init-config
+        if (initConfig)
+        {
+            return initializeConfig();
+        }
+        
         // Run tests
-        return runTests(targetSpec, config, renderMode);
+        return runTests(targetSpec, testConfig, renderMode);
+    }
+    
+    /// Initialize .buildertest configuration file
+    private static int initializeConfig() @system
+    {
+        import std.file : write, exists;
+        
+        if (exists(".buildertest"))
+        {
+            terminal.writeln("Error: .buildertest already exists");
+            return 1;
+        }
+        
+        auto example = BuilderTestConfig.generateExample();
+        write(".buildertest", example);
+        
+        terminal.writeln("Created .buildertest configuration file");
+        terminal.writeln("Edit this file to customize your test settings");
+        return 0;
     }
     
     /// Run tests with configuration
-    private static int runTests(string targetSpec, TestConfig config, string renderMode) @system
+    private static int runTests(string targetSpec, BuilderTestConfig config, string renderMode) @system
     {
         auto sw = StopWatch(AutoStart.yes);
         
@@ -152,10 +215,6 @@ struct TestCommand
         {
             testTargets = discovery.findByTarget(targetSpec);
         }
-        else if (!config.filter.empty)
-        {
-            testTargets = discovery.findByFilter(config.filter);
-        }
         else
         {
             testTargets = discovery.findAll();
@@ -164,23 +223,12 @@ struct TestCommand
         if (testTargets.empty)
         {
             Logger.warning("No test targets found");
-            
             if (!targetSpec.empty)
-            {
                 Logger.info("Target specification: " ~ targetSpec);
-            }
-            if (!config.filter.empty)
-            {
-                Logger.info("Filter: " ~ config.filter);
-            }
-            
-            Logger.info("Use 'builder query \"deps(//...)\"' to see all available targets");
             return 0;
         }
         
-        // Create reporter
-        auto reporter = new TestReporter(terminal, formatter, config.verbose);
-        reporter.reportStart(testTargets.length);
+        Logger.info("Found " ~ testTargets.length.to!string ~ " test targets");
         
         // Create services
         auto services = new BuildServices(wsConfig, wsConfig.options);
@@ -194,25 +242,26 @@ struct TestCommand
         immutable rm = parseRenderMode(renderMode);
         services.setRenderMode(rm);
         
-        // Execute tests
-        TestResult[] results;
-        bool hadFailure = false;
+        // Create test executor with config
+        auto execConfig = config.toExecutionConfig();
+        auto executor = new TestExecutor(execConfig);
         
-        foreach (target; testTargets)
+        // Create reporter
+        auto reporter = new TestReporter(terminal, formatter, config.verbose);
+        reporter.reportStart(testTargets.length);
+        
+        // Execute tests
+        auto results = executor.execute(testTargets, wsConfig, services);
+        
+        // Report results
+        foreach (result; results)
         {
-            auto result = executeTest(target, wsConfig, services, config);
-            results ~= result;
-            
             reporter.reportTest(result);
             
-            if (!result.passed)
+            if (!result.passed && config.failFast)
             {
-                hadFailure = true;
-                if (config.failFast)
-                {
-                    Logger.info("Stopping due to --fail-fast");
-                    break;
-                }
+                Logger.info("Stopping due to --fail-fast");
+                break;
             }
         }
         
@@ -222,12 +271,19 @@ struct TestCommand
         // Report summary
         reporter.reportSummary(stats);
         
+        // Generate analytics if enabled
+        if (config.analytics)
+        {
+            generateAnalytics(results, stats);
+        }
+        
         // Export JUnit XML if requested
-        if (config.generateJUnit)
+        if (config.junit)
         {
             try
             {
                 exportJUnit(results, config.junitPath);
+                Logger.info("JUnit XML exported to: " ~ config.junitPath);
             }
             catch (Exception e)
             {
@@ -236,64 +292,37 @@ struct TestCommand
         }
         
         // Cleanup
+        executor.shutdown();
         services.shutdown();
         
         sw.stop();
+        
+        Logger.info("Total execution time: " ~ sw.peek().total!"msecs".to!string ~ "ms");
         
         // Return exit code
         return stats.allPassed ? 0 : 1;
     }
     
-    /// Execute a single test target
-    private static TestResult executeTest(
-        Target target,
-        WorkspaceConfig config,
-        BuildServices services,
-        TestConfig testConfig
-    ) @system
+    /// Generate test analytics
+    private static void generateAnalytics(TestResult[] results, TestStats stats) @system
     {
-        auto sw = StopWatch(AutoStart.yes);
-        
         try
         {
-            // Get language handler
-            auto handler = services.registry.get(target.language);
-            if (handler is null)
-            {
-                return TestResult.fail(
-                    target.name,
-                    sw.peek(),
-                    "No language handler for: " ~ target.language.to!string
-                );
-            }
+            import std.array : replicate;
+            Logger.info("\n" ~ "═".replicate(60));
+            Logger.info("Test Analytics Report");
+            Logger.info("═".replicate(60));
             
-            // Build the test target (which will run tests)
-            auto buildResult = handler.build(target, config);
+            FlakyRecord[] flakyRecords; // TODO: Get from detector
+            auto health = TestAnalytics.analyzeHealth(results, flakyRecords);
+            auto performance = TestAnalytics.analyzePerformance(results);
+            auto report = TestAnalytics.generateReport(stats, health, performance);
             
-            sw.stop();
-            
-            if (buildResult.isOk)
-            {
-                return TestResult.pass(target.name, sw.peek());
-            }
-            else
-            {
-                auto error = buildResult.unwrapErr();
-                return TestResult.fail(
-                    target.name,
-                    sw.peek(),
-                    error.message()
-                );
-            }
+            Logger.info("\n" ~ report);
         }
         catch (Exception e)
         {
-            sw.stop();
-            return TestResult.fail(
-                target.name,
-                sw.peek(),
-                "Exception: " ~ e.msg
-            );
+            Logger.warning("Failed to generate analytics: " ~ e.msg);
         }
     }
     
@@ -303,25 +332,42 @@ struct TestCommand
         terminal.writeln();
         terminal.writeln("Usage: builder test [OPTIONS] [TARGET]");
         terminal.writeln();
-        terminal.writeln("Run test targets with reporting and analysis.");
+        terminal.writeln("Run test targets with advanced features.");
         terminal.writeln();
-        terminal.writeln("Options:");
+        terminal.writeln("Configuration:");
+        terminal.writeln("  --init-config         Create .buildertest configuration file");
+        terminal.writeln();
+        terminal.writeln("Basic Options:");
         terminal.writeln("  -v, --verbose         Show detailed output");
         terminal.writeln("  -q, --quiet           Minimal output");
         terminal.writeln("  --show-passed         Show passed tests");
         terminal.writeln("  --fail-fast           Stop on first failure");
-        terminal.writeln("  --filter PATTERN      Filter tests by pattern");
+        terminal.writeln();
+        terminal.writeln("Execution Options:");
+        terminal.writeln("  -j, --jobs N          Number of parallel jobs (0 = auto)");
+        terminal.writeln("  --shards N            Number of test shards (0 = auto)");
+        terminal.writeln("  --no-shard            Disable test sharding");
+        terminal.writeln();
+        terminal.writeln("Caching & Retry:");
+        terminal.writeln("  --no-cache            Disable test result caching");
+        terminal.writeln("  --no-retry            Disable automatic retry");
+        terminal.writeln("  --max-retries N       Maximum retry attempts");
+        terminal.writeln();
+        terminal.writeln("Output:");
+        terminal.writeln("  --analytics           Generate analytics report");
         terminal.writeln("  --junit [PATH]        Generate JUnit XML report");
-        terminal.writeln("  --coverage            Generate coverage report (future)");
         terminal.writeln("  --mode MODE           Render mode: auto, interactive, plain");
-        terminal.writeln("  -h, --help            Show this help");
         terminal.writeln();
         terminal.writeln("Examples:");
-        terminal.writeln("  builder test                    # Run all tests");
+        terminal.writeln("  builder test                    # Run all tests (uses .buildertest)");
+        terminal.writeln("  builder test --init-config      # Create configuration file");
+        terminal.writeln("  builder test -j 8 --analytics   # Run with 8 jobs + analytics");
+        terminal.writeln("  builder test --no-cache         # Run without caching");
         terminal.writeln("  builder test //path:target      # Run specific test");
-        terminal.writeln("  builder test --filter unit      # Filter tests");
-        terminal.writeln("  builder test --junit report.xml # Generate JUnit XML");
-        terminal.writeln("  builder test --fail-fast        # Stop on first failure");
+        terminal.writeln();
+        terminal.writeln("Config File (.buildertest):");
+        terminal.writeln("  All options can be configured in .buildertest (JSON format)");
+        terminal.writeln("  Command-line flags override config file settings");
         terminal.writeln();
         terminal.flush();
     }

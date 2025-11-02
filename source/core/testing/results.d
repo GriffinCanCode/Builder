@@ -173,5 +173,11 @@ struct TestConfig
     string coverageFormat;   /// Coverage output format (future)
     bool generateJUnit;      /// Generate JUnit XML output
     string junitPath;        /// Path for JUnit XML output
+    bool enableSharding;     /// Enable test sharding (parallel execution)
+    bool enableCaching;      /// Enable test result caching
+    bool enableRetry;        /// Enable automatic retry for flaky tests
+    bool enableAnalytics;    /// Generate test analytics report
+    size_t shardCount;       /// Number of shards (0 = auto)
+    size_t maxRetries;       /// Maximum retry attempts (0 = default)
 }
 
