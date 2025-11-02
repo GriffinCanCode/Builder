@@ -9,16 +9,35 @@ import std.range : empty;
 import analysis.detection.detector;
 import analysis.detection.templates;
 import utils.logging.logger;
+import cli.control.terminal;
+import cli.display.format;
 
 static import std.file;
 
 /// Initialize command - creates Builderfile and Builderspace
 struct InitCommand
 {
+    private static Terminal terminal;
+    private static Formatter formatter;
+    
+    /// Initialize terminal and formatter
+    private static void init()
+    {
+        auto caps = Capabilities.detect();
+        terminal = Terminal(caps);
+        formatter = Formatter(caps);
+    }
+    
     /// Execute the init command
     static void execute(string projectDir = ".")
     {
-        Logger.info("Initializing Builder project...\n");
+        init();
+        
+        terminal.writeln();
+        terminal.writeColored("🚀 ", Color.BrightYellow);
+        terminal.writeColored("Initializing Builder Project", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
         
         // Check if files already exist
         immutable builderfilePath = buildPath(projectDir, "Builderfile");
@@ -31,43 +50,82 @@ struct InitCommand
         
         if (builderfileExists && builderspaceExists && builderignoreExists)
         {
-            Logger.error("Builderfile, Builderspace, and .builderignore already exist");
-            Logger.info("Use --force to overwrite existing files");
+            terminal.writeColored("⚠️  ", Color.Yellow);
+            terminal.writeColored("Project Already Initialized", Color.Yellow, Style.Bold);
+            terminal.writeln();
+            terminal.writeln();
+            terminal.write("  ");
+            terminal.writeColored("Builderfile", Color.BrightCyan);
+            terminal.write(", ");
+            terminal.writeColored("Builderspace", Color.BrightCyan);
+            terminal.write(", and ");
+            terminal.writeColored(".builderignore", Color.BrightCyan);
+            terminal.write(" already exist");
+            terminal.writeln();
+            terminal.write("  Use ");
+            terminal.writeColored("--force", Color.Yellow, Style.Bold);
+            terminal.write(" to overwrite existing files");
+            terminal.writeln();
+            terminal.writeln();
+            terminal.flush();
             return;
         }
         
         // Detect project structure
-        Logger.info("Scanning project directory...");
+        terminal.writeColored("🔍 ", Color.BrightCyan);
+        terminal.writeColored("Scanning project directory", Color.Cyan);
+        terminal.write("...");
+        terminal.writeln();
+        terminal.flush();
+        
         auto detector = new ProjectDetector(projectDir);
         auto metadata = detector.detect();
         
+        terminal.writeln();
+        
         if (metadata.languages.empty)
         {
-            Logger.warning("No supported languages detected");
-            Logger.info("Creating generic Builderfile template");
+            terminal.writeColored("⚠️  ", Color.Yellow);
+            terminal.writeColored("No supported languages detected", Color.Yellow, Style.Bold);
+            terminal.writeln();
+            terminal.write("  Creating generic Builderfile template");
+            terminal.writeln();
+            terminal.writeln();
         }
         else
         {
-            Logger.success(format("Detected %d language(s):", metadata.languages.length));
+            terminal.writeColored("✨ ", Color.Green);
+            terminal.writeColored("Detected Languages", Color.Green, Style.Bold);
+            terminal.writeln();
+            terminal.writeln();
+            
             foreach (langInfo; metadata.languages)
             {
                 string frameworkInfo = langInfo.framework != ProjectFramework.None ? 
                     format(" [%s]", langInfo.framework) : "";
-                Logger.info(format("  • %s (%.0f%% confidence)%s", 
-                    langInfo.language, 
-                    langInfo.confidence * 100,
-                    frameworkInfo
-                ));
+                    
+                terminal.write("  ");
+                terminal.writeColored("▸", Color.Magenta);
+                terminal.write(" ");
+                terminal.writeColored(format("%s", langInfo.language), Color.BrightWhite, Style.Bold);
+                terminal.write(" ");
+                terminal.writeColored(format("(%.0f%% confidence)", langInfo.confidence * 100), Color.BrightBlack);
+                terminal.writeColored(frameworkInfo, Color.BrightCyan);
+                terminal.writeln();
                 
                 if (!langInfo.manifestFiles.empty)
                 {
                     foreach (manifest; langInfo.manifestFiles)
                     {
-                        Logger.debugLog("    Found: " ~ baseName(manifest));
+                        terminal.write("    ");
+                        terminal.writeColored("→", Color.BrightBlack);
+                        terminal.write(" Found: ");
+                        terminal.writeColored(baseName(manifest), Color.Cyan);
+                        terminal.writeln();
                     }
                 }
             }
-            writeln();
+            terminal.writeln();
         }
         
         // Generate templates
@@ -81,20 +139,33 @@ struct InitCommand
             try
             {
                 std.file.write(builderfilePath, builderfileContent);
-                Logger.success("Created Builderfile");
+                terminal.writeColored("✓", Color.Green);
+                terminal.write(" Created ");
+                terminal.writeColored("Builderfile", Color.BrightCyan, Style.Bold);
+                terminal.writeln();
                 
                 // Show preview
                 showFilePreview("Builderfile", builderfileContent);
             }
             catch (Exception e)
             {
-                Logger.error("Failed to create Builderfile: " ~ e.msg);
+                terminal.writeColored("✗", Color.Red);
+                terminal.write(" Failed to create ");
+                terminal.writeColored("Builderfile", Color.BrightCyan);
+                terminal.write(": ");
+                terminal.writeColored(e.msg, Color.Red);
+                terminal.writeln();
+                terminal.flush();
                 return;
             }
         }
         else
         {
-            Logger.info("Skipping Builderfile (already exists)");
+            terminal.writeColored("⊙", Color.BrightBlack);
+            terminal.write(" Skipping ");
+            terminal.writeColored("Builderfile", Color.BrightCyan);
+            terminal.write(" (already exists)");
+            terminal.writeln();
         }
         
         // Create Builderspace
@@ -105,20 +176,33 @@ struct InitCommand
             try
             {
                 std.file.write(builderspacePath, builderspaceContent);
-                Logger.success("Created Builderspace");
+                terminal.writeColored("✓", Color.Green);
+                terminal.write(" Created ");
+                terminal.writeColored("Builderspace", Color.BrightCyan, Style.Bold);
+                terminal.writeln();
                 
                 // Show preview
                 showFilePreview("Builderspace", builderspaceContent);
             }
             catch (Exception e)
             {
-                Logger.error("Failed to create Builderspace: " ~ e.msg);
+                terminal.writeColored("✗", Color.Red);
+                terminal.write(" Failed to create ");
+                terminal.writeColored("Builderspace", Color.BrightCyan);
+                terminal.write(": ");
+                terminal.writeColored(e.msg, Color.Red);
+                terminal.writeln();
+                terminal.flush();
                 return;
             }
         }
         else
         {
-            Logger.info("Skipping Builderspace (already exists)");
+            terminal.writeColored("⊙", Color.BrightBlack);
+            terminal.write(" Skipping ");
+            terminal.writeColored("Builderspace", Color.BrightCyan);
+            terminal.write(" (already exists)");
+            terminal.writeln();
         }
         
         // Create .builderignore
@@ -129,30 +213,78 @@ struct InitCommand
             try
             {
                 std.file.write(builderignorePath, builderignoreContent);
-                Logger.success("Created .builderignore");
+                terminal.writeColored("✓", Color.Green);
+                terminal.write(" Created ");
+                terminal.writeColored(".builderignore", Color.BrightCyan, Style.Bold);
+                terminal.writeln();
                 
                 // Show preview
                 showFilePreview(".builderignore", builderignoreContent);
             }
             catch (Exception e)
             {
-                Logger.error("Failed to create .builderignore: " ~ e.msg);
+                terminal.writeColored("✗", Color.Red);
+                terminal.write(" Failed to create ");
+                terminal.writeColored(".builderignore", Color.BrightCyan);
+                terminal.write(": ");
+                terminal.writeColored(e.msg, Color.Red);
+                terminal.writeln();
+                terminal.flush();
                 return;
             }
         }
         else
         {
-            Logger.info("Skipping .builderignore (already exists)");
+            terminal.writeColored("⊙", Color.BrightBlack);
+            terminal.write(" Skipping ");
+            terminal.writeColored(".builderignore", Color.BrightCyan);
+            terminal.write(" (already exists)");
+            terminal.writeln();
         }
         
         // Show next steps
-        writeln();
-        Logger.success("Initialization complete! 🎉\n");
-        Logger.info("Next steps:");
-        Logger.info("  1. Review and customize your Builderfile");
-        Logger.info("  2. Customize .builderignore to exclude specific directories");
-        Logger.info("  3. Run 'builder build' to build your project");
-        Logger.info("  4. Run 'builder graph' to visualize dependencies\n");
+        terminal.writeln();
+        string[] successBox = [
+            "🎉 Initialization Complete!",
+            "",
+            "Your Builder project is ready to use."
+        ];
+        terminal.writeln(formatter.formatBox("Success", successBox));
+        terminal.writeln();
+        
+        terminal.writeColored("📋 Next Steps:", Color.Cyan, Style.Bold);
+        terminal.writeln();
+        terminal.writeln();
+        
+        terminal.write("  ");
+        terminal.writeColored("1.", Color.BrightYellow, Style.Bold);
+        terminal.write(" Review and customize your ");
+        terminal.writeColored("Builderfile", Color.BrightCyan);
+        terminal.writeln();
+        
+        terminal.write("  ");
+        terminal.writeColored("2.", Color.BrightYellow, Style.Bold);
+        terminal.write(" Customize ");
+        terminal.writeColored(".builderignore", Color.BrightCyan);
+        terminal.write(" to exclude specific directories");
+        terminal.writeln();
+        
+        terminal.write("  ");
+        terminal.writeColored("3.", Color.BrightYellow, Style.Bold);
+        terminal.write(" Run ");
+        terminal.writeColored("builder build", Color.Green, Style.Bold);
+        terminal.write(" to build your project");
+        terminal.writeln();
+        
+        terminal.write("  ");
+        terminal.writeColored("4.", Color.BrightYellow, Style.Bold);
+        terminal.write(" Run ");
+        terminal.writeColored("builder graph", Color.Green, Style.Bold);
+        terminal.write(" to visualize dependencies");
+        terminal.writeln();
+        terminal.writeln();
+        
+        terminal.flush();
     }
     
     /// Generate .builderignore content based on detected languages
@@ -336,21 +468,56 @@ struct InitCommand
         import std.range : take;
         import std.algorithm : splitter;
         
-        writeln();
-        Logger.info(format("Preview of %s:", filename));
-        writeln("┌" ~ "─".replicate(60) ~ "┐");
+        terminal.writeln();
+        terminal.write("  ");
+        terminal.writeColored("📄 Preview: ", Color.BrightBlack);
+        terminal.writeColored(filename, Color.BrightCyan);
+        terminal.writeln();
+        terminal.writeln();
         
-        auto lines = content.splitter('\n').take(15);
+        // Top border
+        terminal.write("  ");
+        terminal.writeColored("╭", Color.BrightBlack);
+        foreach (_; 0 .. 68)
+            terminal.writeColored("─", Color.BrightBlack);
+        terminal.writeColored("╮", Color.BrightBlack);
+        terminal.writeln();
+        
+        auto lines = content.splitter('\n').take(12);
+        size_t lineNum = 1;
         foreach (line; lines)
         {
             // Truncate long lines
-            if (line.length > 58)
-                line = line[0..55] ~ "...";
-            writeln("│ " ~ line ~ " ".replicate(58 - line.length) ~ " │");
+            if (line.length > 63)
+                line = line[0..60] ~ "...";
+            
+            terminal.write("  ");
+            terminal.writeColored("│", Color.BrightBlack);
+            terminal.write(" ");
+            terminal.writeColored(format("%2d", lineNum), Color.BrightBlack);
+            terminal.write(" ");
+            terminal.write(line);
+            
+            // Pad to fixed width
+            size_t padding = 63 - line.length;
+            foreach (_; 0 .. padding)
+                terminal.write(" ");
+            
+            terminal.write(" ");
+            terminal.writeColored("│", Color.BrightBlack);
+            terminal.writeln();
+            lineNum++;
         }
         
-        writeln("└" ~ "─".replicate(60) ~ "┘");
-        writeln();
+        // Bottom border
+        terminal.write("  ");
+        terminal.writeColored("╰", Color.BrightBlack);
+        foreach (_; 0 .. 68)
+            terminal.writeColored("─", Color.BrightBlack);
+        terminal.writeColored("╯", Color.BrightBlack);
+        terminal.writeln();
+        terminal.writeln();
+        terminal.flush();
     }
 }
 
