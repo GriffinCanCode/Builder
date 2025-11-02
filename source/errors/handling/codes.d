@@ -13,7 +13,11 @@ enum ErrorCategory
     Graph,      // Dependency graph errors
     Language,   // Language handler errors
     System,     // System-level errors
-    Internal    // Internal/unexpected errors
+    Internal,   // Internal/unexpected errors
+    Plugin,     // Plugin system errors
+    LSP,        // LSP server errors
+    Watch,      // Watch mode errors
+    Config      // Configuration/Validation errors
 }
 
 /// Specific error codes for programmatic handling
@@ -98,7 +102,66 @@ enum ErrorCode
     // Tracing errors (11000-11999)
     TraceInvalidFormat = 11000,
     TraceNoActiveSpan,
-    TraceExportFailed
+    TraceExportFailed,
+    
+    // Distributed build errors (12000-12999)
+    DistributedError = 12000,
+    CoordinatorNotFound,
+    CoordinatorTimeout,
+    WorkerTimeout,
+    WorkerFailed,
+    ActionSchedulingFailed,
+    SandboxError,
+    ArtifactTransferFailed,
+    
+    // Plugin errors (13000-13999)
+    PluginError = 13000,
+    PluginNotFound,
+    PluginLoadFailed,
+    PluginCrashed,
+    PluginTimeout,
+    PluginInvalidResponse,
+    PluginProtocolError,
+    PluginVersionMismatch,
+    PluginCapabilityMissing,
+    PluginValidationFailed,
+    PluginExecutionFailed,
+    InvalidMessage,
+    ToolNotFound,
+    IncompatibleVersion,
+    
+    // LSP errors (14000-14999)
+    LSPError = 14000,
+    LSPInitializationFailed,
+    LSPInvalidRequest,
+    LSPMethodNotFound,
+    LSPInvalidParams,
+    LSPDocumentNotFound,
+    LSPParseError,
+    LSPServerCrashed,
+    LSPTimeout,
+    LSPInvalidPosition,
+    LSPWorkspaceNotInitialized,
+    
+    // Watch mode errors (15000-15999)
+    WatchError = 15000,
+    WatcherInitFailed,
+    WatcherNotSupported,
+    WatcherCrashed,
+    FileWatchFailed,
+    DebounceError,
+    TooManyWatchTargets,
+    
+    // Configuration/Validation errors (16000-16999)
+    ConfigError = 16000,
+    InvalidWorkspace,
+    InvalidTarget,
+    InvalidInput,
+    SchemaValidationFailed,
+    DeprecatedField,
+    RequiredFieldMissing,
+    DuplicateTarget,
+    ConfigConflict
 }
 
 /// Get error category from error code
@@ -115,8 +178,13 @@ ErrorCategory categoryOf(ErrorCode code) pure nothrow @nogc
         case 7: return ErrorCategory.Language;
         case 8: return ErrorCategory.System;
         case 9: return ErrorCategory.Internal;
-        case 10: return ErrorCategory.Internal;
-        case 11: return ErrorCategory.Internal;
+        case 10: return ErrorCategory.Internal;  // Telemetry
+        case 11: return ErrorCategory.Internal;  // Tracing
+        case 12: return ErrorCategory.System;    // Distributed builds
+        case 13: return ErrorCategory.Plugin;    // Plugin errors
+        case 14: return ErrorCategory.LSP;       // LSP errors
+        case 15: return ErrorCategory.Watch;     // Watch mode errors
+        case 16: return ErrorCategory.Config;    // Configuration/Validation errors
         case 0: return ErrorCategory.Internal;
     }
 }
@@ -133,6 +201,13 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.CacheTimeout:
         case ErrorCode.NetworkError:
         case ErrorCode.ProcessTimeout:
+        case ErrorCode.CoordinatorTimeout:
+        case ErrorCode.WorkerTimeout:
+        case ErrorCode.ArtifactTransferFailed:
+        case ErrorCode.PluginTimeout:
+        case ErrorCode.LSPTimeout:
+        case ErrorCode.WatcherCrashed:
+        case ErrorCode.FileWatchFailed:
             return true;
             
         // Non-recoverable errors
@@ -187,6 +262,48 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.TraceInvalidFormat:
         case ErrorCode.TraceNoActiveSpan:
         case ErrorCode.TraceExportFailed:
+        case ErrorCode.DistributedError:
+        case ErrorCode.CoordinatorNotFound:
+        case ErrorCode.WorkerFailed:
+        case ErrorCode.ActionSchedulingFailed:
+        case ErrorCode.SandboxError:
+        case ErrorCode.PluginError:
+        case ErrorCode.PluginNotFound:
+        case ErrorCode.PluginLoadFailed:
+        case ErrorCode.PluginCrashed:
+        case ErrorCode.PluginInvalidResponse:
+        case ErrorCode.PluginProtocolError:
+        case ErrorCode.PluginVersionMismatch:
+        case ErrorCode.PluginCapabilityMissing:
+        case ErrorCode.PluginValidationFailed:
+        case ErrorCode.PluginExecutionFailed:
+        case ErrorCode.InvalidMessage:
+        case ErrorCode.ToolNotFound:
+        case ErrorCode.IncompatibleVersion:
+        case ErrorCode.LSPError:
+        case ErrorCode.LSPInitializationFailed:
+        case ErrorCode.LSPInvalidRequest:
+        case ErrorCode.LSPMethodNotFound:
+        case ErrorCode.LSPInvalidParams:
+        case ErrorCode.LSPDocumentNotFound:
+        case ErrorCode.LSPParseError:
+        case ErrorCode.LSPServerCrashed:
+        case ErrorCode.LSPInvalidPosition:
+        case ErrorCode.LSPWorkspaceNotInitialized:
+        case ErrorCode.WatchError:
+        case ErrorCode.WatcherInitFailed:
+        case ErrorCode.WatcherNotSupported:
+        case ErrorCode.DebounceError:
+        case ErrorCode.TooManyWatchTargets:
+        case ErrorCode.ConfigError:
+        case ErrorCode.InvalidWorkspace:
+        case ErrorCode.InvalidTarget:
+        case ErrorCode.InvalidInput:
+        case ErrorCode.SchemaValidationFailed:
+        case ErrorCode.DeprecatedField:
+        case ErrorCode.RequiredFieldMissing:
+        case ErrorCode.DuplicateTarget:
+        case ErrorCode.ConfigConflict:
             return false;
     }
 }
@@ -253,6 +370,55 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.TraceInvalidFormat: return "Invalid trace format";
         case ErrorCode.TraceNoActiveSpan: return "No active span";
         case ErrorCode.TraceExportFailed: return "Trace export failed";
+        case ErrorCode.DistributedError: return "Distributed build error";
+        case ErrorCode.CoordinatorNotFound: return "Build coordinator not found";
+        case ErrorCode.CoordinatorTimeout: return "Coordinator connection timeout";
+        case ErrorCode.WorkerTimeout: return "Worker timeout";
+        case ErrorCode.WorkerFailed: return "Worker failure";
+        case ErrorCode.ActionSchedulingFailed: return "Failed to schedule action";
+        case ErrorCode.SandboxError: return "Sandbox execution error";
+        case ErrorCode.ArtifactTransferFailed: return "Artifact transfer failed";
+        case ErrorCode.PluginError: return "Plugin error";
+        case ErrorCode.PluginNotFound: return "Plugin not found";
+        case ErrorCode.PluginLoadFailed: return "Failed to load plugin";
+        case ErrorCode.PluginCrashed: return "Plugin crashed";
+        case ErrorCode.PluginTimeout: return "Plugin operation timed out";
+        case ErrorCode.PluginInvalidResponse: return "Plugin returned invalid response";
+        case ErrorCode.PluginProtocolError: return "Plugin protocol error";
+        case ErrorCode.PluginVersionMismatch: return "Plugin version mismatch";
+        case ErrorCode.PluginCapabilityMissing: return "Plugin missing required capability";
+        case ErrorCode.PluginValidationFailed: return "Plugin validation failed";
+        case ErrorCode.PluginExecutionFailed: return "Plugin execution failed";
+        case ErrorCode.InvalidMessage: return "Invalid message format";
+        case ErrorCode.ToolNotFound: return "Tool not found";
+        case ErrorCode.IncompatibleVersion: return "Incompatible version";
+        case ErrorCode.LSPError: return "LSP error";
+        case ErrorCode.LSPInitializationFailed: return "LSP initialization failed";
+        case ErrorCode.LSPInvalidRequest: return "Invalid LSP request";
+        case ErrorCode.LSPMethodNotFound: return "LSP method not found";
+        case ErrorCode.LSPInvalidParams: return "Invalid LSP parameters";
+        case ErrorCode.LSPDocumentNotFound: return "LSP document not found";
+        case ErrorCode.LSPParseError: return "LSP parse error";
+        case ErrorCode.LSPServerCrashed: return "LSP server crashed";
+        case ErrorCode.LSPTimeout: return "LSP operation timed out";
+        case ErrorCode.LSPInvalidPosition: return "Invalid LSP position";
+        case ErrorCode.LSPWorkspaceNotInitialized: return "LSP workspace not initialized";
+        case ErrorCode.WatchError: return "Watch mode error";
+        case ErrorCode.WatcherInitFailed: return "Failed to initialize file watcher";
+        case ErrorCode.WatcherNotSupported: return "File watcher not supported on this platform";
+        case ErrorCode.WatcherCrashed: return "File watcher crashed";
+        case ErrorCode.FileWatchFailed: return "Failed to watch file";
+        case ErrorCode.DebounceError: return "Debounce error";
+        case ErrorCode.TooManyWatchTargets: return "Too many watch targets";
+        case ErrorCode.ConfigError: return "Configuration error";
+        case ErrorCode.InvalidWorkspace: return "Invalid workspace configuration";
+        case ErrorCode.InvalidTarget: return "Invalid target configuration";
+        case ErrorCode.InvalidInput: return "Invalid input";
+        case ErrorCode.SchemaValidationFailed: return "Schema validation failed";
+        case ErrorCode.DeprecatedField: return "Deprecated field used";
+        case ErrorCode.RequiredFieldMissing: return "Required field missing";
+        case ErrorCode.DuplicateTarget: return "Duplicate target name";
+        case ErrorCode.ConfigConflict: return "Configuration conflict";
     }
 }
 

@@ -346,6 +346,116 @@ class GenericError : BaseBuildError
     }
 }
 
+/// Plugin system error
+class PluginError : BaseBuildError
+{
+    string pluginName;
+    string pluginVersion;
+    
+    this(string message, ErrorCode code = ErrorCode.PluginError)
+    {
+        super(code, message);
+    }
+    
+    override string toString() const
+    {
+        string result = super.toString();
+        
+        if (!pluginName.empty)
+            result ~= "\n  Plugin: " ~ pluginName;
+        if (!pluginVersion.empty)
+            result ~= "\n  Version: " ~ pluginVersion;
+        
+        return result;
+    }
+}
+
+/// LSP server error
+class LSPError : BaseBuildError
+{
+    string method;
+    string documentUri;
+    int position;
+    
+    this(string message, ErrorCode code = ErrorCode.LSPError)
+    {
+        super(code, message);
+        position = -1;
+    }
+    
+    override string toString() const
+    {
+        string result = super.toString();
+        
+        if (!method.empty)
+            result ~= "\n  LSP Method: " ~ method;
+        if (!documentUri.empty)
+            result ~= "\n  Document: " ~ documentUri;
+        if (position >= 0)
+            result ~= "\n  Position: " ~ position.to!string;
+        
+        return result;
+    }
+}
+
+/// Watch mode error
+class WatchError : BaseBuildError
+{
+    string watcherType;
+    string[] watchPaths;
+    
+    this(string message, ErrorCode code = ErrorCode.WatchError)
+    {
+        super(code, message);
+    }
+    
+    override string toString() const
+    {
+        string result = super.toString();
+        
+        if (!watcherType.empty)
+            result ~= "\n  Watcher: " ~ watcherType;
+        if (watchPaths.length > 0)
+        {
+            result ~= "\n  Watch paths:";
+            foreach (path; watchPaths)
+                result ~= "\n    - " ~ path;
+        }
+        
+        return result;
+    }
+}
+
+/// Configuration/validation error
+class ConfigError : BaseBuildError
+{
+    string configPath;
+    string fieldName;
+    string expectedType;
+    string actualValue;
+    
+    this(string message, ErrorCode code = ErrorCode.ConfigError)
+    {
+        super(code, message);
+    }
+    
+    override string toString() const
+    {
+        string result = super.toString();
+        
+        if (!configPath.empty)
+            result ~= "\n  Config: " ~ configPath;
+        if (!fieldName.empty)
+            result ~= "\n  Field: " ~ fieldName;
+        if (!expectedType.empty)
+            result ~= "\n  Expected type: " ~ expectedType;
+        if (!actualValue.empty)
+            result ~= "\n  Actual value: " ~ actualValue;
+        
+        return result;
+    }
+}
+
 /// Alias for backward compatibility and convenience
 alias BuildError_Impl = GenericError;
 
@@ -687,6 +797,71 @@ BuildFailureError handlerNotFoundError(string language) @system
     error.addSuggestion(ErrorSuggestion.fileCheck("Verify 'language' field spelling in Builderfile"));
     error.addSuggestion(ErrorSuggestion.docs("See supported languages", "docs/user-guides/EXAMPLES.md"));
     error.addSuggestion(ErrorSuggestion.config("Use 'language: generic' for custom build scripts"));
+    
+    return error;
+}
+
+/// Create a plugin error with helpful suggestions
+PluginError pluginError(string pluginName, string message, ErrorCode code = ErrorCode.PluginError) @system
+{
+    auto error = new PluginError(message, code);
+    error.pluginName = pluginName;
+    
+    error.addSuggestion(ErrorSuggestion.command("List available plugins", "builder plugin list"));
+    error.addSuggestion(ErrorSuggestion.command("Refresh plugin registry", "builder plugin refresh"));
+    error.addSuggestion(ErrorSuggestion.docs("See plugin documentation", "docs/architecture/PLUGINS.md"));
+    
+    return error;
+}
+
+/// Create a plugin not found error
+PluginError pluginNotFoundError(string pluginName) @system
+{
+    auto error = new PluginError("Plugin not found: " ~ pluginName, ErrorCode.PluginNotFound);
+    error.pluginName = pluginName;
+    
+    error.addSuggestion(ErrorSuggestion.command("Install plugin", "brew install builder-plugin-" ~ pluginName));
+    error.addSuggestion(ErrorSuggestion.command("List available plugins", "builder plugin list"));
+    error.addSuggestion(ErrorSuggestion.command("Refresh plugin registry", "builder plugin refresh"));
+    
+    return error;
+}
+
+/// Create an LSP error with helpful suggestions
+LSPError lspError(string message, ErrorCode code = ErrorCode.LSPError) @system
+{
+    auto error = new LSPError(message, code);
+    
+    error.addSuggestion(ErrorSuggestion.command("Restart LSP server", "Restart your editor"));
+    error.addSuggestion(ErrorSuggestion.docs("See LSP documentation", "docs/user-guides/LSP.md"));
+    error.addSuggestion(ErrorSuggestion.command("Check LSP logs", "Check editor's LSP logs"));
+    
+    return error;
+}
+
+/// Create a watch mode error with helpful suggestions
+WatchError watchError(string message, ErrorCode code = ErrorCode.WatchError) @system
+{
+    auto error = new WatchError(message, code);
+    
+    error.addSuggestion(ErrorSuggestion.command("Try manual rebuild", "builder build"));
+    error.addSuggestion(ErrorSuggestion.docs("See watch mode documentation", "docs/user-guides/WATCH.md"));
+    error.addSuggestion(ErrorSuggestion.config("Check watch mode configuration"));
+    
+    return error;
+}
+
+/// Create a configuration error with helpful suggestions
+ConfigError configError(string configPath, string fieldName, string message, 
+                        ErrorCode code = ErrorCode.ConfigError) @system
+{
+    auto error = new ConfigError(message, code);
+    error.configPath = configPath;
+    error.fieldName = fieldName;
+    
+    error.addSuggestion(ErrorSuggestion.fileCheck("Check '" ~ fieldName ~ "' in " ~ configPath));
+    error.addSuggestion(ErrorSuggestion.docs("See configuration syntax", "docs/architecture/DSL.md"));
+    error.addSuggestion(ErrorSuggestion.command("Validate configuration", "builder check"));
     
     return error;
 }

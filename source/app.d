@@ -128,6 +128,15 @@ void main(string[] args)
             case "cache-server":
                 CacheServerCommand.execute(args[1 .. $]);
                 break;
+            case "coordinator":
+                coordinatorCommand(args[2 .. $]);
+                break;
+            case "worker":
+                workerCommand(args[2 .. $]);
+                break;
+            case "plugin":
+                PluginCommand.execute(args[1 .. $]);
+                break;
             case "help":
                 auto helpCommand = args.length > 2 ? args[2] : "";
                 HelpCommand.execute(helpCommand);

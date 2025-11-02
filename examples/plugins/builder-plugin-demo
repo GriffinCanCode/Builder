@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""
+Demo Builder Plugin - Shows basic plugin capabilities
+
+This plugin demonstrates:
+- Pre-build hooks
+- Post-build hooks
+- JSON-RPC protocol
+"""
+
+import json
+import sys
+
+PLUGIN_INFO = {
+    "name": "demo",
+    "version": "1.0.0",
+    "author": "Builder Team",
+    "description": "Demo plugin showing Builder plugin capabilities",
+    "homepage": "https://github.com/GriffinCanCode/Builder",
+    "capabilities": ["build.pre_hook", "build.post_hook"],
+    "minBuilderVersion": "1.0.0",
+    "license": "MIT"
+}
+
+def handle_request(request):
+    """Handle JSON-RPC request"""
+    method = request["method"]
+    req_id = request["id"]
+    
+    if method == "plugin.info":
+        return success_response(req_id, PLUGIN_INFO)
+    elif method == "build.pre_hook":
+        return handle_pre_hook(request)
+    elif method == "build.post_hook":
+        return handle_post_hook(request)
+    else:
+        return error_response(req_id, -32601, f"Method not found: {method}")
+
+def handle_pre_hook(request):
+    """Pre-build hook - runs before build starts"""
+    req_id = request["id"]
+    params = request.get("params", {})
+    target = params.get("target", {})
+    
+    logs = [
+        f"Pre-build hook running for target: {target.get('name', 'unknown')}",
+        f"Target type: {target.get('type', 'unknown')}",
+        f"Language: {target.get('language', 'unknown')}",
+        "✓ Pre-build checks passed"
+    ]
+    
+    return success_response(req_id, {
+        "success": True,
+        "logs": logs
+    })
+
+def handle_post_hook(request):
+    """Post-build hook - runs after build completes"""
+    req_id = request["id"]
+    params = request.get("params", {})
+    target = params.get("target", {})
+    build_success = params.get("success", False)
+    duration_ms = params.get("duration_ms", 0)
+    outputs = params.get("outputs", [])
+    
+    status = "✓ SUCCESS" if build_success else "✗ FAILED"
+    
+    logs = [
+        f"Post-build hook running for target: {target.get('name', 'unknown')}",
+        f"Build status: {status}",
+        f"Duration: {duration_ms}ms",
+        f"Outputs: {len(outputs)} files"
+    ]
+    
+    if outputs:
+        logs.append("Generated artifacts:")
+        for output in outputs:
+            logs.append(f"  • {output}")
+    
+    return success_response(req_id, {
+        "success": True,
+        "logs": logs
+    })
+
+def success_response(req_id, result):
+    """Create JSON-RPC success response"""
+    return {
+        "jsonrpc": "2.0",
+        "id": req_id,
+        "result": result
+    }
+
+def error_response(req_id, code, message):
+    """Create JSON-RPC error response"""
+    return {
+        "jsonrpc": "2.0",
+        "id": req_id,
+        "error": {
+            "code": code,
+            "message": message
+        }
+    }
+
+def main():
+    """Main loop - read requests from stdin, write responses to stdout"""
+    for line in sys.stdin:
+        try:
+            request = json.loads(line)
+            response = handle_request(request)
+            print(json.dumps(response))
+            sys.stdout.flush()
+        except Exception as e:
+            error = error_response(0, -32603, f"Internal error: {str(e)}")
+            print(json.dumps(error))
+            sys.stdout.flush()
+
+if __name__ == "__main__":
+    main()
+

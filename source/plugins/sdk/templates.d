@@ -64,7 +64,7 @@ class TemplateGenerator {
         } catch (Exception e) {
             auto err = new PluginError(
                 "Failed to create plugin template: " ~ e.msg,
-                ErrorCode.IOError
+                ErrorCode.FileWriteFailed
             );
             return Err!BuildError(err);
         }

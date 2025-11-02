@@ -163,7 +163,7 @@ class PluginScanner {
             if (responseLine.empty) {
                 auto err = new PluginError(
                     "Plugin did not respond to info request: " ~ pluginPath,
-                    ErrorCode.Timeout
+                    ErrorCode.PluginTimeout
                 );
                 err.addSuggestion("Check if the plugin is a valid Builder plugin");
                 err.addSuggestion("Run the plugin manually to see error output");
@@ -246,7 +246,7 @@ class PluginScanner {
         } catch (Exception e) {
             auto err = new PluginError(
                 "Failed to save plugin cache: " ~ e.msg,
-                ErrorCode.IOError
+                ErrorCode.CacheSaveFailed
             );
             return Err!BuildError(err);
         }
