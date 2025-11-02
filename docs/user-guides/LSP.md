@@ -15,8 +15,26 @@ The Builder LSP provides rich language features for Builderfile configuration fi
 
 ## Quick Start
 
-### 1. Install Builder with LSP
+### 1. Install VS Code Extension
 
+**Option 1: From VS Code Marketplace** (Recommended)
+1. Open VS Code
+2. Go to Extensions (Cmd+Shift+X)
+3. Search for "Builder Language Support"
+4. Click Install
+
+**No additional setup required!** The extension includes pre-built LSP binaries for all platforms:
+- ✅ macOS (Apple Silicon & Intel)
+- ✅ Linux (x86_64)
+- ✅ Windows (x64)
+
+**Option 2: Manual Installation**
+```bash
+# Download from GitHub releases, then:
+code --install-extension builder-lang-2.0.0.vsix
+```
+
+**Option 3: Build from Source**
 ```bash
 # Clone and build Builder
 git clone https://github.com/GriffinCanCode/Builder.git
@@ -25,23 +43,12 @@ make build-all
 
 # Install both builder and the LSP server
 sudo make install-all
-```
 
-This installs:
-- `builder` → `/usr/local/bin/builder` (main build tool)
-- `builder-lsp` → `/usr/local/bin/builder-lsp` (language server)
-
-### 2. Install VS Code Extension
-
-```bash
-# Option 1: Build and install locally
+# Build and install the extension
 make install-extension
-
-# Option 2: Install from marketplace (when published)
-# Search "Builder Language Support" in VS Code extensions
 ```
 
-### 3. Start Coding!
+### 2. Start Coding!
 
 Open any `Builderfile` and the extension automatically activates. You'll see:
 - Syntax highlighting

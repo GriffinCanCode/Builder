@@ -90,7 +90,7 @@ async function deactivate() {
  * Find the builder-lsp executable
  * Searches in:
  * 1. Custom path from settings
- * 2. Extension's bin/ directory
+ * 2. Extension's bin/ directory (platform-specific)
  * 3. System PATH
  * 4. Common installation locations
  */
@@ -102,9 +102,40 @@ function findServerExecutable() {
         return customPath;
     }
 
-    // Check extension directory
-    const extensionPath = path.join(__dirname, 'bin', 'builder-lsp');
+    // Check extension directory for platform-specific binary
+    const platform = process.platform; // 'darwin', 'linux', 'win32'
+    const arch = process.arch; // 'arm64', 'x64'
+    
+    // Try platform-specific binary first
+    let binaryName = 'builder-lsp';
+    if (platform === 'win32') {
+        binaryName += '.exe';
+    }
+    
+    const platformDir = `${platform}-${arch}`;
+    const platformPath = path.join(__dirname, 'bin', platformDir, binaryName);
+    if (fs.existsSync(platformPath)) {
+        // Make sure it's executable on Unix-like systems
+        if (platform !== 'win32') {
+            try {
+                fs.chmodSync(platformPath, 0o755);
+            } catch (e) {
+                console.warn('Could not set executable permissions:', e);
+            }
+        }
+        return platformPath;
+    }
+    
+    // Fallback to root bin directory (for backward compatibility)
+    const extensionPath = path.join(__dirname, 'bin', binaryName);
     if (fs.existsSync(extensionPath)) {
+        if (platform !== 'win32') {
+            try {
+                fs.chmodSync(extensionPath, 0o755);
+            } catch (e) {
+                console.warn('Could not set executable permissions:', e);
+            }
+        }
         return extensionPath;
     }
 

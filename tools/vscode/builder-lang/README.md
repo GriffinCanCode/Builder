@@ -27,6 +27,8 @@ Complete language support for Builder configuration files with Language Server P
 3. Search for "Builder Language Support"
 4. Click Install
 
+**No additional setup required!** The LSP server is bundled for all platforms.
+
 ### Manual Installation
 ```bash
 # Build and install
@@ -39,10 +41,20 @@ code --install-extension builder-lang-2.0.0.vsix
 
 Then reload VS Code (Cmd+Shift+P → "Developer: Reload Window")
 
+## Platform Support
+
+✅ **Pre-built LSP server binaries included for:**
+- macOS (Apple Silicon & Intel)
+- Linux (x86_64)
+- Windows (x64)
+
+**No D compiler required!** Everything works out of the box.
+
 ## Requirements
 
-- Builder must be installed on your system
-- The `builder-lsp` executable should be in your PATH or installed at a common location
+**None!** The extension is completely self-contained with bundled LSP binaries.
+
+**Optional**: If you have Builder installed system-wide, the extension can also use that installation.
 
 ## Extension Settings
 
