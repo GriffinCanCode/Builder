@@ -14,6 +14,8 @@ import core.distributed.protocol.protocol : ActionId, WorkerId;
 import core.execution.remote.executor;
 import core.execution.remote.pool;
 import core.execution.remote.reapi;
+import core.execution.remote.monitoring.health : RemoteServiceHealthMonitor;
+import core.execution.remote.monitoring.metrics : RemoteServiceMetricsCollector, ServiceMetrics;
 import core.execution.hermetic;
 import errors;
 import utils.logging.logger;
@@ -78,9 +80,10 @@ final class RemoteExecutionService
     private RemoteExecutor executor;
     private ReapiAdapter reapiAdapter;
     private BuildGraph graph;
+    private RemoteServiceHealthMonitor healthMonitor;
+    private RemoteServiceMetricsCollector metricsCollector;
     
     private shared bool running;
-    private Thread healthThread;
     private Mutex mutex;
     
     this(RemoteServiceConfig config, BuildGraph graph) @trusted
@@ -121,6 +124,19 @@ final class RemoteExecutionService
             this.reapiAdapter = new ReapiAdapter();
         }
         
+        // Initialize dedicated monitoring components
+        this.healthMonitor = new RemoteServiceHealthMonitor(
+            coordinator,
+            pool,
+            config.healthCheckInterval,
+            config.enableMetrics
+        );
+        
+        this.metricsCollector = new RemoteServiceMetricsCollector(
+            coordinator,
+            pool
+        );
+        
         Logger.info("Remote execution service initialized");
     }
     
@@ -138,11 +154,11 @@ final class RemoteExecutionService
             auto coordResult = coordinator.start();
             if (coordResult.isErr)
             {
-                auto error = new GenericError(
+                BuildError error = new GenericError(
                     "Failed to start coordinator: " ~ coordResult.unwrapErr().message(),
                     ErrorCode.InitializationFailed
                 );
-                return Err!BuildError(error);
+                return Err!(BuildError)(error);
             }
             
             // Start worker pool
@@ -153,11 +169,16 @@ final class RemoteExecutionService
                 return poolResult;
             }
             
-            // Start health monitoring
-            atomicStore(running, true);
-            healthThread = new Thread(&healthLoop);
-            healthThread.start();
+            // Start health monitoring (delegated to dedicated monitor)
+            auto healthResult = healthMonitor.start();
+            if (healthResult.isErr)
+            {
+                pool.stop();
+                coordinator.stop();
+                return healthResult;
+            }
             
+            atomicStore(running, true);
             Logger.info("Remote execution service started");
             Logger.info("  Coordinator: " ~ config.coordinatorHost ~ ":" ~ 
                        config.coordinatorPort.to!string);
@@ -178,9 +199,9 @@ final class RemoteExecutionService
         
         atomicStore(running, false);
         
-        // Stop health monitor
-        if (healthThread !is null)
-            healthThread.join();
+        // Stop health monitor (delegated to dedicated monitor)
+        if (healthMonitor !is null)
+            healthMonitor.stop();
         
         // Stop pool
         if (pool !is null)
@@ -241,77 +262,15 @@ final class RemoteExecutionService
         status.running = atomicLoad(running);
         status.coordinatorStats = coordinator.getStats();
         status.poolStats = pool.getStats();
-        status.uptime = Clock.currTime - startTime;
+        status.metrics = metricsCollector.collect();
         
         return status;
     }
     
-    /// Get service metrics
+    /// Get service metrics (delegated to dedicated collector)
     ServiceMetrics getMetrics() @trusted
     {
-        ServiceMetrics metrics;
-        
-        auto coordStats = coordinator.getStats();
-        auto poolStats = pool.getStats();
-        
-        metrics.totalExecutions = coordStats.completedActions + coordStats.failedActions;
-        metrics.successfulExecutions = coordStats.completedActions;
-        metrics.failedExecutions = coordStats.failedActions;
-        metrics.cachedExecutions = 0;  // Would track from action cache
-        
-        metrics.activeWorkers = poolStats.totalWorkers;
-        metrics.idleWorkers = poolStats.idleWorkers;
-        metrics.busyWorkers = poolStats.busyWorkers;
-        
-        metrics.queueDepth = coordStats.pendingActions;
-        metrics.avgUtilization = poolStats.avgUtilization;
-        
-        return metrics;
-    }
-    
-    /// Health monitoring loop
-    private void healthLoop() @trusted
-    {
-        while (atomicLoad(running))
-        {
-            try
-            {
-                // Check coordinator health
-                auto coordStats = coordinator.getStats();
-                
-                // Check pool health
-                auto poolStats = pool.getStats();
-                
-                // Log health status
-                if (config.enableMetrics)
-                {
-                    Logger.debugLog("Health check: " ~ 
-                                   "workers=" ~ poolStats.totalWorkers.to!string ~
-                                   ", busy=" ~ poolStats.busyWorkers.to!string ~
-                                   ", queue=" ~ coordStats.pendingActions.to!string ~
-                                   ", util=" ~ (poolStats.avgUtilization * 100).to!size_t.to!string ~ "%");
-                }
-                
-                // Detect issues
-                if (poolStats.totalWorkers == 0)
-                {
-                    Logger.warning("No workers available!");
-                }
-                
-                if (coordStats.pendingActions > poolStats.totalWorkers * 10)
-                {
-                    Logger.warning("High queue depth: " ~ 
-                                  coordStats.pendingActions.to!string ~ " pending");
-                }
-                
-                Thread.sleep(config.healthCheckInterval);
-            }
-            catch (Exception e)
-            {
-                Logger.error("Health check failed: " ~ e.msg);
-                Thread.sleep(config.healthCheckInterval);
-            }
-        }
+        return metricsCollector.collect();
     }
     
     /// Log final statistics
@@ -343,8 +302,6 @@ final class RemoteExecutionService
             Logger.error("Failed to log final stats: " ~ e.msg);
         }
     }
-    
-    private SysTime startTime;
 }
 
 /// Service status
@@ -353,26 +310,7 @@ struct ServiceStatus
     bool running;
     Coordinator.CoordinatorStats coordinatorStats;
     PoolStats poolStats;
-    Duration uptime;
-}
-
-/// Service metrics
-struct ServiceMetrics
-{
-    // Execution metrics
-    size_t totalExecutions;
-    size_t successfulExecutions;
-    size_t failedExecutions;
-    size_t cachedExecutions;
-    
-    // Worker metrics
-    size_t activeWorkers;
-    size_t idleWorkers;
-    size_t busyWorkers;
-    
-    // Queue metrics
-    size_t queueDepth;
-    float avgUtilization;
+    ServiceMetrics metrics;
 }
 
 /// Service builder for convenient configuration
