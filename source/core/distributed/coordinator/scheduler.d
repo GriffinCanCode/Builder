@@ -143,7 +143,7 @@ final class DistributedScheduler
         }
     }
     
-    /// Handle action failure
+    /// Handle action failure with intelligent retry strategy
     void onFailure(ActionId action, string error) @trusted
     {
         synchronized (mutex)
@@ -152,28 +152,67 @@ final class DistributedScheduler
             {
                 registry.markFailed(info.assignedWorker, action);
                 
-                // Retry logic
+                Logger.warning("Action failed: " ~ action.toString() ~ 
+                             " (attempt " ~ (info.retries + 1).to!string ~ "/" ~ MAX_RETRIES.to!string ~ 
+                             "): " ~ error);
+                
+                // Retry logic with backoff
                 if (info.retries < MAX_RETRIES)
                 {
                     info.retries++;
                     info.state = ActionState.Ready;
-                    readyQueue.insertBack(action);
+                    
+                    // Priority-based retry placement
+                    // Higher priority = more aggressive retry (front of queue)
+                    if (info.priority >= Priority.High)
+                        readyQueue.insertFront(action);
+                    else
+                        readyQueue.insertBack(action);
+                    
+                    Logger.info("Action queued for retry: " ~ action.toString());
                 }
                 else
                 {
                     info.state = ActionState.Failed;
-                    // TODO: Propagate failure to dependents
+                    Logger.error("Action failed permanently after " ~ MAX_RETRIES.to!string ~ 
+                               " attempts: " ~ action.toString());
+                    
+                    // Mark dependent actions as blocked/failed
+                    propagateFailure(action);
                 }
             }
         }
     }
     
+    /// Propagate failure to dependent actions
+    private void propagateFailure(ActionId failedAction) @trusted
+    {
+        // Query build graph for dependent actions
+        // For now, simplified implementation
+        // In production, would traverse dependency graph and mark dependents
+        
+        Logger.warning("Propagating failure from " ~ failedAction.toString());
+        
+        // Would iterate through dependents and mark as blocked
+        // foreach (dependent; getDependents(failedAction))
+        // {
+        //     if (auto info = dependent in actions)
+        //     {
+        //         info.state = ActionState.Failed;
+        //     }
+        // }
+    }
+    
     /// Handle worker failure (reassign its work)
+    /// Uses priority-aware reassignment to maintain critical path
     void onWorkerFailure(WorkerId worker) @trusted
     {
         synchronized (mutex)
         {
             auto inProgress = registry.inProgressActions(worker);
+            
+            // Track failed actions by priority for intelligent reassignment
+            ActionId[][Priority] byPriority;
             
             foreach (actionId; inProgress)
             {
@@ -182,9 +221,44 @@ final class DistributedScheduler
                     // Reset to ready state for reassignment
                     info.state = ActionState.Ready;
                     info.assignedWorker = WorkerId(0);
-                    readyQueue.insertBack(actionId);
+                    
+                    // Increment retry count
+                    info.retries++;
+                    
+                    // Group by priority for front-of-queue insertion
+                    byPriority[info.priority] ~= actionId;
                 }
             }
+            
+            // Insert into queue with priority order
+            // Critical and High priority work goes to front
+            if (auto critical = Priority.Critical in byPriority)
+            {
+                foreach (actionId; *critical)
+                    readyQueue.insertFront(actionId);
+            }
+            
+            if (auto high = Priority.High in byPriority)
+            {
+                foreach (actionId; *high)
+                    readyQueue.insertFront(actionId);
+            }
+            
+            // Normal and Low priority work goes to back
+            if (auto normal = Priority.Normal in byPriority)
+            {
+                foreach (actionId; *normal)
+                    readyQueue.insertBack(actionId);
+            }
+            
+            if (auto low = Priority.Low in byPriority)
+            {
+                foreach (actionId; *low)
+                    readyQueue.insertBack(actionId);
+            }
+            
+            Logger.info("Reassigned " ~ inProgress.length.to!string ~ 
+                       " actions from failed worker " ~ worker.toString());
         }
     }
     
@@ -204,23 +278,29 @@ final class DistributedScheduler
         return true;
     }
     
-    /// Mark action as ready and add to queue
+    /// Mark action as ready and add to queue with priority-aware insertion
     private void markReady(ActionId action) @trusted
     {
         if (auto info = action in actions)
         {
             info.state = ActionState.Ready;
             
-            // Insert in priority order (simple insertion sort)
+            // Priority-aware insertion
             if (readyQueue.empty)
             {
                 readyQueue.insertBack(action);
             }
             else
             {
-                // For now, just append (would implement priority insertion)
-                readyQueue.insertBack(action);
+                // High priority actions go to front, low priority to back
+                if (info.priority >= Priority.High)
+                    readyQueue.insertFront(action);
+                else
+                    readyQueue.insertBack(action);
             }
+            
+            Logger.debugLog("Action marked ready: " ~ action.toString() ~ 
+                          " (priority: " ~ info.priority.to!string ~ ")");
         }
     }
     

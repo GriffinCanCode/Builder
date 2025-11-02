@@ -13,6 +13,8 @@ import core.distributed.protocol.protocol;
 import core.distributed.protocol.messages;
 import core.distributed.coordinator.registry;
 import core.distributed.coordinator.scheduler;
+import core.distributed.coordinator.health;
+import core.distributed.coordinator.recover;
 import core.distributed.protocol.transport;
 import core.distributed.worker.peers : PeerRegistry;
 import errors;
@@ -35,11 +37,12 @@ final class Coordinator
     private CoordinatorConfig config;
     private WorkerRegistry registry;
     private DistributedScheduler scheduler;
+    private HealthMonitor healthMonitor;
+    private CoordinatorRecovery recovery;
     private BuildGraph graph;
     private Socket listener;
     private shared bool running;
     private Thread acceptThread;
-    private Thread healthThread;
     private Mutex mutex;
     
     // Peer registry for work-stealing
@@ -51,6 +54,9 @@ final class Coordinator
         this.config = config;
         this.registry = new WorkerRegistry(config.workerTimeout);
         this.scheduler = new DistributedScheduler(graph, registry);
+        this.healthMonitor = new HealthMonitor(registry, scheduler, 
+                                                config.heartbeatInterval, config.workerTimeout);
+        this.recovery = new CoordinatorRecovery(registry, scheduler, healthMonitor);
         this.mutex = new Mutex();
         atomicStore(running, false);
         
@@ -563,42 +569,24 @@ final class Coordinator
         }
     }
     
-    /// Health monitoring loop
-    private void healthLoop() @trusted
+    /// Handle heartbeat from worker (called by message handler)
+    private void handleHeartBeat(WorkerId worker, HeartBeat hb) @trusted
     {
-        import core.time : msecs;
+        // Update health monitor
+        healthMonitor.onHeartBeat(worker, hb);
         
-        while (atomicLoad(running))
+        // Check if worker transitioned to failed state
+        auto health = healthMonitor.getWorkerHealth(worker);
+        if (health == HealthState.Failed)
         {
-            try
+            // Worker failed - trigger recovery
+            auto recoveryResult = recovery.handleWorkerFailure(worker, "Heartbeat timeout");
+            if (recoveryResult.isErr)
             {
-                checkWorkerHealth();
-                Thread.sleep(config.heartbeatInterval);
+                Logger.error("Recovery failed: " ~ recoveryResult.unwrapErr().message());
             }
-            catch (Exception e)
+            else
             {
-                Logger.error("Health check failed: " ~ e.msg);
-            }
-        }
-    }
-    
-    /// Check worker health and handle failures
-    private void checkWorkerHealth() @trusted
-    {
-        auto workers = registry.allWorkers();
-        
-        foreach (worker; workers)
-        {
-            if (!worker.healthy(config.workerTimeout))
-            {
-                Logger.warning("Worker timeout: " ~ worker.id.toString());
-                
-                // Mark as failed
-                registry.markWorkerFailed(worker.id);
-                
-                // Reassign its work
-                scheduler.onWorkerFailure(worker.id);
-                
                 // Try to reassign immediately
                 assignActions();
             }

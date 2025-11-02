@@ -72,7 +72,7 @@ final class StealEngine
     
     /// Attempt to steal work from a peer
     /// Returns ActionRequest if successful, null otherwise
-    ActionRequest steal() @trusted
+    ActionRequest steal(Transport transport) @trusted
     {
         atomicOp!"+="(metrics.attempts, 1);
         
@@ -89,7 +89,7 @@ final class StealEngine
         // Try to steal from victim with retries
         for (size_t attempt = 0; attempt < config.maxRetries; attempt++)
         {
-            auto result = trySteal(victimId);
+            auto result = trySteal(victimId, transport);
             
             if (result.isOk)
             {
@@ -127,19 +127,29 @@ final class StealEngine
     }
     
     /// Handle steal request from another worker
-    /// Returns ActionRequest if available, null otherwise
-    ActionRequest handleStealRequest(WorkerId thiefId, size_t localQueueSize) @trusted
+    /// Returns StealResponse with action if available
+    StealResponse handleStealRequest(
+        StealRequest req,
+        ActionRequest delegate() @system tryStealLocal) @system
     {
-        // Only allow stealing if we have enough work
-        if (localQueueSize <= config.minLocalQueue)
-            return null;
+        Logger.debugLog("Processing steal request from " ~ req.thief.toString());
         
-        // Implementation depends on queue structure
-        // This would integrate with WorkStealingDeque
-        // For now, return null (will be implemented when integrated with worker)
+        // Try to steal from local queue
+        auto action = tryStealLocal();
         
-        Logger.debugLog("Steal request from " ~ thiefId.toString());
-        return null;
+        // Create response
+        StealResponse response;
+        response.victim = selfId;
+        response.thief = req.thief;
+        response.hasWork = (action !is null);
+        response.action = action;
+        
+        if (action !is null)
+            Logger.debugLog("Giving work to " ~ req.thief.toString());
+        else
+            Logger.debugLog("No work to give to " ~ req.thief.toString());
+        
+        return response;
     }
     
     /// Get metrics
@@ -252,7 +262,7 @@ final class StealEngine
     }
     
     /// Try to steal from specific victim
-    Result!(ActionRequest, DistributedError) trySteal(WorkerId victimId) @trusted
+    Result!(ActionRequest, DistributedError) trySteal(WorkerId victimId, Transport transport) @trusted
     {
         // Get victim address
         auto peerResult = peers.getPeer(victimId);
@@ -267,25 +277,61 @@ final class StealEngine
         req.victim = victimId;
         req.minPriority = Priority.Low;
         
-        // Send steal request via transport
-        // This would use the transport layer to send the request
-        // For now, simplified implementation
-        
-        // Timeout handling
         auto startTime = MonoTime.currTime;
-        auto deadline = startTime + config.stealTimeout;
         
-        // Would actually send request and wait for response
-        // For now, return null (no work stolen)
-        
-        if (MonoTime.currTime >= deadline)
+        try
         {
-            atomicOp!"+="(metrics.timeouts, 1);
-            return Err!(ActionRequest, DistributedError)(
-                new DistributedError("Steal timeout"));
+            // Send steal request via transport
+            auto sendResult = transport.send(victimId, req);
+            if (sendResult.isErr)
+            {
+                atomicOp!"+="(metrics.networkErrors, 1);
+                peers.markDead(victimId);
+                return Err!(ActionRequest, DistributedError)(
+                    new NetworkError("Failed to send steal request"));
+            }
+            
+            // Wait for response with timeout
+            auto receiveResult = transport.receive!StealResponse(config.stealTimeout);
+            if (receiveResult.isErr)
+            {
+                immutable elapsed = MonoTime.currTime - startTime;
+                if (elapsed >= config.stealTimeout)
+                {
+                    atomicOp!"+="(metrics.timeouts, 1);
+                    return Err!(ActionRequest, DistributedError)(
+                        new DistributedError("Steal timeout"));
+                }
+                else
+                {
+                    atomicOp!"+="(metrics.networkErrors, 1);
+                    return receiveResult.asErr!(ActionRequest, DistributedError)();
+                }
+            }
+            
+            auto envelope = receiveResult.unwrap();
+            auto response = envelope.payload;
+            
+            // Check if victim had work to give
+            if (response.hasWork && response.action !is null)
+            {
+                Logger.debugLog("Successfully stole work from " ~ victimId.toString());
+                return Ok!(ActionRequest, DistributedError)(response.action);
+            }
+            else
+            {
+                // Victim had no work
+                return Ok!(ActionRequest, DistributedError)(null);
+            }
         }
-        
-        return Ok!(ActionRequest, DistributedError)(null);
+        catch (Exception e)
+        {
+            atomicOp!"+="(metrics.networkErrors, 1);
+            Logger.error("Steal attempt failed: " ~ e.msg);
+            peers.markDead(victimId);
+            return Err!(ActionRequest, DistributedError)(
+                new NetworkError("Steal exception: " ~ e.msg));
+        }
     }
 }
 

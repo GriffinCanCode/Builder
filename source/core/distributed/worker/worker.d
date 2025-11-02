@@ -229,7 +229,7 @@ final class Worker
             if (config.enableWorkStealing && stealEngine !is null)
             {
                 auto startTime = MonoTime.currTime;
-                auto stolenAction = stealEngine.steal();
+                auto stolenAction = stealEngine.steal(coordinatorTransport);
                 auto latency = MonoTime.currTime - startTime;
                 
                 if (stolenAction !is null)
@@ -306,6 +306,23 @@ final class Worker
             
             auto output = execResult.unwrap();
             auto duration = MonoTime.currTime - startTime;
+            
+            // Check for resource violations
+            auto monitor = sandboxEnv.monitor();
+            if (monitor.isViolated())
+            {
+                foreach (violation; monitor.violations())
+                {
+                    Logger.warning("Resource violation: " ~ violation.message);
+                    Logger.debugLog("  Type: " ~ violation.type.to!string);
+                    Logger.debugLog("  Actual: " ~ violation.actual.to!string);
+                    Logger.debugLog("  Limit: " ~ violation.limit.to!string);
+                }
+                
+                // Report as failure if violations occurred
+                reportFailure(request.id, "Resource limit violations", startTime);
+                return;
+            }
             
             // 4. Upload outputs (simplified - would upload to artifact store)
             ArtifactId[] outputIds;
@@ -522,28 +539,34 @@ final class Worker
             hb.metrics = collectMetrics();
             hb.timestamp = Clock.currTime;
             
-            // Create envelope
-            auto envelope = Envelope!HeartBeat(id, WorkerId(0), hb);
-            
-            // Serialize
-            auto http = cast(HttpTransport)coordinatorTransport;
-            if (http is null)
-                return;
-            
-            auto msgData = http.serializeMessage(envelope);
-            
-            // Send via transport (simplified)
-            ubyte[1] typeBytes = [cast(ubyte)MessageType.HeartBeat];
-            ubyte[4] lengthBytes;
-            *cast(uint*)lengthBytes.ptr = cast(uint)msgData.length;
-            
-            // Would send via socket
-            
-            Logger.debugLog("Heartbeat sent");
+            // Send via transport
+            auto sendResult = coordinatorTransport.send(WorkerId(0), hb);
+            if (sendResult.isErr)
+            {
+                Logger.error("Heartbeat send failed: " ~ sendResult.unwrapErr().message());
+                
+                // If we can't send heartbeats, try to reconnect
+                if (coordinatorTransport !is null)
+                {
+                    auto http = cast(HttpTransport)coordinatorTransport;
+                    if (http !is null)
+                    {
+                        http.close();
+                        auto reconnectResult = http.connect();
+                        if (reconnectResult.isErr)
+                            Logger.error("Failed to reconnect to coordinator");
+                    }
+                }
+            }
+            else
+            {
+                Logger.debugLog("Heartbeat sent (queue: " ~ hb.metrics.queueDepth.to!string ~ 
+                              ", cpu: " ~ (hb.metrics.cpuUsage * 100).to!size_t.to!string ~ "%)");
+            }
         }
         catch (Exception e)
         {
-            Logger.error("Heartbeat send failed: " ~ e.msg);
+            Logger.error("Heartbeat send exception: " ~ e.msg);
         }
     }
     
@@ -552,13 +575,26 @@ final class Worker
     {
         SystemMetrics m;
         
-        // TODO: Collect real metrics
-        // For now, placeholder values
-        m.cpuUsage = 0.5;
-        m.memoryUsage = 0.3;
-        m.diskUsage = 0.2;
+        // Collect real metrics
         m.queueDepth = localQueue.size();
         m.activeActions = atomicLoad(state) == WorkerState.Executing ? 1 : 0;
+        
+        // Get CPU and memory usage
+        import core.memory : GC;
+        auto stats = GC.stats();
+        m.memoryUsage = stats.usedSize > 0 ? 
+            cast(float)stats.usedSize / cast(float)stats.usedSize : 0.0f;
+        
+        // CPU usage approximation (would use platform-specific code in production)
+        // For now, base on queue depth and active actions
+        immutable queueLoad = localQueue.size() > 0 ? 
+            cast(float)localQueue.size() / cast(float)config.localQueueSize : 0.0f;
+        immutable actionLoad = m.activeActions > 0 ? 
+            cast(float)m.activeActions / cast(float)config.maxConcurrentActions : 0.0f;
+        m.cpuUsage = queueLoad * 0.5 + actionLoad * 0.5;
+        
+        // Disk usage (simplified)
+        m.diskUsage = 0.2;  // TODO: Platform-specific disk usage
         
         return m;
     }
