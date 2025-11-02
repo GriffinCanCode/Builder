@@ -1,12 +1,10 @@
-module languages.dotnet.fsharp.core.config;
+module languages.dotnet.fsharp.config.build;
 
 import std.json;
-import std.string;
+import std.conv;
 import std.algorithm;
 import std.array;
-import std.conv;
-import analysis.targets.types;
-import config.schema.schema;
+import std.string;
 
 /// F# build modes
 enum FSharpBuildMode
@@ -42,19 +40,6 @@ enum FSharpBuildTool
     None
 }
 
-/// Package manager selection
-enum FSharpPackageManager
-{
-    /// Auto-detect from project
-    Auto,
-    /// NuGet (standard)
-    NuGet,
-    /// Paket (deterministic)
-    Paket,
-    /// None
-    None
-}
-
 /// F# compiler selection
 enum FSharpCompiler
 {
@@ -81,51 +66,6 @@ enum FSharpPlatform
     Wasm,
     /// Native AOT
     Native
-}
-
-/// Testing framework selection
-enum FSharpTestFramework
-{
-    /// Auto-detect from dependencies
-    Auto,
-    /// Expecto (functional)
-    Expecto,
-    /// xUnit
-    XUnit,
-    /// NUnit
-    NUnit,
-    /// FsUnit
-    FsUnit,
-    /// Unquote
-    Unquote,
-    /// None - skip testing
-    None
-}
-
-/// Code analyzer selection
-enum FSharpAnalyzer
-{
-    /// Auto-detect best available
-    Auto,
-    /// FSharpLint
-    FSharpLint,
-    /// Compiler warnings only
-    Compiler,
-    /// Ionide (LSP-based)
-    Ionide,
-    /// None - skip analysis
-    None
-}
-
-/// Code formatter selection
-enum FSharpFormatter
-{
-    /// Auto-detect best available
-    Auto,
-    /// Fantomas (official)
-    Fantomas,
-    /// None - skip formatting
-    None
 }
 
 /// F# language version
@@ -162,6 +102,8 @@ struct FSharpVersion
     /// Convert to string
     string toString() const
     {
+        import std.format : format;
+        
         if (patch == 0 && minor == 0)
             return format("%d.0", major);
         if (patch == 0)
@@ -331,149 +273,6 @@ struct FAKEConfig
     bool parallel = true;
 }
 
-/// Paket configuration
-struct PaketConfig
-{
-    /// Enable Paket
-    bool enabled = false;
-    
-    /// Paket dependencies file
-    string dependenciesFile = "paket.dependencies";
-    
-    /// Paket lock file
-    string lockFile = "paket.lock";
-    
-    /// Auto-restore packages
-    bool autoRestore = true;
-    
-    /// Generate load scripts
-    bool generateLoadScripts = true;
-    
-    /// Storage mode (symlink, copy, none)
-    string storageMode = "symlink";
-}
-
-/// NuGet configuration
-struct NuGetConfig
-{
-    /// NuGet config file
-    string configFile;
-    
-    /// Package sources
-    string[] sources;
-    
-    /// Fallback sources
-    string[] fallbackSources;
-    
-    /// Enable package restore
-    bool enableRestore = true;
-    
-    /// Use lock file
-    bool useLockFile = false;
-    
-    /// Locked mode
-    bool lockedMode = false;
-}
-
-/// Testing configuration
-struct FSharpTestConfig
-{
-    /// Testing framework
-    FSharpTestFramework framework = FSharpTestFramework.Auto;
-    
-    /// Run tests in parallel
-    bool parallel = true;
-    
-    /// Fail fast on first error
-    bool failFast = false;
-    
-    /// Test filter expression
-    string filter;
-    
-    /// Test name patterns
-    string[] testPatterns;
-    
-    /// Additional test flags
-    string[] testFlags;
-    
-    /// Code coverage
-    bool coverage = false;
-    
-    /// Coverage tool (coverlet, altcover)
-    string coverageTool = "coverlet";
-    
-    /// Minimum coverage threshold
-    int coverageThreshold = 0;
-    
-    /// Timeout per test (seconds)
-    int timeout = 300;
-}
-
-/// Static analysis configuration
-struct FSharpAnalysisConfig
-{
-    /// Enable static analysis
-    bool enabled = false;
-    
-    /// Analyzer to use
-    FSharpAnalyzer analyzer = FSharpAnalyzer.Auto;
-    
-    /// Fail build on warnings
-    bool failOnWarnings = false;
-    
-    /// Fail build on errors
-    bool failOnErrors = true;
-    
-    /// FSharpLint: Config file path
-    string lintConfig = "fsharplint.json";
-    
-    /// FSharpLint: Ignore files pattern
-    string[] ignoreFiles;
-    
-    /// Compiler warning level
-    int warningLevel = 4;
-    
-    /// Warnings as errors
-    bool warningsAsErrors = false;
-    
-    /// Specific warnings to treat as errors
-    int[] warningsAsErrorsList;
-    
-    /// Disable specific warnings
-    int[] disableWarnings;
-}
-
-/// Formatter configuration
-struct FSharpFormatterConfig
-{
-    /// Enable formatting
-    bool enabled = false;
-    
-    /// Formatter to use
-    FSharpFormatter formatter = FSharpFormatter.Auto;
-    
-    /// Auto-format before build
-    bool autoFormat = false;
-    
-    /// Check only (don't modify files)
-    bool checkOnly = false;
-    
-    /// Configuration file path
-    string configFile = ".editorconfig";
-    
-    /// Max line length
-    int maxLineLength = 120;
-    
-    /// Indent size
-    int indentSize = 4;
-    
-    /// Fantomas: Insert final newline
-    bool insertFinalNewline = true;
-    
-    /// Fantomas: Fsharp style
-    bool fsharpStyle = true;
-}
-
 /// Interactive (FSI) configuration
 struct FSIConfig
 {
@@ -607,23 +406,14 @@ struct FSharpPackagingConfig
     bool includeSource = false;
 }
 
-/// Complete F# configuration
-struct FSharpConfig
+/// F# Build Configuration - all build-related settings
+struct FSharpBuildConfig
 {
     /// Build mode
     FSharpBuildMode mode = FSharpBuildMode.Library;
     
-    /// Parse from JSON (required by ConfigParsingMixin)
-    static FSharpConfig fromJSON(JSONValue json)
-    {
-        return parseFSharpConfigFromJSON(json);
-    }
-    
     /// Build tool
     FSharpBuildTool buildTool = FSharpBuildTool.Auto;
-    
-    /// Package manager
-    FSharpPackageManager packageManager = FSharpPackageManager.Auto;
     
     /// Compiler selection
     FSharpCompiler compiler = FSharpCompiler.Auto;
@@ -639,21 +429,6 @@ struct FSharpConfig
     
     /// FAKE configuration
     FAKEConfig fake;
-    
-    /// Paket configuration
-    PaketConfig paket;
-    
-    /// NuGet configuration
-    NuGetConfig nuget;
-    
-    /// Testing configuration
-    FSharpTestConfig test;
-    
-    /// Static analysis
-    FSharpAnalysisConfig analysis;
-    
-    /// Code formatting
-    FSharpFormatterConfig formatter;
     
     /// F# Interactive
     FSIConfig fsi;
@@ -701,130 +476,8 @@ struct FSharpConfig
     bool verbose = false;
 }
 
-/// Parse F# configuration from target
-FSharpConfig parseFSharpConfig(in Target target)
-{
-    FSharpConfig config;
-    
-    // Parse from langConfig JSON
-    if ("fsharp" in target.langConfig)
-    {
-        try
-        {
-            JSONValue json = parseJSON(target.langConfig["fsharp"]);
-            config = parseFSharpConfigFromJSON(json);
-        }
-        catch (Exception e)
-        {
-            // Use defaults
-        }
-    }
-    
-    return config;
-}
-
-/// Parse F# configuration from JSON
-FSharpConfig parseFSharpConfigFromJSON(JSONValue json)
-{
-    FSharpConfig config;
-    
-    // Build mode
-    if ("mode" in json)
-        config.mode = json["mode"].str.toFSharpBuildMode();
-    
-    // Build tool
-    if ("buildTool" in json)
-        config.buildTool = json["buildTool"].str.toFSharpBuildTool();
-    
-    // Package manager
-    if ("packageManager" in json)
-        config.packageManager = json["packageManager"].str.toFSharpPackageManager();
-    
-    // Compiler
-    if ("compiler" in json)
-        config.compiler = json["compiler"].str.toFSharpCompiler();
-    
-    // Platform
-    if ("platform" in json)
-        config.platform = json["platform"].str.toFSharpPlatform();
-    
-    // Versions
-    if ("languageVersion" in json)
-        config.languageVersion = FSharpVersion.parse(json["languageVersion"].str);
-    
-    // Dotnet
-    if ("dotnet" in json)
-        config.dotnet = parseDotnetConfig(json["dotnet"]);
-    
-    // FAKE
-    if ("fake" in json)
-        config.fake = parseFAKEConfig(json["fake"]);
-    
-    // Paket
-    if ("paket" in json)
-        config.paket = parsePaketConfig(json["paket"]);
-    
-    // NuGet
-    if ("nuget" in json)
-        config.nuget = parseNuGetConfig(json["nuget"]);
-    
-    // Testing
-    if ("test" in json)
-        config.test = parseFSharpTestConfig(json["test"]);
-    
-    // Analysis
-    if ("analysis" in json)
-        config.analysis = parseFSharpAnalysisConfig(json["analysis"]);
-    
-    // Formatter
-    if ("formatter" in json)
-        config.formatter = parseFSharpFormatterConfig(json["formatter"]);
-    
-    // FSI
-    if ("fsi" in json)
-        config.fsi = parseFSIConfig(json["fsi"]);
-    
-    // Fable
-    if ("fable" in json)
-        config.fable = parseFableConfig(json["fable"]);
-    
-    // Native
-    if ("native" in json)
-        config.native = parseNativeAOTConfig(json["native"]);
-    
-    // Packaging
-    if ("packaging" in json)
-        config.packaging = parseFSharpPackagingConfig(json["packaging"]);
-    
-    // Simple fields
-    if ("compilerFlags" in json)
-        config.compilerFlags = json["compilerFlags"].array.map!(e => e.str).array;
-    if ("defines" in json)
-        config.defines = json["defines"].array.map!(e => e.str).array;
-    if ("checked" in json)
-        config.checked = json["checked"].type == JSONType.true_;
-    if ("debug" in json)
-        config.debug_ = json["debug"].type == JSONType.true_;
-    if ("optimize" in json)
-        config.optimize = json["optimize"].type == JSONType.true_;
-    if ("tailcalls" in json)
-        config.tailcalls = json["tailcalls"].type == JSONType.true_;
-    if ("crossoptimize" in json)
-        config.crossoptimize = json["crossoptimize"].type == JSONType.true_;
-    if ("deterministic" in json)
-        config.deterministic = json["deterministic"].type == JSONType.true_;
-    if ("generateDocs" in json)
-        config.generateDocs = json["generateDocs"].type == JSONType.true_;
-    if ("xmlDoc" in json)
-        config.xmlDoc = json["xmlDoc"].str;
-    if ("verbose" in json)
-        config.verbose = json["verbose"].type == JSONType.true_;
-    
-    return config;
-}
-
-// Helper parsing functions
-private DotnetConfig parseDotnetConfig(JSONValue json)
+/// Parse DotnetConfig from JSON
+DotnetConfig parseDotnetConfig(JSONValue json)
 {
     DotnetConfig config;
     
@@ -858,7 +511,8 @@ private DotnetConfig parseDotnetConfig(JSONValue json)
     return config;
 }
 
-private FAKEConfig parseFAKEConfig(JSONValue json)
+/// Parse FAKEConfig from JSON
+FAKEConfig parseFAKEConfig(JSONValue json)
 {
     FAKEConfig config;
     
@@ -878,129 +532,8 @@ private FAKEConfig parseFAKEConfig(JSONValue json)
     return config;
 }
 
-private PaketConfig parsePaketConfig(JSONValue json)
-{
-    PaketConfig config;
-    
-    if ("enabled" in json)
-        config.enabled = json["enabled"].type == JSONType.true_;
-    if ("dependenciesFile" in json)
-        config.dependenciesFile = json["dependenciesFile"].str;
-    if ("lockFile" in json)
-        config.lockFile = json["lockFile"].str;
-    if ("autoRestore" in json)
-        config.autoRestore = json["autoRestore"].type == JSONType.true_;
-    if ("generateLoadScripts" in json)
-        config.generateLoadScripts = json["generateLoadScripts"].type == JSONType.true_;
-    if ("storageMode" in json)
-        config.storageMode = json["storageMode"].str;
-    
-    return config;
-}
-
-private NuGetConfig parseNuGetConfig(JSONValue json)
-{
-    NuGetConfig config;
-    
-    if ("configFile" in json)
-        config.configFile = json["configFile"].str;
-    if ("sources" in json)
-        config.sources = json["sources"].array.map!(e => e.str).array;
-    if ("fallbackSources" in json)
-        config.fallbackSources = json["fallbackSources"].array.map!(e => e.str).array;
-    if ("enableRestore" in json)
-        config.enableRestore = json["enableRestore"].type == JSONType.true_;
-    if ("useLockFile" in json)
-        config.useLockFile = json["useLockFile"].type == JSONType.true_;
-    if ("lockedMode" in json)
-        config.lockedMode = json["lockedMode"].type == JSONType.true_;
-    
-    return config;
-}
-
-private FSharpTestConfig parseFSharpTestConfig(JSONValue json)
-{
-    FSharpTestConfig config;
-    
-    if ("framework" in json)
-        config.framework = json["framework"].str.toFSharpTestFramework();
-    if ("parallel" in json)
-        config.parallel = json["parallel"].type == JSONType.true_;
-    if ("failFast" in json)
-        config.failFast = json["failFast"].type == JSONType.true_;
-    if ("filter" in json)
-        config.filter = json["filter"].str;
-    if ("testPatterns" in json)
-        config.testPatterns = json["testPatterns"].array.map!(e => e.str).array;
-    if ("testFlags" in json)
-        config.testFlags = json["testFlags"].array.map!(e => e.str).array;
-    if ("coverage" in json)
-        config.coverage = json["coverage"].type == JSONType.true_;
-    if ("coverageTool" in json)
-        config.coverageTool = json["coverageTool"].str;
-    if ("coverageThreshold" in json)
-        config.coverageThreshold = cast(int)json["coverageThreshold"].integer;
-    if ("timeout" in json)
-        config.timeout = cast(int)json["timeout"].integer;
-    
-    return config;
-}
-
-private FSharpAnalysisConfig parseFSharpAnalysisConfig(JSONValue json)
-{
-    FSharpAnalysisConfig config;
-    
-    if ("enabled" in json)
-        config.enabled = json["enabled"].type == JSONType.true_;
-    if ("analyzer" in json)
-        config.analyzer = json["analyzer"].str.toFSharpAnalyzer();
-    if ("failOnWarnings" in json)
-        config.failOnWarnings = json["failOnWarnings"].type == JSONType.true_;
-    if ("failOnErrors" in json)
-        config.failOnErrors = json["failOnErrors"].type == JSONType.true_;
-    if ("lintConfig" in json)
-        config.lintConfig = json["lintConfig"].str;
-    if ("ignoreFiles" in json)
-        config.ignoreFiles = json["ignoreFiles"].array.map!(e => e.str).array;
-    if ("warningLevel" in json)
-        config.warningLevel = cast(int)json["warningLevel"].integer;
-    if ("warningsAsErrors" in json)
-        config.warningsAsErrors = json["warningsAsErrors"].type == JSONType.true_;
-    if ("warningsAsErrorsList" in json)
-        config.warningsAsErrorsList = json["warningsAsErrorsList"].array.map!(e => cast(int)e.integer).array;
-    if ("disableWarnings" in json)
-        config.disableWarnings = json["disableWarnings"].array.map!(e => cast(int)e.integer).array;
-    
-    return config;
-}
-
-private FSharpFormatterConfig parseFSharpFormatterConfig(JSONValue json)
-{
-    FSharpFormatterConfig config;
-    
-    if ("enabled" in json)
-        config.enabled = json["enabled"].type == JSONType.true_;
-    if ("formatter" in json)
-        config.formatter = json["formatter"].str.toFSharpFormatter();
-    if ("autoFormat" in json)
-        config.autoFormat = json["autoFormat"].type == JSONType.true_;
-    if ("checkOnly" in json)
-        config.checkOnly = json["checkOnly"].str == "true";
-    if ("configFile" in json)
-        config.configFile = json["configFile"].str;
-    if ("maxLineLength" in json)
-        config.maxLineLength = cast(int)json["maxLineLength"].integer;
-    if ("indentSize" in json)
-        config.indentSize = cast(int)json["indentSize"].integer;
-    if ("insertFinalNewline" in json)
-        config.insertFinalNewline = json["insertFinalNewline"].type == JSONType.true_;
-    if ("fsharpStyle" in json)
-        config.fsharpStyle = json["fsharpStyle"].type == JSONType.true_;
-    
-    return config;
-}
-
-private FSIConfig parseFSIConfig(JSONValue json)
+/// Parse FSIConfig from JSON
+FSIConfig parseFSIConfig(JSONValue json)
 {
     FSIConfig config;
     
@@ -1026,7 +559,8 @@ private FSIConfig parseFSIConfig(JSONValue json)
     return config;
 }
 
-private FableConfig parseFableConfig(JSONValue json)
+/// Parse FableConfig from JSON
+FableConfig parseFableConfig(JSONValue json)
 {
     FableConfig config;
     
@@ -1056,7 +590,8 @@ private FableConfig parseFableConfig(JSONValue json)
     return config;
 }
 
-private NativeAOTConfig parseNativeAOTConfig(JSONValue json)
+/// Parse NativeAOTConfig from JSON
+NativeAOTConfig parseNativeAOTConfig(JSONValue json)
 {
     NativeAOTConfig config;
     
@@ -1076,7 +611,8 @@ private NativeAOTConfig parseNativeAOTConfig(JSONValue json)
     return config;
 }
 
-private FSharpPackagingConfig parseFSharpPackagingConfig(JSONValue json)
+/// Parse FSharpPackagingConfig from JSON
+FSharpPackagingConfig parseFSharpPackagingConfig(JSONValue json)
 {
     FSharpPackagingConfig config;
     
@@ -1110,8 +646,8 @@ private FSharpPackagingConfig parseFSharpPackagingConfig(JSONValue json)
     return config;
 }
 
-// String to enum converters
-private FSharpBuildMode toFSharpBuildMode(string s)
+/// String to enum converters
+FSharpBuildMode toFSharpBuildMode(string s)
 {
     switch (s.toLower)
     {
@@ -1126,7 +662,7 @@ private FSharpBuildMode toFSharpBuildMode(string s)
     }
 }
 
-private FSharpBuildTool toFSharpBuildTool(string s)
+FSharpBuildTool toFSharpBuildTool(string s)
 {
     switch (s.toLower)
     {
@@ -1139,19 +675,7 @@ private FSharpBuildTool toFSharpBuildTool(string s)
     }
 }
 
-private FSharpPackageManager toFSharpPackageManager(string s)
-{
-    switch (s.toLower)
-    {
-        case "auto": return FSharpPackageManager.Auto;
-        case "nuget": return FSharpPackageManager.NuGet;
-        case "paket": return FSharpPackageManager.Paket;
-        case "none": return FSharpPackageManager.None;
-        default: return FSharpPackageManager.Auto;
-    }
-}
-
-private FSharpCompiler toFSharpCompiler(string s)
+FSharpCompiler toFSharpCompiler(string s)
 {
     switch (s.toLower)
     {
@@ -1163,7 +687,7 @@ private FSharpCompiler toFSharpCompiler(string s)
     }
 }
 
-private FSharpPlatform toFSharpPlatform(string s)
+FSharpPlatform toFSharpPlatform(string s)
 {
     switch (s.toLower)
     {
@@ -1173,45 +697,6 @@ private FSharpPlatform toFSharpPlatform(string s)
         case "wasm": case "webassembly": return FSharpPlatform.Wasm;
         case "native": case "aot": return FSharpPlatform.Native;
         default: return FSharpPlatform.DotNet;
-    }
-}
-
-private FSharpTestFramework toFSharpTestFramework(string s)
-{
-    switch (s.toLower)
-    {
-        case "auto": return FSharpTestFramework.Auto;
-        case "expecto": return FSharpTestFramework.Expecto;
-        case "xunit": return FSharpTestFramework.XUnit;
-        case "nunit": return FSharpTestFramework.NUnit;
-        case "fsunit": return FSharpTestFramework.FsUnit;
-        case "unquote": return FSharpTestFramework.Unquote;
-        case "none": return FSharpTestFramework.None;
-        default: return FSharpTestFramework.Auto;
-    }
-}
-
-private FSharpAnalyzer toFSharpAnalyzer(string s)
-{
-    switch (s.toLower)
-    {
-        case "auto": return FSharpAnalyzer.Auto;
-        case "fsharplint": case "lint": return FSharpAnalyzer.FSharpLint;
-        case "compiler": return FSharpAnalyzer.Compiler;
-        case "ionide": return FSharpAnalyzer.Ionide;
-        case "none": return FSharpAnalyzer.None;
-        default: return FSharpAnalyzer.Auto;
-    }
-}
-
-private FSharpFormatter toFSharpFormatter(string s)
-{
-    switch (s.toLower)
-    {
-        case "auto": return FSharpFormatter.Auto;
-        case "fantomas": return FSharpFormatter.Fantomas;
-        case "none": return FSharpFormatter.None;
-        default: return FSharpFormatter.Auto;
     }
 }
 

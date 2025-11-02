@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.regex;
-import languages.scripting.elixir.core.config;
+import languages.scripting.elixir.config;
 import utils.logging.logger;
 
 /// Dependency information

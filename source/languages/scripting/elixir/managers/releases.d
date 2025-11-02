@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.conv;
-import languages.scripting.elixir.core.config;
+import languages.scripting.elixir.config;
 import utils.logging.logger;
 
 /// Base interface for release builders

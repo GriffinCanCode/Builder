@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import languages.scripting.elixir.tooling.builders.base;
-import languages.scripting.elixir.core.config;
+import languages.scripting.elixir.config;
 import languages.scripting.elixir.managers.mix;
 import config.schema.schema;
 import analysis.targets.types;

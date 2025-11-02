@@ -8,5 +8,5 @@ module languages.scripting.elixir.core;
 /// - Project type enums and specifications
 
 public import languages.scripting.elixir.core.handler;
-public import languages.scripting.elixir.core.config;
+public import languages.scripting.elixir.config;
 

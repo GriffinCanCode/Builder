@@ -1,6 +1,6 @@
 module languages.dotnet.fsharp.tooling.packagers.base;
 
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 
 /// Package result structure
 struct PackageResult

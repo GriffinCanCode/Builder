@@ -1,6 +1,6 @@
 module languages.dotnet.fsharp.tooling.analyzers.base;
 
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 
 /// Analysis severity
 enum AnalysisSeverity

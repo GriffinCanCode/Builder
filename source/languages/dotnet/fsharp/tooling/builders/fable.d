@@ -8,7 +8,7 @@ import std.array;
 import std.string;
 import std.datetime.stopwatch;
 import languages.dotnet.fsharp.tooling.builders.base;
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 import analysis.targets.types;
 import config.schema.schema;
 import utils.files.hash;

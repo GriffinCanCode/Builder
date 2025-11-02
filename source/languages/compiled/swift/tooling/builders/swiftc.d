@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.conv;
-import languages.compiled.swift.core.config;
+import languages.compiled.swift.config;
 import languages.compiled.swift.tooling.builders.base;
 import languages.compiled.swift.managers.spm;
 import languages.compiled.swift.managers.toolchain;

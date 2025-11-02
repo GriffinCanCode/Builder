@@ -9,7 +9,7 @@ import std.array;
 import std.conv;
 import std.json;
 import languages.base.base;
-import languages.scripting.elixir.core.config;
+import languages.scripting.elixir.config;
 import languages.scripting.elixir.managers;
 import languages.scripting.elixir.tooling;
 import languages.scripting.elixir.analysis;

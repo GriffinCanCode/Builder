@@ -9,7 +9,7 @@ import std.string;
 import std.regex;
 import std.conv;
 import languages.dotnet.fsharp.tooling.analyzers.base;
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 import utils.logging.logger;
 
 /// Compiler-based analyzer (uses fsc warnings)

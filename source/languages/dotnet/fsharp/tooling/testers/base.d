@@ -1,6 +1,6 @@
 module languages.dotnet.fsharp.tooling.testers.base;
 
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 
 /// Test result structure
 struct TestResult

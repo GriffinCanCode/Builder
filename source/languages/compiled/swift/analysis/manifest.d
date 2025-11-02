@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.regex;
-import languages.compiled.swift.core.config;
+import languages.compiled.swift.config;
 import utils.logging.logger;
 
 /// Package manifest parse result

@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import languages.dotnet.fsharp.tooling.formatters.base;
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 import utils.logging.logger;
 
 /// Fantomas formatter implementation

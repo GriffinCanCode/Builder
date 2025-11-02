@@ -1,6 +1,6 @@
 module languages.dotnet.fsharp.tooling.formatters.base;
 
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 
 /// Format result structure
 struct FormatResult

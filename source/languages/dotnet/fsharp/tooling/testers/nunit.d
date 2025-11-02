@@ -10,7 +10,7 @@ import std.datetime.stopwatch;
 import std.regex;
 import std.conv;
 import languages.dotnet.fsharp.tooling.testers.base;
-import languages.dotnet.fsharp.core.config;
+import languages.dotnet.fsharp.config;
 import languages.dotnet.fsharp.managers.dotnet;
 import utils.logging.logger;
 

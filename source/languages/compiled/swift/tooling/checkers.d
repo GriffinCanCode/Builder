@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import utils.logging.logger;
-import languages.compiled.swift.core.config : SwiftPlatform;
+import languages.compiled.swift.config : SwiftPlatform;
 
 /// SwiftLint runner
 class SwiftLintRunner
@@ -198,7 +198,7 @@ class XCFrameworkBuilder
             SwiftPlatform[] platforms
         )
         {
-            import languages.compiled.swift.core.config;
+            import languages.compiled.swift.config;
             
             string[] cmd = ["xcodebuild", "-create-xcframework"];
             

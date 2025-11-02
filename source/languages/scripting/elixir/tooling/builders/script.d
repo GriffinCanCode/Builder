@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import languages.scripting.elixir.tooling.builders.base;
-import languages.scripting.elixir.core.config;
+import languages.scripting.elixir.config;
 import config.schema.schema;
 import analysis.targets.types;
 import utils.files.hash;

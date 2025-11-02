@@ -6,7 +6,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import languages.base.base;
-import languages.scripting.elixir.core.config;
+import languages.scripting.elixir.config;
 import config.schema.schema;
 import analysis.targets.types;
 import core.caching.action : ActionCache;

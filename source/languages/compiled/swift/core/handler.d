@@ -9,7 +9,7 @@ import std.array;
 import std.json;
 import std.string;
 import languages.base.base;
-import languages.compiled.swift.core.config;
+import languages.compiled.swift.config;
 import languages.compiled.swift.analysis.manifest;
 import languages.compiled.swift.managers.spm;
 import languages.compiled.swift.managers.toolchain;
