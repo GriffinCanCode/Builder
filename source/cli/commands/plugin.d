@@ -1,8 +1,9 @@
 module cli.commands.plugin;
 
 import std.stdio;
-import std.algorithm : map, max;
-import std.array : array;
+import std.algorithm : map, max, reduce;
+import std.algorithm.searching : startsWith;
+import std.array : array, replicate;
 import std.string : leftJustify, rightJustify, strip;
 import std.conv : to;
 import std.process : execute, executeShell;
@@ -177,9 +178,9 @@ struct PluginCommand {
         );
         
         terminal.writeln(
-            "-".repeat(maxNameLen) ~ "  " ~
-            "-".repeat(maxVerLen) ~ "  " ~
-            "-".repeat(40)
+            "-".replicate(maxNameLen) ~ "  " ~
+            "-".replicate(maxVerLen) ~ "  " ~
+            "-".replicate(40)
         );
         
         // Plugin rows

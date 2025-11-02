@@ -5,7 +5,7 @@ import std.conv;
 import std.algorithm;
 import std.string;
 import core.time;
-import core.execution.watch;
+import core.execution.watchmode.watch;
 import core.shutdown.shutdown;
 import utils.logging.logger;
 import cli.control.terminal;
@@ -167,23 +167,12 @@ private void installWatchSignalHandler(WatchModeService service) @system
 /// Global watch service reference for signal handler
 private __gshared WatchModeService globalWatchService;
 
+/// Global flag for shutdown request
+private __gshared bool watchShutdownRequested = false;
+
 /// Signal handler for watch mode
 extern(C) void handleWatchSignal(int sig) nothrow @nogc @system
 {
-    if (globalWatchService !is null)
-    {
-        try
-        {
-            globalWatchService.stop();
-        }
-        catch (Exception)
-        {
-            // Can't do much here in signal handler
-        }
-    }
-    
-    // Exit gracefully
-    import core.stdc.stdlib : exit;
-    exit(0);
+    watchShutdownRequested = true;
 }
 

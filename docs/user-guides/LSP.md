@@ -392,8 +392,8 @@ Areas for contribution:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/builder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/builder/discussions)
+- **Issues**: [GitHub Issues](https://github.com/GriffinCanCode/Builder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/GriffinCanCode/Builder/discussions)
 - **Documentation**: [Full Documentation](../README.md)
 
 ## FAQ

@@ -81,7 +81,7 @@ final class CdnManager
     {
         if (!config.enabled || config.provider != "cloudfront")
         {
-            auto error = new BuildError("CloudFront not configured");
+            auto error = new GenericError("CloudFront not configured", ErrorCode.ConfigError);
             return Err!(string, BuildError)(error);
         }
         
@@ -108,7 +108,7 @@ final class CdnManager
     {
         if (!config.enabled || config.provider != "cloudflare")
         {
-            auto error = new BuildError("Cloudflare not configured");
+            auto error = new GenericError("Cloudflare not configured", ErrorCode.ConfigError);
             return Err!(string, BuildError)(error);
         }
         
@@ -167,7 +167,7 @@ final class CdnManager
         immutable now = Clock.currStdTime() / 10_000_000;
         if (now > expiry)
         {
-            auto error = new BuildError("Signed URL expired");
+            auto error = new GenericError("Signed URL expired", ErrorCode.CacheUnauthorized);
             return Err!(bool, BuildError)(error);
         }
         
@@ -175,7 +175,7 @@ final class CdnManager
         immutable expected = signUrl(path ~ to!string(expiry));
         if (signature != expected)
         {
-            auto error = new BuildError("Invalid signature");
+            auto error = new GenericError("Invalid signature", ErrorCode.CacheUnauthorized);
             return Err!(bool, BuildError)(error);
         }
         
@@ -215,15 +215,15 @@ final class CdnManager
         return Base64URL.encode(hash);
     }
     
-    private string generateExpiry(Duration duration) const @system
+    private string generateExpiry(Duration duration) const pure @trusted
     {
         import std.datetime.systime : SysTime;
         import std.datetime.timezone : UTC;
         
         auto expiry = Clock.currTime(UTC()) + duration;
         
-        // RFC 7231 HTTP date format
-        return expiry.toRFC2822DateTimeString();
+        // RFC 7231 HTTP date format (RFC 822/1123 format)
+        return expiry.toSimpleString();
     }
 }
 

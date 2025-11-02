@@ -3,6 +3,7 @@ module core.testing.results;
 import std.datetime : Duration, dur;
 import std.algorithm : map, filter, sum;
 import std.array : array;
+import std.range : empty;
 import std.conv : to;
 
 /// Result of a single test case execution

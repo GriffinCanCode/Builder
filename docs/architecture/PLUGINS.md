@@ -433,9 +433,9 @@ import core.stdc.stdlib : exit;
 struct PluginInfo {
     string name = "my-plugin";
     string version_ = "1.0.0";
-    string author = "Your Name";
+    string author = "Griffin";
     string description = "My awesome Builder plugin";
-    string homepage = "https://github.com/yourusername/builder-plugin-my-plugin";
+    string homepage = "https://github.com/GriffinCanCode/builder-plugin-my-plugin";
     string[] capabilities = ["build.pre_hook", "build.post_hook"];
     string minBuilderVersion = "1.0.0";
     string license = "MIT";
@@ -524,9 +524,9 @@ import sys
 PLUGIN_INFO = {
     "name": "my-plugin",
     "version": "1.0.0",
-    "author": "Your Name",
+    "author": "Griffin",
     "description": "My awesome Builder plugin",
-    "homepage": "https://github.com/yourusername/builder-plugin-my-plugin",
+    "homepage": "https://github.com/GriffinCanCode/builder-plugin-my-plugin",
     "capabilities": ["build.pre_hook", "build.post_hook"],
     "minBuilderVersion": "1.0.0",
     "license": "MIT"
@@ -608,7 +608,7 @@ builder plugin info docker
 # Output:
 # Name:         docker
 # Version:      1.0.0
-# Author:       Builder Team
+# Author:       Griffin
 # Description:  Docker container build integration
 # Homepage:     https://github.com/builder-plugins/docker
 # Capabilities: build.pre_hook, build.post_hook, target.custom_type

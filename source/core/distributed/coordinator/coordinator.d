@@ -43,6 +43,7 @@ final class Coordinator
     private Socket listener;
     private shared bool running;
     private Thread acceptThread;
+    private Thread healthThread;
     private Mutex mutex;
     
     // Peer registry for work-stealing

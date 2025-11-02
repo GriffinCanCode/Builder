@@ -214,6 +214,54 @@ struct Formatter
         
         return result.data;
     }
+    
+    /// Format text in bold
+    string bold(in string text) const @system
+    {
+        return styled(text, Color.White, Style.Bold);
+    }
+    
+    /// Format text in cyan
+    string cyan(in string text) const @system
+    {
+        return styled(text, Color.Cyan);
+    }
+    
+    /// Format text in dim (faded)
+    string dim(in string text) const @system
+    {
+        return styled(text, Color.BrightBlack);
+    }
+    
+    /// Format text in green
+    string green(in string text) const @system
+    {
+        return styled(text, Color.Green);
+    }
+    
+    /// Format text in yellow
+    string yellow(in string text) const @system
+    {
+        return styled(text, Color.Yellow);
+    }
+    
+    /// Format text in red
+    string red(in string text) const @system
+    {
+        return styled(text, Color.Red);
+    }
+    
+    /// Format header text
+    string header(in string text) const @system
+    {
+        return styled(text, Color.Cyan, Style.Bold);
+    }
+    
+    /// Format section text
+    string section(in string text) const @system
+    {
+        return styled(text, Color.White, Style.Bold);
+    }
 }
 
 /// Duration formatting utilities

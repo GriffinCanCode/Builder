@@ -3,6 +3,7 @@ module core.distributed.coordinator.registry;
 import std.datetime : SysTime, Clock, Duration, seconds;
 import std.algorithm : filter, map, maxElement, minElement, sort, sum;
 import std.array : array;
+import std.range : empty;
 import std.container : RedBlackTree;
 import core.sync.mutex : Mutex;
 import core.distributed.protocol.protocol;
@@ -81,8 +82,10 @@ final class WorkerRegistry
         synchronized (mutex)
         {
             if (id !in workers)
-                return Err!DistributedError(
-                    new WorkerError("Worker not found: " ~ id.toString()));
+            {
+                DistributedError err = new WorkerError("Worker not found: " ~ id.toString());
+                return Result!DistributedError.err(err);
+            }
             
             workers.remove(id);
             return Ok!DistributedError();
