@@ -5,7 +5,7 @@ import std.path;
 import std.file;
 import std.algorithm;
 import core.graph.graph;
-import core.execution.executor;
+import core.execution.core.engine;
 import config.schema.schema;
 import config.parsing.parser;
 import tests.harness;

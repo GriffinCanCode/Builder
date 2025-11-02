@@ -6,7 +6,7 @@ import std.path;
 import std.datetime;
 import std.algorithm;
 import core.graph.graph;
-import core.execution.checkpoint;
+import core.execution.recovery.checkpoint;
 import config.schema.schema;
 
 /// Helper to create test graph

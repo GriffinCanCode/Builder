@@ -1,8 +1,8 @@
 module core.execution.services.resilience;
 
-import core.execution.retry : RetryOrchestrator, RetryPolicy;
-import core.execution.checkpoint : CheckpointManager, Checkpoint;
-import core.execution.resume : ResumePlanner, ResumePlan, ResumeConfig;
+import core.execution.recovery.retry : RetryOrchestrator, RetryPolicy;
+import core.execution.recovery.checkpoint : CheckpointManager, Checkpoint;
+import core.execution.recovery.resume : ResumePlanner, ResumePlan, ResumeConfig;
 import core.graph.graph : BuildGraph;
 import errors;
 

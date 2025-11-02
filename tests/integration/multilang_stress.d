@@ -14,7 +14,7 @@ import tests.harness;
 import tests.fixtures;
 import config.schema.schema;
 import core.graph.graph;
-import core.execution.executor;
+import core.execution.core.engine;
 import utils.logging.logger;
 
 /// Comprehensive multi-language stress test

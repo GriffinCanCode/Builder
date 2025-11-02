@@ -12,9 +12,9 @@ import tests.fixtures;
 import tests.mocks;
 import config.schema.schema;
 import core.graph.graph;
-import core.execution.executor;
-import core.execution.checkpoint;
-import core.execution.resume;
+import core.execution.core.engine;
+import core.execution.recovery.checkpoint;
+import core.execution.recovery.resume;
 import errors;
 
 /// Test checkpoint/resume functionality with actual build failures

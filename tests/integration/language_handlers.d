@@ -10,7 +10,7 @@ import tests.harness;
 import tests.fixtures;
 import config.schema.schema;
 import core.graph.graph;
-import core.execution.executor;
+import core.execution.core.engine;
 import languages.base.base;
 
 // Import all language handlers

@@ -5,8 +5,8 @@ import std.algorithm;
 import std.array;
 import std.datetime;
 import core.graph.graph;
-import core.execution.checkpoint;
-import core.execution.resume;
+import core.execution.recovery.checkpoint;
+import core.execution.recovery.resume;
 import config.schema.schema;
 
 /// Helper to create test graph
