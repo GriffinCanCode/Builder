@@ -34,6 +34,13 @@ struct RetryPolicy
                 // File system issues - quick retry
                 return RetryPolicy(3, 50.msecs, 5.seconds, 2.0, 0.05, true);
             
+            case ErrorCategory.Plugin:
+            case ErrorCategory.LSP:
+            case ErrorCategory.Watch:
+            case ErrorCategory.Config:
+                // Plugin/LSP/Watch/Config errors - minimal retry
+                return RetryPolicy(2, 100.msecs, 5.seconds, 1.5, 0.1, true);
+            
             case ErrorCategory.Build:
             case ErrorCategory.Parse:
             case ErrorCategory.Analysis:

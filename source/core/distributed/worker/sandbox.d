@@ -3,9 +3,12 @@ module core.distributed.worker.sandbox;
 import std.process : execute, Config;
 import std.datetime : Duration;
 import std.file : exists, mkdirRecurse, rmdirRecurse, tempDir;
-import std.path : buildPath;
+import std.path : buildPath, absolutePath;
 import std.conv : to;
+import std.algorithm : map;
+import std.array : array;
 import core.distributed.protocol.protocol;
+import core.execution.hermetic;
 import errors;
 
 /// Execution output
@@ -92,6 +95,7 @@ final class NoSandboxEnv : SandboxEnv
     {
         try
         {
+            import utils.security.executor : execute;
             // Execute command directly (no sandboxing)
             auto result = execute(
                 ["sh", "-c", command],
@@ -144,15 +148,116 @@ version(linux)
             InputArtifact[] inputs
         ) @trusted
         {
-            // TODO: Implement Linux namespace sandboxing
-            // 1. Create mount namespace
-            // 2. Create network namespace (optional)
-            // 3. Create PID namespace
-            // 4. Apply cgroups for resource limits
-            // 5. Set up filesystem isolation
+            // Build hermetic spec from action request
+            auto specBuilder = SandboxSpecBuilder.create();
             
-            return Err!(SandboxEnv, DistributedError)(
-                new DistributedError("Linux sandbox not yet implemented"));
+            // Add input artifacts as inputs
+            foreach (input; inputs)
+            {
+                if (input.path.length > 0)
+                    specBuilder.input(input.path);
+            }
+            
+            // Create work directory
+            import std.random : uniform;
+            import std.uuid : randomUUID;
+            immutable workDir = buildPath(tempDir(), "builder-sandbox-" ~ randomUUID().toString());
+            mkdirRecurse(workDir);
+            
+            // Add work directory as temp
+            specBuilder.temp(workDir);
+            
+            // Add standard system paths
+            specBuilder.input("/usr/lib");
+            specBuilder.input("/usr/include");
+            specBuilder.input("/lib");
+            specBuilder.input("/lib64");
+            
+            // Build spec
+            auto specResult = specBuilder.build();
+            if (specResult.isErr)
+            {
+                return Err!(SandboxEnv, DistributedError)(
+                    new DistributedError("Failed to build spec: " ~ specResult.unwrapErr()));
+            }
+            
+            return Ok!(SandboxEnv, DistributedError)(
+                cast(SandboxEnv)(new LinuxSandboxEnv(request, inputs, specResult.unwrap(), workDir))
+            );
+        }
+    }
+    
+    /// Linux sandbox environment using hermetic execution
+    final class LinuxSandboxEnv : SandboxEnv
+    {
+        private ActionRequest request;
+        private InputArtifact[] inputs;
+        private SandboxSpec spec;
+        private string workDir;
+        
+        this(ActionRequest request, InputArtifact[] inputs, SandboxSpec spec, string workDir) @trusted
+        {
+            this.request = request;
+            this.inputs = inputs;
+            this.spec = spec;
+            this.workDir = workDir;
+        }
+        
+        Result!(ExecutionOutput, DistributedError) execute(
+            string command,
+            string[string] env,
+            Duration timeout
+        ) @trusted
+        {
+            // Create hermetic executor
+            auto executorResult = HermeticExecutor.create(spec, workDir);
+            if (executorResult.isErr)
+            {
+                return Err!(ExecutionOutput, DistributedError)(
+                    new ExecutionError(executorResult.unwrapErr()));
+            }
+            
+            auto executor = executorResult.unwrap();
+            
+            // Parse command (simple shell splitting)
+            import std.string : split;
+            auto cmdArray = command.split(" ");
+            
+            // Execute hermetically
+            auto result = executor.execute(cmdArray, workDir);
+            
+            if (result.isErr)
+            {
+                return Err!(ExecutionOutput, DistributedError)(
+                    new ExecutionError(result.unwrapErr()));
+            }
+            
+            auto output = result.unwrap();
+            ExecutionOutput execOutput;
+            execOutput.stdout = output.stdout;
+            execOutput.stderr = output.stderr;
+            execOutput.exitCode = output.exitCode;
+            
+            return Ok!(ExecutionOutput, DistributedError)(execOutput);
+        }
+        
+        ResourceUsage resourceUsage() @safe
+        {
+            ResourceUsage usage;
+            // TODO: Collect actual resource usage from cgroups
+            return usage;
+        }
+        
+        void cleanup() @trusted
+        {
+            if (exists(workDir))
+            {
+                try
+                {
+                    rmdirRecurse(workDir);
+                }
+                catch (Exception) {}
+            }
         }
     }
 }
@@ -167,9 +272,116 @@ version(OSX)
             InputArtifact[] inputs
         ) @trusted
         {
-            // TODO: Implement macOS sandbox-exec wrapper
-            return Err!(SandboxEnv, DistributedError)(
-                new DistributedError("macOS sandbox not yet implemented"));
+            // Build hermetic spec from action request
+            auto specBuilder = SandboxSpecBuilder.create();
+            
+            // Add input artifacts as inputs
+            foreach (input; inputs)
+            {
+                if (input.path.length > 0)
+                    specBuilder.input(input.path);
+            }
+            
+            // Create work directory
+            import std.random : uniform;
+            import std.uuid : randomUUID;
+            immutable workDir = buildPath(tempDir(), "builder-sandbox-" ~ randomUUID().toString());
+            mkdirRecurse(workDir);
+            
+            // Add work directory as temp
+            specBuilder.temp(workDir);
+            
+            // Add standard system paths
+            specBuilder.input("/usr/lib");
+            specBuilder.input("/usr/include");
+            specBuilder.input("/System/Library");
+            specBuilder.input("/Library");
+            
+            // Build spec
+            auto specResult = specBuilder.build();
+            if (specResult.isErr)
+            {
+                return Err!(SandboxEnv, DistributedError)(
+                    new DistributedError("Failed to build spec: " ~ specResult.unwrapErr()));
+            }
+            
+            return Ok!(SandboxEnv, DistributedError)(
+                cast(SandboxEnv)(new MacOSSandboxEnv(request, inputs, specResult.unwrap(), workDir))
+            );
+        }
+    }
+    
+    /// macOS sandbox environment using hermetic execution
+    final class MacOSSandboxEnv : SandboxEnv
+    {
+        private ActionRequest request;
+        private InputArtifact[] inputs;
+        private SandboxSpec spec;
+        private string workDir;
+        
+        this(ActionRequest request, InputArtifact[] inputs, SandboxSpec spec, string workDir) @trusted
+        {
+            this.request = request;
+            this.inputs = inputs;
+            this.spec = spec;
+            this.workDir = workDir;
+        }
+        
+        Result!(ExecutionOutput, DistributedError) execute(
+            string command,
+            string[string] env,
+            Duration timeout
+        ) @trusted
+        {
+            // Create hermetic executor
+            auto executorResult = HermeticExecutor.create(spec, workDir);
+            if (executorResult.isErr)
+            {
+                return Err!(ExecutionOutput, DistributedError)(
+                    new ExecutionError(executorResult.unwrapErr()));
+            }
+            
+            auto executor = executorResult.unwrap();
+            
+            // Parse command (simple shell splitting)
+            import std.string : split;
+            auto cmdArray = command.split(" ");
+            
+            // Execute hermetically
+            auto result = executor.execute(cmdArray, workDir);
+            
+            if (result.isErr)
+            {
+                return Err!(ExecutionOutput, DistributedError)(
+                    new ExecutionError(result.unwrapErr()));
+            }
+            
+            auto output = result.unwrap();
+            ExecutionOutput execOutput;
+            execOutput.stdout = output.stdout;
+            execOutput.stderr = output.stderr;
+            execOutput.exitCode = output.exitCode;
+            
+            return Ok!(ExecutionOutput, DistributedError)(execOutput);
+        }
+        
+        ResourceUsage resourceUsage() @safe
+        {
+            ResourceUsage usage;
+            // TODO: Collect actual resource usage
+            return usage;
+        }
+        
+        void cleanup() @trusted
+        {
+            if (exists(workDir))
+            {
+                try
+                {
+                    rmdirRecurse(workDir);
+                }
+                catch (Exception) {}
+            }
         }
     }
 }
@@ -199,19 +411,27 @@ Sandbox createSandbox(bool hermetic = true) @trusted
     
     version(linux)
     {
-        // TODO: Check for namespace support
-        // return new LinuxSandbox();
-        return new NoSandbox();
+        // Check if running in environment that supports namespaces
+        import std.file : exists;
+        if (exists("/proc/self/ns/user"))
+            return new LinuxSandbox();
+        else
+            return new NoSandbox();  // Fallback if namespaces not available
     }
     else version(OSX)
     {
-        // return new MacOSSandbox();
-        return new NoSandbox();
+        // Check if sandbox-exec is available
+        import std.process : execute;
+        auto result = execute(["which", "sandbox-exec"]);
+        if (result.status == 0)
+            return new MacOSSandbox();
+        else
+            return new NoSandbox();  // Fallback if sandbox-exec not available
     }
     else version(Windows)
     {
-        // return new WindowsSandbox();
-        return new NoSandbox();
+        // Windows job objects - future implementation
+        return new WindowsSandbox();
     }
     else
     {

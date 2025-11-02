@@ -339,6 +339,13 @@ final class Coordinator
                     handleWorkRequest(client);
                     break;
                     
+                case MessageType.PeerDiscovery:
+                case MessageType.PeerAnnounce:
+                case MessageType.PeerMetrics:
+                    // Handle peer-related messages
+                    Logger.info("Peer message received");
+                    break;
+                    
                 case MessageType.ActionRequest:
                 case MessageType.StealRequest:
                 case MessageType.StealResponse:

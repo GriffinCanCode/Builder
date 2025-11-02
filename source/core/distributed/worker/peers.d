@@ -45,12 +45,12 @@ final class PeerRegistry
     Result!DistributedError register(WorkerId id, string address) @trusted
     {
         if (id.value == selfId.value)
-            return Ok!DistributedError();  // Don't register self
+            return Result!DistributedError.ok();  // Don't register self
         
         synchronized (mutex)
         {
             if (peers.length >= MAX_PEERS)
-                return Err!DistributedError(
+                return Result!DistributedError.err(
                     new DistributedError("Peer registry full"));
             
             PeerInfo info;

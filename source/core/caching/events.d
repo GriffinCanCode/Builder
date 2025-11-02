@@ -24,14 +24,27 @@ enum CacheEventType : ubyte
 abstract class CacheEvent : BuildEvent
 {
     CacheEventType cacheType;
-    SysTime timestamp;
+    SysTime eventTime;
+    private immutable EventType _type = EventType.Statistics;
+    private immutable Duration _timestamp;
     
     this(CacheEventType cacheType) @safe
     {
-        super(EventType.Statistics);  // Map to statistics for telemetry
         this.cacheType = cacheType;
         import std.datetime : Clock;
-        this.timestamp = Clock.currTime();
+        this.eventTime = Clock.currTime();
+        import std.datetime : Duration, msecs;
+        this._timestamp = 0.msecs;
+    }
+    
+    @property EventType type() const pure nothrow
+    {
+        return _type;
+    }
+    
+    @property Duration timestamp() const pure nothrow
+    {
+        return _timestamp;
     }
 }
 

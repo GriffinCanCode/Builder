@@ -8,6 +8,7 @@ import std.algorithm;
 import std.conv;
 import core.graph.graph;
 import config.schema.schema;
+import errors : BuildError, Result, Ok, Err;
 
 /// High-performance binary serialization for BuildGraph
 /// 
@@ -131,7 +132,6 @@ struct GraphStorage
         
         // Read nodes
         BuildNode[string] nodeMap;
-        nodeMap.reserve(nodeCount);
         
         foreach (i; 0 .. nodeCount)
         {
@@ -255,10 +255,16 @@ struct GraphStorage
     {
         // Read target ID
         auto idStr = readString(data, offset);
-        auto id = TargetId.parse(idStr);
+        auto idResult = TargetId.parse(idStr);
+        if (idResult.isErr)
+            throw new Exception("Failed to parse target ID");
+        auto id = idResult.unwrap();
         
         // Read target
-        auto target = readTarget(data, offset);
+        auto targetResult = readTarget(data, offset);
+        if (targetResult.isErr)
+            throw new Exception("Failed to read target");
+        auto target = targetResult.unwrap();
         
         // Create node
         auto node = new BuildNode(id, target);
@@ -289,9 +295,8 @@ struct GraphStorage
     private static void writeTarget(Appender)(ref Appender buffer, ref Target target) @system
     {
         writeString(buffer, target.name);
-        writeString(buffer, target.path);
+        buffer.put(cast(ubyte)target.type);
         buffer.put(cast(ubyte)target.language);
-        buffer.put(cast(ubyte)target.buildType);
         
         // Write sources
         buffer.put(nativeToBigEndian(cast(uint)target.sources.length)[]);
@@ -303,75 +308,117 @@ struct GraphStorage
         foreach (dep; target.deps)
             writeString(buffer, dep);
         
-        // Write output
-        writeString(buffer, target.output);
+        // Write env
+        buffer.put(nativeToBigEndian(cast(uint)target.env.length)[]);
+        foreach (key, value; target.env)
+        {
+            writeString(buffer, key);
+            writeString(buffer, value);
+        }
         
         // Write flags
         buffer.put(nativeToBigEndian(cast(uint)target.flags.length)[]);
         foreach (flag; target.flags)
             writeString(buffer, flag);
         
-        // Write metadata
-        buffer.put(nativeToBigEndian(cast(uint)target.metadata.length)[]);
-        foreach (key, value; target.metadata)
+        // Write output path
+        writeString(buffer, target.outputPath);
+        
+        // Write includes
+        buffer.put(nativeToBigEndian(cast(uint)target.includes.length)[]);
+        foreach (inc; target.includes)
+            writeString(buffer, inc);
+        
+        // Write langConfig
+        buffer.put(nativeToBigEndian(cast(uint)target.langConfig.length)[]);
+        foreach (key, value; target.langConfig)
         {
             writeString(buffer, key);
             writeString(buffer, value);
         }
     }
     
-    private static Target readTarget(scope ubyte[] data, ref size_t offset) @system
+    private static Result!(Target, BuildError) readTarget(scope ubyte[] data, ref size_t offset) @system
     {
         Target target;
         
-        target.name = readString(data, offset);
-        target.path = readString(data, offset);
-        target.language = cast(TargetLanguage)data[offset++];
-        target.buildType = cast(BuildType)data[offset++];
-        
-        // Read sources
-        immutable ubyte[4] sourceCountBytes = data[offset .. offset + 4][0 .. 4];
-        immutable sourceCount = bigEndianToNative!uint(sourceCountBytes);
-        offset += 4;
-        
-        target.sources.reserve(sourceCount);
-        foreach (i; 0 .. sourceCount)
-            target.sources ~= readString(data, offset);
-        
-        // Read deps
-        immutable ubyte[4] depCountBytes = data[offset .. offset + 4][0 .. 4];
-        immutable depCount = bigEndianToNative!uint(depCountBytes);
-        offset += 4;
-        
-        target.deps.reserve(depCount);
-        foreach (i; 0 .. depCount)
-            target.deps ~= readString(data, offset);
-        
-        // Read output
-        target.output = readString(data, offset);
-        
-        // Read flags
-        immutable ubyte[4] flagCountBytes = data[offset .. offset + 4][0 .. 4];
-        immutable flagCount = bigEndianToNative!uint(flagCountBytes);
-        offset += 4;
-        
-        target.flags.reserve(flagCount);
-        foreach (i; 0 .. flagCount)
-            target.flags ~= readString(data, offset);
-        
-        // Read metadata
-        immutable ubyte[4] metaCountBytes = data[offset .. offset + 4][0 .. 4];
-        immutable metaCount = bigEndianToNative!uint(metaCountBytes);
-        offset += 4;
-        
-        foreach (i; 0 .. metaCount)
+        try
         {
-            auto key = readString(data, offset);
-            auto value = readString(data, offset);
-            target.metadata[key] = value;
+            target.name = readString(data, offset);
+            target.type = cast(TargetType)data[offset++];
+            target.language = cast(TargetLanguage)data[offset++];
+            
+            // Read sources
+            immutable ubyte[4] sourceCountBytes = data[offset .. offset + 4][0 .. 4];
+            immutable sourceCount = bigEndianToNative!uint(sourceCountBytes);
+            offset += 4;
+            
+            target.sources.reserve(sourceCount);
+            foreach (i; 0 .. sourceCount)
+                target.sources ~= readString(data, offset);
+            
+            // Read deps
+            immutable ubyte[4] depCountBytes = data[offset .. offset + 4][0 .. 4];
+            immutable depCount = bigEndianToNative!uint(depCountBytes);
+            offset += 4;
+            
+            target.deps.reserve(depCount);
+            foreach (i; 0 .. depCount)
+                target.deps ~= readString(data, offset);
+            
+            // Read env
+            immutable ubyte[4] envCountBytes = data[offset .. offset + 4][0 .. 4];
+            immutable envCount = bigEndianToNative!uint(envCountBytes);
+            offset += 4;
+            
+            foreach (i; 0 .. envCount)
+            {
+                auto key = readString(data, offset);
+                auto value = readString(data, offset);
+                target.env[key] = value;
+            }
+            
+            // Read flags
+            immutable ubyte[4] flagCountBytes = data[offset .. offset + 4][0 .. 4];
+            immutable flagCount = bigEndianToNative!uint(flagCountBytes);
+            offset += 4;
+            
+            target.flags.reserve(flagCount);
+            foreach (i; 0 .. flagCount)
+                target.flags ~= readString(data, offset);
+            
+            // Read output path
+            target.outputPath = readString(data, offset);
+            
+            // Read includes
+            immutable ubyte[4] incCountBytes = data[offset .. offset + 4][0 .. 4];
+            immutable incCount = bigEndianToNative!uint(incCountBytes);
+            offset += 4;
+            
+            target.includes.reserve(incCount);
+            foreach (i; 0 .. incCount)
+                target.includes ~= readString(data, offset);
+            
+            // Read langConfig
+            immutable ubyte[4] langCountBytes = data[offset .. offset + 4][0 .. 4];
+            immutable langCount = bigEndianToNative!uint(langCountBytes);
+            offset += 4;
+            
+            foreach (i; 0 .. langCount)
+            {
+                auto key = readString(data, offset);
+                auto value = readString(data, offset);
+                target.langConfig[key] = value;
+            }
+            
+            return Ok!(Target, BuildError)(target);
         }
-        
-        return target;
+        catch (Exception e)
+        {
+            import errors : CacheError;
+            import errors.handling.codes : ErrorCode;
+            return Err!(Target, BuildError)(new CacheError("Failed to read target: " ~ e.msg, ErrorCode.CacheCorrupted));
+        }
     }
     
     private static void writeString(Appender)(ref Appender buffer, in string str) @system

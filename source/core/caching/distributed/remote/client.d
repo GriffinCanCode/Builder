@@ -112,7 +112,7 @@ final class RemoteCacheClient
     }
     
     /// Store artifact in remote cache
-    Result!BuildError put(string contentHash, const(ubyte)[] data) @trusted
+    Result!(bool, BuildError) put(string contentHash, const(ubyte)[] data) @trusted
     {
         if (!config.enabled())
         {
@@ -120,7 +120,7 @@ final class RemoteCacheClient
                 "Remote cache not configured",
                 ErrorCode.CacheDisabled
             );
-            return Result!BuildError.err(error);
+            return Err!(bool, BuildError)(error);
         }
         
         // Check size limit
@@ -130,7 +130,7 @@ final class RemoteCacheClient
                 "Artifact exceeds maximum size",
                 ErrorCode.CacheTooLarge
             );
-            return Result!BuildError.err(error);
+            return Err!(bool, BuildError)(error);
         }
         
         immutable startTime = Clock.currStdTime();
@@ -156,9 +156,11 @@ final class RemoteCacheClient
         }
         
         // Execute with retry logic
-        auto result = executeWithRetry!BuildError(() @trusted {
-            Result!(BuildError, BuildError) r = transport.put(contentHash, payload);
-            return r;
+        auto result = executeWithRetry!bool(() @trusted {
+            auto putResult = transport.put(contentHash, payload);
+            if (putResult.isErr)
+                return Err!(bool, BuildError)(putResult.unwrapErr());
+            return Ok!(bool, BuildError)(true);
         });
         
         synchronized (statsMutex)

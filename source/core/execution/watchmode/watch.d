@@ -313,16 +313,18 @@ final class ChangeDetector
     /// Recursively mark dependent targets as affected
     private void markDependents(string targetId, ref bool[string] affected) @system
     {
-        auto node = _graph.getNode(targetId);
+        import config.schema.schema : TargetId;
+        auto node = _graph.getNode(TargetId(targetId));
         if (node is null)
             return;
         
         foreach (dependentId; node.dependentIds)
         {
-            if (dependentId !in affected)
+            auto depIdStr = dependentId.toString();
+            if (depIdStr !in affected)
             {
-                affected[dependentId] = true;
-                markDependents(dependentId, affected);
+                affected[depIdStr] = true;
+                markDependents(depIdStr, affected);
             }
         }
     }

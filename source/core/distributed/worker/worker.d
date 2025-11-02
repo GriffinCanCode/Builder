@@ -76,19 +76,19 @@ final class Worker
     Result!DistributedError start() @trusted
     {
         if (atomicLoad(running))
-            return Ok!DistributedError();
+            return Result!DistributedError.ok();
         
         // Connect to coordinator
         auto transportResult = TransportFactory.create(config.coordinatorUrl);
         if (transportResult.isErr)
-            return Err!DistributedError(transportResult.unwrapErr());
+            return Result!DistributedError.err(transportResult.unwrapErr());
         
         coordinatorTransport = transportResult.unwrap();
         
         // Register with coordinator
         auto registerResult = registerWithCoordinator();
         if (registerResult.isErr)
-            return Err!DistributedError(registerResult.unwrapErr());
+            return Result!DistributedError.err(registerResult.unwrapErr());
         
         id = registerResult.unwrap();
         

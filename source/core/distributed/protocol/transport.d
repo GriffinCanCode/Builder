@@ -150,7 +150,7 @@ final class HttpTransport : Transport
     }
     
     /// Binary serialization (efficient, no external dependencies)
-    private ubyte[] serializeMessage(T)(Envelope!T envelope) @trusted
+    ubyte[] serializeMessage(T)(Envelope!T envelope) @trusted
     {
         import std.bitmanip : write;
         
@@ -211,7 +211,7 @@ final class HttpTransport : Transport
     }
     
     /// Binary deserialization
-    private Result!(Envelope!T, DistributedError) deserializeMessage(T)(ubyte[] data) @system
+    Result!(Envelope!T, DistributedError) deserializeMessage(T)(ubyte[] data) @system
     {
         import std.bitmanip : read;
         import std.datetime : SysTime;
@@ -261,7 +261,7 @@ final class HttpTransport : Transport
             immutable payloadType = typeSlice.read!ubyte();
             offset += 1;
             
-            immutable payloadData = data[offset .. $];
+            auto payloadData = data[offset .. $];
             
             static if (is(T == ActionRequest))
             {

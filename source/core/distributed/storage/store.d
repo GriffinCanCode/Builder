@@ -183,7 +183,7 @@ final class LocalArtifactStore : ArtifactStore
     {
         import utils.files.hash : FastHash;
         auto hash = FastHash.compute(data);
-        return ArtifactId(hash);
+        return ArtifactId(cast(ubyte[])hash);
     }
     
     /// Get filesystem path for artifact
@@ -237,10 +237,10 @@ final class LocalArtifactStore : ArtifactStore
         }
         
         if (freed < needed)
-            return Err!DistributedError(
+            return Result!DistributedError.err(
                 new DistributedError("Failed to evict enough space"));
         
-        return Ok!DistributedError();
+        return Result!DistributedError.ok();
     }
 }
 

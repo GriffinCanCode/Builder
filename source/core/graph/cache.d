@@ -191,7 +191,6 @@ final class GraphCache
             {
                 // Compute hashes for all config files
                 string[string] metadata;
-                metadata.reserve(configFiles.length * 2);
                 
                 foreach (file; configFiles)
                 {
@@ -349,7 +348,6 @@ final class GraphCache
         offset += 4;
         
         string[string] metadata;
-        metadata.reserve(count);
         
         // Read key-value pairs
         foreach (i; 0 .. count)
