@@ -1,8 +1,20 @@
 module core.distributed.worker;
 
-/// Distributed build worker
+/// Worker components for distributed builds
 /// 
-/// Executes build actions in hermetic sandbox.
+/// Components:
+/// - worker.d - Main worker implementation
+/// - peers.d  - Peer discovery and management
+/// - steal.d  - Work-stealing protocol
+/// - sandbox.d - Hermetic execution environment
+/// 
+/// Architecture:
+/// - Workers execute build actions in isolation
+/// - Peer-to-peer work-stealing for load balancing
+/// - Content-addressable artifact storage
+/// - Metrics and observability
 
 public import core.distributed.worker.worker;
-public import core.distributed.worker.sandbox;
+public import core.distributed.worker.peers;
+public import core.distributed.worker.steal;
+

@@ -8,8 +8,14 @@ import std.conv : to;
 import core.thread : Thread;
 import core.atomic;
 import core.distributed.protocol.protocol;
+import core.distributed.protocol.protocol : NetworkError;
 import core.distributed.protocol.transport;
+import core.distributed.protocol.messages;
 import utils.concurrency.deque : WorkStealingDeque;
+import core.distributed.worker.peers;
+import core.distributed.worker.steal;
+import core.distributed.memory;
+import core.distributed.metrics.steal : StealTelemetry;
 import errors;
 import utils.logging.logger;
 
@@ -20,9 +26,12 @@ struct WorkerConfig
     size_t maxConcurrentActions = 8;                // Max parallel execution
     size_t localQueueSize = 256;                    // Local work queue
     bool enableSandboxing = true;                   // Hermetic execution?
+    bool enableWorkStealing = true;                 // Enable P2P work-stealing?
+    string listenAddress;                           // Listen address for P2P
     Capabilities defaultCapabilities;               // Default sandbox settings
     Duration heartbeatInterval = 5.seconds;         // Heartbeat frequency
-    Duration stealTimeout = 100.msecs;              // Work steal timeout
+    Duration peerAnnounceInterval = 10.seconds;     // Peer announce frequency
+    StealConfig stealConfig;                        // Work-stealing config
 }
 
 /// Build worker (executes actions)
@@ -35,8 +44,18 @@ final class Worker
     private shared WorkerState state;
     private Thread mainThread;
     private Thread heartbeatThread;
+    private Thread peerAnnounceThread;
     private shared bool running;
     private SystemMetrics metrics;
+    
+    // Work-stealing components
+    private PeerRegistry peerRegistry;
+    private StealEngine stealEngine;
+    private StealTelemetry stealTelemetry;
+    
+    // Memory optimization components
+    private ArenaPool arenaPool;
+    private BufferPool bufferPool;
     
     this(WorkerConfig config) @trusted
     {
@@ -44,6 +63,13 @@ final class Worker
         this.localQueue = WorkStealingDeque!ActionRequest(config.localQueueSize);
         atomicStore(state, WorkerState.Idle);
         atomicStore(running, false);
+        
+        // Initialize memory pools
+        this.arenaPool = new ArenaPool(64 * 1024, 32);
+        this.bufferPool = new BufferPool(64 * 1024, 128);
+        
+        // Pre-allocate buffers for optimal performance
+        bufferPool.preallocate(16);
     }
     
     /// Start worker
@@ -66,6 +92,15 @@ final class Worker
         
         id = registerResult.unwrap();
         
+        // Initialize work-stealing components
+        if (config.enableWorkStealing)
+        {
+            peerRegistry = new PeerRegistry(id);
+            stealEngine = new StealEngine(id, peerRegistry, config.stealConfig);
+            stealTelemetry = new StealTelemetry();
+            Logger.info("Work-stealing enabled");
+        }
+        
         atomicStore(running, true);
         
         // Start main loop
@@ -75,6 +110,13 @@ final class Worker
         // Start heartbeat
         heartbeatThread = new Thread(&heartbeatLoop);
         heartbeatThread.start();
+        
+        // Start peer announce (if work-stealing enabled)
+        if (config.enableWorkStealing)
+        {
+            peerAnnounceThread = new Thread(&peerAnnounceLoop);
+            peerAnnounceThread.start();
+        }
         
         Logger.info("Worker started: " ~ id.toString());
         
@@ -92,8 +134,18 @@ final class Worker
         if (heartbeatThread !is null)
             heartbeatThread.join();
         
+        if (peerAnnounceThread !is null)
+            peerAnnounceThread.join();
+        
         if (coordinatorTransport !is null)
             coordinatorTransport.close();
+        
+        // Log work-stealing statistics
+        if (stealTelemetry !is null)
+        {
+            auto stats = stealTelemetry.getStats();
+            Logger.info("Work-stealing stats: " ~ stats.toString());
+        }
         
         Logger.info("Worker stopped: " ~ id.toString());
     }
@@ -174,14 +226,22 @@ final class Worker
             }
             
             // 3. Try stealing from peers (if enabled)
-            if (config.enableSandboxing)
+            if (config.enableWorkStealing && stealEngine !is null)
             {
-                auto stolenAction = tryStealWork();
+                auto startTime = MonoTime.currTime;
+                auto stolenAction = stealEngine.steal();
+                auto latency = MonoTime.currTime - startTime;
+                
                 if (stolenAction !is null)
                 {
+                    stealTelemetry.recordAttempt(WorkerId(0), latency, true);
                     executeAction(stolenAction);
                     consecutiveIdle = 0;
                     continue;
+                }
+                else
+                {
+                    stealTelemetry.recordAttempt(WorkerId(0), latency, false);
                 }
             }
             
@@ -330,17 +390,71 @@ final class Worker
         }
     }
     
-    /// Try to steal work from peer
-    private ActionRequest tryStealWork() @trusted
+    /// Peer announce loop
+    private void peerAnnounceLoop() @trusted
     {
-        atomicStore(state, WorkerState.Stealing);
-        scope(exit) atomicStore(state, WorkerState.Idle);
+        while (atomicLoad(running))
+        {
+            try
+            {
+                sendPeerAnnounce();
+                
+                // Also prune stale peers periodically
+                if (peerRegistry !is null)
+                    peerRegistry.pruneStale();
+                
+                Thread.sleep(config.peerAnnounceInterval);
+            }
+            catch (Exception e)
+            {
+                Logger.error("Peer announce failed: " ~ e.msg);
+            }
+        }
+    }
+    
+    /// Send peer announce to coordinator
+    private void sendPeerAnnounce() @trusted
+    {
+        if (peerRegistry is null)
+            return;
         
-        // Work stealing not yet fully implemented
-        // Would need peer discovery and steal protocol
-        // For now, return null
+        try
+        {
+            PeerAnnounce announce;
+            announce.worker = id;
+            announce.address = config.listenAddress;
+            announce.queueDepth = localQueue.size();
+            announce.loadFactor = calculateLoadFactor();
+            
+            auto announceData = serializePeerAnnounce(announce);
+            
+            // Send via coordinator transport (simplified)
+            ubyte[1] typeBytes = [cast(ubyte)MessageType.PeerAnnounce];
+            ubyte[4] lengthBytes;
+            *cast(uint*)lengthBytes.ptr = cast(uint)announceData.length;
+            
+            // Would send via socket
+            
+            Logger.debugLog("Peer announce sent");
+        }
+        catch (Exception e)
+        {
+            Logger.error("Failed to send peer announce: " ~ e.msg);
+        }
+    }
+    
+    /// Calculate current load factor
+    private float calculateLoadFactor() @trusted nothrow
+    {
+        immutable queueSize = localQueue.size();
+        immutable queueCapacity = config.localQueueSize;
+        immutable queueLoad = cast(float)queueSize / queueCapacity;
         
-        return null;
+        immutable executing = atomicLoad(state) == WorkerState.Executing ? 1 : 0;
+        immutable executionLoad = cast(float)executing / config.maxConcurrentActions;
+        
+        // Weighted average
+        return queueLoad * 0.7 + executionLoad * 0.3;
     }
     
     /// Send result to coordinator

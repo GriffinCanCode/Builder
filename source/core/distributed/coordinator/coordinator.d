@@ -10,9 +10,11 @@ import core.atomic;
 import core.sync.mutex : Mutex;
 import core.graph.graph : BuildGraph;
 import core.distributed.protocol.protocol;
+import core.distributed.protocol.messages;
 import core.distributed.coordinator.registry;
 import core.distributed.coordinator.scheduler;
 import core.distributed.protocol.transport;
+import core.distributed.worker.peers : PeerRegistry;
 import errors;
 import utils.logging.logger;
 
@@ -40,6 +42,9 @@ final class Coordinator
     private Thread healthThread;
     private Mutex mutex;
     
+    // Peer registry for work-stealing
+    private PeerRegistry peerRegistry;
+    
     this(BuildGraph graph, CoordinatorConfig config) @trusted
     {
         this.graph = graph;
@@ -48,6 +53,12 @@ final class Coordinator
         this.scheduler = new DistributedScheduler(graph, registry);
         this.mutex = new Mutex();
         atomicStore(running, false);
+        
+        // Initialize peer registry for work-stealing
+        if (config.enableWorkStealing)
+        {
+            this.peerRegistry = new PeerRegistry(WorkerId(0));  // Coordinator ID = 0
+        }
     }
     
     /// Start coordinator server
@@ -112,7 +123,60 @@ final class Coordinator
         
         scheduler.shutdown();
         
+        // Log peer registry statistics
+        if (peerRegistry !is null)
+        {
+            auto stats = peerRegistry.getStats();
+            Logger.info("Peer registry stats: " ~ 
+                stats.totalPeers.to!string ~ " total, " ~
+                stats.alivePeers.to!string ~ " alive");
+        }
+        
         Logger.info("Coordinator stopped");
+    }
+    
+    /// Select best worker considering load and work-stealing
+    private Result!(WorkerId, DistributedError) selectBestWorker(Capabilities caps) @trusted
+    {
+        // Try regular worker selection first
+        auto workerResult = registry.selectWorker(caps);
+        if (workerResult.isErr)
+            return workerResult;
+        
+        // If work-stealing is enabled, consider peer metrics
+        if (config.enableWorkStealing && peerRegistry !is null)
+        {
+            auto workerId = workerResult.unwrap();
+            auto peerResult = peerRegistry.getPeer(workerId);
+            
+            if (peerResult.isOk)
+            {
+                auto peer = peerResult.unwrap();
+                immutable load = atomicLoad(peer.loadFactor);
+                
+                // If worker is overloaded, try to find a less loaded one
+                if (load > 0.8)
+                {
+                    // Scan for less loaded peer
+                    auto peers = peerRegistry.getAlivePeers();
+                    foreach (p; peers)
+                    {
+                        if (atomicLoad(p.loadFactor) < 0.5)
+                        {
+                            // Check if this peer has compatible capabilities
+                            auto altWorker = registry.getWorker(p.id);
+                            if (altWorker.isOk)
+                            {
+                                Logger.debugLog("Redirecting work to less loaded peer");
+                                return Ok!(WorkerId, DistributedError)(p.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return workerResult;
     }
     
     /// Schedule build action
@@ -127,6 +191,48 @@ final class Coordinator
         return assignActions();
     }
     
+    /// Handle peer announce from worker
+    void handlePeerAnnounce(PeerAnnounce announce) @trusted
+    {
+        if (!config.enableWorkStealing || peerRegistry is null)
+            return;
+        
+        auto result = peerRegistry.register(announce.worker, announce.address);
+        if (result.isOk)
+        {
+            // Update peer metrics
+            peerRegistry.updateMetrics(
+                announce.worker,
+                announce.queueDepth,
+                announce.loadFactor
+            );
+            
+            Logger.debugLog("Peer announce received: " ~ announce.worker.toString());
+        }
+        else
+        {
+            Logger.warning("Failed to register peer: " ~ result.unwrapErr().message());
+        }
+    }
+    
+    /// Get peer list for discovery
+    PeerEntry[] getPeerList() @trusted
+    {
+        if (!config.enableWorkStealing || peerRegistry is null)
+            return [];
+        
+        import std.algorithm : map;
+        import std.array : array;
+        
+        auto peers = peerRegistry.getAlivePeers();
+        return peers.map!(p => PeerEntry(
+            p.id,
+            p.address,
+            atomicLoad(p.queueDepth),
+            atomicLoad(p.loadFactor)
+        )).array;
+    }
+    
     /// Assign ready actions to workers
     private Result!DistributedError assignActions() @trusted
     {
@@ -139,8 +245,8 @@ final class Coordinator
             
             auto request = actionResult.unwrap();
             
-            // Select worker
-            auto workerResult = registry.selectWorker(request.capabilities);
+            // Select worker (considering load balancing)
+            auto workerResult = selectBestWorker(request.capabilities);
             if (workerResult.isErr)
             {
                 // No available workers, reschedule

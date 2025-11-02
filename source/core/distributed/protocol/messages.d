@@ -1,7 +1,8 @@
 module core.distributed.protocol.messages;
 
 import core.distributed.protocol.protocol;
-import errors;
+import core.distributed.protocol.protocol : DistributedError;
+import errors : BuildError, Result, Ok, Err;
 
 /// Message type enum for routing
 enum MessageType : ubyte
@@ -13,7 +14,10 @@ enum MessageType : ubyte
     StealRequest = 4,
     StealResponse = 5,
     Shutdown = 6,
-    WorkRequest = 7
+    WorkRequest = 7,
+    PeerDiscovery = 8,
+    PeerAnnounce = 9,
+    PeerMetrics = 10
 }
 
 /// Worker registration message
@@ -29,6 +33,46 @@ struct WorkRequest
 {
     WorkerId worker;            // Requesting worker
     size_t desiredBatchSize;    // Number of actions requested
+}
+
+/// Peer discovery request (worker → coordinator)
+struct PeerDiscoveryRequest
+{
+    WorkerId worker;            // Requesting worker
+}
+
+/// Peer discovery response (coordinator → worker)
+struct PeerDiscoveryResponse
+{
+    PeerEntry[] peers;          // Available peer workers
+}
+
+/// Peer entry in discovery response
+struct PeerEntry
+{
+    WorkerId id;                // Peer worker ID
+    string address;             // Network address
+    size_t queueDepth;          // Current queue depth
+    float loadFactor;           // Load metric [0.0, 1.0]
+}
+
+/// Peer announce (worker → coordinator)
+/// Workers announce themselves for peer discovery
+struct PeerAnnounce
+{
+    WorkerId worker;            // Worker ID
+    string address;             // Listen address for P2P
+    size_t queueDepth;          // Current queue size
+    float loadFactor;           // Current load [0.0, 1.0]
+}
+
+/// Peer metrics update (worker → coordinator)
+struct PeerMetricsUpdate
+{
+    WorkerId worker;            // Worker ID
+    size_t queueDepth;          // Current queue depth
+    float loadFactor;           // Current load
+    size_t activeActions;       // Currently executing
 }
 
 /// Serialize WorkerRegistration
@@ -82,7 +126,11 @@ Result!(WorkerRegistration, DistributedError) deserializeRegistration(const ubyt
         // Capabilities (need to know size, simplified for now)
         auto capsResult = Capabilities.deserialize(data[offset .. $]);
         if (capsResult.isErr)
-            return Err!(WorkerRegistration, DistributedError)(capsResult.unwrapErr());
+        {
+            auto err = capsResult.unwrapErr();
+            return Err!(WorkerRegistration, DistributedError)(
+                new DistributedError(err.message()));
+        }
         
         reg.capabilities = capsResult.unwrap();
         
@@ -157,6 +205,66 @@ Result!(WorkRequest, DistributedError) deserializeWorkRequest(const ubyte[] data
     {
         return Err!(WorkRequest, DistributedError)(
             new NetworkError("Failed to deserialize WorkRequest: " ~ e.msg));
+    }
+}
+
+/// Serialize PeerAnnounce
+ubyte[] serializePeerAnnounce(PeerAnnounce announce) @trusted
+{
+    import std.bitmanip : write;
+    
+    ubyte[] buffer;
+    buffer.reserve(512);
+    
+    buffer.write!ulong(announce.worker.value, buffer.length);
+    buffer.write!uint(cast(uint)announce.address.length, buffer.length);
+    buffer ~= cast(ubyte[])announce.address;
+    buffer.write!ulong(announce.queueDepth, buffer.length);
+    buffer.write!float(announce.loadFactor, buffer.length);
+    
+    return buffer;
+}
+
+/// Deserialize PeerAnnounce
+Result!(PeerAnnounce, DistributedError) deserializePeerAnnounce(const ubyte[] data) @system
+{
+    import std.bitmanip : read;
+    
+    if (data.length < 20)
+        return Err!(PeerAnnounce, DistributedError)(
+            new NetworkError("PeerAnnounce data too short"));
+    
+    try
+    {
+        ubyte[] mutableData = cast(ubyte[])data.dup;
+        size_t offset = 0;
+        
+        PeerAnnounce announce;
+        
+        auto workerSlice = mutableData[offset .. offset + 8];
+        announce.worker = WorkerId(workerSlice.read!ulong());
+        offset += 8;
+        
+        auto lenSlice = mutableData[offset .. offset + 4];
+        immutable addrLen = lenSlice.read!uint();
+        offset += 4;
+        
+        announce.address = cast(string)data[offset .. offset + addrLen];
+        offset += addrLen;
+        
+        auto queueSlice = mutableData[offset .. offset + 8];
+        announce.queueDepth = queueSlice.read!ulong();
+        offset += 8;
+        
+        auto loadSlice = mutableData[offset .. offset + 4];
+        announce.loadFactor = loadSlice.read!float();
+        
+        return Ok!(PeerAnnounce, DistributedError)(announce);
+    }
+    catch (Exception e)
+    {
+        return Err!(PeerAnnounce, DistributedError)(
+            new NetworkError("Failed to deserialize PeerAnnounce: " ~ e.msg));
     }
 }
 
