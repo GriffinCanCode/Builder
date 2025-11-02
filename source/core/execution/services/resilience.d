@@ -10,10 +10,10 @@ import errors;
 /// Handles retry logic and checkpoint/resume functionality
 interface IResilienceService
 {
-    /// Execute action with retry logic
-    Result!(T, BuildError) withRetry(T)(
+    /// Execute action with retry logic (string result version)
+    Result!(string, BuildError) withRetryString(
         string targetId,
-        Result!(T, BuildError) delegate() action,
+        Result!(string, BuildError) delegate() action,
         RetryPolicy policy
     );
     
@@ -76,6 +76,7 @@ final class ResilienceService : IResilienceService
         this.enableCheckpoints = true;
     }
     
+    /// Generic template method (kept for internal/test use)
     Result!(T, BuildError) withRetry(T)(
         string targetId,
         Result!(T, BuildError) delegate() action,
@@ -88,6 +89,16 @@ final class ResilienceService : IResilienceService
         }
         
         return retryOrchestrator.withRetry(targetId, action, policy);
+    }
+    
+    /// Execute action with retry logic (string result version)
+    Result!(string, BuildError) withRetryString(
+        string targetId,
+        Result!(string, BuildError) delegate() action,
+        RetryPolicy policy
+    ) @trusted
+    {
+        return withRetry!string(targetId, action, policy);
     }
     
     bool hasCheckpoint() @trusted
@@ -177,19 +188,14 @@ final class ResilienceService : IResilienceService
     }
 }
 
-// Explicit template instantiations to ensure linking works
-private void instantiateResilienceTemplates()
-{
-    ResilienceService s = new ResilienceService(false, false);
-    s.withRetry!string("test", () => Ok!(string, BuildError)("test"), RetryPolicy());
-}
 
 /// Null resilience service for testing/disabled resilience
 final class NullResilienceService : IResilienceService
 {
-    Result!(T, BuildError) withRetry(T)(
+    /// Execute action with retry logic (string result version)
+    Result!(string, BuildError) withRetryString(
         string targetId,
-        Result!(T, BuildError) delegate() action,
+        Result!(string, BuildError) delegate() action,
         RetryPolicy policy
     ) @trusted
     {

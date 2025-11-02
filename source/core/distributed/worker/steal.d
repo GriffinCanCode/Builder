@@ -282,7 +282,7 @@ final class StealEngine
         try
         {
             // Send steal request via transport
-            auto sendResult = transport.send(victimId, req);
+            auto sendResult = transport.sendStealRequest(victimId, req);
             if (sendResult.isErr)
             {
                 atomicOp!"+="(metrics.networkErrors, 1);
@@ -292,7 +292,7 @@ final class StealEngine
             }
             
             // Wait for response with timeout
-            auto receiveResult = transport.receive!StealResponse(config.stealTimeout);
+            auto receiveResult = transport.receiveStealResponse(config.stealTimeout);
             if (receiveResult.isErr)
             {
                 immutable elapsed = MonoTime.currTime - startTime;

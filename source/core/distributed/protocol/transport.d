@@ -12,11 +12,17 @@ import errors : BuildError, Result, Ok, Err;
 /// Transport layer interface (pluggable implementation)
 interface Transport
 {
-    /// Send message to recipient
-    Result!DistributedError send(T)(WorkerId recipient, T message);
+    /// Send HeartBeat message
+    Result!DistributedError sendHeartBeat(WorkerId recipient, HeartBeat message);
     
-    /// Receive message (blocking with timeout)
-    Result!(Envelope!T, DistributedError) receive(T)(Duration timeout);
+    /// Send StealRequest message
+    Result!DistributedError sendStealRequest(WorkerId recipient, StealRequest message);
+    
+    /// Send StealResponse message
+    Result!DistributedError sendStealResponse(WorkerId recipient, StealResponse message);
+    
+    /// Receive StealResponse message (blocking with timeout)
+    Result!(Envelope!StealResponse, DistributedError) receiveStealResponse(Duration timeout);
     
     /// Check if transport is connected
     bool isConnected();
@@ -60,8 +66,8 @@ final class HttpTransport : Transport
         }
     }
     
-    /// Send message
-    Result!DistributedError send(T)(WorkerId recipient, T message) @trusted
+    /// Generic send message (private template implementation)
+    private Result!DistributedError sendGeneric(T)(WorkerId recipient, T message) @trusted
     {
         if (!isConnected())
         {
@@ -93,8 +99,26 @@ final class HttpTransport : Transport
         }
     }
     
-    /// Receive message
-    Result!(Envelope!T, DistributedError) receive(T)(Duration timeout) @trusted
+    /// Send HeartBeat message
+    Result!DistributedError sendHeartBeat(WorkerId recipient, HeartBeat message) @trusted
+    {
+        return sendGeneric(recipient, message);
+    }
+    
+    /// Send StealRequest message
+    Result!DistributedError sendStealRequest(WorkerId recipient, StealRequest message) @trusted
+    {
+        return sendGeneric(recipient, message);
+    }
+    
+    /// Send StealResponse message
+    Result!DistributedError sendStealResponse(WorkerId recipient, StealResponse message) @trusted
+    {
+        return sendGeneric(recipient, message);
+    }
+    
+    /// Generic receive message (private template implementation)
+    private Result!(Envelope!T, DistributedError) receiveGeneric(T)(Duration timeout) @trusted
     {
         if (!isConnected())
             return Err!(Envelope!T, DistributedError)(
@@ -126,6 +150,12 @@ final class HttpTransport : Transport
             return Err!(Envelope!T, DistributedError)(
                 new NetworkError("Failed to receive: " ~ e.msg));
         }
+    }
+    
+    /// Receive StealResponse message (blocking with timeout)
+    Result!(Envelope!StealResponse, DistributedError) receiveStealResponse(Duration timeout) @trusted
+    {
+        return receiveGeneric!StealResponse(timeout);
     }
     
     /// Check if connected
@@ -617,14 +647,6 @@ final class HttpTransport : Transport
     }
 }
 
-// Explicit template instantiations to ensure linking works
-private void instantiateTransportTemplates()
-{
-    HttpTransport t = new HttpTransport("localhost", 0);
-    t.send!StealRequest(WorkerId(0), StealRequest.init);
-    t.send!HeartBeat(WorkerId(0), HeartBeat.init);
-    t.receive!StealResponse(1.seconds);
-}
 
 /// Transport factory
 final class TransportFactory

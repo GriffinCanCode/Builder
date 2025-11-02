@@ -393,7 +393,7 @@ final class ExecutionEngine
             
             // Execute with retry logic
             auto policy = resilience.policyFor(new BuildFailureError(node.idString, ""));
-            auto buildResult = resilience.withRetry(
+            auto buildResult = resilience.withRetryString(
                 node.idString,
                 () {
                     node.incrementRetries();

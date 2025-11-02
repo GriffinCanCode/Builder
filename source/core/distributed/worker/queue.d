@@ -88,7 +88,7 @@ final class DistributedQueue
         try
         {
             // Send steal request via transport
-            auto sendResult = transport.send(victimId, req);
+            auto sendResult = transport.sendStealRequest(victimId, req);
             if (sendResult.isErr)
             {
                 peers.markDead(victimId);
@@ -96,7 +96,7 @@ final class DistributedQueue
             }
             
             // Wait for response (with timeout)
-            auto receiveResult = transport.receive!StealResponse(100.msecs);
+            auto receiveResult = transport.receiveStealResponse(100.msecs);
             if (receiveResult.isErr)
                 return null;
             
