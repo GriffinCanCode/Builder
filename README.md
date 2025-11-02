@@ -5,6 +5,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 ## Features
 
 - **Modern DSL**: Clean, readable Builderfile syntax with comprehensive error messages and IDE integration
+- **Hermetic Builds**: Platform-native sandboxing (Linux namespaces, macOS sandbox-exec) for reproducible, isolated builds
 - **BLAKE3 Hashing**: 3-5x faster than SHA-256 with SIMD acceleration (AVX2/AVX-512/NEON)
 - **SIMD Acceleration**: Hardware-agnostic runtime dispatch with 2-6x performance improvements
 - **Compile-time Code Generation**: Uses D's metaprogramming to generate optimized analyzers with zero runtime overhead
@@ -27,6 +28,7 @@ source/
 ├── core/                    # Build execution engine
 │   ├── graph/              # Dependency graph and topological sorting
 │   ├── execution/          # Task execution, parallelization, checkpointing, retry
+│   │   └── hermetic/       # Hermetic sandbox (Linux namespaces, macOS sandbox-exec)
 │   ├── caching/            # Two-tier caching: target-level and action-level
 │   └── telemetry/          # Build analytics, bottleneck detection, trends
 ├── analysis/                # Dependency analysis and resolution
