@@ -180,6 +180,20 @@ final class BuildNode
         return atomicLoad(this._pendingDeps);
     }
     
+    /// Set retry attempts (for deserialization)
+    /// Package-level access for cache restoration
+    package void setRetryAttempts(size_t count) nothrow @system @nogc
+    {
+        atomicStore(this._retryAttempts, count);
+    }
+    
+    /// Set pending deps (for deserialization)
+    /// Package-level access for cache restoration
+    package void setPendingDeps(size_t count) nothrow @system @nogc
+    {
+        atomicStore(this._pendingDeps, count);
+    }
+    
     /// Check if this node is ready to build (all deps built)
     /// Thread-safe: reads dependency status atomically
     /// Requires graph reference to resolve dependency IDs to nodes
@@ -342,6 +356,26 @@ final class BuildGraph
     @property bool isValidated() const @system pure nothrow @nogc
     {
         return _validated || _validationMode == ValidationMode.Immediate;
+    }
+    
+    /// Get validation mode (for serialization)
+    @property ValidationMode validationMode() const @system pure nothrow @nogc
+    {
+        return _validationMode;
+    }
+    
+    /// Set validation mode (for deserialization)
+    /// Package-level access for cache restoration
+    @property package void validationMode(ValidationMode mode) @system pure nothrow @nogc
+    {
+        _validationMode = mode;
+    }
+    
+    /// Set validated state (for deserialization)
+    /// Package-level access for cache restoration
+    @property package void validated(bool v) @system pure nothrow @nogc
+    {
+        _validated = v;
     }
     
     /// Add a target to the graph (uses TargetId internally)

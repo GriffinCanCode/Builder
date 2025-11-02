@@ -8,6 +8,7 @@ import std.path;
 import std.string;
 import std.datetime.stopwatch;
 import core.graph.graph;
+import core.graph.cache;
 import config.schema.schema;
 import analysis.targets.types;
 import analysis.targets.spec;
@@ -26,15 +27,17 @@ class DependencyAnalyzer
     private WorkspaceConfig config;
     private FileScanner scanner;
     private DependencyResolver resolver;
+    private GraphCache graphCache;
     
     // Inject compile-time generated analyzer functions
     mixin LanguageAnalyzer;
     
-    this(WorkspaceConfig config)
+    this(WorkspaceConfig config, string cacheDir = ".builder-cache")
     {
         this.config = config;
         this.scanner = new FileScanner();
         this.resolver = new DependencyResolver(config);
+        this.graphCache = new GraphCache(cacheDir);
     }
     
     /// Analyze dependencies and build graph
@@ -44,6 +47,29 @@ class DependencyAnalyzer
     {
         Logger.info("Analyzing dependencies...");
         auto sw = StopWatch(AutoStart.yes);
+        
+        // Collect all configuration files for cache validation
+        auto configFiles = collectConfigFiles();
+        
+        // Try to load from cache first
+        auto cachedGraph = graphCache.get(configFiles);
+        if (cachedGraph !is null)
+        {
+            sw.stop();
+            Logger.success("Loaded dependency graph from cache (" ~ 
+                         sw.peek().total!"msecs".to!string ~ "ms)");
+            
+            // Apply target filter if specified
+            if (!targetFilter.empty)
+            {
+                auto filteredGraph = filterGraph(cachedGraph, targetFilter);
+                return Result!(BuildGraph, BuildError).ok(filteredGraph);
+            }
+            
+            return Result!(BuildGraph, BuildError).ok(cachedGraph);
+        }
+        
+        Logger.debugLog("Graph cache miss - analyzing dependencies...");
         
         // Use deferred validation for O(V+E) performance instead of O(V²)
         // This is a massive performance improvement for large dependency graphs
@@ -173,10 +199,106 @@ class DependencyAnalyzer
             return Result!(BuildGraph, BuildError).err(error);
         }
         
+        // Cache the validated graph
+        try
+        {
+            graphCache.put(graph, configFiles);
+            Logger.debugLog("Cached dependency graph for future builds");
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to cache dependency graph: " ~ e.msg);
+            // Non-fatal - continue with analysis result
+        }
+        
         sw.stop();
         Logger.success("Analysis complete (" ~ sw.peek().total!"msecs".to!string ~ "ms)");
         
         return Result!(BuildGraph, BuildError).ok(graph);
+    }
+    
+    /// Collect all Builderfile and Builderspace paths for cache validation
+    private string[] collectConfigFiles() const @trusted
+    {
+        import std.file : dirEntries, SpanMode, exists, isFile;
+        
+        string[] files;
+        
+        try
+        {
+            // Find all Builderfiles recursively
+            foreach (entry; dirEntries(config.root, "Builderfile", SpanMode.depth))
+            {
+                if (entry.isFile)
+                    files ~= entry.name;
+            }
+            
+            // Add Builderspace if exists
+            auto builderspace = buildPath(config.root, "Builderspace");
+            if (exists(builderspace) && isFile(builderspace))
+                files ~= builderspace;
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to collect config files: " ~ e.msg);
+        }
+        
+        return files;
+    }
+    
+    /// Filter graph to only include matching targets
+    private BuildGraph filterGraph(BuildGraph graph, string targetFilter) @trusted
+    {
+        auto filteredGraph = new BuildGraph(graph.validationMode);
+        
+        // Add matching targets
+        foreach (key, node; graph.nodes)
+        {
+            bool shouldInclude = matchesFilter(node.target.name, targetFilter) ||
+                               node.target.id.matches(targetFilter);
+            
+            if (shouldInclude)
+            {
+                auto result = filteredGraph.addTarget(node.target);
+                if (result.isErr)
+                {
+                    Logger.error("Failed to add target to filtered graph: " ~ 
+                               format(result.unwrapErr()));
+                }
+            }
+        }
+        
+        // Add dependencies between filtered targets
+        foreach (key, node; filteredGraph.nodes)
+        {
+            auto origNode = graph.nodes.get(key, null);
+            if (origNode !is null)
+            {
+                foreach (depId; origNode.dependencyIds)
+                {
+                    auto depKey = depId.toString();
+                    if (depKey in filteredGraph.nodes)
+                    {
+                        auto result = filteredGraph.addDependency(key, depKey);
+                        if (result.isErr)
+                        {
+                            Logger.error("Failed to add dependency: " ~ 
+                                       format(result.unwrapErr()));
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Validate filtered graph
+        auto validateResult = filteredGraph.validate();
+        if (validateResult.isErr)
+        {
+            Logger.warning("Filtered graph validation failed: " ~ 
+                         format(validateResult.unwrapErr()));
+        }
+        
+        return filteredGraph;
     }
     
     
