@@ -1,8 +1,9 @@
 module core.caching.distributed;
 
-import std.file : exists, read, write, mkdirRecurse;
+import std.file : exists, read, write, mkdirRecurse, isDir;
 import std.path : buildPath, dirName;
 import std.algorithm : min;
+import std.conv : to;
 import core.caching.cache : BuildCache;
 import core.caching.action : ActionCache, ActionId;
 import core.caching.remote.client : RemoteCacheClient;
@@ -82,10 +83,9 @@ final class DistributedCache
             {
                 auto targetHash = hashResult.unwrap();
                 
-                // Read artifact data
-                // Note: This is simplified - real implementation would need to know artifact location
-                // For now, we'll skip the actual push implementation
-                // TODO: Implement artifact serialization and push
+                // Push artifact asynchronously (spawn thread to avoid blocking build)
+                import core.thread : Thread;
+                new Thread(() => pushArtifactToRemote(targetHash, targetId, outputHash)).start();
             }
         }
     }
@@ -97,8 +97,12 @@ final class DistributedCache
         // Update local action cache
         actionCache.update(actionId, inputs, outputs, metadata, success);
         
-        // TODO: Push action artifacts to remote cache
-        // This would require serializing action outputs
+        // Push action artifacts to remote cache if available
+        if (remoteCache !is null && success && outputs.length > 0)
+        {
+            import core.thread : Thread;
+            new Thread(() => pushActionArtifactsToRemote(actionId, outputs)).start();
+        }
     }
     
     /// Flush all caches
@@ -193,6 +197,101 @@ final class DistributedCache
             );
             return Err!(void, BuildError)(error);
         }
+    }
+    
+    /// Push artifact to remote cache (runs asynchronously)
+    private void pushArtifactToRemote(string targetHash, string targetId, string outputHash) @trusted nothrow
+    {
+        try
+        {
+            // Locate artifact file(s) by output hash
+            immutable artifactPath = buildPath(cacheDir, "artifacts", outputHash);
+            
+            if (!exists(artifactPath))
+                return;  // Artifact doesn't exist, nothing to push
+            
+            // Read artifact data
+            auto artifactData = cast(ubyte[])read(artifactPath);
+            
+            // Serialize artifact with metadata
+            auto serialized = serializeArtifact(targetId, artifactData);
+            
+            // Push to remote cache
+            auto pushResult = remoteCache.put(targetHash, serialized);
+            
+            // Errors are silently ignored for async pushes (logged internally by client)
+        }
+        catch (Exception e)
+        {
+            // Silently ignore errors in background thread
+            // In production, you'd log these
+        }
+    }
+    
+    /// Push action artifacts to remote cache (runs asynchronously)
+    private void pushActionArtifactsToRemote(ActionId actionId, string[] outputs) @trusted nothrow
+    {
+        try
+        {
+            import std.digest.sha : SHA256, toHexString;
+            
+            // Compute action hash
+            SHA256 hash;
+            hash.start();
+            hash.put(cast(ubyte[])actionId.toString());
+            auto actionHash = toHexString(hash.finish()).to!string;
+            
+            // Collect and serialize all output files
+            ubyte[] combined;
+            foreach (output; outputs)
+            {
+                if (exists(output) && !isDir(output))
+                {
+                    auto data = cast(ubyte[])read(output);
+                    
+                    // Store with length prefix
+                    import std.bitmanip : nativeToBigEndian;
+                    combined ~= nativeToBigEndian(cast(uint)data.length);
+                    combined ~= data;
+                }
+            }
+            
+            if (combined.length > 0)
+            {
+                // Push to remote cache
+                auto pushResult = remoteCache.put(actionHash, combined);
+            }
+        }
+        catch (Exception e)
+        {
+            // Silently ignore errors in background thread
+        }
+    }
+    
+    /// Serialize artifact with metadata
+    private ubyte[] serializeArtifact(string targetId, const(ubyte)[] data) pure @trusted
+    {
+        import std.bitmanip : write;
+        
+        ubyte[] buffer;
+        buffer.reserve(data.length + 256);
+        
+        // Version byte
+        buffer.write!ubyte(1, buffer.length);
+        
+        // Target ID (length-prefixed)
+        import std.utf : toUTF8;
+        immutable targetIdBytes = targetId.toUTF8();
+        buffer.write!uint(cast(uint)targetIdBytes.length, buffer.length);
+        buffer ~= targetIdBytes;
+        
+        // Data size
+        buffer.write!ulong(data.length, buffer.length);
+        
+        // Data
+        buffer ~= data;
+        
+        return buffer;
     }
 }
 

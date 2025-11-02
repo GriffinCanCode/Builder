@@ -9,6 +9,7 @@ import core.caching.remote.protocol;
 import core.caching.remote.transport;
 import utils.files.hash : FastHash;
 import utils.security.integrity : IntegrityValidator;
+import utils.compression.compress;
 import errors;
 
 /// Remote cache client with connection pooling and retry logic
@@ -64,7 +65,27 @@ final class RemoteCacheClient
             if (result.isOk)
             {
                 stats.hits++;
-                stats.bytesDownloaded += result.unwrap().length;
+                auto data = result.unwrap();
+                stats.bytesDownloaded += data.length;
+                
+                // Decompress if needed (check first byte for compression marker)
+                if (data.length > 0 && data[0] == 0xFD)  // Zstd magic number
+                {
+                    auto compressor = new Compressor();
+                    auto decompressResult = compressor.decompress(data, CompressionAlgorithm.Zstd);
+                    
+                    if (decompressResult.isOk)
+                        return Ok!(ubyte[], BuildError)(decompressResult.unwrap());
+                    // If decompression fails, return compressed data (fallback)
+                }
+                else if (data.length > 0 && data[0] == 0x04)  // LZ4 magic number
+                {
+                    auto compressor = new Compressor();
+                    auto decompressResult = compressor.decompress(data, CompressionAlgorithm.Lz4);
+                    
+                    if (decompressResult.isOk)
+                        return Ok!(ubyte[], BuildError)(decompressResult.unwrap());
+                }
             }
             else
             {
@@ -114,13 +135,24 @@ final class RemoteCacheClient
         
         immutable startTime = Clock.currStdTime();
         
-        // Compress if enabled
+        // Compress if enabled and beneficial
         ubyte[] payload = cast(ubyte[])data;
         if (config.enableCompression && data.length > 1024)
         {
-            // Note: Compression implementation would go here
-            // For now, we'll use uncompressed
-            // TODO: Add zstd or lz4 compression
+            auto compressor = new Compressor(CompressionAlgorithm.Zstd, StandardLevel.Default);
+            auto compressResult = compressor.compress(data);
+            
+            if (compressResult.isOk)
+            {
+                auto compressed = compressResult.unwrap();
+                
+                // Only use compressed version if it's significantly smaller (>5% reduction)
+                if (Compressor.shouldCompress(compressed.originalSize, compressed.compressedSize))
+                {
+                    payload = compressed.data;
+                }
+            }
+            // On compression failure, fallback to uncompressed (already set)
         }
         
         // Execute with retry logic
