@@ -12,6 +12,7 @@ import core.graph.graph;
 import config.schema.schema;
 import languages.base.base;
 import core.execution.services : ISchedulingService, ICacheService, IObservabilityService, IResilienceService, IHandlerRegistry;
+import core.execution.services.scheduling : SchedulingBuildResult = BuildResult;
 import cli.events.events;
 import core.telemetry.distributed.tracing : Span, SpanKind, SpanStatus;
 import utils.logging.logger;
@@ -162,8 +163,16 @@ struct EngineCoordinator
             foreach (node; batch)
                 node.status = BuildStatus.Building;
             
-            // Execute batch in parallel
-            BuildResult delegate(BuildNode) @system execDelegate = (BuildNode node) @system => executor.buildNode(node);
+            // Execute batch in parallel - convert between BuildResult types
+            SchedulingBuildResult delegate(BuildNode) @system execDelegate = (BuildNode node) @system {
+                auto execResult = executor.buildNode(node);
+                SchedulingBuildResult schedResult;
+                schedResult.targetId = execResult.targetId;
+                schedResult.success = execResult.success;
+                schedResult.cached = execResult.cached;
+                schedResult.error = execResult.error;
+                return schedResult;
+            };
             auto results = scheduling.executeBatch(batch, execDelegate);
             
             // Process results

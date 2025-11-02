@@ -4,12 +4,13 @@ import std.stdio;
 import std.file : exists, mkdirRecurse;
 import std.path : buildPath;
 import std.datetime : Clock, SysTime, Duration, dur;
-import std.algorithm : filter, map;
-import std.array : array;
+import std.algorithm : filter, map, sort;
+import std.array : array, join;
+import std.conv : to;
 import core.sync.mutex : Mutex;
 import core.testing.results : TestResult, TestCase;
-import core.testing.caching.storage;
-import utils.crypto.blake3 : Blake3;
+import core.testing.caching.storage : TestCacheStorage, StorageEntry = TestCacheEntry;
+import core.caching.policies.eviction : EvictionPolicy;
 import utils.logging.logger;
 
 /// Test cache configuration
@@ -44,6 +45,7 @@ final class TestCache
     private TestCacheEntry[string] entries;
     private Mutex mutex;
     private bool dirty;
+    private EvictionPolicy evictionPolicy;
     
     // Statistics
     private size_t hits;
@@ -56,6 +58,13 @@ final class TestCache
         this.config = config;
         this.mutex = new Mutex();
         this.dirty = false;
+        
+        // Initialize eviction policy with config values
+        this.evictionPolicy = EvictionPolicy(
+            config.maxSize,
+            config.maxEntries,
+            cast(size_t)config.maxAge.total!"days"
+        );
         
         if (!exists(cacheDir))
             mkdirRecurse(cacheDir);
@@ -212,7 +221,21 @@ final class TestCache
             
             try
             {
-                TestCacheStorage.save(cacheFile, entries);
+                // Convert to storage entries
+                StorageEntry[string] storageEntries;
+                foreach (key, entry; entries)
+                {
+                    StorageEntry se;
+                    se.testId = entry.testId;
+                    se.contentHash = entry.contentHash;
+                    se.envHash = entry.envHash;
+                    se.result = entry.result;
+                    se.timestamp = entry.timestamp;
+                    se.duration = entry.result.duration;
+                    storageEntries[key] = se;
+                }
+                
+                TestCacheStorage.save(cacheFile, storageEntries);
                 dirty = false;
                 Logger.debugLog("Flushed test cache: " ~ entries.length.to!string ~ " entries");
             }
@@ -231,7 +254,21 @@ final class TestCache
         
         try
         {
-            entries = TestCacheStorage.load(cacheFile);
+            // Load storage entries and convert
+            auto storageEntries = TestCacheStorage.load(cacheFile);
+            foreach (key, se; storageEntries)
+            {
+                TestCacheEntry entry;
+                entry.testId = se.testId;
+                entry.contentHash = se.contentHash;
+                entry.envHash = se.envHash;
+                entry.result = se.result;
+                entry.timestamp = se.timestamp;
+                entry.lastAccess = se.timestamp;
+                entry.runCount = 1;
+                entry.failCount = se.result.passed ? 0 : 1;
+                entries[key] = entry;
+            }
             Logger.debugLog("Loaded test cache: " ~ entries.length.to!string ~ " entries");
         }
         catch (Exception e)
@@ -241,27 +278,32 @@ final class TestCache
         }
     }
     
-    /// Evict oldest entries (LRU)
+    /// Evict entries using central eviction policy
     private void evictOldest() @system
     {
         if (entries.length <= config.maxEntries)
             return;
         
-        // Find oldest entry
-        string oldestKey;
-        SysTime oldestTime = Clock.currTime();
-        
-        foreach (key, ref entry; entries)
+        // Calculate current size (sum of result data)
+        size_t currentSize = 0;
+        foreach (ref entry; entries)
         {
-            if (entry.lastAccess < oldestTime)
-            {
-                oldestTime = entry.lastAccess;
-                oldestKey = key;
-            }
+            currentSize += entry.testId.length + entry.contentHash.length + 
+                          entry.envHash.length + 256; // Estimated overhead
         }
         
-        if (oldestKey.length > 0)
-            entries.remove(oldestKey);
+        // Delegate to eviction policy
+        auto toEvict = evictionPolicy.selectEvictions(entries, currentSize);
+        
+        foreach (key; toEvict)
+        {
+            entries.remove(key);
+        }
+        
+        if (toEvict.length > 0)
+        {
+            Logger.debugLog("Test cache evicted " ~ toEvict.length.to!string ~ " entries");
+        }
     }
     
     /// Get cache statistics
@@ -300,21 +342,23 @@ final class TestCache
     
     /// Compute content hash for test
     /// Includes test code, dependencies, and configuration
+    /// Uses central HashUtils for consistency
     static string computeContentHash(
         string testCode,
         string[] dependencies,
         string config
-    ) @safe
+    ) @trusted
     {
-        return Blake3.hashHex(testCode ~ dependencies.join("") ~ config);
+        return HashUtils.hashString(testCode ~ dependencies.join("") ~ config);
     }
     
     /// Compute environment hash (hermetic verification)
     /// Includes environment variables, system info, tool versions
+    /// Uses central HashUtils for consistency
     static string computeEnvHash(
         string[string] envVars,
         string toolVersions
-    ) @safe
+    ) @trusted
     {
         import std.algorithm : sort;
         import std.array : join;
@@ -327,7 +371,7 @@ final class TestCache
             envString ~= key ~ "=" ~ envVars[key] ~ "\n";
         }
         
-        return Blake3.hashHex(envString ~ toolVersions);
+        return HashUtils.hashString(envString ~ toolVersions);
     }
 }
 

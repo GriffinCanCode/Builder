@@ -730,6 +730,42 @@ string[] suggestFixes(const BuildError error)
             suggestions ~= "Consider contributing or requesting this feature";
             break;
             
+        case ErrorCode.InitializationFailed:
+            suggestions ~= "Check initialization parameters";
+            suggestions ~= "Verify system requirements are met";
+            suggestions ~= "Review initialization logs for details";
+            break;
+            
+        case ErrorCode.NotInitialized:
+            suggestions ~= "Initialize the component before use";
+            suggestions ~= "Check initialization sequence";
+            suggestions ~= "Verify configuration is loaded";
+            break;
+            
+        case ErrorCode.NotSupported:
+            suggestions ~= "This operation is not supported in the current context";
+            suggestions ~= "Check platform or version compatibility";
+            suggestions ~= "Refer to documentation for supported operations";
+            break;
+            
+        case ErrorCode.InvalidConfiguration:
+            suggestions ~= "Check configuration file syntax";
+            suggestions ~= "Verify all required fields are present";
+            suggestions ~= "See configuration documentation";
+            break;
+            
+        case ErrorCode.MacroExpansionFailed:
+            suggestions ~= "Check macro syntax in your build files";
+            suggestions ~= "Verify macro parameters are correct";
+            suggestions ~= "See macro documentation";
+            break;
+            
+        case ErrorCode.MacroLoadFailed:
+            suggestions ~= "Ensure macro file exists and is accessible";
+            suggestions ~= "Check macro file syntax";
+            suggestions ~= "Verify macro dependencies are available";
+            break;
+
         case ErrorCode.AssertionFailed:
             suggestions ~= "This indicates an internal consistency error";
             suggestions ~= "Please report this with reproduction steps";

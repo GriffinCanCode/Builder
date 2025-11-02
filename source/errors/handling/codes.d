@@ -100,6 +100,9 @@ enum ErrorCode
     NotImplemented,
     AssertionFailed,
     UnreachableCode,
+    InitializationFailed,
+    NotInitialized,
+    NotSupported,
     
     // Telemetry errors (10000-10999)
     TelemetryNoSession = 10000,
@@ -259,6 +262,8 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.ValidationFailed:
         case ErrorCode.UnsupportedLanguage:
         case ErrorCode.MissingCompiler:
+        case ErrorCode.MacroExpansionFailed:
+        case ErrorCode.MacroLoadFailed:
         case ErrorCode.ProcessSpawnFailed:
         case ErrorCode.ProcessCrashed:
         case ErrorCode.OutOfMemory:
@@ -267,6 +272,10 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.NotImplemented:
         case ErrorCode.AssertionFailed:
         case ErrorCode.UnreachableCode:
+        case ErrorCode.InitializationFailed:
+        case ErrorCode.NotInitialized:
+        case ErrorCode.NotSupported:
+        case ErrorCode.InvalidConfiguration:
         case ErrorCode.TelemetryNoSession:
         case ErrorCode.TelemetryStorage:
         case ErrorCode.TelemetryInvalid:
@@ -370,6 +379,8 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.ValidationFailed: return "Validation failed";
         case ErrorCode.UnsupportedLanguage: return "Unsupported language";
         case ErrorCode.MissingCompiler: return "Compiler not found";
+        case ErrorCode.MacroExpansionFailed: return "Macro expansion failed";
+        case ErrorCode.MacroLoadFailed: return "Failed to load macro";
         case ErrorCode.ProcessSpawnFailed: return "Failed to spawn process";
         case ErrorCode.ProcessTimeout: return "Process timed out";
         case ErrorCode.ProcessCrashed: return "Process crashed";
@@ -379,6 +390,9 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.NotImplemented: return "Not implemented";
         case ErrorCode.AssertionFailed: return "Assertion failed";
         case ErrorCode.UnreachableCode: return "Unreachable code reached";
+        case ErrorCode.InitializationFailed: return "Initialization failed";
+        case ErrorCode.NotInitialized: return "Component not initialized";
+        case ErrorCode.NotSupported: return "Operation not supported";
         case ErrorCode.TelemetryNoSession: return "No active telemetry session";
         case ErrorCode.TelemetryStorage: return "Telemetry storage error";
         case ErrorCode.TelemetryInvalid: return "Invalid telemetry data";
@@ -425,6 +439,7 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.FileWatchFailed: return "Failed to watch file";
         case ErrorCode.DebounceError: return "Debounce error";
         case ErrorCode.TooManyWatchTargets: return "Too many watch targets";
+        case ErrorCode.InvalidConfiguration: return "Invalid configuration";
         case ErrorCode.ConfigError: return "Configuration error";
         case ErrorCode.InvalidWorkspace: return "Invalid workspace configuration";
         case ErrorCode.InvalidTarget: return "Invalid target configuration";

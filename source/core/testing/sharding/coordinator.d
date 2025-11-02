@@ -2,6 +2,7 @@ module core.testing.sharding.coordinator;
 
 import std.algorithm : map, filter;
 import std.array : array;
+import std.conv : to;
 import std.datetime : MonoTime, Duration;
 import core.atomic;
 import core.sync.mutex : Mutex;

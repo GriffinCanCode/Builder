@@ -128,7 +128,8 @@ struct TestCacheStorage
     {
         // Write simple fields
         file.rawWrite([result.passed]);
-        writeString(file, result.message);
+        // TestResult doesn't have a message field, write empty string
+        writeString(file, "");
         file.rawWrite([result.duration.total!"msecs"()]);
     }
     
@@ -142,7 +143,8 @@ struct TestCacheStorage
         file.rawRead(passedBuf);
         result.passed = passedBuf[0];
         
-        result.message = readString(file);
+        // Read message (but TestResult doesn't have it, so ignore)
+        readString(file);
         
         long[1] durationBuf;
         file.rawRead(durationBuf);

@@ -8,7 +8,9 @@ import core.distributed.protocol.protocol;
 import core.distributed.coordinator.coordinator;
 import core.distributed.coordinator.scheduler;
 import core.execution.hermetic;
+import core.execution.remote.codec : HermeticSpecCodec;
 import core.caching.distributed.remote.client;
+import core.distributed.storage.store : ArtifactStore;
 import errors;
 import utils.logging.logger;
 
@@ -204,13 +206,15 @@ final class RemoteExecutor
     /// Convert SandboxSpec to Capabilities for transmission
     private Capabilities specToCapabilities(SandboxSpec spec) const pure @safe
     {
+        import std.datetime : msecs;
+        
         Capabilities caps;
         
         // Map hermetic spec to capabilities
-        caps.network = spec.network.allowExternal;  // Use network policy
+        caps.network = !spec.network.isHermetic;  // Use network policy - non-hermetic means network allowed
         caps.readPaths = spec.inputs.paths.dup;
         caps.writePaths = spec.outputs.paths.dup;
-        caps.timeout = spec.resources.maxCpuTimeMs;
+        caps.timeout = msecs(spec.resources.maxCpuTimeMs);
         caps.maxCpu = 0;  // ResourceLimits doesn't have maxCpuCores
         caps.maxMemory = spec.resources.maxMemoryBytes;
         
@@ -241,8 +245,8 @@ final class RemoteExecutor
             // Compute artifact ID (content hash)
             auto artifactId = computeArtifactId(data);
             
-            // Upload to artifact store
-            auto uploadResult = artifactStore.put(artifactId, data);
+            // Upload to artifact store - convert ActionId to string
+            auto uploadResult = artifactStore.put(artifactId.toString(), cast(const(ubyte)[])data);
             if (uploadResult.isErr)
             {
                 return Err!(InputSpec[], BuildError)(uploadResult.unwrapErr());
@@ -269,7 +273,8 @@ final class RemoteExecutor
             auto downloadResult = artifactStore.get(artifactId.toString());
             if (downloadResult.isErr)
             {
-                return downloadResult;
+                // Return the error from the download result
+                return Err!(BuildError)(downloadResult.unwrapErr());
             }
             
             Logger.debugLog("Downloaded output: " ~ artifactId.toString());
@@ -315,7 +320,7 @@ final class RemoteExecutor
     private Result!(RemoteExecutionResult, BuildError) checkActionCache(ActionId actionId) @trusted
     {
         // Query action cache (would integrate with action cache service)
-        auto error = new GenericError("Not in cache", ErrorCode.CacheMiss);
+        auto error = new GenericError("Not in cache", ErrorCode.CacheNotFound);
         return Err!(RemoteExecutionResult, BuildError)(error);
     }
     
@@ -350,17 +355,32 @@ final class RemoteExecutor
     }
     
     /// Compute artifact ID from content
+    /// Uses Blake3 for consistency across the system
     private ArtifactId computeArtifactId(const ubyte[] data) @trusted
     {
-        import utils.crypto.blake3 : Blake3Hasher;
+        import utils.crypto.blake3 : Blake3;
         
-        auto hasher = Blake3Hasher();
-        hasher.update(data);
+        auto hasher = Blake3(0);
+        hasher.put(cast(const(ubyte)[])data);
         
+        auto hashBytes = hasher.finish(32);
         ubyte[32] hash;
-        hasher.finalize(hash);
+        hash[0 .. 32] = hashBytes[0 .. 32];
         
         return ArtifactId(hash);
+    }
+    
+    /// Helper to convert hex character to value
+    private static ubyte hexCharToValue(char c) pure nothrow @safe @nogc
+    {
+        if (c >= '0' && c <= '9')
+            return cast(ubyte)(c - '0');
+        else if (c >= 'a' && c <= 'f')
+            return cast(ubyte)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F')
+            return cast(ubyte)(c - 'A' + 10);
+        else
+            return 0;
     }
     
     /// Check if file is executable
@@ -381,191 +401,3 @@ final class RemoteExecutor
         return false;
     }
 }
-
-/// Hermetic spec serialization for transmission to workers
-struct HermeticSpecCodec
-{
-    /// Serialize SandboxSpec for transmission
-    static ubyte[] serialize(SandboxSpec spec) @trusted
-    {
-        import std.bitmanip : write;
-        import std.datetime : Duration;
-        
-        ubyte[] buffer;
-        buffer.reserve(4096);
-        
-        // Inputs
-        buffer.write!uint(cast(uint)spec.inputs.length, buffer.length);
-        foreach (input; spec.inputs)
-        {
-            buffer.write!uint(cast(uint)input.length, buffer.length);
-            buffer ~= cast(ubyte[])input;
-        }
-        
-        // Outputs
-        buffer.write!uint(cast(uint)spec.outputs.length, buffer.length);
-        foreach (output; spec.outputs)
-        {
-            buffer.write!uint(cast(uint)output.length, buffer.length);
-            buffer ~= cast(ubyte[])output;
-        }
-        
-        // Temp directories
-        buffer.write!uint(cast(uint)spec.temps.length, buffer.length);
-        foreach (temp; spec.temps)
-        {
-            buffer.write!uint(cast(uint)temp.length, buffer.length);
-            buffer ~= cast(ubyte[])temp;
-        }
-        
-        // Flags
-        ubyte flags = 0;
-        if (spec.allowNetwork) flags |= 0x01;
-        buffer.write!ubyte(flags, buffer.length);
-        
-        // Environment
-        buffer.write!uint(cast(uint)spec.environment.length, buffer.length);
-        foreach (key, value; spec.environment)
-        {
-            buffer.write!uint(cast(uint)key.length, buffer.length);
-            buffer ~= cast(ubyte[])key;
-            buffer.write!uint(cast(uint)value.length, buffer.length);
-            buffer ~= cast(ubyte[])value;
-        }
-        
-        // Resources
-        buffer.write!ulong(spec.resources.maxMemoryBytes, buffer.length);
-        buffer.write!ulong(spec.resources.maxCpuCores, buffer.length);
-        buffer.write!long(spec.resources.timeout.total!"msecs", buffer.length);
-        
-        return buffer;
-    }
-    
-    /// Deserialize SandboxSpec from transmission
-    static Result!(SandboxSpec, string) deserialize(const ubyte[] data) @system
-    {
-        import std.bitmanip : read;
-        import std.datetime : dur;
-        
-        if (data.length < 4)
-            return Err!(SandboxSpec, string)("Data too short");
-        
-        ubyte[] mutableData = cast(ubyte[])data.dup;
-        size_t offset = 0;
-        
-        auto builder = SandboxSpecBuilder.create();
-        
-        try
-        {
-            // Inputs
-            auto inputCountSlice = mutableData[offset .. offset + 4];
-            immutable inputCount = inputCountSlice.read!uint();
-            offset += 4;
-            
-            foreach (_; 0 .. inputCount)
-            {
-                auto lenSlice = mutableData[offset .. offset + 4];
-                immutable len = lenSlice.read!uint();
-                offset += 4;
-                
-                immutable path = cast(string)data[offset .. offset + len];
-                offset += len;
-                
-                builder.input(path);
-            }
-            
-            // Outputs
-            auto outputCountSlice = mutableData[offset .. offset + 4];
-            immutable outputCount = outputCountSlice.read!uint();
-            offset += 4;
-            
-            foreach (_; 0 .. outputCount)
-            {
-                auto lenSlice = mutableData[offset .. offset + 4];
-                immutable len = lenSlice.read!uint();
-                offset += 4;
-                
-                immutable path = cast(string)data[offset .. offset + len];
-                offset += len;
-                
-                builder.output(path);
-            }
-            
-            // Temps
-            auto tempCountSlice = mutableData[offset .. offset + 4];
-            immutable tempCount = tempCountSlice.read!uint();
-            offset += 4;
-            
-            foreach (_; 0 .. tempCount)
-            {
-                auto lenSlice = mutableData[offset .. offset + 4];
-                immutable len = lenSlice.read!uint();
-                offset += 4;
-                
-                immutable path = cast(string)data[offset .. offset + len];
-                offset += len;
-                
-                builder.temp(path);
-            }
-            
-            // Flags
-            auto flagSlice = mutableData[offset .. offset + 1];
-            immutable flags = flagSlice.read!ubyte();
-            offset += 1;
-            
-            if (flags & 0x01)
-                builder.allowNetwork();
-            
-            // Environment
-            auto envCountSlice = mutableData[offset .. offset + 4];
-            immutable envCount = envCountSlice.read!uint();
-            offset += 4;
-            
-            foreach (_; 0 .. envCount)
-            {
-                auto keyLenSlice = mutableData[offset .. offset + 4];
-                immutable keyLen = keyLenSlice.read!uint();
-                offset += 4;
-                
-                immutable key = cast(string)data[offset .. offset + keyLen];
-                offset += keyLen;
-                
-                auto valLenSlice = mutableData[offset .. offset + 4];
-                immutable valLen = valLenSlice.read!uint();
-                offset += 4;
-                
-                immutable value = cast(string)data[offset .. offset + valLen];
-                offset += valLen;
-                
-                builder.env(key, value);
-            }
-            
-            // Resources
-            auto memSlice = mutableData[offset .. offset + 8];
-            immutable maxMemory = memSlice.read!ulong();
-            offset += 8;
-            
-            auto cpuSlice = mutableData[offset .. offset + 8];
-            immutable maxCpu = cpuSlice.read!ulong();
-            offset += 8;
-            
-            auto timeoutSlice = mutableData[offset .. offset + 8];
-            immutable timeoutMs = timeoutSlice.read!long();
-            
-            builder.maxMemory(maxMemory);
-            builder.maxCpu(cast(size_t)maxCpu);
-            builder.timeout(dur!"msecs"(timeoutMs));
-            
-            auto specResult = builder.build();
-            if (specResult.isErr)
-                return Err!(SandboxSpec, string)(specResult.unwrapErr());
-            
-            return Ok!(SandboxSpec, string)(specResult.unwrap());
-        }
-        catch (Exception e)
-        {
-            return Err!(SandboxSpec, string)("Deserialization failed: " ~ e.msg);
-        }
-    }
-}
-

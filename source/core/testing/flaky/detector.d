@@ -1,6 +1,7 @@
 module core.testing.flaky.detector;
 
 import std.algorithm : max, min;
+import std.conv : to;
 import std.math : exp, log, abs;
 import std.datetime : SysTime, Clock, Duration, dur;
 import core.sync.mutex : Mutex;

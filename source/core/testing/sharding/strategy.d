@@ -107,7 +107,7 @@ final class ShardEngine
     
     /// Content-based sharding (consistent across runs)
     /// Uses BLAKE3 for deterministic distribution
-    private TestShard[] shardContentBased(string[] testIds) @safe
+    private TestShard[] shardContentBased(string[] testIds) @trusted
     {
         TestShard[] shards;
         shards.reserve(testIds.length);
@@ -115,7 +115,8 @@ final class ShardEngine
         foreach (testId; testIds)
         {
             // Hash test ID to shard consistently
-            immutable hash = BLAKE3.hashString(testId);
+            import utils.crypto.blake3 : Blake3;
+            immutable hash = Blake3.hashHex(testId);
             immutable shardId = hashToShardId(hash);
             
             TestShard shard;
@@ -131,7 +132,7 @@ final class ShardEngine
     
     /// Adaptive sharding (optimal load distribution)
     /// Uses historical execution times for balanced shards
-    private TestShard[] shardAdaptive(string[] testIds) @safe
+    private TestShard[] shardAdaptive(string[] testIds) @trusted
     {
         // Estimate duration for each test
         struct TestWithDuration
@@ -176,7 +177,8 @@ final class ShardEngine
             shard.shardId = minLoadShardId;
             shard.testId = test.testId;
             shard.estimatedMs = test.durationMs;
-            shard.contentHash = BLAKE3.hashString(test.testId);
+            import utils.crypto.blake3 : Blake3;
+            shard.contentHash = Blake3.hashHex(test.testId);
             shards ~= shard;
             
             // Update shard load

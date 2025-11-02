@@ -2,6 +2,7 @@ module core.testing.execution.executor;
 
 import std.algorithm : map, filter;
 import std.array : array;
+import std.conv : to;
 import std.datetime : MonoTime;
 import std.datetime.stopwatch : StopWatch, AutoStart;
 import std.parallelism : parallel;
@@ -387,23 +388,23 @@ final class TestExecutor
     }
     
     /// Compute content hash for test
-    private string computeTestContentHash(Target target) @safe
+    private string computeTestContentHash(Target target) @trusted
     {
-        import utils.crypto.blake3 : BLAKE3;
+        import utils.crypto.blake3 : Blake3;
         import std.algorithm : joiner;
         
         // Hash test sources and dependencies
         string content = target.sources.joiner("\n").to!string;
-        return BLAKE3.hashString(content ~ target.language.to!string);
+        return Blake3.hashHex(content ~ target.language.to!string);
     }
     
     /// Compute environment hash
-    private string computeTestEnvHash(WorkspaceConfig wsConfig) @safe
+    private string computeTestEnvHash(WorkspaceConfig wsConfig) @trusted
     {
-        import utils.crypto.blake3 : BLAKE3;
+        import utils.crypto.blake3 : Blake3;
         
         // Simple environment hash (can be extended)
-        return BLAKE3.hashString(wsConfig.root);
+        return Blake3.hashHex(wsConfig.root);
     }
     
     /// Log execution statistics

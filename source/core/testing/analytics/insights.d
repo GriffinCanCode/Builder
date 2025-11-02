@@ -19,7 +19,7 @@ struct HealthMetrics
     size_t slowCount;             // Number of slow tests
     
     /// Get overall health score
-    double overallHealth() const pure nothrow @nogc
+    double overallHealth() const pure nothrow @safe @nogc
     {
         return (passRate + stability + performance) / 3.0;
     }

@@ -1,6 +1,7 @@
 module core.testing.flaky.retry;
 
 import std.algorithm : min;
+import std.conv : to;
 import std.datetime : Duration, dur;
 import core.thread : Thread;
 import core.testing.results : TestResult;

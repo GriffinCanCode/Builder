@@ -48,22 +48,21 @@ struct Digest
     }
     
     /// Parse from string
-    static Result!(Digest, string) parse(string hexStr, size_t sizeBytes) @safe
+    static Result!(Digest, string) parse(string hexStr, size_t sizeBytes) @trusted
     {
-        import std.digest : hexString;
-        
         if (hexStr.length != 64)
             return Err!(Digest, string)("Invalid digest length");
         
         try
         {
-            import std.conv : parse;
+            import std.conv : to;
+            import std.string : fromStringz;
             ubyte[32] hash;
             
             for (size_t i = 0; i < 32; i++)
             {
-                immutable hexPair = hexStr[i * 2 .. i * 2 + 2];
-                hash[i] = cast(ubyte)hexPair.parse!ubyte(16);
+                auto hexPair = hexStr[i * 2 .. i * 2 + 2];
+                hash[i] = cast(ubyte)hexPair.to!ubyte(16);
             }
             
             return Ok!(Digest, string)(Digest(hash, sizeBytes));
@@ -137,12 +136,13 @@ struct Command
     /// Convert to Builder ActionRequest
     ActionRequest toActionRequest(Digest actionDigest) const @safe
     {
-        import std.algorithm : joiner;
+        import std.algorithm : joiner, map;
         import std.range : chain;
+        import std.conv : to;
         
-        // Build command string
+        // Build command string - convert to mutable array first
         immutable cmdStr = arguments.length > 0 ? 
-            arguments.joiner(" ").array.to!string : "";
+            arguments.map!(a => a.to!string).joiner(" ").to!string : "";
         
         // Build environment map
         string[string] env;
@@ -158,7 +158,7 @@ struct Command
             outputs ~= OutputSpec(path, false);
         }
         
-        immutable caps = platform.toCapabilities();
+        auto caps = platform.toCapabilities();
         
         return new ActionRequest(
             actionDigest.toActionId(),
@@ -186,20 +186,21 @@ struct Action
     /// Compute action digest
     Digest digest() const @trusted
     {
-        import utils.crypto.blake3 : Blake3Hasher;
+        import utils.crypto.blake3 : Blake3;
         
-        auto hasher = Blake3Hasher();
-        hasher.update(commandDigest.hash);
-        hasher.update(inputRootDigest.hash);
+        auto hasher = Blake3(0);
+        hasher.put(cast(const(ubyte)[])commandDigest.hash);
+        hasher.put(cast(const(ubyte)[])inputRootDigest.hash);
         
         auto timeoutMs = timeout.total!"msecs";
-        hasher.update((cast(ubyte*)&timeoutMs)[0 .. timeoutMs.sizeof]);
+        hasher.put((cast(ubyte*)&timeoutMs)[0 .. timeoutMs.sizeof]);
         
         if (salt.length > 0)
-            hasher.update(cast(const ubyte[])salt);
+            hasher.put(cast(const ubyte[])salt);
         
+        auto hashBytes = hasher.finish(32);
         ubyte[32] hash;
-        hasher.finalize(hash);
+        hash[0 .. 32] = hashBytes[0 .. 32];
         
         // Size is serialized representation size (approximate)
         immutable size = 64 + 8 + salt.length;
@@ -320,7 +321,7 @@ final class ReapiAdapter
     Result!(ExecuteResponse, BuildError) execute(
         Action action,
         bool skipCacheLookup = false
-    ) @safe
+    ) @trusted
     {
         // Convert to Builder action request
         auto actionDigest = action.digest();
@@ -351,7 +352,7 @@ final class ReapiAdapter
     /// Get action result from cache
     Result!(ActionResult, BuildError) getActionResult(
         Digest actionDigest
-    ) @safe
+    ) @trusted
     {
         // Query action cache
         ActionResult result;
@@ -363,7 +364,7 @@ final class ReapiAdapter
     Result!BuildError updateActionResult(
         Digest actionDigest,
         ActionResult result
-    ) @safe
+    ) @trusted
     {
         // Update action cache
         return Ok!BuildError();
