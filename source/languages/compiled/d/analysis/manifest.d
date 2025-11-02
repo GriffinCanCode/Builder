@@ -8,6 +8,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import utils.logging.logger;
+import errors;
 
 /// DUB package manifest information
 struct PackageManifest
@@ -74,11 +75,16 @@ class DubManifest
     }
     
     /// Parse DUB manifest file
-    static PackageManifest parse(string manifestPath)
+    /// Returns: Result with PackageManifest or BuildError
+    static Result!(PackageManifest, BuildError) parse(string manifestPath)
     {
         if (!exists(manifestPath))
         {
-            throw new Exception("Manifest file not found: " ~ manifestPath);
+            auto error = fileNotFoundError(manifestPath);
+            error.addContext(ErrorContext("parsing DUB manifest", manifestPath));
+            error.addSuggestion("Ensure dub.json or dub.sdl exists in the project root");
+            error.addCommand("Create DUB project", "dub init");
+            return Err!(PackageManifest, BuildError)(error);
         }
         
         string ext = extension(manifestPath).toLower();
@@ -93,12 +99,19 @@ class DubManifest
         }
         else
         {
-            throw new Exception("Unknown manifest format: " ~ ext);
+            auto error = new ParseError(
+                "Unknown manifest format: " ~ ext ~ " (expected .json or .sdl)"
+            );
+            error.addSuggestion("Use dub.json or dub.sdl as the manifest file name");
+            error.addContext(ErrorContext("parsing DUB manifest", manifestPath));
+            error.addDocs("DUB manifest format", "https://dub.pm/package-format-json");
+            return Err!(PackageManifest, BuildError)(error);
         }
     }
     
     /// Parse dub.json format
-    private static PackageManifest parseJSON(string path)
+    /// Returns: Result with PackageManifest or BuildError
+    private static Result!(PackageManifest, BuildError) parseJSON(string path)
     {
         PackageManifest manifest;
         
@@ -203,14 +216,18 @@ class DubManifest
         }
         catch (Exception e)
         {
-            Logger.warning("Failed to parse dub.json: " ~ e.msg);
+            auto error = parseErrorWithContext(path, "Failed to parse dub.json: " ~ e.msg, 0);
+            error.addSuggestion("Check that dub.json is valid JSON");
+            error.addCommand("Validate JSON", "jsonlint " ~ path);
+            return Err!(PackageManifest, BuildError)(error);
         }
         
-        return manifest;
+        return Ok!(PackageManifest, BuildError)(manifest);
     }
     
     /// Parse dub.sdl format (simplified - basic support)
-    private static PackageManifest parseSDL(string path)
+    /// Returns: Result with PackageManifest or BuildError
+    private static Result!(PackageManifest, BuildError) parseSDL(string path)
     {
         PackageManifest manifest;
         
@@ -279,10 +296,13 @@ class DubManifest
         }
         catch (Exception e)
         {
-            Logger.warning("Failed to parse dub.sdl: " ~ e.msg);
+            auto error = parseErrorWithContext(path, "Failed to parse dub.sdl: " ~ e.msg, 0);
+            error.addSuggestion("Check that dub.sdl is valid SDL format");
+            error.addDocs("SDL format documentation", "https://dub.pm/package-format-sdl");
+            return Err!(PackageManifest, BuildError)(error);
         }
         
-        return manifest;
+        return Ok!(PackageManifest, BuildError)(manifest);
     }
     
     /// Parse value from SDL line

@@ -404,31 +404,35 @@ class DubBuilder : DBuilder
         // Try to parse dub package for output name
         if (!config.dub.packagePath.empty && exists(config.dub.packagePath))
         {
-            auto manifest = DubManifest.parse(config.dub.packagePath);
-            if (manifest.name)
+            auto manifestResult = DubManifest.parse(config.dub.packagePath);
+            if (manifestResult.isOk)
             {
-                string outputName = manifest.name;
-                
-                // Determine output directory (usually projectDir or projectDir/bin)
-                string outputPath = buildPath(projectDir, outputName);
-                
-                // Check common locations
-                if (exists(outputPath))
+                auto manifest = manifestResult.unwrap();
+                if (manifest.name)
                 {
-                    outputs ~= outputPath;
-                }
-                else if (exists(buildPath(projectDir, "bin", outputName)))
-                {
-                    outputs ~= buildPath(projectDir, "bin", outputName);
-                }
-                else if (exists(buildPath(projectDir, outputName ~ ".exe")))
-                {
-                    outputs ~= buildPath(projectDir, outputName ~ ".exe");
-                }
-                else
-                {
-                    // Fallback to workspace output dir
-                    outputs ~= buildPath(workspace.options.outputDir, outputName);
+                    string outputName = manifest.name;
+                    
+                    // Determine output directory (usually projectDir or projectDir/bin)
+                    string outputPath = buildPath(projectDir, outputName);
+                    
+                    // Check common locations
+                    if (exists(outputPath))
+                    {
+                        outputs ~= outputPath;
+                    }
+                    else if (exists(buildPath(projectDir, "bin", outputName)))
+                    {
+                        outputs ~= buildPath(projectDir, "bin", outputName);
+                    }
+                    else if (exists(buildPath(projectDir, outputName ~ ".exe")))
+                    {
+                        outputs ~= buildPath(projectDir, outputName ~ ".exe");
+                    }
+                    else
+                    {
+                        // Fallback to workspace output dir
+                        outputs ~= buildPath(workspace.options.outputDir, outputName);
+                    }
                 }
             }
         }

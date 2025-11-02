@@ -206,7 +206,9 @@ unittest
     string serialized = original.toString();
     
     // Deserialize
-    ActionId parsed = ActionId.parse(serialized);
+    auto parseResult = ActionId.parse(serialized);
+    Assert.isTrue(parseResult.isOk);
+    ActionId parsed = parseResult.unwrap();
     
     // Verify
     Assert.equal(parsed.targetId, original.targetId);
@@ -731,7 +733,9 @@ unittest
     
     // Verify serialization works without subId
     string serialized = actionId.toString();
-    ActionId parsed = ActionId.parse(serialized);
+    auto parseResult = ActionId.parse(serialized);
+    Assert.isTrue(parseResult.isOk);
+    ActionId parsed = parseResult.unwrap();
     Assert.equal(parsed.targetId, actionId.targetId);
     Assert.equal(parsed.type, actionId.type);
     
