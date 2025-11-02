@@ -152,13 +152,61 @@ See `tests/unit/caching/` for comprehensive unit tests covering:
 - Security (signature verification)
 - Concurrent access patterns
 
+## New: Unified Cache Coordinator (v2.0)
+
+**Status:** ✅ Implemented
+
+The Cache Coordinator provides centralized orchestration:
+
+### `core.caching.coordinator`
+
+Single source of truth for all caching operations:
+- Multi-tier caching (local target, action, remote)
+- Event-driven telemetry integration
+- Automatic garbage collection
+- Content-addressable storage with deduplication
+
+**Usage:**
+```d
+auto coordinator = new CacheCoordinator(cacheDir, publisher);
+
+// Check all tiers automatically
+if (!coordinator.isCached(targetId, sources, deps)) {
+    coordinator.update(targetId, sources, deps, outputHash);
+}
+
+// Action caching
+if (!coordinator.isActionCached(actionId, inputs, metadata)) {
+    coordinator.recordAction(actionId, inputs, outputs, metadata, true);
+}
+
+// Maintenance
+coordinator.runGC();  // Clean orphaned artifacts
+coordinator.flush();
+coordinator.close();
+```
+
+### `core.caching.storage`
+
+Content-addressable storage with deduplication:
+- Automatic dedup by content hash
+- Reference counting for safe deletion
+- Sharded filesystem layout for performance
+
+### `core.caching.metrics`
+
+Real-time metrics collection:
+- Event-driven (zero overhead when disabled)
+- Comprehensive statistics (hit rates, latencies, storage)
+- Integrates with telemetry system
+
+See [CACHE_COORDINATOR.md](../../../docs/implementation/CACHE_COORDINATOR.md) for details.
+
 ## Future Enhancements
 
 Potential improvements for future versions:
-- **Compression**: Compress large artifacts before storage
-- **Deduplication**: Content-addressable storage with dedup
-- **Metrics**: Prometheus/OpenTelemetry integration
+- **Compression**: Compress large artifacts before storage (in progress)
 - **Cache warming**: Pre-populate from CI artifacts
-- **Garbage collection**: Background cleanup of orphaned entries
-- **Distributed coordination**: Multi-server cache coordination
+- **Distributed GC**: Coordinate cleanup across build cluster
+- **ML-based prediction**: Intelligent cache pre-fetching
 

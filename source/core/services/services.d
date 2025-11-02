@@ -4,6 +4,7 @@ import std.stdio;
 import std.conv : to;
 import core.graph.graph;
 import core.execution.core.engine : ExecutionEngine;
+import core.execution.services.registry : HandlerRegistry;
 import core.caching.targets.cache;
 import core.telemetry;
 import core.telemetry.distributed.tracing;
@@ -37,6 +38,7 @@ final class BuildServices
     private Tracer _tracer;
     private StructuredLogger _structuredLogger;
     private SIMDCapabilities _simdCapabilities;
+    private HandlerRegistry _registry;
     
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
@@ -50,9 +52,16 @@ final class BuildServices
         // Initialize observability (tracing and structured logging)
         this._initializeObservability();
         
-        // Initialize cache
-        auto cacheConfig = CacheConfig.fromEnvironment();
-        this._cache = new BuildCache(options.cacheDir, cacheConfig);
+        // Initialize handler registry
+        this._registry = new HandlerRegistry();
+        this._registry.initialize();
+        
+        // Initialize cache (using coordinator for unified caching)
+        import core.execution.services.cache : CacheService;
+        auto cacheService = new CacheService(options.cacheDir, this._publisher);
+        // For backwards compatibility, extract the internal BuildCache
+        // TODO: Refactor to use CacheService directly throughout
+        this._cache = cacheService.getInternalCache();
         
         // Initialize analyzer
         this._analyzer = new DependencyAnalyzer(config);
@@ -208,6 +217,9 @@ final class BuildServices
     
     /// Get SIMD capabilities
     @property SIMDCapabilities simdCapabilities() { return _simdCapabilities; }
+    
+    /// Get handler registry
+    @property HandlerRegistry registry() { return _registry; }
     
     /// Set render mode for UI
     void setRenderMode(RenderMode mode)

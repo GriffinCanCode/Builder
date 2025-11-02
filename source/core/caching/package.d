@@ -7,27 +7,53 @@ module core.caching;
 /// 
 /// ## Architecture
 /// 
-/// The caching system is organized into four main components:
+/// The caching system is organized into components:
 /// 
-/// ### 1. Target-Level Caching (`core.caching.targets`)
+/// ### 1. Coordinator (`core.caching.coordinator`)
+/// Unified orchestration of all caching tiers with event emission,
+/// garbage collection, and content-addressable storage.
+/// 
+/// ### 2. Target-Level Caching (`core.caching.targets`)
 /// Caches complete build outputs for each target based on source and
-/// dependency hashes. This is the primary caching mechanism.
+/// dependency hashes. Primary caching mechanism.
 /// 
-/// ### 2. Action-Level Caching (`core.caching.actions`)
-/// Provides finer-grained caching for individual build actions (compile,
-/// link, codegen, etc.). Enables partial rebuilds when only some actions fail.
+/// ### 3. Action-Level Caching (`core.caching.actions`)
+/// Finer-grained caching for individual build actions (compile,
+/// link, codegen, etc.). Enables partial rebuilds.
 /// 
-/// ### 3. Cache Policies (`core.caching.policies`)
-/// Manages cache eviction using LRU, age-based, and size-based strategies
-/// to prevent unbounded growth.
+/// ### 4. Cache Policies (`core.caching.policies`)
+/// Manages cache eviction using LRU, age-based, and size-based strategies.
 /// 
-/// ### 4. Distributed Caching (`core.caching.distributed`)
-/// Coordinates local and remote cache tiers for team collaboration and
-/// CI/CD pipelines. Provides transparent remote artifact sharing.
+/// ### 5. Distributed Caching (`core.caching.distributed`)
+/// Coordinates local and remote cache tiers for team collaboration.
+/// 
+/// ### 6. Storage (`core.caching.storage`)
+/// Content-addressable storage with deduplication and garbage collection.
+/// 
+/// ### 7. Metrics (`core.caching.metrics`)
+/// Real-time cache metrics collection and statistics.
+/// 
+/// ### 8. Events (`core.caching.events`)
+/// Cache events for telemetry integration.
 /// 
 /// ## Usage
 /// 
-/// ### Basic Target Caching
+/// ### With Coordinator (Recommended)
+/// ```d
+/// import core.caching;
+/// 
+/// auto coordinator = new CacheCoordinator(".builder-cache", publisher);
+/// 
+/// if (!coordinator.isCached(targetId, sources, deps)) {
+///     // Perform build
+///     coordinator.update(targetId, sources, deps, outputHash);
+/// }
+/// 
+/// coordinator.flush();
+/// coordinator.close();
+/// ```
+/// 
+/// ### Direct Cache Usage
 /// ```d
 /// import core.caching;
 /// 
@@ -38,77 +64,22 @@ module core.caching;
 ///     cache.update(targetId, sources, deps, outputHash);
 /// }
 /// 
-/// cache.flush();  // Write to disk
-/// cache.close();  // Clean shutdown
-/// ```
-/// 
-/// ### Action-Level Caching
-/// ```d
-/// import core.caching;
-/// 
-/// auto actionCache = new ActionCache();
-/// auto actionId = ActionId("target", ActionType.Compile, inputHash);
-/// 
-/// if (!actionCache.isCached(actionId, inputs, metadata)) {
-///     // Perform action
-///     actionCache.update(actionId, inputs, outputs, metadata, success);
-/// }
-/// ```
-/// 
-/// ### Distributed Caching
-/// ```d
-/// import core.caching;
-/// 
-/// auto remoteConfig = RemoteCacheConfig.fromEnvironment();
-/// auto remoteClient = new RemoteCacheClient(remoteConfig);
-/// auto distCache = new DistributedCache(
-///     localCache, actionCache, remoteClient, ".builder-cache"
-/// );
-/// 
-/// // Use like regular cache - remote is transparent
-/// if (!distCache.isCached(targetId, sources, deps)) {
-///     distCache.update(targetId, sources, deps, outputHash);
-/// }
-/// ```
-/// 
-/// ## Performance Features
-/// 
-/// - **SIMD-accelerated** hash comparisons (2-3x faster)
-/// - **Two-tier hashing** (metadata + content) for 1000x speedup on unchanged files
-/// - **Binary serialization** (5-10x faster than JSON, 30% smaller)
-/// - **Lock-free hash caching** for per-session memoization
-/// - **Parallel hashing** with work-stealing for large source sets
-/// - **Connection pooling** for remote cache operations
-/// 
-/// ## Security Features
-/// 
-/// - **BLAKE3-based HMAC** signatures prevent cache tampering
-/// - **Workspace isolation** via workspace-specific keys
-/// - **Automatic expiration** (30 days default)
-/// - **Constant-time verification** to prevent timing attacks
-/// 
-/// ## Configuration
-/// 
-/// Cache behavior can be configured via environment variables:
-/// 
-/// ```bash
-/// # Target cache
-/// export BUILDER_CACHE_MAX_SIZE=1073741824      # 1 GB
-/// export BUILDER_CACHE_MAX_ENTRIES=10000         # 10k entries
-/// export BUILDER_CACHE_MAX_AGE_DAYS=30           # 30 days
-/// 
-/// # Action cache
-/// export BUILDER_ACTION_CACHE_MAX_SIZE=1073741824
-/// export BUILDER_ACTION_CACHE_MAX_ENTRIES=50000
-/// export BUILDER_ACTION_CACHE_MAX_AGE_DAYS=30
-/// 
-/// # Remote cache
-/// export BUILDER_REMOTE_CACHE_URL=http://cache.example.com:8080
-/// export BUILDER_REMOTE_CACHE_TIMEOUT=30
+/// cache.flush();
+/// cache.close();
 /// ```
 
+// Coordinator (new unified interface)
+public import core.caching.coordinator;
+
+// Core caching components
 public import core.caching.targets;
 public import core.caching.actions;
 public import core.caching.policies;
 public import core.caching.distributed;
 
+// Storage layer
+public import core.caching.storage;
+
+// Metrics and events
+public import core.caching.metrics;
+public import core.caching.events;
