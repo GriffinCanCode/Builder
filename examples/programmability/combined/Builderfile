@@ -1,0 +1,162 @@
+// Example: Combined - All Three Tiers Together
+// Demonstrates how all three tiers integrate seamlessly
+
+// ============================================================================
+// TIER 1: Functional DSL for Simple Logic
+// ============================================================================
+
+let version = "1.0.0";
+let environment = env("ENV", "development");
+let isProduction = environment == "production";
+
+// Base configuration
+let basePackages = ["logging", "config", "errors", "utils"];
+let appPackages = ["models", "services", "api", "cli"];
+
+// Conditional flags
+let buildFlags = isProduction 
+    ? ["-O3", "-DNDEBUG", "-flto"]
+    : ["-O0", "-g", "-DDEBUG"];
+
+// Function for creating service
+fn createService(name, deps) {
+    return {
+        type: executable,
+        language: go,
+        sources: ["services/" + name + "/**/*.go"],
+        deps: deps,
+        flags: buildFlags,
+        env: {
+            "VERSION": version,
+            "ENVIRONMENT": environment
+        }
+    };
+}
+
+// Generate base libraries using Tier 1
+for pkg in basePackages {
+    target(pkg) {
+        type: library;
+        language: go;
+        sources: ["pkg/" + pkg + "/**/*.go"];
+        flags: buildFlags;
+    }
+}
+
+// ============================================================================
+// TIER 2: D Macros for Complex Logic
+// ============================================================================
+
+import Builderfile.d;  // Import D macro file
+
+// Call D macro for complex microservice generation
+// (Defined in Builderfile.d with full D power)
+generateMicroservices();
+
+// Call D macro for platform matrix builds
+// (Generates builds for all OS/arch combinations)
+generatePlatformMatrix("myapp", ["cmd/main.go"]);
+
+// Call D macro for protobuf code generation
+// (Finds all .proto files and generates for multiple languages)
+generateProtobufTargets();
+
+// ============================================================================
+// TIER 3: Plugins for External Tools
+// ============================================================================
+
+// Docker image build (via plugin)
+target("docker-image") {
+    type: custom;
+    plugin: "docker";
+    sources: ["Dockerfile"] + glob("services/**/*.go");
+    deps: appPackages.map(|p| ":" + p);
+    config: {
+        "dockerfile": "Dockerfile.multi",
+        "image": "myapp:" + version,
+        "platform": "linux/amd64,linux/arm64",
+        "build_args": {
+            "VERSION": version,
+            "ENVIRONMENT": environment
+        }
+    };
+}
+
+// Kubernetes deployment (via plugin)
+target("k8s-deploy") {
+    type: custom;
+    plugin: "kubernetes";
+    sources: ["k8s/**/*.yaml"];
+    deps: [":docker-image"];
+    config: {
+        "namespace": environment,
+        "context": isProduction ? "prod-cluster" : "dev-cluster"
+    };
+}
+
+// Code quality analysis (via plugin)
+target("quality") {
+    type: custom;
+    plugin: "sonar";
+    sources: glob("services/**/*.go") + glob("pkg/**/*.go");
+    deps: [":tests"];
+    config: {
+        "project_key": "myapp",
+        "coverage_report": "coverage.out"
+    };
+}
+
+// ============================================================================
+// TIER 1 + TIER 2: Hybrid Approach
+// ============================================================================
+
+// Use Tier 2 macro output in Tier 1 logic
+let generatedServices = listMicroservices();  // D macro returns array
+
+// Create integration tests for each service using Tier 1
+for svc in generatedServices {
+    target(svc + "-integration-test") {
+        type: test;
+        language: go;
+        sources: ["tests/integration/" + svc + "/**/*.go"];
+        deps: [":" + svc];
+        env: {
+            "TEST_SERVICE": svc,
+            "TEST_ENV": environment
+        };
+    }
+}
+
+// ============================================================================
+// TIER 1: Final Application Assembly
+// ============================================================================
+
+// Main application depends on everything
+target("app") {
+    type: executable;
+    language: go;
+    sources: ["cmd/main.go"];
+    deps: (basePackages + appPackages + generatedServices).map(|p| ":" + p);
+    flags: buildFlags + (isProduction ? ["-s", "-w"] : []);
+    output: "bin/app-" + environment + "-" + version;
+    env: {
+        "VERSION": version,
+        "ENVIRONMENT": environment,
+        "BUILD_TIME": str(now())
+    };
+}
+
+// Conditional: Deploy to production (via plugin) only if production
+if (isProduction && env("DEPLOY", "0") == "1") {
+    target("deploy") {
+        type: custom;
+        plugin: "deploy";
+        deps: [":app", ":docker-image", ":k8s-deploy"];
+        config: {
+            "target": "production",
+            "rollout_strategy": "blue-green",
+            "health_check": "http://app/health"
+        };
+    }
+}
+

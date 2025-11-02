@@ -1,0 +1,58 @@
+// Example: Tier 1 - Simple Variables and Loops
+// Demonstrates basic programmability with functional DSL extensions
+
+// Variables for code reuse
+let version = "1.0.0";
+let author = "Builder Team";
+let buildDir = "bin";
+
+// Compiler flags
+let commonFlags = ["-O2", "-Wall", "-Werror"];
+let debugFlags = commonFlags + ["-g", "-DDEBUG"];
+
+// Platform detection
+let platform = env("OS", "linux");
+let arch = env("ARCH", "x86_64");
+
+// Package list
+let packages = ["core", "utils", "api", "cli"];
+
+// Generate library targets using loop
+for pkg in packages {
+    target(pkg) {
+        type: library;
+        language: python;
+        sources: ["lib/" + pkg + "/**/*.py"];
+        output: buildDir + "/lib" + pkg + ".so";
+        env: {
+            "VERSION": version,
+            "AUTHOR": author
+        };
+    }
+}
+
+// Main application depends on all libraries
+target("app") {
+    type: executable;
+    language: python;
+    sources: ["src/**/*.py"];
+    deps: packages.map(|p| ":" + p);
+    flags: platform == "debug" ? debugFlags : commonFlags;
+    output: buildDir + "/app-" + platform + "-" + arch;
+    env: {
+        "VERSION": version,
+        "PLATFORM": platform,
+        "ARCH": arch
+    };
+}
+
+// Conditional test target
+if (env("BUILD_TESTS", "1") == "1") {
+    target("tests") {
+        type: test;
+        language: python;
+        sources: ["tests/**/*.py"];
+        deps: [":app"] + packages.map(|p| ":" + p);
+    }
+}
+

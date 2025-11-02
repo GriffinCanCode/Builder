@@ -1,0 +1,80 @@
+// Example: Tier 1 - Functions and Macros
+// Demonstrates code reuse with functions and macro expansion
+
+// Function: Create Python library target
+fn pythonLib(name, deps = []) {
+    return {
+        type: library,
+        language: python,
+        sources: ["lib/" + name + "/**/*.py"],
+        deps: deps,
+        output: "bin/lib" + name + ".so"
+    };
+}
+
+// Function: Create Go service target
+fn goService(name, port, deps = []) {
+    return {
+        type: executable,
+        language: go,
+        sources: ["services/" + name + "/**/*.go"],
+        deps: deps,
+        env: {
+            "PORT": str(port),
+            "SERVICE_NAME": name
+        },
+        output: "bin/" + name + "-service"
+    };
+}
+
+// Use functions to create targets
+target("utils") = pythonLib("utils");
+target("models") = pythonLib("models", [":utils"]);
+target("api") = pythonLib("api", [":models", ":utils"]);
+
+// Macro: Generate multiple service targets
+macro genServices(services) {
+    for svc in services {
+        target(svc.name) = goService(svc.name, svc.port, [":api"]);
+    }
+}
+
+// Expand macro with service configurations
+genServices([
+    {name: "auth", port: 8001},
+    {name: "users", port: 8002},
+    {name: "posts", port: 8003},
+    {name: "comments", port: 8004}
+]);
+
+// Macro: Generate test targets for each package
+macro genTests(packages) {
+    for pkg in packages {
+        target(pkg + "-test") {
+            type: test;
+            language: python;
+            sources: ["tests/" + pkg + "/**/*.py"];
+            deps: [":" + pkg];
+        }
+    }
+}
+
+genTests(["utils", "models", "api"]);
+
+// Complex function composition
+fn makeFullStack(name, frontend, backend) {
+    return {
+        type: executable,
+        language: javascript,
+        sources: [frontend, backend],
+        config: {
+            "mode": "bundle",
+            "bundler": "esbuild",
+            "entry": frontend
+        },
+        output: "dist/" + name + ".js"
+    };
+}
+
+target("webapp") = makeFullStack("webapp", "ui/app.js", "server/api.js");
+

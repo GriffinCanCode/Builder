@@ -1,0 +1,54 @@
+// Example: Tier 3 - Plugin System
+// Demonstrates external tool integration via plugins
+
+// Custom target type: Docker image build (via plugin)
+target("app-image") {
+    type: custom;
+    plugin: "docker";
+    sources: ["Dockerfile", "src/**/*"];
+    config: {
+        "dockerfile": "Dockerfile",
+        "image": "myapp:latest",
+        "platform": "linux/amd64,linux/arm64",
+        "push": "false"
+    };
+}
+
+// Custom target type: Terraform infrastructure (via plugin)
+target("infrastructure") {
+    type: custom;
+    plugin: "terraform";
+    sources: ["terraform/**/*.tf"];
+    config: {
+        "command": "apply",
+        "var_file": "terraform.tfvars",
+        "auto_approve": "false"
+    };
+}
+
+// Custom target type: SonarQube analysis (via plugin)
+target("code-analysis") {
+    type: custom;
+    plugin: "sonar";
+    sources: ["src/**/*", "tests/**/*"];
+    deps: [":tests"];
+    config: {
+        "project_key": "myapp",
+        "sonar_host": "http://localhost:9000",
+        "coverage_report": "coverage.xml"
+    };
+}
+
+// Regular target that plugins can hook into
+target("app") {
+    type: executable;
+    language: go;
+    sources: ["cmd/**/*.go"];
+    output: "bin/app";
+}
+
+// Plugins can attach pre/post hooks:
+// - docker plugin: pre-hook to check Docker daemon
+// - notify plugin: post-hook to send build notifications
+// - security plugin: post-hook to scan for vulnerabilities
+
