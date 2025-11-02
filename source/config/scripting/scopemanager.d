@@ -234,7 +234,7 @@ struct ScopedBlock
 }
 
 /// Create scoped block helper
-ScopedBlock scoped(ScopeManager manager) pure nothrow @safe
+ScopedBlock scoped(ScopeManager manager) @safe
 {
     return ScopedBlock(manager);
 }

@@ -72,8 +72,9 @@ class Evaluator
             auto lookupResult = scope_.lookup(expr);
             if (lookupResult.isOk)
             {
+                import std.array : replaceInPlace = replace;
                 auto value = lookupResult.unwrap();
-                result = result.replace(match[0], value.toString());
+                result = replaceInPlace(result, match[0], value.toString());
             }
         }
         

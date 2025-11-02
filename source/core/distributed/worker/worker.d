@@ -83,7 +83,7 @@ final class Worker
         while (lifecycle.isRunning())
         {
             // 1. Try local work first
-            auto localQueue = lifecycle.getLocalQueue();
+            auto ref localQueue = lifecycle.getLocalQueue();
             auto localAction = localQueue.pop();
             if (localAction !is null)
             {
@@ -164,11 +164,11 @@ final class Worker
     private void heartbeatLoop() @trusted
     {
         auto config = lifecycle.getConfig();
-        auto running = lifecycle.isRunning();
+        auto runningPtr = lifecycle.getRunningPtr();
         
         communication.heartbeatLoop(
             lifecycle.getId(),
-            &running,
+            runningPtr,
             () @trusted => lifecycle.getState(),
             () @trusted => lifecycle.getMetrics(),
             lifecycle.getCoordinatorTransport(),
@@ -180,12 +180,12 @@ final class Worker
     private void peerAnnounceLoop() @trusted
     {
         auto config = lifecycle.getConfig();
-        auto running = lifecycle.isRunning();
-        auto localQueue = lifecycle.getLocalQueue();
+        auto runningPtr = lifecycle.getRunningPtr();
+        auto ref localQueue = lifecycle.getLocalQueue();
         
         communication.peerAnnounceLoop(
             lifecycle.getId(),
-            &running,
+            runningPtr,
             config.listenAddress,
             localQueue,
             () @trusted => communication.calculateLoadFactor(

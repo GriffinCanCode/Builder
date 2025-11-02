@@ -166,7 +166,7 @@ struct TargetTemplate
         {
             // Apply override (simplified)
             if (key == "output")
-                target.output = value;
+                target.outputPath = value;
         }
         
         return target;

@@ -412,7 +412,7 @@ class StmtParser
         return current >= tokens.length || peek().type == TokenType.EOF;
     }
     
-    private Token peek() const pure nothrow @safe
+    private Token peek() const pure nothrow @nogc @safe
     {
         return current < tokens.length ? tokens[current] : Token(TokenType.EOF, "", 0, 0);
     }

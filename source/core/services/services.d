@@ -5,6 +5,7 @@ import std.conv : to;
 import core.graph.graph;
 import core.execution.core.engine : ExecutionEngine;
 import core.execution.services.registry : HandlerRegistry;
+import core.execution.remote : RemoteExecutionService, RemoteServiceBuilder;
 import core.caching.targets.cache;
 import core.telemetry;
 import core.telemetry.distributed.tracing;

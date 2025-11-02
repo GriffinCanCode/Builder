@@ -158,7 +158,7 @@ struct WorkerCommunication
     void sendPeerAnnounce(
         WorkerId id,
         string listenAddress,
-        WorkStealingDeque!ActionRequest localQueue,
+        ref WorkStealingDeque!ActionRequest localQueue,
         float loadFactor,
         Transport coordinatorTransport
     ) @trusted
@@ -193,7 +193,7 @@ struct WorkerCommunication
         WorkerId id,
         shared bool* running,
         string listenAddress,
-        WorkStealingDeque!ActionRequest localQueue,
+        ref WorkStealingDeque!ActionRequest localQueue,
         float delegate() @trusted getLoadFactorCallback,
         PeerRegistry peerRegistry,
         Transport coordinatorTransport,

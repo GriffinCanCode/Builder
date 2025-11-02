@@ -26,7 +26,7 @@ struct Value
     private Variant data_;
     
     /// Create null value
-    static Value makeNull() pure nothrow @safe
+    static Value makeNull() @safe
     {
         Value v;
         v.type_ = ValueType.Null;
@@ -34,7 +34,7 @@ struct Value
     }
     
     /// Create bool value
-    static Value makeBool(bool b) pure nothrow @trusted
+    static Value makeBool(bool b) @trusted
     {
         Value v;
         v.type_ = ValueType.Bool;
@@ -43,7 +43,7 @@ struct Value
     }
     
     /// Create number value
-    static Value makeNumber(double n) pure nothrow @trusted
+    static Value makeNumber(double n) @trusted
     {
         Value v;
         v.type_ = ValueType.Number;
@@ -52,7 +52,7 @@ struct Value
     }
     
     /// Create string value
-    static Value makeString(string s) pure nothrow @trusted
+    static Value makeString(string s) @trusted
     {
         Value v;
         v.type_ = ValueType.String;
@@ -61,7 +61,7 @@ struct Value
     }
     
     /// Create array value
-    static Value makeArray(Value[] arr) pure nothrow @trusted
+    static Value makeArray(Value[] arr) @trusted
     {
         Value v;
         v.type_ = ValueType.Array;
@@ -70,7 +70,7 @@ struct Value
     }
     
     /// Create map value
-    static Value makeMap(Value[string] map) pure nothrow @trusted
+    static Value makeMap(Value[string] map) @trusted
     {
         Value v;
         v.type_ = ValueType.Map;
@@ -79,7 +79,7 @@ struct Value
     }
     
     /// Create target config value
-    static Value makeTarget(TargetConfig config) pure nothrow @trusted
+    static Value makeTarget(TargetConfig config) @trusted
     {
         Value v;
         v.type_ = ValueType.Target;
@@ -164,7 +164,7 @@ struct Value
     {
         if (!isArray())
             throw new Exception("Value is not an array");
-        return data_.get!(Value[]);
+        return cast(Value[])data_.get!(Value[]);
     }
     
     /// Get as map (throws if not map)
@@ -172,7 +172,7 @@ struct Value
     {
         if (!isMap())
             throw new Exception("Value is not a map");
-        return data_.get!(Value[string]);
+        return cast(Value[string])data_.get!(Value[string]);
     }
     
     /// Get as target (throws if not target)
@@ -180,7 +180,7 @@ struct Value
     {
         if (!isTarget())
             throw new Exception("Value is not a target");
-        return data_.get!TargetConfig;
+        return cast(TargetConfig)data_.get!TargetConfig;
     }
     
     /// Convert to bool (truthiness)
@@ -290,7 +290,7 @@ struct TargetConfig
     string[string] config;
     
     /// Convert to Value map representation
-    Value toValue() const pure @trusted
+    Value toValue() const @trusted
     {
         Value[string] map;
         map["type"] = Value.makeString(type);
@@ -356,8 +356,8 @@ struct TargetConfig
         
         if ("env" in map && map["env"].isMap())
         {
-            foreach (k, v; map["env"].asMap())
-                config.env[k] = v.asString();
+            foreach (k, val; map["env"].asMap())
+                config.env[k] = val.asString();
         }
         
         if ("output" in map && map["output"].isString())
@@ -365,8 +365,8 @@ struct TargetConfig
         
         if ("config" in map && map["config"].isMap())
         {
-            foreach (k, v; map["config"].asMap())
-                config.config[k] = v.asString();
+            foreach (k, val; map["config"].asMap())
+                config.config[k] = val.asString();
         }
         
         return Result!(TargetConfig, BuildError).ok(config);

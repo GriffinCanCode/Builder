@@ -67,13 +67,13 @@ final class RemoteExecutor
         this.config = config;
         
         // Initialize artifact store client
-        import core.caching.distributed.remote.transport : HttpCacheTransport;
-        import core.caching.distributed.remote.compress : ZstdCompressor;
+        import core.caching.distributed.remote.protocol : RemoteCacheConfig;
         
-        auto transport = new HttpCacheTransport(config.artifactStoreUrl);
-        auto compressor = config.enableCompression ? new ZstdCompressor() : null;
+        RemoteCacheConfig cacheConfig;
+        cacheConfig.url = config.artifactStoreUrl;
+        cacheConfig.enableCompression = config.enableCompression;
         
-        this.artifactStore = new RemoteCacheClient(transport, compressor);
+        this.artifactStore = new RemoteCacheClient(cacheConfig);
     }
     
     /// Execute action remotely
@@ -173,7 +173,7 @@ final class RemoteExecutor
         
         // Build output specs from hermetic spec
         OutputSpec[] outputs;
-        foreach (outputPath; spec.outputs)
+        foreach (outputPath; spec.outputs.paths)
         {
             outputs ~= OutputSpec(outputPath, false);
         }
@@ -181,12 +181,13 @@ final class RemoteExecutor
         // Convert hermetic spec to capabilities
         auto caps = specToCapabilities(spec);
         
-        // Build environment
-        string[string] env;
-        foreach (key, value; spec.environment)
-        {
-            env[key] = value;
-        }
+        // Build environment from EnvSet
+        string[string] env = spec.environment.vars.dup;
+        
+        // Calculate timeout from resource limits (convert ms to Duration)
+        import std.datetime : msecs;
+        auto timeout = spec.resources.maxCpuTimeMs > 0 ? 
+            msecs(spec.resources.maxCpuTimeMs) : msecs(0);
         
         return new ActionRequest(
             actionId,
@@ -196,7 +197,7 @@ final class RemoteExecutor
             outputs,
             caps,
             Priority.Normal,
-            spec.resources.timeout
+            timeout
         );
     }
     
@@ -206,11 +207,11 @@ final class RemoteExecutor
         Capabilities caps;
         
         // Map hermetic spec to capabilities
-        caps.network = spec.allowNetwork;
-        caps.readPaths = spec.inputs.dup;
-        caps.writePaths = spec.outputs.dup;
-        caps.timeout = spec.resources.timeout;
-        caps.maxCpu = spec.resources.maxCpuCores;
+        caps.network = spec.network.allowExternal;  // Use network policy
+        caps.readPaths = spec.inputs.paths.dup;
+        caps.writePaths = spec.outputs.paths.dup;
+        caps.timeout = spec.resources.maxCpuTimeMs;
+        caps.maxCpu = 0;  // ResourceLimits doesn't have maxCpuCores
         caps.maxMemory = spec.resources.maxMemoryBytes;
         
         return caps;
@@ -221,7 +222,7 @@ final class RemoteExecutor
     {
         InputSpec[] inputs;
         
-        foreach (inputPath; spec.inputs)
+        foreach (inputPath; spec.inputs.paths)
         {
             // Read input file/directory
             auto readResult = readArtifact(inputPath);
@@ -264,7 +265,8 @@ final class RemoteExecutor
     {
         foreach (artifactId; artifacts)
         {
-            auto downloadResult = artifactStore.get(artifactId);
+            // Convert ActionId to string hash for cache lookup
+            auto downloadResult = artifactStore.get(artifactId.toString());
             if (downloadResult.isErr)
             {
                 return downloadResult;
@@ -284,7 +286,7 @@ final class RemoteExecutor
         {
             auto error = new GenericError(
                 "Coordinator not initialized",
-                ErrorCode.NotInitialized
+                ErrorCode.InternalError
             );
             return Err!(core.distributed.protocol.protocol.ActionResult, BuildError)(error);
         }
@@ -295,7 +297,7 @@ final class RemoteExecutor
         {
             auto error = new GenericError(
                 "Failed to schedule action: " ~ scheduleResult.unwrapErr().message(),
-                ErrorCode.ExecutionFailed
+                ErrorCode.ActionSchedulingFailed
             );
             return Err!(core.distributed.protocol.protocol.ActionResult, BuildError)(error);
         }

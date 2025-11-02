@@ -11,7 +11,7 @@ import core.memory : GC;
 import core.graph.graph;
 import config.schema.schema;
 import languages.base.base;
-import core.execution.services;
+import core.execution.services : ISchedulingService, ICacheService, IObservabilityService, IResilienceService, IHandlerRegistry;
 import cli.events.events;
 import core.telemetry.distributed.tracing : Span, SpanKind, SpanStatus;
 import utils.logging.logger;
@@ -68,7 +68,7 @@ struct EngineCoordinator
             
             string[string] fields;
             fields["error.type"] = "topological_sort_failed";
-            observability.logError("Cannot build: " ~ format(error), fields);
+            observability.logError("Cannot build: " ~ error.message(), fields);
             
             observability.publishEvent(new BuildFailedEvent(error.message(), 0, sw.peek(), sw.peek()));
             return false;
@@ -163,7 +163,8 @@ struct EngineCoordinator
                 node.status = BuildStatus.Building;
             
             // Execute batch in parallel
-            auto results = scheduling.executeBatch(batch, (BuildNode node) => executor.buildNode(node));
+            BuildResult delegate(BuildNode) @system execDelegate = (BuildNode node) @system => executor.buildNode(node);
+            auto results = scheduling.executeBatch(batch, execDelegate);
             
             // Process results
             foreach (i, result; results)

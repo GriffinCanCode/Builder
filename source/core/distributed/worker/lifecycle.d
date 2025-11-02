@@ -299,11 +299,12 @@ struct WorkerLifecycle
     /// Access methods
     WorkerId getId() @trusted { return id; }
     WorkerConfig getConfig() @trusted { return config; }
-    WorkStealingDeque!ActionRequest getLocalQueue() @trusted { return localQueue; }
+    ref WorkStealingDeque!ActionRequest getLocalQueue() @trusted { return localQueue; }
     Transport getCoordinatorTransport() @trusted { return coordinatorTransport; }
     WorkerState getState() @trusted { return atomicLoad(state); }
     void setState(WorkerState newState) @trusted { atomicStore(state, newState); }
     bool isRunning() @trusted { return atomicLoad(running); }
+    shared(bool*) getRunningPtr() @trusted { return &running; }
     PeerRegistry getPeerRegistry() @trusted { return peerRegistry; }
     StealEngine getStealEngine() @trusted { return stealEngine; }
     StealTelemetry getStealTelemetry() @trusted { return stealTelemetry; }

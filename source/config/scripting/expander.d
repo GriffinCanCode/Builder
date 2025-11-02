@@ -2,6 +2,7 @@ module config.scripting.expander;
 
 import std.array;
 import std.algorithm;
+import std.conv : to;
 import config.scripting.types;
 import config.scripting.evaluator;
 import config.workspace.ast;
