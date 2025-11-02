@@ -19,6 +19,7 @@ import utils.logging.logger;
 import languages.registry;
 import utils.files.hash;
 import utils.concurrency.parallel;
+import analysis.incremental.analyzer;
 import errors;
 
 /// Modern dependency analyzer using compile-time metaprogramming
@@ -28,6 +29,7 @@ class DependencyAnalyzer
     private FileScanner scanner;
     private DependencyResolver resolver;
     private GraphCache graphCache;
+    private IncrementalAnalyzer incrementalAnalyzer;
     
     // Inject compile-time generated analyzer functions
     mixin LanguageAnalyzer;
@@ -38,6 +40,26 @@ class DependencyAnalyzer
         this.scanner = new FileScanner();
         this.resolver = new DependencyResolver(config);
         this.graphCache = new GraphCache(cacheDir);
+        this.incrementalAnalyzer = new IncrementalAnalyzer(config, cacheDir);
+    }
+    
+    /// Enable incremental analysis mode
+    /// Call this after construction to initialize file tracking
+    Result!BuildError enableIncremental() @system
+    {
+        return incrementalAnalyzer.initialize(config);
+    }
+    
+    /// Check if incremental analysis is available
+    bool hasIncremental() const pure nothrow @nogc
+    {
+        return incrementalAnalyzer !is null;
+    }
+    
+    /// Get incremental analyzer instance (for watch mode integration)
+    @property IncrementalAnalyzer getIncrementalAnalyzer() pure nothrow @nogc
+    {
+        return incrementalAnalyzer;
     }
     
     /// Analyze dependencies and build graph
@@ -304,10 +326,26 @@ class DependencyAnalyzer
     
     /// Analyze a single target with error aggregation
     /// Returns Result with TargetAnalysis, collecting all file analysis errors
+    /// Uses incremental analysis if available for improved performance
     Result!(TargetAnalysis, BuildError) analyzeTarget(
         ref Target target,
         AggregationPolicy policy = AggregationPolicy.CollectAll)
     {
+        // Use incremental analyzer if available
+        if (incrementalAnalyzer !is null)
+        {
+            try
+            {
+                return incrementalAnalyzer.analyzeTarget(target);
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Incremental analysis failed, falling back to full analysis: " ~ e.msg);
+                // Fall through to full analysis
+            }
+        }
+        
+        // Full analysis (original implementation)
         auto sw = StopWatch(AutoStart.yes);
         
         TargetAnalysis result;

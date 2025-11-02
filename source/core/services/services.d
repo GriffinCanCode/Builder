@@ -66,6 +66,17 @@ final class BuildServices
         // Initialize analyzer
         this._analyzer = new DependencyAnalyzer(config);
         
+        // Enable incremental analysis for faster rebuilds
+        auto incrementalResult = this._analyzer.enableIncremental();
+        if (incrementalResult.isErr)
+        {
+            Logger.debugLog("Incremental analysis not available, using full analysis");
+        }
+        else
+        {
+            Logger.debugLog("Incremental analysis enabled");
+        }
+        
         // Initialize event system
         this._publisher = new SimpleEventPublisher();
         

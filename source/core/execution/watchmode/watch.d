@@ -17,6 +17,7 @@ import config.parsing.parser;
 import utils.files.watch;
 import utils.logging.logger;
 import cli.events.events;
+import analysis.incremental.watcher;
 import errors;
 
 /// Watch mode configuration
@@ -37,6 +38,7 @@ final class WatchModeService
     private WorkspaceConfig _config;
     private BuildServices _services;
     private FileWatcher _watcher;
+    private AnalysisWatcher _analysisWatcher;
     private WatchModeConfig _watchConfig;
     private bool _isRunning;
     private size_t _buildNumber;
@@ -67,6 +69,25 @@ final class WatchModeService
         
         // Initialize build services
         _services = new BuildServices(_config, _config.options);
+        
+        // Initialize analysis watcher for proactive cache invalidation
+        if (_services.analyzer.hasIncremental())
+        {
+            _analysisWatcher = new AnalysisWatcher(
+                _services.analyzer.getIncrementalAnalyzer(),
+                _config
+            );
+            
+            auto watcherResult = _analysisWatcher.start(_workspaceRoot);
+            if (watcherResult.isOk)
+            {
+                Logger.debugLog("Analysis watcher started for proactive cache invalidation");
+            }
+            else
+            {
+                Logger.debugLog("Analysis watcher not available");
+            }
+        }
         
         // Create file watcher with config
         WatchConfig watchConfig;
@@ -116,6 +137,11 @@ final class WatchModeService
         if (_watcher !is null)
         {
             _watcher.stop();
+        }
+        
+        if (_analysisWatcher !is null)
+        {
+            _analysisWatcher.stop();
         }
         
         if (_services !is null)

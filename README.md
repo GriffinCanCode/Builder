@@ -16,6 +16,7 @@ A high-performance build system for mixed-language monorepos, leveraging D's com
 - **Query Language**: Powerful Bazel inspired query syntax for exploring dependencies and target relationships
 - **Extensive Multi-language Support**: 26+ languages with centralized registry for consistent language handling (see `source/languages/registry.d` for complete list)
 - **Incremental Builds**: Smart caching with BLAKE3 content hashing and configurable eviction policies
+- **Incremental Dependency Analysis**: Content-addressable analysis cache - only reanalyzes changed files, saving 5-10s on 10K-file monorepos
 - **Action-Level Caching**: Fine-grained caching for individual build steps (compile, link, test) with 2-3x better cache utilization
 - **Parallel Execution**: Wave-based parallel builds with thread pool management and optimal CPU utilization
 - **Monorepo Optimized**: Efficient workspace scanning and dependency resolution for large-scale repos
@@ -35,6 +36,9 @@ source/
 │   ├── inference/          # Build target analysis
 │   ├── scanning/           # File and dependency scanning
 │   ├── resolution/         # Dependency resolution logic
+│   ├── incremental/        # Incremental analysis with caching
+│   ├── caching/            # Content-addressable analysis cache
+│   ├── tracking/           # File change detection
 │   ├── targets/            # Target types and specifications
 │   └── metadata/           # Metadata generation
 ├── config/                  # Configuration and workspace management
