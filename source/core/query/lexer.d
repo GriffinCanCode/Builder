@@ -96,7 +96,7 @@ struct QueryLexer
     }
     
     /// Tokenize entire source
-    Result!(Token[], string) tokenize() @system
+    Result!(Token[], BuildError) tokenize() @system
     {
         Token[] tokens;
         tokens.reserve(32);  // Typical query has < 32 tokens
@@ -109,7 +109,7 @@ struct QueryLexer
             
             auto tokenResult = scanToken();
             if (tokenResult.isErr)
-                return Result!(Token[], string).err(tokenResult.unwrapErr());
+                return Result!(Token[], BuildError).err(tokenResult.unwrapErr());
             
             auto token = tokenResult.unwrap();
             if (token.type != TokenType.Invalid)
@@ -117,10 +117,10 @@ struct QueryLexer
         }
         
         tokens ~= Token(TokenType.EOF, "", line, column);
-        return Result!(Token[], string).ok(tokens);
+        return Result!(Token[], BuildError).ok(tokens);
     }
     
-    private Result!(Token, string) scanToken() @system
+    private Result!(Token, BuildError) scanToken() @system
     {
         char c = peek();
         
@@ -159,14 +159,16 @@ struct QueryLexer
                     return scanNumber(true);
                 return ok(TokenType.Minus, "-", startLine, startCol);
             default:
-                return Result!(Token, string).err(
-                    "Unexpected character '" ~ c ~ "' at line " ~ line.to!string ~ 
-                    ", column " ~ startCol.to!string
-                );
+                auto error = new ParseError("query", 
+                    "Unexpected character '" ~ c ~ "' at column " ~ startCol.to!string, 
+                    ErrorCode.ParseFailed);
+                error.line = line;
+                error.column = startCol;
+                return Result!(Token, BuildError).err(error);
         }
     }
     
-    private Result!(Token, string) scanPattern() @system
+    private Result!(Token, BuildError) scanPattern() @system
     {
         size_t startLine = line;
         size_t startCol = column;
@@ -196,7 +198,7 @@ struct QueryLexer
         return ok(TokenType.Pattern, value, startLine, startCol);
     }
     
-    private Result!(Token, string) scanString() @system
+    private Result!(Token, BuildError) scanString() @system
     {
         size_t startLine = line;
         size_t startCol = column;
@@ -210,9 +212,13 @@ struct QueryLexer
             {
                 advance();
                 if (isAtEnd())
-                    return Result!(Token, string).err(
-                        "Unterminated string at line " ~ startLine.to!string
-                    );
+                {
+                    auto error = new ParseError("query", 
+                        "Unterminated string", 
+                        ErrorCode.ParseFailed);
+                    error.line = startLine;
+                    return Result!(Token, BuildError).err(error);
+                }
                 
                 // Handle escape sequences
                 char escaped = peek();
@@ -236,15 +242,19 @@ struct QueryLexer
         }
         
         if (isAtEnd())
-            return Result!(Token, string).err(
-                "Unterminated string at line " ~ startLine.to!string
-            );
+        {
+            auto error = new ParseError("query", 
+                "Unterminated string", 
+                ErrorCode.ParseFailed);
+            error.line = startLine;
+            return Result!(Token, BuildError).err(error);
+        }
         
         advance();  // Closing quote
         return ok(TokenType.String, value, startLine, startCol);
     }
     
-    private Result!(Token, string) scanNumber(bool negative = false) @system
+    private Result!(Token, BuildError) scanNumber(bool negative = false) @system
     {
         size_t startLine = line;
         size_t startCol = column;
@@ -259,7 +269,7 @@ struct QueryLexer
         return ok(TokenType.Number, value, startLine, startCol);
     }
     
-    private Result!(Token, string) scanIdentifier() @system
+    private Result!(Token, BuildError) scanIdentifier() @system
     {
         size_t startLine = line;
         size_t startCol = column;
@@ -336,10 +346,10 @@ struct QueryLexer
         }
     }
     
-    private Result!(Token, string) ok(TokenType type, string value, size_t line, size_t column) 
+    private Result!(Token, BuildError) ok(TokenType type, string value, size_t line, size_t column) 
         const pure nothrow @system
     {
-        return Result!(Token, string).ok(Token(type, value, line, column));
+        return Result!(Token, BuildError).ok(Token(type, value, line, column));
     }
 }
 

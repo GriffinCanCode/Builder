@@ -39,12 +39,13 @@ struct HermeticExecutor
     private bool initialized;
     
     /// Create hermetic executor from spec
-    static Result!(HermeticExecutor, string) create(SandboxSpec spec, string workDir = "") @system
+    static Result!(HermeticExecutor, BuildError) create(SandboxSpec spec, string workDir = "") @system
     {
         // Validate spec
         auto validateResult = spec.validate();
         if (validateResult.isErr)
-            return Result!(HermeticExecutor, string).err(validateResult.unwrapErr());
+            return Result!(HermeticExecutor, BuildError).err(
+                new SystemError(validateResult.unwrapErr(), ErrorCode.InvalidConfiguration));
         
         HermeticExecutor executor;
         executor.spec = spec;
@@ -69,21 +70,24 @@ struct HermeticExecutor
         }
         catch (Exception e)
         {
-            return Result!(HermeticExecutor, string).err("Failed to create work directory: " ~ e.msg);
+            return Result!(HermeticExecutor, BuildError).err(
+                ioError(executor.workDir, "Failed to create work directory: " ~ e.msg));
         }
         
         executor.initialized = true;
-        return Result!(HermeticExecutor, string).ok(executor);
+        return Result!(HermeticExecutor, BuildError).ok(executor);
     }
     
     /// Execute command hermetically
-    Result!(Output, string) execute(string[] command, string workingDir = "") @system
+    Result!(Output, BuildError) execute(string[] command, string workingDir = "") @system
     {
         if (!initialized)
-            return Result!(Output, string).err("Executor not initialized");
+            return Result!(Output, BuildError).err(
+                new SystemError("Executor not initialized", ErrorCode.NotInitialized));
         
         if (command.length == 0)
-            return Result!(Output, string).err("Empty command");
+            return Result!(Output, BuildError).err(
+                new SystemError("Empty command", ErrorCode.InvalidCommand));
         
         // Use working dir or current dir
         immutable execDir = workingDir.empty ? workDir : workingDir;
@@ -95,8 +99,9 @@ struct HermeticExecutor
             auto auditLogger = getAuditLogger();
             auditLogger.logFilesystemAccess(execDir, "working_directory", command[0], false);
             
-            return Result!(Output, string).err(
-                "Working directory not in allowed paths: " ~ execDir);
+            return Result!(Output, BuildError).err(
+                new SystemError("Working directory not in allowed paths: " ~ execDir, 
+                              ErrorCode.PermissionDenied));
         }
         
         // Select platform-specific backend
@@ -119,15 +124,17 @@ struct HermeticExecutor
     }
     
     /// Execute with timeout
-    Result!(Output, string) executeWithTimeout(string[] command, Duration timeout, string workingDir = "") @system
+    Result!(Output, BuildError) executeWithTimeout(string[] command, Duration timeout, string workingDir = "") @system
     {
         import core.execution.hermetic.timeout : createTimeoutEnforcer;
         
         if (!initialized)
-            return Result!(Output, string).err("Executor not initialized");
+            return Result!(Output, BuildError).err(
+                new SystemError("Executor not initialized", ErrorCode.NotInitialized));
         
         if (command.length == 0)
-            return Result!(Output, string).err("Empty command");
+            return Result!(Output, BuildError).err(
+                new SystemError("Empty command", ErrorCode.InvalidCommand));
         
         // Create timeout enforcer
         auto timeoutEnforcer = createTimeoutEnforcer();
@@ -147,7 +154,9 @@ struct HermeticExecutor
         // Check if timed out
         if (timeoutEnforcer.isTimedOut())
         {
-            return Result!(Output, string).err("Execution timed out after " ~ timeout.toString());
+            return Result!(Output, BuildError).err(
+                new SystemError("Execution timed out after " ~ timeout.toString(), 
+                              ErrorCode.Timeout));
         }
         
         return result;
@@ -186,17 +195,19 @@ struct HermeticExecutor
     version(linux)
     {
         /// Execute using Linux namespaces
-        private Result!(Output, string) executeLinux(string[] command, string workingDir) @system
+        private Result!(Output, BuildError) executeLinux(string[] command, string workingDir) @system
         {
             auto sandboxResult = LinuxSandbox.create(spec, workDir);
             if (sandboxResult.isErr)
-                return Result!(Output, string).err(sandboxResult.unwrapErr());
+                return Result!(Output, BuildError).err(
+                    new SystemError(sandboxResult.unwrapErr(), ErrorCode.SandboxCreationFailed));
             
             auto sandbox = sandboxResult.unwrap();
             auto execResult = sandbox.execute(command, workingDir);
             
             if (execResult.isErr)
-                return Result!(Output, string).err(execResult.unwrapErr());
+                return Result!(Output, BuildError).err(
+                    new SystemError(execResult.unwrapErr(), ErrorCode.ProcessSpawnFailed));
             
             auto linuxOutput = execResult.unwrap();
             Output output;
@@ -205,24 +216,26 @@ struct HermeticExecutor
             output.exitCode = linuxOutput.exitCode;
             output.hermetic = true;
             
-            return Result!(Output, string).ok(output);
+            return Result!(Output, BuildError).ok(output);
         }
     }
     
     version(OSX)
     {
         /// Execute using macOS sandbox-exec
-        private Result!(Output, string) executeMacOS(string[] command, string workingDir) @system
+        private Result!(Output, BuildError) executeMacOS(string[] command, string workingDir) @system
         {
             auto sandboxResult = MacOSSandbox.create(spec);
             if (sandboxResult.isErr)
-                return Result!(Output, string).err(sandboxResult.unwrapErr());
+                return Result!(Output, BuildError).err(
+                    new SystemError(sandboxResult.unwrapErr(), ErrorCode.SandboxCreationFailed));
             
             auto sandbox = sandboxResult.unwrap();
             auto execResult = sandbox.execute(command, workingDir);
             
             if (execResult.isErr)
-                return Result!(Output, string).err(execResult.unwrapErr());
+                return Result!(Output, BuildError).err(
+                    new SystemError(execResult.unwrapErr(), ErrorCode.ProcessSpawnFailed));
             
             auto macOutput = execResult.unwrap();
             Output output;
@@ -231,24 +244,26 @@ struct HermeticExecutor
             output.exitCode = macOutput.exitCode;
             output.hermetic = true;
             
-            return Result!(Output, string).ok(output);
+            return Result!(Output, BuildError).ok(output);
         }
     }
     
     version(Windows)
     {
         /// Execute using Windows job objects
-        private Result!(Output, string) executeWindows(string[] command, string workingDir) @system
+        private Result!(Output, BuildError) executeWindows(string[] command, string workingDir) @system
         {
             auto sandboxResult = WindowsSandbox.create(spec, workDir);
             if (sandboxResult.isErr)
-                return Result!(Output, string).err(sandboxResult.unwrapErr());
+                return Result!(Output, BuildError).err(
+                    new SystemError(sandboxResult.unwrapErr(), ErrorCode.SandboxCreationFailed));
             
             auto sandbox = sandboxResult.unwrap();
             auto execResult = sandbox.execute(command, workingDir);
             
             if (execResult.isErr)
-                return Result!(Output, string).err(execResult.unwrapErr());
+                return Result!(Output, BuildError).err(
+                    new SystemError(execResult.unwrapErr(), ErrorCode.ProcessSpawnFailed));
             
             auto winOutput = execResult.unwrap();
             Output output;
@@ -257,12 +272,12 @@ struct HermeticExecutor
             output.exitCode = winOutput.exitCode;
             output.hermetic = false;  // Windows implementation is partial
             
-            return Result!(Output, string).ok(output);
+            return Result!(Output, BuildError).ok(output);
         }
     }
     
     /// Fallback execution (no sandboxing, validation only)
-    private Result!(Output, string) executeFallback(string[] command, string workingDir) @system
+    private Result!(Output, BuildError) executeFallback(string[] command, string workingDir) @system
     {
         import utils.security.validation : SecurityValidator;
         
@@ -270,7 +285,9 @@ struct HermeticExecutor
         foreach (arg; command)
         {
             if (!SecurityValidator.isArgumentSafe(arg))
-                return Result!(Output, string).err("Unsafe command argument: " ~ arg);
+                return Result!(Output, BuildError).err(
+                    new SystemError("Unsafe command argument: " ~ arg, 
+                                  ErrorCode.InvalidCommand));
         }
         
         // Build environment
@@ -287,11 +304,12 @@ struct HermeticExecutor
             output.exitCode = result.status;
             output.hermetic = false;  // Not truly hermetic
             
-            return Result!(Output, string).ok(output);
+            return Result!(Output, BuildError).ok(output);
         }
         catch (Exception e)
         {
-            return Result!(Output, string).err("Execution failed: " ~ e.msg);
+            return Result!(Output, BuildError).err(
+                processExecutionError(command[0], 1, "Execution failed: " ~ e.msg));
         }
     }
 }
@@ -315,7 +333,7 @@ struct Output
 struct HermeticSpecBuilder
 {
     /// Create spec for typical build (read sources, write outputs)
-    static Result!(SandboxSpec, string) forBuild(
+    static Result!(SandboxSpec, BuildError) forBuild(
         string workspaceRoot,
         string[] sources,
         string outputDir,
@@ -356,11 +374,15 @@ struct HermeticSpecBuilder
         builder.env("PATH", "/usr/bin:/bin");
         builder.env("LANG", "C.UTF-8");
         
-        return builder.build();
+        auto result = builder.build();
+        if (result.isErr)
+            return Result!(SandboxSpec, BuildError).err(
+                new SystemError(result.unwrapErr(), ErrorCode.InvalidConfiguration));
+        return Result!(SandboxSpec, BuildError).ok(result.unwrap());
     }
     
     /// Create spec for test execution
-    static Result!(SandboxSpec, string) forTest(
+    static Result!(SandboxSpec, BuildError) forTest(
         string workspaceRoot,
         string testDir,
         string tempDir

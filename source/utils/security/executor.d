@@ -298,31 +298,31 @@ struct SecureExecutor
     /// - Malicious arguments: caught by SecurityValidator (returns Err)
     /// - Process execution fails: converted to SecurityError result
     /// - Path traversal attempts: blocked by isPathSafe() validation
-    auto run(scope const(string)[] cmd) @system
+    Result!(ProcessResult, BuildError) run(scope const(string)[] cmd) @system
     {
         // Validation layer
         if (cmd.length == 0)
-            return Err!(ProcessResult, SecurityError)(
-                SecurityError("Empty command", SecurityCode.InvalidCommand));
+            return Err!(ProcessResult, BuildError)(
+                securityError("Empty command", SecurityCode.InvalidCommand));
         
         // Validate command executable
         if (!SecurityValidator.isArgumentSafe(cmd[0]))
-            return Err!(ProcessResult, SecurityError)(
-                SecurityError("Unsafe command: " ~ cmd[0], SecurityCode.InjectionAttempt));
+            return Err!(ProcessResult, BuildError)(
+                securityError("Unsafe command: " ~ cmd[0], SecurityCode.InjectionAttempt));
         
         // Validate all arguments
         foreach (arg; cmd[1 .. $])
         {
             if (!SecurityValidator.isArgumentSafe(arg))
-                return Err!(ProcessResult, SecurityError)(
-                    SecurityError("Unsafe argument: " ~ arg, SecurityCode.InjectionAttempt));
+                return Err!(ProcessResult, BuildError)(
+                    securityError("Unsafe argument: " ~ arg, SecurityCode.InjectionAttempt));
             
             // Validate paths if enabled
             if (validatePaths && (arg.canFind('/') || arg.canFind('\\')))
             {
                 if (!SecurityValidator.isPathSafe(arg))
-                    return Err!(ProcessResult, SecurityError)(
-                        SecurityError("Unsafe path: " ~ arg, SecurityCode.PathTraversal));
+                    return Err!(ProcessResult, BuildError)(
+                        securityError("Unsafe path: " ~ arg, SecurityCode.PathTraversal));
             }
         }
         
@@ -356,8 +356,8 @@ struct SecureExecutor
                 auto executorResult = HermeticExecutor.create(*hermeticSpec, workDir);
                 if (executorResult.isErr)
                 {
-                    return Err!(ProcessResult, SecurityError)(
-                        SecurityError("Hermetic executor creation failed: " ~ executorResult.unwrapErr(), 
+                    return Err!(ProcessResult, BuildError)(
+                        securityError("Hermetic executor creation failed: " ~ executorResult.unwrapErr(), 
                                     SecurityCode.ExecutionFailure));
                 }
                 
@@ -366,19 +366,19 @@ struct SecureExecutor
                 
                 if (result.isErr)
                 {
-                    return Err!(ProcessResult, SecurityError)(
-                        SecurityError("Hermetic execution failed: " ~ result.unwrapErr(), 
+                    return Err!(ProcessResult, BuildError)(
+                        securityError("Hermetic execution failed: " ~ result.unwrapErr(), 
                                     SecurityCode.ExecutionFailure));
                 }
                 
                 auto output = result.unwrap();
-                return Ok!(ProcessResult, SecurityError)(
+                return Ok!(ProcessResult, BuildError)(
                     ProcessResult(output.exitCode, output.stdout));
             }
             catch (Exception e)
             {
-                return Err!(ProcessResult, SecurityError)(
-                    SecurityError("Hermetic execution exception: " ~ e.msg, SecurityCode.ExecutionFailure));
+                return Err!(ProcessResult, BuildError)(
+                    securityError("Hermetic execution exception: " ~ e.msg, SecurityCode.ExecutionFailure));
             }
         }
         
@@ -393,13 +393,13 @@ struct SecureExecutor
                 workDir.empty ? null : workDir
             );
             
-            return Ok!(ProcessResult, SecurityError)(
+            return Ok!(ProcessResult, BuildError)(
                 ProcessResult(res.status, res.output));
         }
         catch (Exception e)
         {
-            return Err!(ProcessResult, SecurityError)(
-                SecurityError("Execution failed: " ~ e.msg, SecurityCode.ExecutionFailure));
+            return Err!(ProcessResult, BuildError)(
+                securityError("Execution failed: " ~ e.msg, SecurityCode.ExecutionFailure));
         }
     }
     
@@ -416,8 +416,8 @@ struct SecureExecutor
     /// 
     /// What could go wrong:
     /// - Command fails validation: returned as Err from run()
-    /// - Non-zero exit: converted to SecurityError (safe failure)
-    auto runChecked(scope const(string)[] cmd) @system
+    /// - Non-zero exit: converted to proper BuildError (safe failure)
+    Result!(ProcessResult, BuildError) runChecked(scope const(string)[] cmd) @system
     {
         auto result = run(cmd);
         if (result.isErr)
@@ -426,13 +426,13 @@ struct SecureExecutor
         auto proc = result.unwrap();
         if (proc.status != 0)
         {
-            return Err!(ProcessResult, SecurityError)(
-                SecurityError(
+            return Err!(ProcessResult, BuildError)(
+                securityError(
                     "Command failed with exit " ~ proc.status.to!string ~ ": " ~ proc.output,
                     SecurityCode.ExecutionFailure));
         }
         
-        return Ok!(ProcessResult, SecurityError)(proc);
+        return Ok!(ProcessResult, BuildError)(proc);
     }
 }
 
@@ -448,20 +448,8 @@ struct ProcessResult
     }
 }
 
-/// Security error types
-struct SecurityError
-{
-    string message;
-    SecurityCode code;
-    
-    this(string msg, SecurityCode c = SecurityCode.Unknown) @system pure nothrow @nogc
-    {
-        this.message = msg;
-        this.code = c;
-    }
-}
-
-/// Security error codes
+/// Security error types - using proper BuildError from errors module
+/// Maps SecurityCode to ErrorCode for consistency
 enum SecurityCode
 {
     Unknown,
@@ -472,61 +460,33 @@ enum SecurityCode
     AccessDenied
 }
 
-/// Result monad for type-safe error handling
-struct Result(T, E)
+/// Convert SecurityCode to ErrorCode
+private ErrorCode toErrorCode(SecurityCode code) pure nothrow @safe @nogc
 {
-    private bool _isOk;
-    private T _value;
-    private E _error;
-    
-    static Result ok(T val) @system
+    final switch (code)
     {
-        Result r;
-        r._isOk = true;
-        r._value = val;
-        return r;
-    }
-    
-    static Result err(E error) @system
-    {
-        Result r;
-        r._isOk = false;
-        r._error = error;
-        return r;
-    }
-    
-    bool isOk() const @system pure nothrow @nogc { return _isOk; }
-    bool isErr() const @system pure nothrow @nogc { return !_isOk; }
-    
-    T unwrap() @system
-    {
-        if (!_isOk)
-            throw new Exception("Called unwrap on error result: " ~ _error.message);
-        return _value;
-    }
-    
-    E unwrapErr() @system
-    {
-        if (_isOk)
-            throw new Exception("Called unwrapErr on ok result");
-        return _error;
-    }
-    
-    T unwrapOr(T default_) @system
-    {
-        return _isOk ? _value : default_;
+        case SecurityCode.Unknown:
+            return ErrorCode.InternalError;
+        case SecurityCode.InvalidCommand:
+            return ErrorCode.InvalidCommand;
+        case SecurityCode.InjectionAttempt:
+            return ErrorCode.SecurityViolation;
+        case SecurityCode.PathTraversal:
+            return ErrorCode.PathTraversal;
+        case SecurityCode.ExecutionFailure:
+            return ErrorCode.ProcessSpawnFailed;
+        case SecurityCode.AccessDenied:
+            return ErrorCode.PermissionDenied;
     }
 }
 
-/// Helper functions
-auto Ok(T, E)(T val) @system
+/// Create a security error using proper SystemError type
+private SystemError securityError(string message, SecurityCode code = SecurityCode.Unknown) @system
 {
-    return Result!(T, E).ok(val);
-}
-
-auto Err(T, E)(E error) @system
-{
-    return Result!(T, E).err(error);
+    auto error = new SystemError(message, toErrorCode(code));
+    error.addSuggestion(ErrorSuggestion("Security validation failed"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Review command arguments and paths"));
+    return error;
 }
 
 // Import for string conversion
@@ -751,4 +711,5 @@ auto execute(
     result = execWithEnv.run(["echo", "hello"]);
     assert(result.isOk);
 }
+
 
