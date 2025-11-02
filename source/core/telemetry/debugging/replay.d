@@ -1,4 +1,4 @@
-module core.telemetry.replay;
+module core.telemetry.debugging.replay;
 
 import std.datetime : SysTime, Clock, Duration;
 import std.conv : to;
@@ -9,7 +9,7 @@ import std.json : JSONValue, parseJSON;
 import std.algorithm : map, filter;
 import std.range : array;
 import core.sync.mutex : Mutex;
-import core.telemetry.collector : BuildSession, TargetMetric, TargetStatus;
+import core.telemetry.collection.collector : BuildSession, TargetMetric, TargetStatus;
 import errors;
 
 /// Build replay system for debugging

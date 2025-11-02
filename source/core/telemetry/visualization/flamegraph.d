@@ -1,4 +1,4 @@
-module core.telemetry.flamegraph;
+module core.telemetry.visualization.flamegraph;
 
 import std.datetime : SysTime, Duration, dur;
 import std.conv : to;
@@ -8,7 +8,7 @@ import std.algorithm : sort, map, sum, maxElement, group, each;
 import std.range : array, enumerate, walkLength;
 import std.string : strip, split, join;
 import core.sync.mutex : Mutex;
-import core.telemetry.collector : BuildSession, TargetMetric;
+import core.telemetry.collection.collector : BuildSession, TargetMetric;
 import errors;
 
 /// Flamegraph generation from build performance data

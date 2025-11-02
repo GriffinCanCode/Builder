@@ -3,7 +3,7 @@ module languages.base.base;
 import std.conv : to;
 import config.schema.schema;
 import analysis.targets.types;
-import core.telemetry.tracing;
+import core.telemetry.distributed.tracing;
 import core.caching.action;
 import utils.logging.structured;
 import utils.simd.capabilities;

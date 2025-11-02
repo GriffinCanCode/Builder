@@ -1,4 +1,4 @@
-module core.telemetry.storage;
+module core.telemetry.persistence.storage;
 
 import std.file : exists, mkdirRecurse, read, write;
 import std.path : buildPath;
@@ -8,7 +8,7 @@ import std.array : Appender, appender;
 import std.algorithm : sort, filter;
 import std.range : array;
 import core.sync.mutex : Mutex;
-import core.telemetry.collector;
+import core.telemetry.collection.collector;
 import errors;
 
 /// High-performance binary storage for telemetry data

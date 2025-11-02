@@ -1,10 +1,10 @@
-module core.telemetry.analysis;
+module core.telemetry.analytics.analysis;
 
 import std.datetime : Duration, dur;
 import std.algorithm : sum, map, sort, maxElement, minElement, filter;
 import std.range : array, empty;
 import std.math : sqrt;
-import core.telemetry.collector;
+import core.telemetry.collection.collector;
 import errors;
 
 /// Analyzes telemetry data to extract insights and trends

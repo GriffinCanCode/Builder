@@ -1,4 +1,4 @@
-module core.telemetry.tracing;
+module core.telemetry.distributed.tracing;
 
 import std.datetime : SysTime, Clock, Duration, dur;
 import std.conv : to;

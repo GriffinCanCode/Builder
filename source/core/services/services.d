@@ -6,7 +6,7 @@ import core.graph.graph;
 import core.execution.engine : ExecutionEngine;
 import core.caching.cache;
 import core.telemetry;
-import core.telemetry.tracing;
+import core.telemetry.distributed.tracing;
 import utils.logging.structured;
 import utils.simd.capabilities;
 import config.schema.schema;

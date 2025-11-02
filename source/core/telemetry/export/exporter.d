@@ -1,11 +1,11 @@
-module core.telemetry.exporter;
+module core.telemetry.export.exporter;
 
 import std.array : appender, Appender, replicate;
 import std.conv : to;
 import std.datetime : SysTime;
 import std.format : format;
-import core.telemetry.collector;
-import core.telemetry.analysis;
+import core.telemetry.collection.collector;
+import core.telemetry.analytics.analysis;
 import errors;
 
 /// Export telemetry data in various formats

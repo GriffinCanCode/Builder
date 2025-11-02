@@ -1,9 +1,9 @@
-module core.telemetry.collector;
+module core.telemetry.collection.collector;
 
 import std.datetime : Duration, SysTime, Clock;
 import core.sync.mutex : Mutex;
 import cli.events.events;
-import core.telemetry.environment;
+import core.telemetry.collection.environment;
 import errors;
 
 /// Thread-safe telemetry collector that subscribes to build events

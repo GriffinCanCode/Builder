@@ -1,4 +1,4 @@
-module core.telemetry.environment;
+module core.telemetry.collection.environment;
 
 import std.datetime : SysTime, Clock;
 import std.process : environment;

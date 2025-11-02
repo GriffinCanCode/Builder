@@ -1,4 +1,4 @@
-module core.telemetry.health;
+module core.telemetry.monitoring.health;
 
 import std.datetime : Duration, SysTime, Clock, dur;
 import std.datetime.stopwatch : StopWatch;

@@ -3,10 +3,14 @@ module core.telemetry;
 /// Build telemetry system for performance analysis and optimization
 /// 
 /// Architecture:
-/// - Collector: Subscribes to build events, aggregates metrics in real-time
-/// - Storage: Persists telemetry data in optimized binary format
-/// - Analysis: Extracts insights, detects trends and regressions
-/// - Export: Outputs data in multiple formats (JSON, CSV, summary)
+/// - Collection: Real-time metrics collection and environment tracking
+/// - Persistence: High-performance binary storage with retention policies
+/// - Analytics: Insights extraction, trends, and regression detection
+/// - Export: Multi-format data export (JSON, CSV, summaries)
+/// - Monitoring: Runtime health tracking and checkpoint management
+/// - Distributed: OpenTelemetry-compatible tracing for parallel builds
+/// - Visualization: Flamegraph generation for performance profiling
+/// - Debugging: Build recording/replay for deterministic debugging
 /// 
 /// Thread Safety:
 /// - All components are thread-safe with mutex protection
@@ -49,13 +53,27 @@ module core.telemetry;
 /// }
 /// ---
 
-public import core.telemetry.collector;
-public import core.telemetry.storage;
-public import core.telemetry.analysis;
-public import core.telemetry.exporter;
-public import core.telemetry.tracing;
-public import core.telemetry.flamegraph;
-public import core.telemetry.replay;
-public import core.telemetry.health;
-public import core.telemetry.environment;
+// Data Collection
+public import core.telemetry.collection;
+
+// Data Persistence
+public import core.telemetry.persistence;
+
+// Data Analytics
+public import core.telemetry.analytics;
+
+// Data Export
+public import core.telemetry.export;
+
+// Runtime Monitoring
+public import core.telemetry.monitoring;
+
+// Distributed Tracing
+public import core.telemetry.distributed;
+
+// Visualization
+public import core.telemetry.visualization;
+
+// Debugging
+public import core.telemetry.debugging;
 

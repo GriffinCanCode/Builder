@@ -1,7 +1,7 @@
 module core.execution.services.observability;
 
 import cli.events.events;
-import core.telemetry.tracing : Tracer, Span, SpanKind, SpanStatus, getTracer, setTracer;
+import core.telemetry.distributed.tracing : Tracer, Span, SpanKind, SpanStatus, getTracer, setTracer;
 import utils.logging.structured : StructuredLogger, LogLevel, getStructuredLogger, setStructuredLogger;
 import errors;
 
@@ -169,7 +169,7 @@ final class NullObservabilityService : IObservabilityService
     
     shared static this()
     {
-        import core.telemetry.tracing : TraceId, SpanId;
+        import core.telemetry.distributed.tracing : TraceId, SpanId;
         // Create a null span that does nothing
         nullSpan = new Span(TraceId(), SpanId(), SpanId(), "null", SpanKind.Internal);
     }
