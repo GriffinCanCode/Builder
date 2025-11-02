@@ -362,6 +362,13 @@ struct DistributedConfig
     size_t localWorkers = 0;                // Local workers for hybrid mode (0 = distributed only)
     bool autoDiscover = true;               // Auto-discover coordinator
     
+    // Remote execution settings
+    bool remoteExecution = false;           // Enable remote execution (not just caching)
+    string artifactStoreUrl = "";           // Artifact store URL for remote execution
+    size_t minWorkers = 2;                  // Minimum worker pool size
+    size_t maxWorkers = 50;                 // Maximum worker pool size
+    bool enableAutoScale = true;            // Enable autoscaling
+    
     /// Load from environment variables
     static DistributedConfig fromEnvironment() @safe
     {
@@ -384,6 +391,38 @@ struct DistributedConfig
             }
             catch (Exception) {}
         }
+        
+        // Remote execution settings
+        immutable remoteExec = environment.get("BUILDER_REMOTE_EXECUTION", "");
+        config.remoteExecution = (remoteExec == "1" || remoteExec == "true");
+        
+        config.artifactStoreUrl = environment.get("BUILDER_ARTIFACT_STORE_URL", "");
+        
+        immutable minWorkers = environment.get("BUILDER_MIN_WORKERS", "");
+        if (minWorkers.length > 0)
+        {
+            try
+            {
+                import std.conv : to;
+                config.minWorkers = minWorkers.to!size_t;
+            }
+            catch (Exception) {}
+        }
+        
+        immutable maxWorkers = environment.get("BUILDER_MAX_WORKERS", "");
+        if (maxWorkers.length > 0)
+        {
+            try
+            {
+                import std.conv : to;
+                config.maxWorkers = maxWorkers.to!size_t;
+            }
+            catch (Exception) {}
+        }
+        
+        immutable autoScale = environment.get("BUILDER_AUTOSCALE", "");
+        if (autoScale == "0" || autoScale == "false")
+            config.enableAutoScale = false;
         
         return config;
     }

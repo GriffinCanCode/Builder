@@ -40,6 +40,7 @@ void main(string[] args)
     bool watch = false;
     bool clearScreen = true;
     long debounceMs = 300;
+    bool remoteExecution = false;
     
     auto helpInfo = getopt(
         args,
@@ -49,7 +50,8 @@ void main(string[] args)
         "version", "Show version information", &showVersion,
         "watch|w", "Watch mode - rebuild on file changes", &watch,
         "clear", "Clear screen between builds in watch mode", &clearScreen,
-        "debounce", "Debounce delay in milliseconds for watch mode", &debounceMs
+        "debounce", "Debounce delay in milliseconds for watch mode", &debounceMs,
+        "remote", "Enable remote execution on worker pool", &remoteExecution
     );
     
     if (showVersion)
@@ -78,11 +80,11 @@ void main(string[] args)
             case "build":
                 if (watch)
                 {
-                    watchCommand(target, clearScreen, showGraph, mode, verbose, debounceMs);
+                    watchCommand(target, clearScreen, showGraph, mode, verbose, debounceMs, remoteExecution);
                 }
                 else
                 {
-                    buildCommand(target, showGraph, mode);
+                    buildCommand(target, showGraph, mode, remoteExecution);
                 }
                 break;
             case "test":
@@ -174,9 +176,14 @@ void main(string[] args)
 }
 
 /// Build command handler (refactored to use dependency injection)
-void buildCommand(in string target, in bool showGraph, in string modeStr) @system
+void buildCommand(in string target, in bool showGraph, in string modeStr, in bool remoteExecution = false) @system
 {
     Logger.info("Starting build...");
+    
+    if (remoteExecution)
+    {
+        Logger.info("Remote execution enabled");
+    }
     
     // Parse configuration with error handling
     auto configResult = ConfigParser.parseWorkspace(".");
@@ -191,6 +198,24 @@ void buildCommand(in string target, in bool showGraph, in string modeStr) @syste
     
     auto config = configResult.unwrap();
     Logger.info("Found " ~ config.targets.length.to!string ~ " targets");
+    
+    // Configure remote execution if enabled
+    if (remoteExecution)
+    {
+        config.options.distributed.remoteExecution = true;
+        // Set defaults from environment or use sensible defaults
+        import std.process : environment;
+        if (config.options.distributed.coordinatorUrl.length == 0)
+        {
+            config.options.distributed.coordinatorUrl = 
+                environment.get("BUILDER_COORDINATOR_URL", "http://localhost:9000");
+        }
+        if (config.options.distributed.artifactStoreUrl.length == 0)
+        {
+            config.options.distributed.artifactStoreUrl =
+                environment.get("BUILDER_ARTIFACT_STORE_URL", "http://localhost:8080");
+        }
+    }
     
     // Create services with dependency injection
     auto services = new BuildServices(config, config.options);
@@ -488,8 +513,9 @@ void watchCommand(
     in bool showGraph,
     in string modeStr,
     in bool verbose,
-    in long debounceMs) @system
+    in long debounceMs,
+    in bool remoteExecution = false) @system
 {
-    WatchCommand.execute(target, clearScreen, showGraph, modeStr, verbose, debounceMs);
+    WatchCommand.execute(target, clearScreen, showGraph, modeStr, verbose, debounceMs, remoteExecution);
 }
 

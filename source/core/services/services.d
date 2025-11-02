@@ -40,6 +40,7 @@ final class BuildServices
     private StructuredLogger _structuredLogger;
     private SIMDCapabilities _simdCapabilities;
     private HandlerRegistry _registry;
+    private RemoteExecutionService _remoteService;
     
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
@@ -77,6 +78,9 @@ final class BuildServices
         {
             Logger.debugLog("Incremental analysis enabled");
         }
+        
+        // Initialize remote execution service (if enabled)
+        this._initializeRemoteExecution(config, options);
         
         // Initialize event system
         this._publisher = new SimpleEventPublisher();
@@ -333,8 +337,93 @@ final class BuildServices
     
     /// Cleanup and shutdown services
     /// Explicitly flushes all caches and persists state before termination
+    /// Initialize remote execution service (if enabled)
+    private void _initializeRemoteExecution(WorkspaceConfig config, BuildOptions options) @trusted
+    {
+        import std.process : environment;
+        
+        // Check if remote execution is enabled
+        immutable distConfig = options.distributed;
+        if (!distConfig.remoteExecution)
+        {
+            Logger.debugLog("Remote execution disabled");
+            return;
+        }
+        
+        try
+        {
+            import core.execution.remote;
+            
+            // Build remote service configuration
+            auto poolConfig = PoolConfig(
+                minWorkers: distConfig.minWorkers,
+                maxWorkers: distConfig.maxWorkers,
+                enableAutoScale: distConfig.enableAutoScale
+            );
+            
+            auto executorConfig = RemoteExecutorConfig(
+                coordinatorUrl: distConfig.coordinatorUrl,
+                artifactStoreUrl: distConfig.artifactStoreUrl,
+                enableCaching: true,
+                enableCompression: true
+            );
+            
+            // Get build graph (would be passed from build context)
+            // For now, create minimal graph - actual graph passed during execution
+            auto graph = new BuildGraph();
+            
+            _remoteService = RemoteServiceBuilder.create()
+                .coordinator("0.0.0.0", 9000)  // Default coordinator
+                .pool(poolConfig)
+                .executor(executorConfig)
+                .enableReapi(9001)
+                .enableMetrics(true)
+                .build(graph);
+            
+            // Start service
+            auto startResult = _remoteService.start();
+            if (startResult.isErr)
+            {
+                Logger.warning("Failed to start remote execution service: " ~
+                             startResult.unwrapErr().message());
+                _remoteService = null;
+            }
+            else
+            {
+                Logger.info("Remote execution service started");
+                Logger.info("  Coordinator: " ~ distConfig.coordinatorUrl);
+                Logger.info("  Workers: " ~ distConfig.minWorkers.to!string ~
+                          "-" ~ distConfig.maxWorkers.to!string ~
+                          " (autoscale: " ~ distConfig.enableAutoScale.to!string ~ ")");
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.error("Failed to initialize remote execution: " ~ e.msg);
+            _remoteService = null;
+        }
+    }
+    
+    /// Get remote execution service (if available)
+    RemoteExecutionService remoteService() @property
+    {
+        return _remoteService;
+    }
+    
+    /// Check if remote execution is available
+    bool hasRemoteExecution() const @property
+    {
+        return _remoteService !is null;
+    }
+    
     void shutdown()
     {
+        // Stop remote execution service
+        if (_remoteService !is null)
+        {
+            _remoteService.stop();
+        }
+        
         // Flush any pending output
         flush();
         
