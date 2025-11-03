@@ -30,11 +30,30 @@ module engine.runtime.remote;
 ///
 /// ```
 /// remote/
-/// ├── service.d      # Main orchestrator
-/// ├── executor.d     # Remote execution engine
-/// ├── pool.d         # Worker pool with autoscaling
-/// ├── reapi.d        # Bazel REAPI adapter
-/// └── package.d      # Public API
+/// ├── core/              # Core execution components
+/// │   ├── service.d      # Main orchestrator
+/// │   └── executor.d     # Remote execution engine
+/// ├── pool/              # Worker pool management
+/// │   ├── manager.d      # Pool manager with autoscaling
+/// │   └── scaling/       # Autoscaling algorithms
+/// ├── artifacts/         # Artifact management
+/// │   └── manager.d      # Upload/download handler
+/// ├── serialization/     # Spec serialization
+/// │   ├── codec.d        # Serialization codec
+/// │   └── schema.d       # Serialization schema
+/// ├── protocol/          # Protocol adapters
+/// │   ├── reapi.d        # Bazel REAPI adapter
+/// │   └── discovery.d    # Discovery integration
+/// ├── monitoring/        # Health and metrics
+/// │   ├── health.d       # Health monitoring
+/// │   └── metrics.d      # Metrics collection
+/// ├── providers/         # Cloud provider integrations
+/// │   ├── base.d         # Provider interface
+/// │   ├── provisioner.d  # Worker provisioner
+/// │   ├── aws.d          # AWS EC2 provider
+/// │   ├── kubernetes.d   # Kubernetes provider
+/// │   └── mock.d         # Mock provider
+/// └── package.d          # Public API
 /// ```
 ///
 /// ## Usage
@@ -211,10 +230,23 @@ module engine.runtime.remote;
 /// - `core.distributed` - Distributed coordination
 /// - `caching.distributed` - Remote caching
 
-public import engine.runtime.remote.service;
-public import engine.runtime.remote.executor;
-public import engine.runtime.remote.pool;
-public import engine.runtime.remote.reapi;
-public import engine.runtime.remote.schema;
-public import engine.runtime.remote.codec;
+// Core execution components
+public import engine.runtime.remote.core;
 
+// Artifact management
+public import engine.runtime.remote.artifacts;
+
+// Worker pool management
+public import engine.runtime.remote.pool;
+
+// Serialization
+public import engine.runtime.remote.serialization;
+
+// Protocol adapters
+public import engine.runtime.remote.protocol;
+
+// Monitoring
+public import engine.runtime.remote.monitoring;
+
+// Cloud providers
+public import engine.runtime.remote.providers;

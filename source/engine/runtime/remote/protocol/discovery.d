@@ -1,4 +1,4 @@
-module engine.runtime.remote.discovery;
+module engine.runtime.remote.protocol.discovery;
 
 import std.stdio;
 import std.algorithm;

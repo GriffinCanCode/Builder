@@ -1,4 +1,4 @@
-module engine.runtime.remote.service;
+module engine.runtime.remote.core.service;
 
 import std.datetime : Duration, Clock, SysTime, seconds;
 import std.algorithm : map, filter;
@@ -11,9 +11,9 @@ import engine.graph.graph : BuildGraph;
 import engine.distributed.coordinator.coordinator;
 import engine.distributed.coordinator.registry;
 import engine.distributed.protocol.protocol : ActionId, WorkerId;
-import engine.runtime.remote.executor;
-import engine.runtime.remote.pool;
-import engine.runtime.remote.reapi;
+import engine.runtime.remote.core.executor;
+import engine.runtime.remote.pool.manager;
+import engine.runtime.remote.protocol.reapi;
 import engine.runtime.remote.providers.provisioner : WorkerProvisioner;
 import engine.runtime.remote.providers.base : CloudProvider;
 import engine.runtime.remote.providers.mock : MockCloudProvider;

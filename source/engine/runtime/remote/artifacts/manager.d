@@ -1,4 +1,4 @@
-module engine.runtime.remote.artifacts;
+module engine.runtime.remote.artifacts.manager;
 
 import std.file : exists, read, getSize;
 import std.conv : to;

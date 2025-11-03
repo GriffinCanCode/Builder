@@ -1,4 +1,4 @@
-module engine.runtime.remote.schema;
+module engine.runtime.remote.serialization.schema;
 
 import infrastructure.utils.serialization;
 

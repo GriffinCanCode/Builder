@@ -1,4 +1,4 @@
-module engine.runtime.remote.executor;
+module engine.runtime.remote.core.executor;
 
 import std.datetime : Duration, Clock, MonoTime, minutes;
 import std.algorithm : map;
@@ -8,8 +8,8 @@ import engine.distributed.protocol.protocol;
 import engine.distributed.coordinator.coordinator;
 import engine.distributed.coordinator.scheduler;
 import engine.runtime.hermetic;
-import engine.runtime.remote.codec : HermeticSpecCodec;
-import engine.runtime.remote.artifacts : ArtifactManager;
+import engine.runtime.remote.serialization.codec : HermeticSpecCodec;
+import engine.runtime.remote.artifacts.manager : ArtifactManager;
 import engine.caching.distributed.remote.client;
 import engine.distributed.storage.store : ArtifactStore;
 import infrastructure.errors;

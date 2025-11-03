@@ -1,4 +1,4 @@
-module engine.runtime.remote.pool;
+module engine.runtime.remote.pool.manager;
 
 import std.datetime : Duration, Clock, SysTime, seconds, minutes;
 import std.algorithm : filter, map, sort, min, max;
@@ -10,7 +10,7 @@ import core.sync.mutex : Mutex;
 import core.thread : Thread;
 import engine.distributed.protocol.protocol;
 import engine.distributed.coordinator.registry;
-import engine.runtime.remote.scaling.predictor : LoadPredictor;
+import engine.runtime.remote.pool.scaling.predictor : LoadPredictor;
 import engine.runtime.remote.providers;
 import engine.runtime.remote.providers.provisioner : WorkerProvisioner;
 import infrastructure.errors;

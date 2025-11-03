@@ -1,8 +1,8 @@
-module engine.runtime.remote.codec;
+module engine.runtime.remote.serialization.codec;
 
 import std.datetime : dur;
 import engine.runtime.hermetic;
-import engine.runtime.remote.schema;
+import engine.runtime.remote.serialization.schema;
 import infrastructure.utils.serialization;
 import infrastructure.errors;
 

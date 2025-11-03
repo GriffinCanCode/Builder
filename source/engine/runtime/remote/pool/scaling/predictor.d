@@ -1,4 +1,4 @@
-module engine.runtime.remote.scaling.predictor;
+module engine.runtime.remote.pool.scaling.predictor;
 
 /// Load predictor using exponential smoothing
 /// 

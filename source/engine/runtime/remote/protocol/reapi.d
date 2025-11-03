@@ -1,4 +1,4 @@
-module engine.runtime.remote.reapi;
+module engine.runtime.remote.protocol.reapi;
 
 import std.datetime : Duration, seconds;
 import std.conv : to;
