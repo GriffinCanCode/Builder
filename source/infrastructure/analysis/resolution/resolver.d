@@ -9,7 +9,7 @@ import std.conv;
 import infrastructure.config.schema.schema;
 import infrastructure.analysis.targets.types;
 import infrastructure.errors;
-import infrastructure.repository.resolver : RepositoryResolver;
+import infrastructure.repository.resolution.resolver : RepositoryResolver;
 
 /// Resolves import statements to build targets
 class DependencyResolver
@@ -27,7 +27,6 @@ class DependencyResolver
         // Initialize repository resolver if repositories are defined
         if (config.repositories.length > 0)
         {
-            import infrastructure.repository.resolver : RepositoryResolver;
             this.repoResolver = new RepositoryResolver(cacheDir, config.root);
             
             // Register all repository rules

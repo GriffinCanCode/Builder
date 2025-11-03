@@ -86,7 +86,7 @@ struct ErrorAggregator(T)
     }
     
     /// Check if we should stop based on error and policy
-    private bool shouldStopOnError(BuildError error) pure nothrow @nogc
+    private bool shouldStopOnError(BuildError error) pure nothrow
     {
         final switch (policy)
         {

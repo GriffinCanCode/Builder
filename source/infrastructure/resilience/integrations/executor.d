@@ -1,7 +1,7 @@
 module infrastructure.resilience.integrations.executor;
 
 import std.datetime;
-import engine.runtime.remote.executor;
+import engine.runtime.remote.core.executor;
 import engine.runtime.hermetic;
 import engine.distributed.protocol.protocol : ActionId;
 import infrastructure.resilience;

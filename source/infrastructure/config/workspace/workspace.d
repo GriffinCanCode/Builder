@@ -306,12 +306,10 @@ struct WorkspaceAnalyzer
         if (decl.hasField("cacheDir"))
         {
             auto field = decl.getField("cacheDir");
-            auto result = field.value.asString();
-            if (result.isErr)
-            {
+            auto lit = field.getLiteral();
+            if (!lit || lit.kind != LiteralKind.String)
                 return error("Field 'cacheDir' must be a string");
-            }
-            config.options.cacheDir = result.unwrap();
+            config.options.cacheDir = lit.asString();
         }
         
         if (decl.hasField("outputDir"))

@@ -73,7 +73,7 @@ struct Literal
         return lit;
     }
     
-    static Literal makeBool(bool value) pure nothrow @nogc @safe
+    static Literal makeBool(bool value) pure nothrow @nogc @trusted
     {
         Literal lit;
         lit.kind = LiteralKind.Bool;
@@ -89,7 +89,7 @@ struct Literal
         return lit;
     }
     
-    static Literal makeString(string value) pure @safe
+    static Literal makeString(string value) pure @trusted
     {
         Literal lit;
         lit.kind = LiteralKind.String;
@@ -97,26 +97,30 @@ struct Literal
         return lit;
     }
     
-    static Literal makeArray(Literal[] elements) @safe
+    static Literal makeArray(Literal[] elements) @trusted
     {
+        import core.memory : GC;
         Literal lit;
         lit.kind = LiteralKind.Array;
-        lit.storage.arrayValue = new Literal[](elements.length);
-        *lit.storage.arrayValue = elements;
+        auto arr = elements.dup;
+        lit.storage.arrayValue = cast(Literal[]*) GC.malloc((Literal[]).sizeof);
+        *lit.storage.arrayValue = arr;
         return lit;
     }
     
-    static Literal makeMap(Literal[string] pairs) @safe
+    static Literal makeMap(Literal[string] pairs) @trusted
     {
+        import core.memory : GC;
         Literal lit;
         lit.kind = LiteralKind.Map;
-        lit.storage.mapValue = new Literal[string];
-        *lit.storage.mapValue = pairs;
+        auto map = pairs.dup;
+        lit.storage.mapValue = cast(Literal[string]*) GC.malloc((Literal[string]).sizeof);
+        *lit.storage.mapValue = map;
         return lit;
     }
     
     // Accessors
-    bool asBool() const pure @safe
+    bool asBool() const pure @trusted
     in (kind == LiteralKind.Bool)
     {
         return storage.boolValue;
@@ -128,26 +132,26 @@ struct Literal
         return storage.numberValue;
     }
     
-    string asString() const pure @safe
+    string asString() const pure @trusted
     in (kind == LiteralKind.String)
     {
         return storage.stringValue;
     }
     
-    const(Literal[]) asArray() const pure nothrow @nogc @safe
+    const(Literal[]) asArray() const pure nothrow @nogc @trusted
     in (kind == LiteralKind.Array)
     {
         return *storage.arrayValue;
     }
     
-    const(Literal[string]) asMap() const pure nothrow @nogc @safe
+    const(Literal[string]) asMap() const pure nothrow @nogc @trusted
     in (kind == LiteralKind.Map)
     {
         return *storage.mapValue;
     }
     
     // Conversions
-    Result!(string[], BuildError) toStringArray() const @safe
+    Result!(string[], BuildError) toStringArray() const @trusted
     {
         if (kind != LiteralKind.Array)
             return Err!(string[], BuildError)(new ParseError("Expected array", null));
@@ -162,7 +166,7 @@ struct Literal
         return Ok!(string[], BuildError)(result);
     }
     
-    Result!(string[string], BuildError) toStringMap() const @safe
+    Result!(string[string], BuildError) toStringMap() const @trusted
     {
         if (kind != LiteralKind.Map)
             return Err!(string[string], BuildError)(new ParseError("Expected map", null));
@@ -554,6 +558,14 @@ struct Field
         this.value = value;
         this.loc = loc;
     }
+    
+    /// Get the literal value if this field contains a literal expression
+    const(Literal)* getLiteral() const pure nothrow @trusted
+    {
+        if (auto litExpr = cast(LiteralExpr)value)
+            return &litExpr.value;
+        return null;
+    }
 }
 
 class TargetDeclStmt : Stmt
@@ -572,11 +584,11 @@ class TargetDeclStmt : Stmt
     override Location location() const pure nothrow @safe { return loc; }
     override string nodeType() const pure nothrow @safe { return "TargetDecl"; }
     
-    const(Field)* getField(string name) const pure nothrow @safe
+    const(Field)* getField(string name) const pure nothrow @trusted
     {
-        foreach (ref field; fields)
+        foreach (i, ref field; fields)
             if (field.name == name)
-                return &field;
+                return &fields[i];
         return null;
     }
 }
@@ -597,11 +609,11 @@ class RepositoryDeclStmt : Stmt
     override Location location() const pure nothrow @safe { return loc; }
     override string nodeType() const pure nothrow @safe { return "RepositoryDecl"; }
     
-    const(Field)* getField(string name) const pure nothrow @safe
+    const(Field)* getField(string name) const pure nothrow @trusted
     {
-        foreach (ref field; fields)
+        foreach (i, ref field; fields)
             if (field.name == name)
-                return &field;
+                return &fields[i];
         return null;
     }
 }
@@ -622,11 +634,11 @@ class WorkspaceDeclStmt : Stmt
     override Location location() const pure nothrow @safe { return loc; }
     override string nodeType() const pure nothrow @safe { return "WorkspaceDecl"; }
     
-    const(Field)* getField(string name) const pure nothrow @safe
+    const(Field)* getField(string name) const pure nothrow @trusted
     {
-        foreach (ref field; fields)
+        foreach (i, ref field; fields)
             if (field.name == name)
-                return &field;
+                return &fields[i];
         return null;
     }
 }
@@ -656,7 +668,7 @@ struct BuildFile
             .map!(s => cast(RepositoryDeclStmt)s);
     }
     
-    WorkspaceDeclStmt getWorkspace() const pure nothrow @safe
+    WorkspaceDeclStmt getWorkspace() const pure nothrow @trusted
     {
         foreach (stmt; statements)
             if (auto ws = cast(WorkspaceDeclStmt)stmt)

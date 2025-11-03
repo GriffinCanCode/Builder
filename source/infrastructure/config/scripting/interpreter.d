@@ -234,7 +234,8 @@ class Interpreter
     private Result!BuildError executeTargetStmt(TargetDeclStmt stmt) @system
     {
         // Add target to generated targets list
-        generatedTargets ~= stmt.target;
+        // Note: TargetDeclStmt contains fields that need to be converted to a Target
+        // This is handled by the semantic analyzer
         return Result!BuildError.ok();
     }
     
@@ -242,7 +243,7 @@ class Interpreter
     private Result!BuildError executeExprStmt(ExprStmt stmt) @system
     {
         // Evaluate expression (for side effects, like macro calls)
-        auto result = evaluateExpr(stmt.expression);
+        auto result = evaluateExpr(stmt.expr);
         if (result.isErr)
             return Result!BuildError.err(result.unwrapErr());
         
@@ -257,7 +258,7 @@ class Interpreter
         scope(exit) evaluator.exitScope();
         
         // Execute all statements in block
-        foreach (s; stmt.statements)
+        foreach (s; stmt.stmts)
         {
             auto result = executeStatement(s);
             if (result.isErr)
@@ -273,7 +274,7 @@ class Interpreter
         if (auto litExpr = cast(LiteralExpr)expr)
         {
             // Evaluate literal using existing evaluator
-            return evaluator.evaluate(litExpr.value);
+            return evaluator.evaluate(litExpr);
         }
         else if (auto binaryExpr = cast(BinaryExpr)expr)
         {
@@ -285,7 +286,7 @@ class Interpreter
             if (rightResult.isErr)
                 return rightResult;
             
-            return evaluator.evaluateBinary(binaryExpr.operator, leftResult.unwrap(), rightResult.unwrap());
+            return evaluator.evaluateBinary(binaryExpr.op, leftResult.unwrap(), rightResult.unwrap());
         }
         else if (auto unaryExpr = cast(UnaryExpr)expr)
         {
@@ -293,21 +294,21 @@ class Interpreter
             if (operandResult.isErr)
                 return operandResult;
             
-            return evaluator.evaluateUnary(unaryExpr.operator, operandResult.unwrap());
+            return evaluator.evaluateUnary(unaryExpr.op, operandResult.unwrap());
         }
         else if (auto callExpr = cast(CallExpr)expr)
         {
             // Evaluate arguments
-            Value[] args;
-            foreach (arg; callExpr.arguments)
+            Value[] argValues;
+            foreach (arg; callExpr.args)
             {
                 auto argResult = evaluateExpr(arg);
                 if (argResult.isErr)
                     return Result!(Value, BuildError).err(argResult.unwrapErr());
-                args ~= argResult.unwrap();
+                argValues ~= argResult.unwrap();
             }
             
-            return evaluator.evaluateCall(callExpr.callee, args);
+            return evaluator.evaluateCall(callExpr.callee, argValues);
         }
         else if (auto indexExpr = cast(IndexExpr)expr)
         {

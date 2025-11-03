@@ -8,7 +8,7 @@ import std.datetime.stopwatch : StopWatch, AutoStart;
 import std.parallelism : parallel;
 import core.atomic;
 import infrastructure.config.schema.schema : Target, WorkspaceConfig;
-import engine.runtime.services.services : BuildServices;
+import engine.runtime.services.container.services : BuildServices;
 import frontend.testframework.results;
 import frontend.testframework.sharding;
 import frontend.testframework.caching;

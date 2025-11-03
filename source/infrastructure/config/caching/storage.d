@@ -64,7 +64,7 @@ struct ASTStorage
         // Reconstruct targets
         foreach (ref serialTarget; serializable.targets)
         {
-            file.targets ~= reconstructTarget(serialTarget);
+            file.statements ~= reconstructTarget(serialTarget);
         }
         
         return file;

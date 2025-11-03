@@ -331,7 +331,7 @@ struct WorkspaceConfig
     BuildOptions options;
     
     // Repository rules (external dependencies)
-    import infrastructure.repository.types : RepositoryRule;
+    import infrastructure.repository.core.types : RepositoryRule;
     RepositoryRule[] repositories;
     
     /// Find a target by name (string version for backward compatibility)

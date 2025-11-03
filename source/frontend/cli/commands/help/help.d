@@ -5,7 +5,7 @@ import std.string : toLower;
 import infrastructure.utils.logging.logger;
 import frontend.cli.control.terminal;
 import frontend.cli.display.format;
-import frontend.cli.commands.watch : WatchCommand;
+import frontend.cli.commands.extensions.watch : WatchCommand;
 import languages.registry : LanguageCategory, getLanguageCategoryList;
 
 /// Help command - provides detailed documentation for Builder commands

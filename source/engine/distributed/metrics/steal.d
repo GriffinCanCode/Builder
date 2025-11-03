@@ -152,7 +152,10 @@ final class StealTelemetry
     PeerMetrics getPeerStats(WorkerId peer) @trusted
     {
         synchronized (mutex)
-            return (peer in peerMetrics) ? *peerMetrics[peer] : PeerMetrics.init;
+        {
+            auto ptr = peer in peerMetrics;
+            return ptr ? *ptr : PeerMetrics.init;
+        }
     }
     
     /// Get all peer statistics

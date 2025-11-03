@@ -70,7 +70,12 @@ Partitioned!(T, E) partition(T, E)(Result!(T, E)[] results)
     part.successes.reserve(results.length);
     part.errors.reserve(results.length);
     foreach (r; results)
-        r.isOk ? part.successes ~= r.unwrap() : part.errors ~= r.unwrapErr();
+    {
+        if (r.isOk)
+            part.successes ~= r.unwrap();
+        else
+            part.errors ~= r.unwrapErr();
+    }
     return part;
 }
 

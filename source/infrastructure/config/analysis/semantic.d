@@ -266,7 +266,7 @@ struct ParseResult
 {
     Target[] targets;
     
-    import infrastructure.repository.types : RepositoryRule;
+    import infrastructure.repository.core.types : RepositoryRule;
     RepositoryRule[] repositories;
 }
 
@@ -292,7 +292,7 @@ Result!(ParseResult, BuildError) parseDSL(
         return Err!(ParseResult, BuildError)(targetsResult.unwrapErr());
     
     // Convert repositories
-    import infrastructure.repository.types : RepositoryRule, RepositoryKind, ArchiveFormat;
+    import infrastructure.repository.core.types : RepositoryRule, RepositoryKind, ArchiveFormat;
     RepositoryRule[] repositories;
     
     foreach (stmt; ast.statements)

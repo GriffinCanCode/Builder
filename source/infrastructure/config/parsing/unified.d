@@ -939,12 +939,12 @@ class UnifiedParser
     // HELPERS
     // ========================================================================
     
-    private bool isAtEnd() const pure nothrow @nogc @safe
+    private bool isAtEnd() const pure nothrow @safe
     {
         return current >= tokens.length || peek().type == TokenType.EOF;
     }
     
-    private Token peek() const pure nothrow @safe
+    private Token peek() const pure nothrow @nogc @safe
     {
         return current < tokens.length ? tokens[current] : Token(TokenType.EOF, "", 0, 0);
     }
@@ -973,7 +973,7 @@ class UnifiedParser
         return false;
     }
     
-    private bool check(TokenType type) const pure nothrow @nogc @safe
+    private bool check(TokenType type) const pure nothrow @safe
     {
         return !isAtEnd() && peek().type == type;
     }
