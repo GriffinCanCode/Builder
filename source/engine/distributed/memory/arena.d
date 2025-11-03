@@ -58,17 +58,13 @@ struct Arena
     /// Throws on out-of-memory
     ubyte[] allocate(size_t size, size_t alignment = size_t.sizeof) @trusted
     {
-        // Align offset
         immutable alignedOffset = alignUp(offset, alignment);
         immutable newOffset = alignedOffset + size;
         
-        enforce(newOffset <= capacity, 
-            "Arena out of memory: " ~ newOffset.to!string ~ " > " ~ capacity.to!string);
+        enforce(newOffset <= capacity, "Arena out of memory: " ~ newOffset.to!string ~ " > " ~ capacity.to!string);
         
-        auto slice = buffer[alignedOffset .. newOffset];
         offset = newOffset;
-        
-        return slice;
+        return buffer[alignedOffset .. newOffset];
     }
     
     /// Allocate and construct value
@@ -95,44 +91,20 @@ struct Arena
         return cast(T[])mem;
     }
     
-    /// Reset arena (free all allocations)
-    void reset() @safe nothrow @nogc
-    {
-        offset = 0;
-    }
-    
-    /// Get current usage
-    size_t used() const pure @safe nothrow @nogc
-    {
-        return offset;
-    }
-    
-    /// Get remaining capacity
-    size_t available() const pure @safe nothrow @nogc
-    {
-        return capacity - offset;
-    }
-    
-    /// Get total capacity
-    size_t totalCapacity() const pure @safe nothrow @nogc
-    {
-        return capacity;
-    }
+    void reset() @safe nothrow @nogc { offset = 0; }
+    size_t used() const pure @safe nothrow @nogc => offset;
+    size_t available() const pure @safe nothrow @nogc => capacity - offset;
+    size_t totalCapacity() const pure @safe nothrow @nogc => capacity;
     
     /// Check if arena has space for allocation
-    bool canAllocate(size_t size, size_t alignment = size_t.sizeof) const pure @safe nothrow @nogc
-    {
-        immutable alignedOffset = alignUp(offset, alignment);
-        return alignedOffset + size <= capacity;
-    }
+    bool canAllocate(size_t size, size_t alignment = size_t.sizeof) const pure @safe nothrow @nogc =>
+        alignUp(offset, alignment) + size <= capacity;
     
     private:
     
     /// Align value up to alignment boundary
-    static size_t alignUp(size_t value, size_t alignment) pure @safe nothrow @nogc
-    {
-        return (value + alignment - 1) & ~(alignment - 1);
-    }
+    static size_t alignUp(size_t value, size_t alignment) pure @safe nothrow @nogc =>
+        (value + alignment - 1) & ~(alignment - 1);
 }
 
 /// Thread-safe arena pool
@@ -179,17 +151,13 @@ final class ArenaPool
     /// Release arena back to pool
     void release(Arena* arena) @trusted
     {
-        if (arena is null)
-            return;
-        
+        if (arena is null) return;
         arena.reset();
         
         synchronized (mutex)
         {
             if (available.length < maxArenas)
-            {
                 available ~= arena;
-            }
             // else: let it be GC'd
         }
     }
@@ -234,16 +202,11 @@ struct ScopedArena
     ~this() @trusted
     {
         if (pool !is null && arena !is null)
-        {
             pool.release(arena);
-        }
     }
     
     /// Get underlying arena
-    Arena* get() @safe nothrow @nogc
-    {
-        return arena;
-    }
+    Arena* get() @safe nothrow @nogc => arena;
     
     /// Convenience: forward to arena
     alias get this;
@@ -251,5 +214,4 @@ struct ScopedArena
 
 // Import at the end to avoid circular dependency with tests
 import std.conv : to;
-
 

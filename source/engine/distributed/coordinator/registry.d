@@ -24,18 +24,10 @@ struct WorkerInfo
     Duration totalExecutionTime;  // Cumulative execution time
     
     /// Estimated load (for scheduling decisions)
-    float load() const pure nothrow @safe @nogc
-    {
-        // Weighted combination of queue depth and CPU usage
-        return metrics.queueDepth * 0.6 + metrics.cpuUsage * 0.4;
-    }
+    float load() const pure nothrow @safe @nogc => metrics.queueDepth * 0.6 + metrics.cpuUsage * 0.4;
     
     /// Is worker healthy?
-    bool healthy(Duration timeout) const @safe
-    {
-        immutable elapsed = Clock.currTime - lastSeen;
-        return state != WorkerState.Failed && elapsed < timeout;
-    }
+    bool healthy(Duration timeout) const @safe => state != WorkerState.Failed && (Clock.currTime - lastSeen) < timeout;
 }
 
 /// Worker registry (maintains worker pool state)
@@ -59,19 +51,17 @@ final class WorkerRegistry
     {
         synchronized (mutex)
         {
-            // Allocate worker ID
             immutable id = WorkerId(nextWorkerId++);
+            immutable now = Clock.currTime;
             
-            // Create worker info
             WorkerInfo info;
             info.id = id;
             info.address = address;
             info.state = WorkerState.Idle;
-            info.registered = Clock.currTime;
-            info.lastSeen = Clock.currTime;
+            info.registered = now;
+            info.lastSeen = now;
             
             workers[id] = info;
-            
             return Ok!(WorkerId, DistributedError)(id);
         }
     }
@@ -81,12 +71,7 @@ final class WorkerRegistry
     {
         synchronized (mutex)
         {
-            if (id !in workers)
-            {
-                DistributedError err = new WorkerError("Worker not found: " ~ id.toString());
-                return Result!DistributedError.err(err);
-            }
-            
+            if (id !in workers) return Result!DistributedError.err(new WorkerError("Worker not found: " ~ id.toString()));
             workers.remove(id);
             return Ok!DistributedError();
         }
@@ -119,24 +104,14 @@ final class WorkerRegistry
         }
     }
     
-    /// Get all workers
     WorkerInfo[] allWorkers() @trusted
     {
-        synchronized (mutex)
-        {
-            return workers.values.dup;
-        }
+        synchronized (mutex) return workers.values.dup;
     }
     
-    /// Get healthy workers only
     WorkerInfo[] healthyWorkers() @trusted
     {
-        synchronized (mutex)
-        {
-            return workers.values
-                .filter!(w => w.healthy(heartbeatTimeout))
-                .array;
-        }
+        synchronized (mutex) return workers.values.filter!(w => w.healthy(heartbeatTimeout)).array;
     }
     
     /// Select best worker for action (capability-aware, load-balanced)
@@ -199,16 +174,12 @@ final class WorkerRegistry
         return true;
     }
     
-    /// Mark action as in-progress on worker
     void markInProgress(WorkerId id, ActionId action) @trusted
     {
-        synchronized (mutex)
+        synchronized (mutex) if (auto worker = id in workers)
         {
-            if (auto worker = id in workers)
-            {
-                worker.inProgress ~= action;
-                worker.state = WorkerState.Executing;
-            }
+            worker.inProgress ~= action;
+            worker.state = WorkerState.Executing;
         }
     }
     
@@ -219,17 +190,11 @@ final class WorkerRegistry
         {
             if (auto worker = id in workers)
             {
-                // Remove from in-progress
                 import std.algorithm : remove;
                 worker.inProgress = worker.inProgress.remove!(a => a == action);
-                
-                // Update stats
                 worker.completed++;
                 worker.totalExecutionTime += duration;
-                
-                // Update state
-                if (worker.inProgress.empty)
-                    worker.state = WorkerState.Idle;
+                if (worker.inProgress.empty) worker.state = WorkerState.Idle;
             }
         }
     }
@@ -241,75 +206,39 @@ final class WorkerRegistry
         {
             if (auto worker = id in workers)
             {
-                // Remove from in-progress
                 import std.algorithm : remove;
                 worker.inProgress = worker.inProgress.remove!(a => a == action);
-                
-                // Update stats
                 worker.failed++;
-                
-                // Update state
-                if (worker.inProgress.empty)
-                    worker.state = WorkerState.Idle;
+                if (worker.inProgress.empty) worker.state = WorkerState.Idle;
             }
         }
     }
     
-    /// Mark worker as failed (health check timeout)
     void markWorkerFailed(WorkerId id) @trusted
     {
-        synchronized (mutex)
-        {
-            if (auto worker = id in workers)
-            {
-                worker.state = WorkerState.Failed;
-            }
-        }
+        synchronized (mutex) if (auto worker = id in workers) worker.state = WorkerState.Failed;
     }
     
-    /// Get in-progress actions for worker (for failure recovery)
     ActionId[] inProgressActions(WorkerId id) @trusted
     {
-        synchronized (mutex)
-        {
-            if (auto worker = id in workers)
-                return worker.inProgress.dup;
-            else
-                return [];
-        }
+        synchronized (mutex) return (id in workers) ? workers[id].inProgress.dup : [];
     }
     
-    /// Get worker count
     size_t count() @trusted
     {
-        synchronized (mutex)
-        {
-            return workers.length;
-        }
+        synchronized (mutex) return workers.length;
     }
     
-    /// Get healthy worker count
     size_t healthyCount() @trusted
     {
-        synchronized (mutex)
-        {
-            return workers.values
-                .filter!(w => w.healthy(heartbeatTimeout))
-                .array
-                .length;
-        }
+        import std.range : walkLength;
+        synchronized (mutex) return workers.values.filter!(w => w.healthy(heartbeatTimeout)).walkLength;
     }
     
-    /// Check if any workers are idle
     bool hasIdleWorkers() @trusted
     {
-        synchronized (mutex)
-        {
-            return workers.values
-                .filter!(w => w.state == WorkerState.Idle && w.healthy(heartbeatTimeout))
-                .array
-                .length > 0;
-        }
+        synchronized (mutex) return !workers.values
+            .filter!(w => w.state == WorkerState.Idle && w.healthy(heartbeatTimeout)).empty;
     }
     
     /// Get worker load statistics (for monitoring)

@@ -295,11 +295,14 @@ final class CoordinatorMessageHandler
         }
     }
     
-    /// Cleanup socket connection
     private void cleanupSocket(Socket client) nothrow
     {
-        try { client.shutdown(SocketShutdown.BOTH); } catch (Exception) {}
-        try { client.close(); } catch (Exception) {}
+        try 
+        { 
+            client.shutdown(SocketShutdown.BOTH); 
+            client.close(); 
+        } 
+        catch (Exception) {}
     }
 }
 

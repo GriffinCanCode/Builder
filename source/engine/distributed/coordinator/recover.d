@@ -140,14 +140,12 @@ final class CoordinatorRecovery
         }
     }
     
-    /// Check if worker is blacklisted
     bool isBlacklisted(WorkerId worker) @trusted
     {
         synchronized (mutex)
         {
             if (auto entry = worker in blacklist)
             {
-                // Check if blacklist has expired
                 if (entry.shouldRetry(Clock.currTime))
                 {
                     removeFromBlacklist(worker);
@@ -159,27 +157,19 @@ final class CoordinatorRecovery
         }
     }
     
-    /// Remove worker from blacklist
     void removeFromBlacklist(WorkerId worker) @trusted
     {
-        synchronized (mutex)
+        synchronized (mutex) if (worker in blacklist)
         {
-            if (worker in blacklist)
-            {
-                blacklist.remove(worker);
-                atomicOp!"-="(blacklistedWorkers, 1);
-                Logger.info("Worker removed from blacklist: " ~ worker.toString());
-            }
+            blacklist.remove(worker);
+            atomicOp!"-="(blacklistedWorkers, 1);
+            Logger.info("Worker removed from blacklist: " ~ worker.toString());
         }
     }
     
-    /// Get reassignment queue size
     size_t pendingReassignments() @trusted
     {
-        synchronized (mutex)
-        {
-            return walkLength(reassignmentQueue[]);
-        }
+        synchronized (mutex) return walkLength(reassignmentQueue[]);
     }
     
     /// Get recovery statistics
@@ -382,7 +372,6 @@ final class CoordinatorRecovery
     }
 }
 
-/// Worker blacklist entry
 struct WorkerBlacklist
 {
     WorkerId worker;
@@ -391,11 +380,7 @@ struct WorkerBlacklist
     SysTime nextRetryTime;
     size_t failureCount;
     
-    /// Should we retry this worker now?
-    bool shouldRetry(SysTime now) const pure @safe nothrow @nogc
-    {
-        return now >= nextRetryTime;
-    }
+    bool shouldRetry(SysTime now) const pure @safe nothrow @nogc => now >= nextRetryTime;
 }
 
 /// Work reassignment manager

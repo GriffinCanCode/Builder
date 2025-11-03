@@ -38,15 +38,12 @@ struct RingBuffer(T)
     bool push(T item) @trusted nothrow @nogc
     {
         immutable write = atomicLoad!(MemoryOrder.raw)(writePos);
-        immutable read = atomicLoad!(MemoryOrder.acq)(readPos);
         immutable next = (write + 1) & mask;
         
-        if (next == (read & mask))
-            return false;  // Full
+        if (next == (atomicLoad!(MemoryOrder.acq)(readPos) & mask)) return false;  // Full
         
         buffer[write & mask] = item;
         atomicStore!(MemoryOrder.rel)(writePos, write + 1);
-        
         return true;
     }
     
@@ -66,29 +63,17 @@ struct RingBuffer(T)
     }
     
     /// Check if empty
-    bool empty() @trusted const nothrow @nogc
-    {
-        immutable read = atomicLoad(readPos);
-        immutable write = atomicLoad(writePos);
-        return read == write;
-    }
+    bool empty() @trusted const nothrow @nogc => atomicLoad(readPos) == atomicLoad(writePos);
     
     /// Check if full
     bool full() @trusted const nothrow @nogc
     {
         immutable write = atomicLoad(writePos);
-        immutable read = atomicLoad(readPos);
-        immutable next = (write + 1) & mask;
-        return next == (read & mask);
+        return ((write + 1) & mask) == (atomicLoad(readPos) & mask);
     }
     
     /// Get approximate size
-    size_t size() @trusted const nothrow @nogc
-    {
-        immutable write = atomicLoad(writePos);
-        immutable read = atomicLoad(readPos);
-        return (write - read) & mask;
-    }
+    size_t size() @trusted const nothrow @nogc => (atomicLoad(writePos) - atomicLoad(readPos)) & mask;
 }
 
 /// Growable byte buffer with efficient resizing
@@ -137,29 +122,10 @@ struct ByteBuffer
         pos += T.sizeof;
     }
     
-    /// Get written data
-    const(ubyte)[] get() const @safe nothrow @nogc
-    {
-        return data[0 .. pos];
-    }
-    
-    /// Reset buffer (keep capacity)
-    void reset() @safe nothrow @nogc
-    {
-        pos = 0;
-    }
-    
-    /// Get current position
-    size_t position() const @safe nothrow @nogc pure
-    {
-        return pos;
-    }
-    
-    /// Get capacity
-    size_t capacity() const @safe nothrow @nogc pure
-    {
-        return cap;
-    }
+    const(ubyte)[] get() const @safe nothrow @nogc => data[0 .. pos];
+    void reset() @safe nothrow @nogc { pos = 0; }
+    size_t position() const @safe nothrow @nogc pure => pos;
+    size_t capacity() const @safe nothrow @nogc pure => cap;
     
     private:
     
@@ -249,8 +215,7 @@ struct SlabAllocator(T, size_t SLAB_SIZE = 256)
     /// Deallocate object
     void deallocate(T* ptr) @trusted
     {
-        if (ptr is null)
-            return;
+        if (ptr is null) return;
         
         synchronized (mutex)
         {
@@ -292,6 +257,3 @@ struct SlabAllocator(T, size_t SLAB_SIZE = 256)
         return slab;
     }
 }
-
-
-

@@ -48,28 +48,11 @@ struct WorkerHealth
     Duration avgResponseTime;
     float failureRate;
     
-    /// Exponential backoff for recovery attempts
-    Duration nextRetryDelay() const pure @safe nothrow @nogc
-    {
-        // Exponential backoff: 2^attempts seconds, max 300s
-        immutable baseSeconds = 1;
-        immutable maxSeconds = 300;
-        immutable delaySeconds = min(
-            baseSeconds * (1 << min(recoveryAttempts, 8)),
-            maxSeconds
-        );
-        return seconds(delaySeconds);
-    }
+    Duration nextRetryDelay() const pure @safe nothrow @nogc =>
+        seconds(min(1 << min(recoveryAttempts, 8), 300));
     
-    /// Should we attempt recovery?
-    bool shouldAttemptRecovery(SysTime now) const @safe
-    {
-        if (state != HealthState.Failed)
-            return false;
-        
-        immutable elapsed = now - lastFailed;
-        return elapsed >= nextRetryDelay();
-    }
+    bool shouldAttemptRecovery(SysTime now) const @safe =>
+        state == HealthState.Failed && (now - lastFailed) >= nextRetryDelay();
 }
 
 /// Advanced health monitor with circuit breaker pattern
@@ -120,14 +103,11 @@ final class HealthMonitor
     Result!DistributedError start() @trusted
     {
         if (atomicLoad(running))
-            return Result!DistributedError.err(
-                new DistributedError("Health monitor already running"));
+            return Result!DistributedError.err(new DistributedError("Health monitor already running"));
         
         atomicStore(running, true);
-        
         monitorThread = new Thread(&monitorLoop);
         monitorThread.start();
-        
         Logger.info("Health monitor started");
         return Ok!DistributedError();
     }
@@ -236,24 +216,14 @@ final class HealthMonitor
         atomicOp!"+="(totalChecks, 1);
     }
     
-    /// Get worker health state
     HealthState getWorkerHealth(WorkerId worker) @trusted
     {
-        synchronized (mutex)
-        {
-            if (auto h = worker in health)
-                return h.state;
-            return HealthState.Healthy;
-        }
+        synchronized (mutex) return (worker in health) ? health[worker].state : HealthState.Healthy;
     }
     
-    /// Get all worker health states
     WorkerHealth[] getAllHealth() @trusted
     {
-        synchronized (mutex)
-        {
-            return health.values.dup;
-        }
+        synchronized (mutex) return health.values.dup;
     }
     
     /// Get health statistics
@@ -400,33 +370,16 @@ final class HealthMonitor
         }
     }
     
-    /// Update adaptive heartbeat interval based on worker state
     void updateAdaptiveInterval(WorkerId worker, HeartBeat hb) @trusted
     {
-        // Adaptive heartbeat frequency based on load and state
-        // High load = less frequent (reduce overhead)
-        // Low load = more frequent (better responsiveness)
-        
         immutable load = hb.metrics.cpuUsage * 0.7 + hb.metrics.memoryUsage * 0.3;
-        
-        Duration interval;
-        if (load > 0.8)
-            interval = heartbeatInterval * 2;  // Reduce frequency
-        else if (load < 0.3)
-            interval = heartbeatInterval / 2;  // Increase frequency
-        else
-            interval = heartbeatInterval;      // Default
-        
-        // Store adaptive interval for this worker
-        adaptiveIntervals[worker] = interval;
+        adaptiveIntervals[worker] = load > 0.8 ? heartbeatInterval * 2 : 
+                                    load < 0.3 ? heartbeatInterval / 2 : heartbeatInterval;
     }
     
-    /// Get adaptive interval for worker
     Duration getAdaptiveInterval(WorkerId worker) @trusted
     {
-        if (auto interval = worker in adaptiveIntervals)
-            return atomicLoad(*interval);
-        return heartbeatInterval;
+        return (worker in adaptiveIntervals) ? atomicLoad(adaptiveIntervals[worker]) : heartbeatInterval;
     }
 }
 
@@ -475,23 +428,15 @@ struct PhiAccrualDetector
         return -log10(p);
     }
     
-    /// Is the worker suspected as failed?
-    bool isSuspected(SysTime now) const @safe
-    {
-        return phi(now) > threshold;
-    }
+    bool isSuspected(SysTime now) const @safe { return phi(now) > threshold; }
     
     private:
     
     static double calculateMean(const double[] values) pure @safe nothrow
     {
-        if (values.length == 0)
-            return 0.0;
-        
+        if (values.length == 0) return 0.0;
         double sum = 0.0;
-        foreach (v; values)
-            sum += v;
-        
+        foreach (v; values) sum += v;
         return sum / values.length;
     }
     

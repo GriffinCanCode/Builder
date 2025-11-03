@@ -56,30 +56,13 @@ final class DistributedScheduler
         atomicStore(running, true);
     }
     
-    /// Schedule action for execution
     Result!DistributedError schedule(ActionRequest request) @trusted
     {
         synchronized (mutex)
         {
-            // Check if already scheduled
-            if (request.id in actions)
-                return Ok!DistributedError();
-            
-            // Create action info
-            ActionInfo info;
-            info.id = request.id;
-            info.request = request;
-            info.state = ActionState.Pending;
-            info.priority = request.priority;
-            
-            actions[request.id] = info;
-            
-            // Check if ready to execute
-            if (isReady(request.id))
-            {
-                markReady(request.id);
-            }
-            
+            if (request.id in actions) return Ok!DistributedError();
+            actions[request.id] = ActionInfo(request.id, request, ActionState.Pending, WorkerId(0), 0, request.priority);
+            if (isReady(request.id)) markReady(request.id);
             return Ok!DistributedError();
         }
     }
@@ -90,8 +73,7 @@ final class DistributedScheduler
         synchronized (mutex)
         {
             if (readyQueue.empty)
-                return Err!(ActionRequest, DistributedError)(
-                    new DistributedError("No ready actions"));
+                return Err!(ActionRequest, DistributedError)(new DistributedError("No ready actions"));
             
             auto actionId = readyQueue.front;
             readyQueue.removeFront();
@@ -101,11 +83,8 @@ final class DistributedScheduler
                 info.state = ActionState.Scheduled;
                 return Ok!(ActionRequest, DistributedError)(info.request);
             }
-            else
-            {
-                return Err!(ActionRequest, DistributedError)(
-                    new DistributedError("Action not found: " ~ actionId.toString()));
-            }
+            
+            return Err!(ActionRequest, DistributedError)(new DistributedError("Action not found: " ~ actionId.toString()));
         }
     }
     
@@ -121,11 +100,7 @@ final class DistributedScheduler
                 registry.markInProgress(worker, action);
                 return Ok!DistributedError();
             }
-            else
-            {
-                DistributedError err = new DistributedError("Action not found: " ~ action.toString());
-                return Result!DistributedError.err(err);
-            }
+            return Result!DistributedError.err(new DistributedError("Action not found: " ~ action.toString()));
         }
     }
     
@@ -371,17 +346,8 @@ final class DistributedScheduler
         }
     }
     
-    /// Shutdown scheduler
-    void shutdown() @trusted
-    {
-        atomicStore(running, false);
-    }
-    
-    /// Check if scheduler is running
-    bool isRunning() @trusted
-    {
-        return atomicLoad(running);
-    }
+    void shutdown() @trusted { atomicStore(running, false); }
+    bool isRunning() @trusted { return atomicLoad(running); }
 }
 
 /// Critical path analyzer (for priority scheduling)
