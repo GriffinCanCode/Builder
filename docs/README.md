@@ -29,6 +29,7 @@ Specific feature implementations and technical details:
 - **graphcache.md** - Graph caching mechanism
 - **parsecache.md** - Parse result caching
 - **remotecache.md** - Remote caching support
+- **chunk-transfer.md** - Content-defined chunking for network transfer
 - **distributed.md** - Distributed builds
 - **observability.md** - Observability and monitoring
 - **health.md** - Health check system
