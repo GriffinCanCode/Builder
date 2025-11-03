@@ -1,9 +1,9 @@
-module frontend.query.parser;
+module frontend.query.parsing.parser;
 
 import std.conv : to;
 import std.string : format;
-import frontend.query.lexer;
-import frontend.query.ast;
+import frontend.query.parsing.lexer;
+import frontend.query.parsing.ast;
 import infrastructure.errors;
 
 /// Recursive descent parser for bldrquery DSL

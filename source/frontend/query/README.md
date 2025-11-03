@@ -1,22 +1,35 @@
-# core.query - bldrquery Language Implementation
+# frontend.query - bldrquery Language Implementation
 
 This module implements the **bldrquery** query language for exploring build dependency graphs.
 
 ## Architecture
 
-The implementation follows a clean separation of concerns with modular components:
+The implementation follows a clean separation of concerns with modular components organized into logical submodules:
 
 ```
-core/query/
-├── ast.d          # Abstract Syntax Tree types
-├── lexer.d        # Tokenization
-├── parser.d       # Recursive descent parser
-├── evaluator.d    # Query execution engine
-├── algorithms.d   # Graph traversal library
-├── operators.d    # Set algebra operations
-├── formatter.d    # Multi-format output
-└── package.d      # Public API
+frontend/query/
+├── parsing/              # Query Language Parsing
+│   ├── ast.d            # Abstract Syntax Tree types
+│   ├── lexer.d          # Tokenization with position tracking
+│   ├── parser.d         # Recursive descent parser
+│   └── package.d        # Parsing module barrel export
+├── execution/           # Query Execution Engine
+│   ├── evaluator.d      # Query execution via visitor pattern
+│   ├── algorithms.d     # Graph traversal algorithms
+│   ├── operators.d      # Set algebra operations
+│   └── package.d        # Execution module barrel export
+├── output/              # Result Formatting
+│   ├── formatter.d      # Multi-format output rendering
+│   └── package.d        # Output module barrel export
+├── package.d            # Root public API
+└── README.md            # This file
 ```
+
+### Module Organization
+
+- **`parsing/`** - Lexical analysis, parsing, and AST construction
+- **`execution/`** - Query evaluation, graph algorithms, and set operations
+- **`output/`** - Result formatting for different output formats
 
 ## Design Philosophy
 
@@ -46,7 +59,11 @@ Optimized graph algorithms:
 
 ## Component Details
 
-### ast.d - Abstract Syntax Tree
+### parsing/ - Query Language Parsing
+
+The parsing module converts query strings into executable AST structures.
+
+#### parsing/ast.d - Abstract Syntax Tree
 
 Defines immutable expression nodes:
 
@@ -61,7 +78,7 @@ class UnionExpr : QueryExpr { QueryExpr left; QueryExpr right; }
 
 **Pattern**: Sum type via inheritance + visitor pattern
 
-### lexer.d - Tokenization
+#### parsing/lexer.d - Tokenization
 
 Converts query strings into tokens:
 
@@ -75,7 +92,7 @@ auto tokens = lexer.tokenize(); // [Deps, LeftParen, Pattern, RightParen, EOF]
 - String escape handling
 - Position tracking for error reporting
 
-### parser.d - Recursive Descent Parser
+#### parsing/parser.d - Recursive Descent Parser
 
 Builds AST from tokens:
 
@@ -94,7 +111,11 @@ function   := FUNC '(' args ')'
 
 **Pattern**: Recursive descent with precedence climbing
 
-### evaluator.d - Execution Engine
+### execution/ - Query Execution Engine
+
+The execution module evaluates queries against build graphs using efficient algorithms.
+
+#### execution/evaluator.d - Query Evaluator
 
 Executes queries against build graphs:
 
@@ -108,9 +129,9 @@ auto results = evaluator.evaluate(ast); // BuildNode[]
 - Variable binding for `let` expressions
 - Error propagation via Result types
 
-### algorithms.d - Graph Library
+#### execution/algorithms.d - Graph Algorithms
 
-Reusable graph algorithms:
+Reusable graph traversal algorithms:
 
 ```d
 bfs(graph, starts, maxDepth)        // Breadth-first search
@@ -128,7 +149,7 @@ getSiblings(graph, targets)         // Same-directory targets
 
 **Design**: Pure functions, no side effects
 
-### operators.d - Set Operations
+#### execution/operators.d - Set Operations
 
 Efficient set algebra:
 
@@ -147,7 +168,11 @@ cardinality(nodes)        // |A|
 
 **Complexity**: All O(|A| + |B|) using associative arrays for O(1) membership
 
-### formatter.d - Output Rendering
+### output/ - Result Formatting
+
+The output module formats query results for different consumption patterns.
+
+#### output/formatter.d - Output Rendering
 
 Multiple output formats:
 
@@ -167,20 +192,22 @@ auto output = formatter.formatResults(results, query);
 ### Basic Query Execution
 
 ```d
-import core.query;
+import frontend.query;
 
 // Parse and execute in one call
-auto result = query("deps(//src:app)", graph);
+auto result = executeQuery("deps(//src:app)", graph);
 if (result.isOk) {
     auto targets = result.unwrap();
     // Process results...
 }
 ```
 
-### Advanced Usage
+### Advanced Usage - Manual Pipeline
 
 ```d
-import core.query;
+import frontend.query.parsing;
+import frontend.query.execution;
+import frontend.query.output;
 
 // Manual pipeline for control
 auto lexer = QueryLexer("deps(//src:app) & kind(library, //...)");
@@ -198,6 +225,15 @@ auto results = execResult.unwrap();
 // Format output
 auto formatter = QueryFormatter(OutputFormat.JSON);
 writeln(formatter.formatResults(results, "deps(...)"));
+```
+
+### Module-Specific Imports
+
+```d
+// Import only what you need
+import frontend.query.parsing : QueryLexer, QueryParser;
+import frontend.query.execution : QueryEvaluator;
+import frontend.query.output : QueryFormatter, OutputFormat;
 ```
 
 ### Custom Queries
@@ -255,7 +291,7 @@ Measured on a graph with 1000 nodes, average degree 5:
 
 ### Adding New Query Functions
 
-1. **Define AST node** in `ast.d`:
+1. **Define AST node** in `parsing/ast.d`:
 ```d
 final class MyQueryExpr : QueryExpr {
     QueryExpr inner;
@@ -264,7 +300,7 @@ final class MyQueryExpr : QueryExpr {
 }
 ```
 
-2. **Add visitor method** to interface in `ast.d`:
+2. **Add visitor method** to interface in `parsing/ast.d`:
 ```d
 interface QueryVisitor {
     // ... existing methods
@@ -272,7 +308,7 @@ interface QueryVisitor {
 }
 ```
 
-3. **Implement evaluation** in `evaluator.d`:
+3. **Implement evaluation** in `execution/evaluator.d`:
 ```d
 override void visit(MyQueryExpr node) {
     node.inner.accept(this);
@@ -281,25 +317,27 @@ override void visit(MyQueryExpr node) {
 }
 ```
 
-4. **Add lexer token** (if keyword):
+4. **Add lexer token** (if keyword) in `parsing/lexer.d`:
 ```d
 enum TokenType { /* ... */ MyQuery }
 ```
 
-5. **Add parser support**:
+5. **Add parser support** in `parsing/parser.d`:
 ```d
 if (check(TokenType.MyQuery))
     return parseMyQuery();
 ```
 
+6. **Export from module** in `parsing/package.d` and root `package.d` if needed
+
 ### Adding Output Formats
 
-1. **Add enum value** in `formatter.d`:
+1. **Add enum value** in `output/formatter.d`:
 ```d
 enum OutputFormat { /* ... */ MyFormat }
 ```
 
-2. **Implement formatter**:
+2. **Implement formatter** in `output/formatter.d`:
 ```d
 private string formatMyFormat(BuildNode[] results, string query) {
     // Custom formatting logic

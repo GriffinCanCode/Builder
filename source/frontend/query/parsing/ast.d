@@ -1,4 +1,4 @@
-module frontend.query.ast;
+module frontend.query.parsing.ast;
 
 /// Abstract Syntax Tree for bldrquery DSL
 /// Immutable, composable query expressions

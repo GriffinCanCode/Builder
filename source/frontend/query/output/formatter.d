@@ -1,4 +1,4 @@
-module frontend.query.formatter;
+module frontend.query.output.formatter;
 
 import std.stdio;
 import std.algorithm;

@@ -1,4 +1,4 @@
-module frontend.query.algorithms;
+module frontend.query.execution.algorithms;
 
 import std.algorithm;
 import std.array;

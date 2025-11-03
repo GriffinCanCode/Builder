@@ -1,13 +1,13 @@
-module frontend.query.evaluator;
+module frontend.query.execution.evaluator;
 
 import std.algorithm;
 import std.array;
 import std.file : exists, isFile, dirEntries, SpanMode;
 import std.path : dirName, baseName;
 import std.string : indexOf, startsWith;
-import frontend.query.ast;
-import frontend.query.algorithms;
-import frontend.query.operators;
+import frontend.query.parsing.ast;
+import frontend.query.execution.algorithms;
+import frontend.query.execution.operators;
 import engine.graph.graph;
 import infrastructure.errors;
 
@@ -349,8 +349,8 @@ final class QueryEvaluator : QueryVisitor
 /// Convenience function to parse and evaluate a query
 Result!(BuildNode[], string) executeQuery(string queryString, BuildGraph graph) @system
 {
-    import frontend.query.lexer : QueryLexer;
-    import frontend.query.parser : QueryParser;
+    import frontend.query.parsing.lexer : QueryLexer;
+    import frontend.query.parsing.parser : QueryParser;
     
     // Lex
     auto lexer = QueryLexer(queryString);

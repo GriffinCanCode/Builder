@@ -1,4 +1,4 @@
-module frontend.query.operators;
+module frontend.query.execution.operators;
 
 import std.algorithm;
 import std.array;

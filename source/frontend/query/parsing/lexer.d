@@ -1,4 +1,4 @@
-module frontend.query.lexer;
+module frontend.query.parsing.lexer;
 
 import std.ascii : isAlpha, isAlphaNum, isDigit, isWhite;
 import std.string : strip;
