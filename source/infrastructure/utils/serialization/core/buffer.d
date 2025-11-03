@@ -149,7 +149,7 @@ struct ReadBuffer
     }
     
     /// Read length-prefixed string (zero-copy)
-    string readString() pure @trusted
+    string readString() @trusted
     {
         auto len = readVarU32();
         if (!canRead(len))
@@ -160,7 +160,7 @@ struct ReadBuffer
     }
     
     /// Read length-prefixed byte array
-    const(ubyte)[] readByteArray() pure @safe
+    const(ubyte)[] readByteArray() @safe
     {
         auto len = readVarU32();
         return readBytes(len);

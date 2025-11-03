@@ -46,7 +46,7 @@ class IncrementalCppBuilder : BaseCppBuilder
         if (!config.customCompiler.empty)
         {
             // Look for specific compiler by name
-            auto toolchains = registry.find(config.customCompiler);
+            auto toolchains = registry.getByName(config.customCompiler);
             if (!toolchains.empty)
                 this.toolchain = &toolchains[0];
         }

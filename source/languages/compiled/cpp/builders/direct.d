@@ -37,11 +37,24 @@ class DirectBuilder : BaseCppBuilder
         }
         else if (config.compiler != Compiler.Auto)
         {
-            // Get specific compiler
-            auto tcName = compilerToToolchainName(config.compiler);
-            auto result = getToolchainByName(tcName);
-            if (result.isOk)
-                toolchain = result.unwrap();
+            // Get specific compiler by name
+            string tcName;
+            final switch (config.compiler)
+            {
+                case Compiler.Auto: tcName = ""; break;
+                case Compiler.GCC: tcName = "gcc"; break;
+                case Compiler.Clang: tcName = "clang"; break;
+                case Compiler.MSVC: tcName = "msvc"; break;
+                case Compiler.Intel: tcName = "intel"; break;
+                case Compiler.Custom: tcName = ""; break;
+            }
+            
+            if (!tcName.empty)
+            {
+                auto tcs = registry.getByName(tcName);
+                if (!tcs.empty)
+                    toolchain = tcs[$ - 1]; // Get latest version
+            }
         }
         else
         {
@@ -241,7 +254,11 @@ class DirectBuilder : BaseCppBuilder
         // Get compiler path
         auto comp = toolchain.compiler();
         if (comp is null)
-            return CompileFilesResult();
+        {
+            CppCompileResult errorResult;
+            errorResult.error = "No compiler available in toolchain";
+            return errorResult;
+        }
         
         string compiler = comp.path;
         // For C++, try to find g++ or clang++ variant
@@ -347,7 +364,11 @@ class DirectBuilder : BaseCppBuilder
         // Get compiler/linker path
         auto comp = toolchain.compiler();
         if (comp is null)
-            return LinkResult();
+        {
+            CppCompileResult errorResult;
+            errorResult.error = "No compiler available in toolchain for linking";
+            return errorResult;
+        }
         
         string linker = comp.path;
         // For C++, use g++ or clang++ for linking

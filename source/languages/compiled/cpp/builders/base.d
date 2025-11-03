@@ -109,13 +109,37 @@ class CppBuilderFactory
     /// Detect build system from current directory
     private static BuildSystem detectBuildSystem()
     {
-        // import toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.core.spec;
-        import std.file;
-        import std.path;
+        import std.file : exists, getcwd;
+        import std.path : buildPath;
         
         string cwd = getcwd();
-        return BuildSystemDetector.detect(cwd);
+        
+        // Check for CMakeLists.txt
+        if (exists(buildPath(cwd, "CMakeLists.txt")))
+            return BuildSystem.CMake;
+        
+        // Check for Makefile
+        if (exists(buildPath(cwd, "Makefile")) || exists(buildPath(cwd, "makefile")))
+            return BuildSystem.Make;
+        
+        // Check for build.ninja
+        if (exists(buildPath(cwd, "build.ninja")))
+            return BuildSystem.Ninja;
+        
+        // Check for Bazel BUILD/WORKSPACE
+        if (exists(buildPath(cwd, "BUILD")) || exists(buildPath(cwd, "WORKSPACE")))
+            return BuildSystem.Bazel;
+        
+        // Check for meson.build
+        if (exists(buildPath(cwd, "meson.build")))
+            return BuildSystem.Meson;
+        
+        // Check for xmake.lua
+        if (exists(buildPath(cwd, "xmake.lua")))
+            return BuildSystem.Xmake;
+        
+        // No build system detected
+        return BuildSystem.None;
     }
 }
 
@@ -157,10 +181,20 @@ abstract class BaseCppBuilder : CppBuilder
     protected string getCompilerCommand(string source, CppConfig config)
     {
         import std.path : extension;
-        // import toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.core.spec;
+        import infrastructure.toolchain.core.spec;
+        import infrastructure.toolchain.registry.registry : ToolchainRegistry;
+        import infrastructure.toolchain.core.platform : Platform;
         
-        auto compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
+        // Get compiler from registry
+        auto registry = ToolchainRegistry.instance();
+        registry.initialize();
+        auto result = registry.findFor(Platform.host(), ToolchainType.Compiler);
+        if (result.isErr)
+            return config.compiler == Compiler.Clang ? "clang++" : "g++"; // Fallback
+        
+        auto toolchain = result.unwrap();
+        auto compiler = toolchain.compiler();
+        string compilerPath = compiler !is null ? compiler.path : "g++";
         
         string ext = extension(source).toLower;
         
@@ -168,10 +202,22 @@ import infrastructure.toolchain.core.spec;
         bool isCpp = (ext == ".cpp" || ext == ".cxx" || ext == ".cc" || 
                      ext == ".C" || ext == ".c++" || ext == ".hpp" || ext == ".hxx");
         
-        if (isCpp)
-            return Toolchain.getCppCompiler(compilerInfo);
-        else
-            return Toolchain.getCCompiler(compilerInfo);
+        // For C++, use g++ or clang++
+        if (isCpp && compiler !is null)
+        {
+            if (compiler.name == "gcc" || compiler.name == "g++")
+            {
+                import std.string : replace;
+                return compilerPath.replace("gcc", "g++");
+            }
+            else if (compiler.name == "clang" || compiler.name == "clang++")
+            {
+                import std.string : replace;
+                return compilerPath.replace("clang", "clang++");
+            }
+        }
+        
+        return compilerPath;
     }
     
     /// Build compiler flags from config

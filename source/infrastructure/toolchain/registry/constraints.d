@@ -17,7 +17,7 @@ struct ToolchainConstraint
     Capability forbiddenCaps;       // Forbidden capabilities
     
     /// Check if toolchain satisfies constraint
-    bool satisfies(ref const Toolchain tc) const @safe
+    bool satisfies(ref const Toolchain tc) const @trusted
     {
         // Name check
         if (!name.empty && tc.name != name)

@@ -185,14 +185,40 @@ class CMakeBuilder : BaseCppBuilder
             cmd ~= "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON";
         }
         
-        // Compiler
-        auto compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
-        if (compilerInfo.isAvailable)
+        // Compiler - detect from registry
+        import infrastructure.toolchain.registry.registry : ToolchainRegistry;
+        import infrastructure.toolchain.core.platform : Platform;
+        auto registry = ToolchainRegistry.instance();
+        registry.initialize();
+        auto tcResult = registry.findFor(Platform.host(), ToolchainType.Compiler);
+        if (tcResult.isOk)
         {
-            string cppCompiler = Toolchain.getCppCompiler(compilerInfo);
-            string cCompiler = Toolchain.getCCompiler(compilerInfo);
-            cmd ~= ["-DCMAKE_CXX_COMPILER=" ~ cppCompiler];
-            cmd ~= ["-DCMAKE_C_COMPILER=" ~ cCompiler];
+            auto toolchain = tcResult.unwrap();
+            auto compiler = toolchain.compiler();
+            if (compiler !is null)
+            {
+                string compilerPath = compiler.path;
+                // Detect C++ and C compilers
+                string cppCompiler = compilerPath;
+                string cCompiler = compilerPath;
+                
+                // For gcc/g++, find both variants
+                if (compiler.name == "g++" || compiler.name == "gcc")
+                {
+                    import std.string : replace;
+                    cppCompiler = compilerPath.replace("gcc", "g++");
+                    cCompiler = compilerPath.replace("g++", "gcc");
+                }
+                else if (compiler.name == "clang++" || compiler.name == "clang")
+                {
+                    import std.string : replace;
+                    cppCompiler = compilerPath.replace("clang", "clang++");
+                    cCompiler = compilerPath.replace("clang++", "clang");
+                }
+                
+                cmd ~= ["-DCMAKE_CXX_COMPILER=" ~ cppCompiler];
+                cmd ~= ["-DCMAKE_C_COMPILER=" ~ cCompiler];
+            }
         }
         
         // Custom options

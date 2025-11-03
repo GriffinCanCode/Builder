@@ -19,6 +19,7 @@ class ToolchainRegistry
     private Toolchain[] toolchains;
     private Toolchain[string] byId;
     private AutoDetector detector;
+    private ToolchainProvider[] providers;
     private bool initialized;
     
     private this()
@@ -252,7 +253,8 @@ class ToolchainRegistry
         if (result.isErr)
             return Err!(Toolchain, BuildError)(result.unwrapErr());
         
-        return Ok!(Toolchain, BuildError)(*result.unwrap());
+        auto tcPtr = result.unwrap();
+        return Ok!(Toolchain, BuildError)(cast(Toolchain)*tcPtr);
     }
     
     /// Find all toolchains matching constraint
@@ -265,7 +267,7 @@ class ToolchainRegistry
         import std.algorithm : map;
         
         auto matches = ConstraintSolver.findAll(toolchains, constraint);
-        return matches.map!(m => *m).array;
+        return matches.map!(m => cast(Toolchain)*m).array;
     }
 }
 
