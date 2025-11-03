@@ -14,13 +14,7 @@ struct Result(T, E)
         E _error;
     }
     
-    /// Create a successful result
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Union field access is controlled by _isOk discriminant flag
-    /// 2. We initialize _isOk BEFORE writing to union (maintains invariant)
-    /// 3. Only _value field will be accessed when _isOk is true
-    /// 4. Result is returned by value (no dangling references)
+    /// Create a successful result (@system: union access controlled by _isOk flag)
     static Result ok(T value) @system
     {
         Result r;
@@ -29,13 +23,7 @@ struct Result(T, E)
         return r;
     }
     
-    /// Create an error result
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Union field access is controlled by _isOk discriminant flag
-    /// 2. We initialize _isOk BEFORE writing to union (maintains invariant)
-    /// 3. Only _error field will be accessed when _isOk is false
-    /// 4. Result is returned by value (no dangling references)
+    /// Create an error result (@system: union access controlled by _isOk flag)
     static Result err(E error) @system
     {
         Result r;
@@ -56,60 +44,32 @@ struct Result(T, E)
         return !_isOk;
     }
     
+    /// Format error for exception message
+    private string formatError(string prefix = "Called unwrap on an error") const
+    {
+        static if (is(E : string))
+            return prefix ~ ": " ~ _error;
+        else static if (is(typeof(_error.toString()) : string))
+            return prefix ~ ": " ~ _error.toString();
+        else
+            return prefix;
+    }
+    
     /// Unwrap value (throws if error)
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Union field access is controlled by _isOk discriminant flag
-    /// 2. We only access _value when _isOk is true, _error when false
-    /// 3. Throwing exceptions is a safe operation in D
-    /// 4. toString() is called on the error type which may be @system, but
-    ///    the exception throwing mechanism itself is safe
     T unwrap() @system
     {
-        if (!_isOk)
-        {
-            static if (is(E : string))
-                throw new Exception("Called unwrap on an error: " ~ _error);
-            else static if (is(typeof(_error.toString()) : string))
-                throw new Exception("Called unwrap on an error: " ~ _error.toString());
-            else
-                throw new Exception("Called unwrap on an error");
-        }
+        if (!_isOk) throw new Exception(formatError());
         return _value;
     }
     
-    /// Unwrap value with contextual error message (Rust-style expect)
-    /// Provides better debugging information than plain unwrap()
-    /// 
-    /// Example:
-    ///   auto config = loadConfig().expect("Failed to load configuration");
-    ///   auto sorted = graph.topologicalSort().expect("Build graph has cycles");
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Union field access is controlled by _isOk discriminant flag
-    /// 2. We only access _value when _isOk is true, _error when false
-    /// 3. Throwing exceptions is a safe operation in D
-    /// 4. Context message provides better error traceability
+    /// Unwrap with contextual error message (Rust-style expect)
     T expect(string context) @system
     {
-        if (!_isOk)
-        {
-            static if (is(E : string))
-                throw new Exception(context ~ ": " ~ _error);
-            else static if (is(typeof(_error.toString()) : string))
-                throw new Exception(context ~ ": " ~ _error.toString());
-            else
-                throw new Exception(context);
-        }
+        if (!_isOk) throw new Exception(formatError(context));
         return _value;
     }
     
     /// Unwrap or return default value
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Union field access is controlled by _isOk discriminant flag
-    /// 2. We only access _value when _isOk is true
-    /// 3. No exception throwing or unsafe operations
     T unwrapOr(T defaultValue) @system
     {
         return _isOk ? _value : defaultValue;
@@ -122,15 +82,9 @@ struct Result(T, E)
     }
     
     /// Get error (throws if ok)
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Union field access is controlled by _isOk discriminant flag
-    /// 2. We only access _error when _isOk is false
-    /// 3. Throwing exceptions is a safe operation in D
     E unwrapErr() @system
     {
-        if (_isOk)
-            throw new Exception("Called unwrapErr on an Ok value");
+        if (_isOk) throw new Exception("Called unwrapErr on an Ok value");
         return _error;
     }
     
@@ -197,20 +151,10 @@ struct Result(T, E)
 }
 
 /// Helper to create Ok result
-/// 
-/// Safety: Delegates to trusted Result.ok() which maintains union invariants
-Result!(T, E) Ok(T, E)(T value) @system
-{
-    return Result!(T, E).ok(value);
-}
+Result!(T, E) Ok(T, E)(T value) @system { return Result!(T, E).ok(value); }
 
 /// Helper to create Err result
-/// 
-/// Safety: Delegates to trusted Result.err() which maintains union invariants
-Result!(T, E) Err(T, E)(E error) @system
-{
-    return Result!(T, E).err(error);
-}
+Result!(T, E) Err(T, E)(E error) @system { return Result!(T, E).err(error); }
 
 /// Specialized Result for void type (operations that don't return a value)
 /// This specialization is necessary because void cannot be stored in unions or fields
@@ -220,11 +164,6 @@ struct Result(E) if (is(E))
     private E _error;
     
     /// Create a successful void result
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. No union access needed for void specialization
-    /// 2. Sets discriminant flag to true (valid state)
-    /// 3. Returns by value (no dangling references)
     static Result ok() @system
     {
         Result r;
@@ -233,11 +172,6 @@ struct Result(E) if (is(E))
     }
     
     /// Create an error result
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Sets discriminant flag before accessing _error field
-    /// 2. _error is only accessed when _isOk is false (maintains invariant)
-    /// 3. Returns by value (no dangling references)
     static Result err(E error) @system
     {
         Result r;
@@ -258,51 +192,33 @@ struct Result(E) if (is(E))
         return !_isOk;
     }
     
+    /// Format error for exception message
+    private string formatError(string prefix = "Called unwrap on an error") const
+    {
+        static if (is(E : string))
+            return prefix ~ ": " ~ _error;
+        else static if (is(typeof(_error.toString()) : string))
+            return prefix ~ ": " ~ _error.toString();
+        else
+            return prefix;
+    }
+    
     /// Unwrap (throws if error, returns void if ok)
     void unwrap()
     {
-        if (!_isOk)
-        {
-            static if (is(E : string))
-                throw new Exception("Called unwrap on an error: " ~ _error);
-            else static if (is(typeof(_error.toString()) : string))
-                throw new Exception("Called unwrap on an error: " ~ _error.toString());
-            else
-                throw new Exception("Called unwrap on an error");
-        }
+        if (!_isOk) throw new Exception(formatError());
     }
     
-    /// Unwrap void result with contextual error message (Rust-style expect)
-    /// Provides better debugging information than plain unwrap()
-    /// 
-    /// Example:
-    ///   cache.flush().expect("Failed to flush cache to disk");
-    ///   validator.validate().expect("Schema validation failed");
-    /// 
-    /// Safety: Same as unwrap() but with added context for debugging
+    /// Unwrap with contextual error message (Rust-style expect)
     void expect(string context)
     {
-        if (!_isOk)
-        {
-            static if (is(E : string))
-                throw new Exception(context ~ ": " ~ _error);
-            else static if (is(typeof(_error.toString()) : string))
-                throw new Exception(context ~ ": " ~ _error.toString());
-            else
-                throw new Exception(context);
-        }
+        if (!_isOk) throw new Exception(formatError(context));
     }
     
     /// Get error (throws if ok)
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. _error field access is controlled by _isOk discriminant flag
-    /// 2. We only access _error when _isOk is false
-    /// 3. Throwing exceptions is a safe operation in D
     E unwrapErr() @system
     {
-        if (_isOk)
-            throw new Exception("Called unwrapErr on an Ok value");
+        if (_isOk) throw new Exception("Called unwrapErr on an Ok value");
         return _error;
     }
     
@@ -393,50 +309,27 @@ struct Result(E) if (is(E))
 alias VoidResult(E) = Result!E;
 
 /// Create a successful void result
-/// 
-/// Safety: Delegates to trusted Result!E.ok() which maintains invariants
-Result!E success(E)() @system
-{
-    return Result!E.ok();
-}
+Result!E success(E)() @system { return Result!E.ok(); }
 
 /// Create an error void result
-/// 
-/// Safety: Delegates to trusted Result!E.err() which maintains invariants
-Result!E failure(E)(E error) @system
-{
-    return Result!E.err(error);
-}
+Result!E failure(E)(E error) @system { return Result!E.err(error); }
 
 /// Helper to create Ok void result (type-inferred from error type)
-/// 
-/// Safety: Delegates to trusted Result!E.ok() which maintains invariants
-Result!E Ok(E)() @system
-{
-    return Result!E.ok();
-}
+Result!E Ok(E)() @system { return Result!E.ok(); }
 
 /// Helper to create Err void result (explicit)
-/// 
-/// Safety: Delegates to trusted Result!E.err() which maintains invariants
-Result!E Err(E)(E error) @system
-{
-    return Result!E.err(error);
-}
+Result!E Err(E)(E error) @system { return Result!E.err(error); }
 
 /// Collect results into a single result (stops at first error)
 Result!(T[], E) collect(T, E)(Result!(T, E)[] results)
 {
     T[] values;
     values.reserve(results.length);
-    
-    foreach (result; results)
+    foreach (r; results)
     {
-        if (result.isErr)
-            return Result!(T[], E).err(result.unwrapErr());
-        values ~= result.unwrap();
+        if (r.isErr) return Result!(T[], E).err(r.unwrapErr());
+        values ~= r.unwrap();
     }
-    
     return Result!(T[], E).ok(values);
 }
 

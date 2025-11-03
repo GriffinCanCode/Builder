@@ -64,16 +64,13 @@ struct Partitioned(T, E)
 
 Partitioned!(T, E) partition(T, E)(Result!(T, E)[] results)
 {
+    import std.algorithm : filter;
+    import std.array : array;
     Partitioned!(T, E) part;
-    
-    foreach (result; results)
-    {
-        if (result.isOk)
-            part.successes ~= result.unwrap();
-        else
-            part.errors ~= result.unwrapErr();
-    }
-    
+    part.successes.reserve(results.length);
+    part.errors.reserve(results.length);
+    foreach (r; results)
+        r.isOk ? part.successes ~= r.unwrap() : part.errors ~= r.unwrapErr();
     return part;
 }
 
@@ -124,50 +121,30 @@ Result!(T, E) flatten(T, E)(Result!(Result!(T, E), E) nested)
 }
 
 /// Tap into success without consuming (for side effects like logging)
-/// Returns the same Result for chaining
-/// 
-/// Example:
-///   auto result = readFile("config.json")
-///       .tap((content) { Logger.info("Read " ~ content.length.to!string ~ " bytes"); })
-///       .map((content) => parseJSON(content));
 ref Result!(T, E) tap(T, E)(return ref Result!(T, E) result, void delegate(ref const T) fn)
 {
-    if (result.isOk)
+    static if (is(T == void))
     {
-        static if (is(T == void))
-            fn();
-        else
-            fn(result.unwrap());
+        if (result.isOk) fn();
+    }
+    else
+    {
+        if (result.isOk) fn(result.unwrap());
     }
     return result;
 }
 
 /// Tap into error without consuming (for logging errors)
-/// Returns the same Result for chaining
-/// 
-/// Example:
-///   auto result = readFile("config.json")
-///       .tapErr((error) { Logger.error("Failed: " ~ error.message()); })
-///       .orElse((e) => readFile("config.default.json"));
 ref Result!(T, E) tapErr(T, E)(return ref Result!(T, E) result, void delegate(ref const E) fn)
 {
-    if (result.isErr)
-        fn(result.unwrapErr());
+    if (result.isErr) fn(result.unwrapErr());
     return result;
 }
 
 /// Recover from error by converting it to a success value
-/// This is a specialized orElse that always succeeds
-/// 
-/// Example:
-///   auto result = readFile("config.json")
-///       .recover((error) => "{}");  // Use empty JSON on error
 T recover(T, E)(Result!(T, E) result, T delegate(E) recoveryFn)
 {
-    if (result.isOk)
-        return result.unwrap();
-    else
-        return recoveryFn(result.unwrapErr());
+    return result.isOk ? result.unwrap() : recoveryFn(result.unwrapErr());
 }
 
 /// Collect results with different strategies
@@ -258,34 +235,18 @@ Result!(Acc, E) foldResult(R, Acc, E)(
     return Result!(Acc, E).ok(acc);
 }
 
-/// Apply a function to Result if it succeeds, otherwise return alternative Result
-/// This is like map but the function doesn't return a Result
-/// 
-/// Example:
-///   auto result = readFile("config.json")
-///       .apply((content) => content.length > 100 ? 
-///           Ok!(bool, BuildError)(true) : 
-///           Err!(bool, BuildError)(new ParseError("Too short", "")));
+/// Apply a function to Result if it succeeds (alias for andThen)
 Result!(U, E) apply(T, U, E)(Result!(T, E) result, Result!(U, E) delegate(T) fn)
 {
     return result.andThen(fn);
 }
 
 /// Bi-map: map both success and error types simultaneously
-/// Useful for converting between different error types
-/// 
-/// Example:
-///   Result!(string, FileException) fileResult = readFile("x.txt");
-///   Result!(int, BuildError) buildResult = fileResult.bimap(
-///       (s) => s.length,
-///       (e) => new IOError("", e.msg)
-///   );
 Result!(U, F) bimap(T, E, U, F)(Result!(T, E) result, U delegate(T) okFn, F delegate(E) errFn)
 {
-    if (result.isOk)
-        return Result!(U, F).ok(okFn(result.unwrap()));
-    else
-        return Result!(U, F).err(errFn(result.unwrapErr()));
+    return result.isOk 
+        ? Result!(U, F).ok(okFn(result.unwrap()))
+        : Result!(U, F).err(errFn(result.unwrapErr()));
 }
 
 /// Parallel traversal for independent operations

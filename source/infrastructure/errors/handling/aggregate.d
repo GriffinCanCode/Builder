@@ -85,12 +85,21 @@ struct ErrorAggregator(T)
         this.policy = policy;
     }
     
+    /// Check if we should stop based on error and policy
+    private bool shouldStopOnError(BuildError error) pure nothrow @nogc
+    {
+        final switch (policy)
+        {
+            case AggregationPolicy.FailFast: return true;
+            case AggregationPolicy.CollectAll: return false;
+            case AggregationPolicy.StopAtFatal: return !error.recoverable();
+        }
+    }
+    
     /// Add a result to the aggregation
     void add(Result!(T, BuildError) result)
     {
-        if (stopped)
-            return;
-            
+        if (stopped) return;
         if (result.isOk)
         {
             successes ~= result.unwrap();
@@ -99,24 +108,7 @@ struct ErrorAggregator(T)
         {
             auto error = result.unwrapErr();
             errors ~= error;
-            
-            // Determine if we should stop
-            final switch (policy)
-            {
-                case AggregationPolicy.FailFast:
-                    stopped = true;
-                    break;
-                    
-                case AggregationPolicy.CollectAll:
-                    // Never stop
-                    break;
-                    
-                case AggregationPolicy.StopAtFatal:
-                    // Stop only on fatal (non-recoverable) errors
-                    if (!error.recoverable())
-                        stopped = true;
-                    break;
-            }
+            stopped = shouldStopOnError(error);
         }
     }
     
@@ -126,65 +118,34 @@ struct ErrorAggregator(T)
         if (result.isOk)
         {
             foreach (item; result.unwrap())
-            {
-                if (!stopped)
-                    successes ~= item;
-            }
+                if (!stopped) successes ~= item;
         }
         else
         {
             auto error = result.unwrapErr();
             errors ~= error;
-            
-            final switch (policy)
-            {
-                case AggregationPolicy.FailFast:
-                    stopped = true;
-                    break;
-                    
-                case AggregationPolicy.CollectAll:
-                    break;
-                    
-                case AggregationPolicy.StopAtFatal:
-                    if (!error.recoverable())
-                        stopped = true;
-                    break;
-            }
+            stopped = shouldStopOnError(error);
         }
     }
     
     /// Check if aggregation should stop (based on policy)
-    @property bool shouldStop() const pure nothrow @nogc
-    {
-        return stopped;
-    }
+    @property bool shouldStop() const pure nothrow @nogc { return stopped; }
     
     /// Get current error count
-    @property size_t errorCount() const pure nothrow @nogc
-    {
-        return errors.length;
-    }
+    @property size_t errorCount() const pure nothrow @nogc { return errors.length; }
     
     /// Get current success count
-    @property size_t successCount() const pure nothrow @nogc
-    {
-        return successes.length;
-    }
+    @property size_t successCount() const pure nothrow @nogc { return successes.length; }
     
     /// Finish aggregation and return result
-    AggregatedResult!T finish()
-    {
-        return AggregatedResult!T(successes, errors);
-    }
+    AggregatedResult!T finish() { return AggregatedResult!T(successes, errors); }
     
     /// Convert to a simple Result type (fails if any errors occurred)
     Result!(T[], BuildError) toResult()
     {
-        if (errors.length == 0)
-            return Ok!(T[], BuildError)(successes);
-        
-        // Return first error (most relevant for fail-fast)
-        return Err!(T[], BuildError)(errors[0]);
+        return errors.length == 0 
+            ? Ok!(T[], BuildError)(successes) 
+            : Err!(T[], BuildError)(errors[0]);
     }
 }
 

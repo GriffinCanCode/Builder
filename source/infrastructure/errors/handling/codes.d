@@ -187,300 +187,195 @@ enum ErrorCode
     MigrationFailed = 17000
 }
 
-/// Get error category from error code
+/// Get error category from error code using optimized lookup
 ErrorCategory categoryOf(ErrorCode code) pure nothrow @nogc
 {
-    final switch (code / 1000)
-    {
-        case 1: return ErrorCategory.Build;
-        case 2: return ErrorCategory.Parse;
-        case 3: return ErrorCategory.Analysis;
-        case 4: return ErrorCategory.Cache;
-        case 5: return ErrorCategory.IO;
-        case 6: return ErrorCategory.Graph;
-        case 7: return ErrorCategory.Language;
-        case 8: return ErrorCategory.System;
-        case 9: return ErrorCategory.Internal;
-        case 10: return ErrorCategory.Internal;  // Telemetry
-        case 11: return ErrorCategory.Internal;  // Tracing
-        case 12: return ErrorCategory.System;    // Distributed builds
-        case 13: return ErrorCategory.Plugin;    // Plugin errors
-        case 14: return ErrorCategory.LSP;       // LSP errors
-        case 15: return ErrorCategory.Watch;     // Watch mode errors
-        case 16: return ErrorCategory.Config;    // Configuration/Validation errors
-        case 17: return ErrorCategory.Parse;     // Migration errors
-        case 0: return ErrorCategory.Internal;
-    }
+    static immutable ErrorCategory[18] categories = [
+        ErrorCategory.Internal, // 0
+        ErrorCategory.Build,    // 1
+        ErrorCategory.Parse,    // 2
+        ErrorCategory.Analysis, // 3
+        ErrorCategory.Cache,    // 4
+        ErrorCategory.IO,       // 5
+        ErrorCategory.Graph,    // 6
+        ErrorCategory.Language, // 7
+        ErrorCategory.System,   // 8
+        ErrorCategory.Internal, // 9
+        ErrorCategory.Internal, // 10 Telemetry
+        ErrorCategory.Internal, // 11 Tracing
+        ErrorCategory.System,   // 12 Distributed
+        ErrorCategory.Plugin,   // 13 Plugin
+        ErrorCategory.LSP,      // 14 LSP
+        ErrorCategory.Watch,    // 15 Watch
+        ErrorCategory.Config,   // 16 Config
+        ErrorCategory.Parse     // 17 Migration
+    ];
+    immutable idx = code / 1000;
+    return idx < categories.length ? categories[idx] : ErrorCategory.Internal;
 }
 
-/// Check if error is recoverable
+/// Check if error is recoverable using optimized set lookup
 bool isRecoverable(ErrorCode code) pure nothrow @nogc
 {
-    final switch (code)
+    // Recoverable errors are rare, so use a set for O(1) lookup
+    static immutable bool[ErrorCode] recoverableSet;
+    static this()
     {
-        // Recoverable errors
-        case ErrorCode.BuildTimeout:
-        case ErrorCode.CacheLoadFailed:
-        case ErrorCode.CacheEvictionFailed:
-        case ErrorCode.CacheTimeout:
-        case ErrorCode.NetworkError:
-        case ErrorCode.ProcessTimeout:
-        case ErrorCode.CoordinatorTimeout:
-        case ErrorCode.WorkerTimeout:
-        case ErrorCode.ArtifactTransferFailed:
-        case ErrorCode.PluginTimeout:
-        case ErrorCode.LSPTimeout:
-        case ErrorCode.WatcherCrashed:
-        case ErrorCode.FileWatchFailed:
-        case ErrorCode.RepositoryFetchFailed:
-            return true;
-            
-        // Non-recoverable errors
-        case ErrorCode.UnknownError:
-        case ErrorCode.RepositoryError:
-        case ErrorCode.RepositoryNotFound:
-        case ErrorCode.RepositoryVerificationFailed:
-        case ErrorCode.VerificationFailed:
-        case ErrorCode.RepositoryInvalid:
-        case ErrorCode.RepositoryAlreadyAdded:
-        case ErrorCode.BuildFailed:
-        case ErrorCode.BuildCancelled:
-        case ErrorCode.TargetNotFound:
-        case ErrorCode.HandlerNotFound:
-        case ErrorCode.OutputMissing:
-        case ErrorCode.ParseFailed:
-        case ErrorCode.InvalidJson:
-        case ErrorCode.InvalidBuildFile:
-        case ErrorCode.MissingField:
-        case ErrorCode.InvalidFieldValue:
-        case ErrorCode.InvalidGlob:
-        case ErrorCode.AnalysisFailed:
-        case ErrorCode.ImportResolutionFailed:
-        case ErrorCode.CircularDependency:
-        case ErrorCode.MissingDependency:
-        case ErrorCode.InvalidImport:
-        case ErrorCode.CacheSaveFailed:
-        case ErrorCode.CacheCorrupted:
-        case ErrorCode.CacheNotFound:
-        case ErrorCode.CacheDisabled:
-        case ErrorCode.CacheUnauthorized:
-        case ErrorCode.CacheTooLarge:
-        case ErrorCode.CacheWriteFailed:
-        case ErrorCode.CacheInUse:
-        case ErrorCode.CacheDeleteFailed:
-        case ErrorCode.CacheGCFailed:
-        case ErrorCode.FileNotFound:
-        case ErrorCode.FileReadFailed:
-        case ErrorCode.FileWriteFailed:
-        case ErrorCode.DirectoryNotFound:
-        case ErrorCode.PermissionDenied:
-        case ErrorCode.GraphCycle:
-        case ErrorCode.GraphInvalid:
-        case ErrorCode.NodeNotFound:
-        case ErrorCode.EdgeInvalid:
-        case ErrorCode.SyntaxError:
-        case ErrorCode.CompilationFailed:
-        case ErrorCode.ValidationFailed:
-        case ErrorCode.UnsupportedLanguage:
-        case ErrorCode.MissingCompiler:
-        case ErrorCode.MacroExpansionFailed:
-        case ErrorCode.MacroLoadFailed:
-        case ErrorCode.ProcessSpawnFailed:
-        case ErrorCode.ProcessCrashed:
-        case ErrorCode.OutOfMemory:
-        case ErrorCode.ThreadPoolError:
-        case ErrorCode.InternalError:
-        case ErrorCode.NotImplemented:
-        case ErrorCode.AssertionFailed:
-        case ErrorCode.UnreachableCode:
-        case ErrorCode.InitializationFailed:
-        case ErrorCode.NotInitialized:
-        case ErrorCode.NotSupported:
-        case ErrorCode.InvalidConfiguration:
-        case ErrorCode.TelemetryNoSession:
-        case ErrorCode.TelemetryStorage:
-        case ErrorCode.TelemetryInvalid:
-        case ErrorCode.TraceInvalidFormat:
-        case ErrorCode.TraceNoActiveSpan:
-        case ErrorCode.TraceExportFailed:
-        case ErrorCode.DistributedError:
-        case ErrorCode.CoordinatorNotFound:
-        case ErrorCode.WorkerFailed:
-        case ErrorCode.ActionSchedulingFailed:
-        case ErrorCode.SandboxError:
-        case ErrorCode.PluginError:
-        case ErrorCode.PluginNotFound:
-        case ErrorCode.PluginLoadFailed:
-        case ErrorCode.PluginCrashed:
-        case ErrorCode.PluginInvalidResponse:
-        case ErrorCode.PluginProtocolError:
-        case ErrorCode.PluginVersionMismatch:
-        case ErrorCode.PluginCapabilityMissing:
-        case ErrorCode.PluginValidationFailed:
-        case ErrorCode.PluginExecutionFailed:
-        case ErrorCode.InvalidMessage:
-        case ErrorCode.ToolNotFound:
-        case ErrorCode.IncompatibleVersion:
-        case ErrorCode.LSPError:
-        case ErrorCode.LSPInitializationFailed:
-        case ErrorCode.LSPInvalidRequest:
-        case ErrorCode.LSPMethodNotFound:
-        case ErrorCode.LSPInvalidParams:
-        case ErrorCode.LSPDocumentNotFound:
-        case ErrorCode.LSPParseError:
-        case ErrorCode.LSPServerCrashed:
-        case ErrorCode.LSPInvalidPosition:
-        case ErrorCode.LSPWorkspaceNotInitialized:
-        case ErrorCode.WatchError:
-        case ErrorCode.WatcherInitFailed:
-        case ErrorCode.WatcherNotSupported:
-        case ErrorCode.DebounceError:
-        case ErrorCode.TooManyWatchTargets:
-        case ErrorCode.ConfigError:
-        case ErrorCode.InvalidWorkspace:
-        case ErrorCode.InvalidTarget:
-        case ErrorCode.InvalidInput:
-        case ErrorCode.SchemaValidationFailed:
-        case ErrorCode.DeprecatedField:
-        case ErrorCode.RequiredFieldMissing:
-        case ErrorCode.DuplicateTarget:
-        case ErrorCode.ConfigConflict:
-        case ErrorCode.RepositoryTimeout:
-        case ErrorCode.MigrationFailed:
-            return false;
+        recoverableSet = [
+            ErrorCode.BuildTimeout: true,
+            ErrorCode.CacheLoadFailed: true,
+            ErrorCode.CacheEvictionFailed: true,
+            ErrorCode.CacheTimeout: true,
+            ErrorCode.NetworkError: true,
+            ErrorCode.ProcessTimeout: true,
+            ErrorCode.CoordinatorTimeout: true,
+            ErrorCode.WorkerTimeout: true,
+            ErrorCode.ArtifactTransferFailed: true,
+            ErrorCode.PluginTimeout: true,
+            ErrorCode.LSPTimeout: true,
+            ErrorCode.WatcherCrashed: true,
+            ErrorCode.FileWatchFailed: true,
+            ErrorCode.RepositoryFetchFailed: true
+        ];
     }
+    return (code in recoverableSet) !is null;
 }
 
-/// Get human-readable error message template
+/// Get human-readable error message template using optimized lookup
 string messageTemplate(ErrorCode code) pure nothrow
 {
-    final switch (code)
+    static immutable string[ErrorCode] messages;
+    static this()
     {
-        case ErrorCode.UnknownError: return "Unknown error";
-        case ErrorCode.BuildFailed: return "Build failed";
-        case ErrorCode.BuildTimeout: return "Build timed out";
-        case ErrorCode.BuildCancelled: return "Build was cancelled";
-        case ErrorCode.TargetNotFound: return "Target not found";
-        case ErrorCode.HandlerNotFound: return "Language handler not found";
-        case ErrorCode.OutputMissing: return "Expected output not found";
-        case ErrorCode.ParseFailed: return "Failed to parse configuration";
-        case ErrorCode.InvalidJson: return "Invalid JSON syntax";
-        case ErrorCode.InvalidBuildFile: return "Invalid Builderfile";
-        case ErrorCode.MissingField: return "Required field missing";
-        case ErrorCode.InvalidFieldValue: return "Invalid field value";
-        case ErrorCode.InvalidGlob: return "Invalid glob pattern";
-        case ErrorCode.AnalysisFailed: return "Dependency analysis failed";
-        case ErrorCode.ImportResolutionFailed: return "Failed to resolve import";
-        case ErrorCode.CircularDependency: return "Circular dependency detected";
-        case ErrorCode.MissingDependency: return "Dependency not found";
-        case ErrorCode.InvalidImport: return "Invalid import statement";
-        case ErrorCode.CacheLoadFailed: return "Failed to load cache";
-        case ErrorCode.CacheSaveFailed: return "Failed to save cache";
-        case ErrorCode.CacheCorrupted: return "Cache data corrupted";
-        case ErrorCode.CacheEvictionFailed: return "Cache eviction failed";
-        case ErrorCode.CacheNotFound: return "Artifact not found in cache";
-        case ErrorCode.CacheDisabled: return "Remote cache not configured";
-        case ErrorCode.CacheUnauthorized: return "Cache authentication failed";
-        case ErrorCode.CacheTooLarge: return "Artifact exceeds maximum size";
-        case ErrorCode.CacheTimeout: return "Cache operation timed out";
-        case ErrorCode.CacheWriteFailed: return "Failed to write to cache";
-        case ErrorCode.CacheInUse: return "Cache is in use by another process";
-        case ErrorCode.CacheDeleteFailed: return "Failed to delete cache entry";
-        case ErrorCode.CacheGCFailed: return "Cache garbage collection failed";
-        case ErrorCode.NetworkError: return "Network communication error";
-        case ErrorCode.RepositoryError: return "Repository operation failed";
-        case ErrorCode.RepositoryNotFound: return "Repository not found";
-        case ErrorCode.RepositoryFetchFailed: return "Failed to fetch repository";
-        case ErrorCode.RepositoryVerificationFailed: return "Repository verification failed";
-        case ErrorCode.VerificationFailed: return "Verification failed";
-        case ErrorCode.RepositoryInvalid: return "Invalid repository";
-        case ErrorCode.RepositoryTimeout: return "Repository operation timed out";
-        case ErrorCode.RepositoryAlreadyAdded: return "Repository already added";
-        case ErrorCode.FileNotFound: return "File not found";
-        case ErrorCode.FileReadFailed: return "Failed to read file";
-        case ErrorCode.FileWriteFailed: return "Failed to write file";
-        case ErrorCode.DirectoryNotFound: return "Directory not found";
-        case ErrorCode.PermissionDenied: return "Permission denied";
-        case ErrorCode.GraphCycle: return "Dependency cycle detected";
-        case ErrorCode.GraphInvalid: return "Invalid dependency graph";
-        case ErrorCode.NodeNotFound: return "Graph node not found";
-        case ErrorCode.EdgeInvalid: return "Invalid graph edge";
-        case ErrorCode.SyntaxError: return "Syntax error";
-        case ErrorCode.CompilationFailed: return "Compilation failed";
-        case ErrorCode.ValidationFailed: return "Validation failed";
-        case ErrorCode.UnsupportedLanguage: return "Unsupported language";
-        case ErrorCode.MissingCompiler: return "Compiler not found";
-        case ErrorCode.MacroExpansionFailed: return "Macro expansion failed";
-        case ErrorCode.MacroLoadFailed: return "Failed to load macro";
-        case ErrorCode.ProcessSpawnFailed: return "Failed to spawn process";
-        case ErrorCode.ProcessTimeout: return "Process timed out";
-        case ErrorCode.ProcessCrashed: return "Process crashed";
-        case ErrorCode.OutOfMemory: return "Out of memory";
-        case ErrorCode.ThreadPoolError: return "Thread pool error";
-        case ErrorCode.InternalError: return "Internal error";
-        case ErrorCode.NotImplemented: return "Not implemented";
-        case ErrorCode.AssertionFailed: return "Assertion failed";
-        case ErrorCode.UnreachableCode: return "Unreachable code reached";
-        case ErrorCode.InitializationFailed: return "Initialization failed";
-        case ErrorCode.NotInitialized: return "Component not initialized";
-        case ErrorCode.NotSupported: return "Operation not supported";
-        case ErrorCode.TelemetryNoSession: return "No active telemetry session";
-        case ErrorCode.TelemetryStorage: return "Telemetry storage error";
-        case ErrorCode.TelemetryInvalid: return "Invalid telemetry data";
-        case ErrorCode.TraceInvalidFormat: return "Invalid trace format";
-        case ErrorCode.TraceNoActiveSpan: return "No active span";
-        case ErrorCode.TraceExportFailed: return "Trace export failed";
-        case ErrorCode.DistributedError: return "Distributed build error";
-        case ErrorCode.CoordinatorNotFound: return "Build coordinator not found";
-        case ErrorCode.CoordinatorTimeout: return "Coordinator connection timeout";
-        case ErrorCode.WorkerTimeout: return "Worker timeout";
-        case ErrorCode.WorkerFailed: return "Worker failure";
-        case ErrorCode.ActionSchedulingFailed: return "Failed to schedule action";
-        case ErrorCode.SandboxError: return "Sandbox execution error";
-        case ErrorCode.ArtifactTransferFailed: return "Artifact transfer failed";
-        case ErrorCode.PluginError: return "Plugin error";
-        case ErrorCode.PluginNotFound: return "Plugin not found";
-        case ErrorCode.PluginLoadFailed: return "Failed to load plugin";
-        case ErrorCode.PluginCrashed: return "Plugin crashed";
-        case ErrorCode.PluginTimeout: return "Plugin operation timed out";
-        case ErrorCode.PluginInvalidResponse: return "Plugin returned invalid response";
-        case ErrorCode.PluginProtocolError: return "Plugin protocol error";
-        case ErrorCode.PluginVersionMismatch: return "Plugin version mismatch";
-        case ErrorCode.PluginCapabilityMissing: return "Plugin missing required capability";
-        case ErrorCode.PluginValidationFailed: return "Plugin validation failed";
-        case ErrorCode.PluginExecutionFailed: return "Plugin execution failed";
-        case ErrorCode.InvalidMessage: return "Invalid message format";
-        case ErrorCode.ToolNotFound: return "Tool not found";
-        case ErrorCode.IncompatibleVersion: return "Incompatible version";
-        case ErrorCode.LSPError: return "LSP error";
-        case ErrorCode.LSPInitializationFailed: return "LSP initialization failed";
-        case ErrorCode.LSPInvalidRequest: return "Invalid LSP request";
-        case ErrorCode.LSPMethodNotFound: return "LSP method not found";
-        case ErrorCode.LSPInvalidParams: return "Invalid LSP parameters";
-        case ErrorCode.LSPDocumentNotFound: return "LSP document not found";
-        case ErrorCode.LSPParseError: return "LSP parse error";
-        case ErrorCode.LSPServerCrashed: return "LSP server crashed";
-        case ErrorCode.LSPTimeout: return "LSP operation timed out";
-        case ErrorCode.LSPInvalidPosition: return "Invalid LSP position";
-        case ErrorCode.LSPWorkspaceNotInitialized: return "LSP workspace not initialized";
-        case ErrorCode.WatchError: return "Watch mode error";
-        case ErrorCode.WatcherInitFailed: return "Failed to initialize file watcher";
-        case ErrorCode.WatcherNotSupported: return "File watcher not supported on this platform";
-        case ErrorCode.WatcherCrashed: return "File watcher crashed";
-        case ErrorCode.FileWatchFailed: return "Failed to watch file";
-        case ErrorCode.DebounceError: return "Debounce error";
-        case ErrorCode.TooManyWatchTargets: return "Too many watch targets";
-        case ErrorCode.InvalidConfiguration: return "Invalid configuration";
-        case ErrorCode.ConfigError: return "Configuration error";
-        case ErrorCode.InvalidWorkspace: return "Invalid workspace configuration";
-        case ErrorCode.InvalidTarget: return "Invalid target configuration";
-        case ErrorCode.InvalidInput: return "Invalid input";
-        case ErrorCode.SchemaValidationFailed: return "Schema validation failed";
-        case ErrorCode.DeprecatedField: return "Deprecated field used";
-        case ErrorCode.RequiredFieldMissing: return "Required field missing";
-        case ErrorCode.DuplicateTarget: return "Duplicate target name";
-        case ErrorCode.ConfigConflict: return "Configuration conflict";
-        case ErrorCode.MigrationFailed: return "Migration from build system failed";
+        messages = [
+            ErrorCode.UnknownError: "Unknown error",
+            ErrorCode.BuildFailed: "Build failed",
+            ErrorCode.BuildTimeout: "Build timed out",
+            ErrorCode.BuildCancelled: "Build was cancelled",
+            ErrorCode.TargetNotFound: "Target not found",
+            ErrorCode.HandlerNotFound: "Language handler not found",
+            ErrorCode.OutputMissing: "Expected output not found",
+            ErrorCode.ParseFailed: "Failed to parse configuration",
+            ErrorCode.InvalidJson: "Invalid JSON syntax",
+            ErrorCode.InvalidBuildFile: "Invalid Builderfile",
+            ErrorCode.MissingField: "Required field missing",
+            ErrorCode.InvalidFieldValue: "Invalid field value",
+            ErrorCode.InvalidGlob: "Invalid glob pattern",
+            ErrorCode.AnalysisFailed: "Dependency analysis failed",
+            ErrorCode.ImportResolutionFailed: "Failed to resolve import",
+            ErrorCode.CircularDependency: "Circular dependency detected",
+            ErrorCode.MissingDependency: "Dependency not found",
+            ErrorCode.InvalidImport: "Invalid import statement",
+            ErrorCode.CacheLoadFailed: "Failed to load cache",
+            ErrorCode.CacheSaveFailed: "Failed to save cache",
+            ErrorCode.CacheCorrupted: "Cache data corrupted",
+            ErrorCode.CacheEvictionFailed: "Cache eviction failed",
+            ErrorCode.CacheNotFound: "Artifact not found in cache",
+            ErrorCode.CacheDisabled: "Remote cache not configured",
+            ErrorCode.CacheUnauthorized: "Cache authentication failed",
+            ErrorCode.CacheTooLarge: "Artifact exceeds maximum size",
+            ErrorCode.CacheTimeout: "Cache operation timed out",
+            ErrorCode.CacheWriteFailed: "Failed to write to cache",
+            ErrorCode.CacheInUse: "Cache is in use by another process",
+            ErrorCode.CacheDeleteFailed: "Failed to delete cache entry",
+            ErrorCode.CacheGCFailed: "Cache garbage collection failed",
+            ErrorCode.NetworkError: "Network communication error",
+            ErrorCode.RepositoryError: "Repository operation failed",
+            ErrorCode.RepositoryNotFound: "Repository not found",
+            ErrorCode.RepositoryFetchFailed: "Failed to fetch repository",
+            ErrorCode.RepositoryVerificationFailed: "Repository verification failed",
+            ErrorCode.VerificationFailed: "Verification failed",
+            ErrorCode.RepositoryInvalid: "Invalid repository",
+            ErrorCode.RepositoryTimeout: "Repository operation timed out",
+            ErrorCode.RepositoryAlreadyAdded: "Repository already added",
+            ErrorCode.FileNotFound: "File not found",
+            ErrorCode.FileReadFailed: "Failed to read file",
+            ErrorCode.FileWriteFailed: "Failed to write file",
+            ErrorCode.DirectoryNotFound: "Directory not found",
+            ErrorCode.PermissionDenied: "Permission denied",
+            ErrorCode.GraphCycle: "Dependency cycle detected",
+            ErrorCode.GraphInvalid: "Invalid dependency graph",
+            ErrorCode.NodeNotFound: "Graph node not found",
+            ErrorCode.EdgeInvalid: "Invalid graph edge",
+            ErrorCode.SyntaxError: "Syntax error",
+            ErrorCode.CompilationFailed: "Compilation failed",
+            ErrorCode.ValidationFailed: "Validation failed",
+            ErrorCode.UnsupportedLanguage: "Unsupported language",
+            ErrorCode.MissingCompiler: "Compiler not found",
+            ErrorCode.MacroExpansionFailed: "Macro expansion failed",
+            ErrorCode.MacroLoadFailed: "Failed to load macro",
+            ErrorCode.ProcessSpawnFailed: "Failed to spawn process",
+            ErrorCode.ProcessTimeout: "Process timed out",
+            ErrorCode.ProcessCrashed: "Process crashed",
+            ErrorCode.OutOfMemory: "Out of memory",
+            ErrorCode.ThreadPoolError: "Thread pool error",
+            ErrorCode.InternalError: "Internal error",
+            ErrorCode.NotImplemented: "Not implemented",
+            ErrorCode.AssertionFailed: "Assertion failed",
+            ErrorCode.UnreachableCode: "Unreachable code reached",
+            ErrorCode.InitializationFailed: "Initialization failed",
+            ErrorCode.NotInitialized: "Component not initialized",
+            ErrorCode.NotSupported: "Operation not supported",
+            ErrorCode.TelemetryNoSession: "No active telemetry session",
+            ErrorCode.TelemetryStorage: "Telemetry storage error",
+            ErrorCode.TelemetryInvalid: "Invalid telemetry data",
+            ErrorCode.TraceInvalidFormat: "Invalid trace format",
+            ErrorCode.TraceNoActiveSpan: "No active span",
+            ErrorCode.TraceExportFailed: "Trace export failed",
+            ErrorCode.DistributedError: "Distributed build error",
+            ErrorCode.CoordinatorNotFound: "Build coordinator not found",
+            ErrorCode.CoordinatorTimeout: "Coordinator connection timeout",
+            ErrorCode.WorkerTimeout: "Worker timeout",
+            ErrorCode.WorkerFailed: "Worker failure",
+            ErrorCode.ActionSchedulingFailed: "Failed to schedule action",
+            ErrorCode.SandboxError: "Sandbox execution error",
+            ErrorCode.ArtifactTransferFailed: "Artifact transfer failed",
+            ErrorCode.PluginError: "Plugin error",
+            ErrorCode.PluginNotFound: "Plugin not found",
+            ErrorCode.PluginLoadFailed: "Failed to load plugin",
+            ErrorCode.PluginCrashed: "Plugin crashed",
+            ErrorCode.PluginTimeout: "Plugin operation timed out",
+            ErrorCode.PluginInvalidResponse: "Plugin returned invalid response",
+            ErrorCode.PluginProtocolError: "Plugin protocol error",
+            ErrorCode.PluginVersionMismatch: "Plugin version mismatch",
+            ErrorCode.PluginCapabilityMissing: "Plugin missing required capability",
+            ErrorCode.PluginValidationFailed: "Plugin validation failed",
+            ErrorCode.PluginExecutionFailed: "Plugin execution failed",
+            ErrorCode.InvalidMessage: "Invalid message format",
+            ErrorCode.ToolNotFound: "Tool not found",
+            ErrorCode.IncompatibleVersion: "Incompatible version",
+            ErrorCode.LSPError: "LSP error",
+            ErrorCode.LSPInitializationFailed: "LSP initialization failed",
+            ErrorCode.LSPInvalidRequest: "Invalid LSP request",
+            ErrorCode.LSPMethodNotFound: "LSP method not found",
+            ErrorCode.LSPInvalidParams: "Invalid LSP parameters",
+            ErrorCode.LSPDocumentNotFound: "LSP document not found",
+            ErrorCode.LSPParseError: "LSP parse error",
+            ErrorCode.LSPServerCrashed: "LSP server crashed",
+            ErrorCode.LSPTimeout: "LSP operation timed out",
+            ErrorCode.LSPInvalidPosition: "Invalid LSP position",
+            ErrorCode.LSPWorkspaceNotInitialized: "LSP workspace not initialized",
+            ErrorCode.WatchError: "Watch mode error",
+            ErrorCode.WatcherInitFailed: "Failed to initialize file watcher",
+            ErrorCode.WatcherNotSupported: "File watcher not supported on this platform",
+            ErrorCode.WatcherCrashed: "File watcher crashed",
+            ErrorCode.FileWatchFailed: "Failed to watch file",
+            ErrorCode.DebounceError: "Debounce error",
+            ErrorCode.TooManyWatchTargets: "Too many watch targets",
+            ErrorCode.InvalidConfiguration: "Invalid configuration",
+            ErrorCode.ConfigError: "Configuration error",
+            ErrorCode.InvalidWorkspace: "Invalid workspace configuration",
+            ErrorCode.InvalidTarget: "Invalid target configuration",
+            ErrorCode.InvalidInput: "Invalid input",
+            ErrorCode.SchemaValidationFailed: "Schema validation failed",
+            ErrorCode.DeprecatedField: "Deprecated field used",
+            ErrorCode.RequiredFieldMissing: "Required field missing",
+            ErrorCode.DuplicateTarget: "Duplicate target name",
+            ErrorCode.ConfigConflict: "Configuration conflict",
+            ErrorCode.MigrationFailed: "Migration from build system failed"
+        ];
     }
+    auto msg = code in messages;
+    return msg ? *msg : "Unknown error";
 }
 

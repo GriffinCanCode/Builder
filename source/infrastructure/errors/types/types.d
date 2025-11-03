@@ -68,47 +68,33 @@ abstract class BaseBuildError : BuildError
     }
     
     /// Get strongly-typed suggestions for this specific error instance
-    const(ErrorSuggestion)[] suggestions() const
-    {
-        return _suggestions;
-    }
-    
-    /// DEPRECATED: Get custom suggestions as strings (for backward compatibility)
-    const(string)[] customSuggestions() const
-    {
-        import std.algorithm : map;
-        import std.array : array;
-        return _suggestions.map!(s => s.toString()).array;
-    }
+    const(ErrorSuggestion)[] suggestions() const { return _suggestions; }
     
     /// Add context to error chain
-    void addContext(ErrorContext ctx) @system
-    {
-        _contexts ~= ctx;
-    }
+    void addContext(ErrorContext ctx) @system { _contexts ~= ctx; }
     
     /// Add a strongly-typed suggestion
-    void addSuggestion(ErrorSuggestion suggestion) @system
-    {
-        _suggestions ~= suggestion;
-    }
+    void addSuggestion(ErrorSuggestion suggestion) @system { _suggestions ~= suggestion; }
     
     /// Add a string suggestion (converted to General type for backward compatibility)
-    void addSuggestion(string suggestion) @system
-    {
-        _suggestions ~= ErrorSuggestion(suggestion);
-    }
+    void addSuggestion(string suggestion) @system { _suggestions ~= ErrorSuggestion(suggestion); }
     
     override string toString() const
     {
-        string result = "[" ~ category.to!string ~ ":" ~ _code.to!string ~ "] " ~ _message;
-        
+        import std.array : appender;
+        auto result = appender!string;
+        result.put("[");
+        result.put(category.to!string);
+        result.put(":");
+        result.put(_code.to!string);
+        result.put("] ");
+        result.put(_message);
         foreach (ctx; _contexts)
         {
-            result ~= "\n  " ~ ctx.toString();
+            result.put("\n  ");
+            result.put(ctx.toString());
         }
-        
-        return result;
+        return result.data;
     }
 }
 
@@ -526,51 +512,16 @@ struct ErrorBuilder(T : BaseBuildError)
     }
 }
 
-/// Convenience constructors
-BuildFailureError buildError(string targetId, string message)
-{
-    return new BuildFailureError(targetId, message);
-}
-
-ParseError parseError(string filePath, string message)
-{
-    return new ParseError(filePath, message);
-}
-
-AnalysisError analysisError(string targetName, string message)
-{
-    return new AnalysisError(targetName, message);
-}
-
-CacheError cacheError(string message)
-{
-    return new CacheError(message);
-}
-
-IOError ioError(string path, string message)
-{
-    return new IOError(path, message);
-}
-
-GraphError graphError(string message)
-{
-    return new GraphError(message);
-}
-
-LanguageError languageError(string language, string message)
-{
-    return new LanguageError(language, message);
-}
-
-SystemError systemError(string message)
-{
-    return new SystemError(message);
-}
-
-InternalError internalError(string message)
-{
-    return new InternalError(message);
-}
+/// Convenience constructors for common error types
+BuildFailureError buildError(string targetId, string message) { return new BuildFailureError(targetId, message); }
+ParseError parseError(string filePath, string message) { return new ParseError(filePath, message); }
+AnalysisError analysisError(string targetName, string message) { return new AnalysisError(targetName, message); }
+CacheError cacheError(string message) { return new CacheError(message); }
+IOError ioError(string path, string message) { return new IOError(path, message); }
+GraphError graphError(string message) { return new GraphError(message); }
+LanguageError languageError(string language, string message) { return new LanguageError(language, message); }
+SystemError systemError(string message) { return new SystemError(message); }
+InternalError internalError(string message) { return new InternalError(message); }
 
 /// Smart error constructors with built-in suggestions
 
