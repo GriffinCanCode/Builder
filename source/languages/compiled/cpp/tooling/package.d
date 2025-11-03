@@ -2,6 +2,6 @@ module languages.compiled.cpp.tooling;
 
 public import languages.compiled.cpp.tooling.tools;
 public // import languages.compiled.cpp.tooling.toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.spec;
+import infrastructure.toolchain.core.spec;
 
 

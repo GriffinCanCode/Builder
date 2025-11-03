@@ -1,4 +1,4 @@
-module infrastructure.toolchain.platform;
+module infrastructure.toolchain.core.platform;
 
 import std.string : toLower, startsWith;
 import std.algorithm : canFind;

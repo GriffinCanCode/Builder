@@ -9,7 +9,7 @@ import std.process;
 import std.string;
 import languages.compiled.cpp.core.config;
 // import toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.spec;
+import infrastructure.toolchain.core.spec;
 import languages.compiled.cpp.builders.base;
 import languages.compiled.cpp.analysis.incremental;
 import infrastructure.config.schema.schema;
@@ -36,8 +36,8 @@ class IncrementalCppBuilder : BaseCppBuilder
         super(config);
         
         // Detect compiler toolchain using unified toolchain system
-        import infrastructure.toolchain.detector : AutoDetector;
-        import infrastructure.toolchain.registry : ToolchainRegistry;
+        import infrastructure.toolchain.detection.detector : AutoDetector;
+        import infrastructure.toolchain.registry.registry : ToolchainRegistry;
         
         auto registry = ToolchainRegistry.instance();
         

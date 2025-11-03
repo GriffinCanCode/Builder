@@ -1,8 +1,8 @@
-module infrastructure.toolchain.detectors;
+module infrastructure.toolchain.detection.language_detectors;
 
-import infrastructure.toolchain.spec;
-import infrastructure.toolchain.platform;
-import infrastructure.toolchain.detector;
+import infrastructure.toolchain.core.spec;
+import infrastructure.toolchain.core.platform;
+import infrastructure.toolchain.detection.detector;
 import infrastructure.utils.logging.logger;
 import std.conv : to;
 

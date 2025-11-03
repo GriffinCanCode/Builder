@@ -10,7 +10,7 @@ import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
 // import languages.compiled.cpp.tooling.toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.spec;
+import infrastructure.toolchain.core.spec;
 import infrastructure.utils.logging.logger;
 
 /// Convert CppStandard enum to compiler flag

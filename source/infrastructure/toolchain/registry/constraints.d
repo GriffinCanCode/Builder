@@ -1,10 +1,10 @@
-module infrastructure.toolchain.constraints;
+module infrastructure.toolchain.registry.constraints;
 
 import std.algorithm : canFind, all, any;
 import std.array : array, empty;
 import std.string : strip;
-import infrastructure.toolchain.spec;
-import infrastructure.toolchain.platform;
+import infrastructure.toolchain.core.spec;
+import infrastructure.toolchain.core.platform;
 import infrastructure.errors;
 
 /// Toolchain constraint for selecting appropriate toolchains

@@ -110,7 +110,7 @@ class CppBuilderFactory
     private static BuildSystem detectBuildSystem()
     {
         // import toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.spec;
+import infrastructure.toolchain.core.spec;
         import std.file;
         import std.path;
         
@@ -158,7 +158,7 @@ abstract class BaseCppBuilder : CppBuilder
     {
         import std.path : extension;
         // import toolchain; // Replaced by unified toolchain system
-import infrastructure.toolchain.spec;
+import infrastructure.toolchain.core.spec;
         
         auto compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
         

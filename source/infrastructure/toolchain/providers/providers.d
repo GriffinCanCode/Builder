@@ -1,12 +1,12 @@
-module infrastructure.toolchain.providers;
+module infrastructure.toolchain.providers.providers;
 
 import std.algorithm : map, filter;
 import std.array : array, empty;
 import std.path : buildPath, baseName;
 import std.file : exists, dirEntries, SpanMode;
 import std.string : startsWith, endsWith, strip;
-import infrastructure.toolchain.spec;
-import infrastructure.toolchain.platform;
+import infrastructure.toolchain.core.spec;
+import infrastructure.toolchain.core.platform;
 import infrastructure.repository;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
@@ -100,7 +100,7 @@ class LocalToolchainProvider : ToolchainProvider
     private Tool detectTool(string path) @system
     {
         import std.process : execute;
-        import infrastructure.toolchain.detector : ExecutableDetector;
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
         
         Tool tool;
         tool.path = path;

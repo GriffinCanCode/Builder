@@ -1,4 +1,4 @@
-module infrastructure.toolchain.detector;
+module infrastructure.toolchain.detection.detector;
 
 import std.process : execute, environment;
 import std.file : exists;
@@ -8,8 +8,8 @@ import std.algorithm : map, filter;
 import std.array : array, empty;
 import std.regex : matchFirst, regex;
 import std.conv : to;
-import infrastructure.toolchain.spec;
-import infrastructure.toolchain.platform;
+import infrastructure.toolchain.core.spec;
+import infrastructure.toolchain.core.platform;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 
@@ -416,7 +416,7 @@ class AutoDetector
         ];
         
         // Register additional detectors
-        import infrastructure.toolchain.detectors : registerAllDetectors;
+        import infrastructure.toolchain.detection.language_detectors : registerAllDetectors;
         registerAllDetectors(this);
     }
     

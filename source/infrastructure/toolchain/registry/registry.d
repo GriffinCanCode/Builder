@@ -1,13 +1,13 @@
-module infrastructure.toolchain.registry;
+module infrastructure.toolchain.registry.registry;
 
 import std.algorithm : canFind, filter;
 import std.array : array, empty;
 import std.conv : to;
-import infrastructure.toolchain.spec;
-import infrastructure.toolchain.platform;
-import infrastructure.toolchain.detector;
-import infrastructure.toolchain.providers;
-import infrastructure.toolchain.constraints;
+import infrastructure.toolchain.core.spec;
+import infrastructure.toolchain.core.platform;
+import infrastructure.toolchain.detection.detector;
+import infrastructure.toolchain.providers.providers;
+import infrastructure.toolchain.registry.constraints;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 
@@ -246,7 +246,7 @@ class ToolchainRegistry
         if (!initialized)
             initialize();
         
-        import infrastructure.toolchain.constraints : ConstraintSolver;
+        import infrastructure.toolchain.registry.constraints : ConstraintSolver;
         
         auto result = ConstraintSolver.solve(toolchains, constraint);
         if (result.isErr)
@@ -261,7 +261,7 @@ class ToolchainRegistry
         if (!initialized)
             initialize();
         
-        import infrastructure.toolchain.constraints : ConstraintSolver;
+        import infrastructure.toolchain.registry.constraints : ConstraintSolver;
         import std.algorithm : map;
         
         auto matches = ConstraintSolver.findAll(toolchains, constraint);

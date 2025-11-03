@@ -43,13 +43,17 @@ module infrastructure.toolchain;
 /// }
 /// ```
 
-public import infrastructure.toolchain.platform;
-public import infrastructure.toolchain.spec;
-public import infrastructure.toolchain.detector;
-public import infrastructure.toolchain.detectors;
+// Core specifications (Platform, Toolchain, Tool, Version)
+public import infrastructure.toolchain.core;
+
+// Detection system (AutoDetector, language-specific detectors)
+public import infrastructure.toolchain.detection;
+
+// Registry system (ToolchainRegistry, constraint matching)
 public import infrastructure.toolchain.registry;
+
+// Provider system (Local, Repository-based providers)
 public import infrastructure.toolchain.providers;
-public import infrastructure.toolchain.constraints;
 
 import infrastructure.errors : Result, BuildError;
 

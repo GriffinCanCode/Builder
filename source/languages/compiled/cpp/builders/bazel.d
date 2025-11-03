@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
-import infrastructure.toolchain.spec;
+import infrastructure.toolchain.core.spec;
 import languages.compiled.cpp.builders.base;
 import infrastructure.config.schema.schema;
 import infrastructure.analysis.targets.types;

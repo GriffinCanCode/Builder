@@ -8,18 +8,58 @@ The Toolchain System provides unified platform and toolchain abstraction for cro
 
 ## Architecture
 
+The toolchain system is organized into modular subsystems with clear separation of concerns:
+
 ```
 toolchain/
-├── platform.d       # Platform abstraction (OS, Arch, ABI)
-├── spec.d           # Toolchain specifications and versions
-├── detector.d       # Base detection interface + core detectors (GCC, Clang, Rust)
-├── detectors.d      # Additional detectors (Go, Python, Node, Java, Zig, D, CMake)
-├── registry.d       # Central toolchain registry (singleton)
-├── providers.d      # Local and remote toolchain providers
-├── constraints.d    # Version constraint solving (semver)
-├── package.d        # Public API
-└── README.md        # This file
+├── package.d             # Main barrel export (public API)
+├── README.md             # This file
+│
+├── core/                 # Core Specifications
+│   ├── package.d         # Barrel export for core
+│   ├── platform.d        # Platform abstraction (OS, Arch, ABI)
+│   └── spec.d            # Toolchain, Tool, Version specifications
+│
+├── detection/            # Toolchain Detection
+│   ├── package.d         # Barrel export for detection
+│   ├── detector.d        # Base detection + core detectors (GCC, Clang, Rust)
+│   └── language_detectors.d  # Language-specific detectors (Go, Python, Node, etc.)
+│
+├── registry/             # Registry & Constraints
+│   ├── package.d         # Barrel export for registry
+│   ├── registry.d        # Central toolchain registry (singleton)
+│   └── constraints.d     # Version constraint solving (semver)
+│
+└── providers/            # Toolchain Providers
+    ├── package.d         # Barrel export for providers
+    └── providers.d       # Local and remote toolchain providers
 ```
+
+### Module Organization
+
+**`core/`** - Foundational data structures and platform abstractions
+- Platform triple parsing and host detection
+- Toolchain and Tool specifications
+- Version parsing and comparison
+- Capability flags and toolchain references
+
+**`detection/`** - Automatic toolchain discovery
+- Base detector interface and ExecutableDetector
+- Built-in detectors: GCC, Clang, Rust (in `detector.d`)
+- Language-specific detectors: Go, Python, Node, Java, Zig, D, CMake (in `language_detectors.d`)
+- AutoDetector orchestration
+
+**`registry/`** - Centralized toolchain management
+- Singleton registry for all toolchains
+- Constraint-based toolchain resolution
+- Version constraint parsing and matching
+- Platform-based toolchain lookup
+
+**`providers/`** - Toolchain provisioning
+- Local filesystem toolchain provider
+- Repository-based remote toolchain provider
+- Manifest-based toolchain definition
+- Integration with Builder's repository system
 
 ## Key Features
 
@@ -137,10 +177,10 @@ Declare custom toolchains via JSON:
 
 ### Language Handlers
 
-Language handlers use the unified system:
+Language handlers use the unified system via the main barrel export:
 
 ```d
-import toolchain;
+import infrastructure.toolchain;
 
 class MyHandler : BaseLanguageHandler
 {
@@ -213,30 +253,40 @@ getCompilerPath(string toolchainName) -> string
 
 ## Design Principles
 
-### 1. Elegance Through Unification
+### 1. Modular Architecture
 
-Previously, each language handler had its own toolchain detection (~200-300 lines each). Now: single system (~2,000 lines total) serving all languages.
+The system is organized into four focused subsystems:
+- **Core**: Platform-independent data structures (~700 lines)
+- **Detection**: Automatic toolchain discovery (~950 lines)
+- **Registry**: Centralized management and constraints (~740 lines)
+- **Providers**: Remote toolchain provisioning (~460 lines)
 
-### 2. Extensibility
+Each subsystem has its own package.d barrel export for clean API boundaries.
+
+### 2. Elegance Through Unification
+
+Previously, each language handler had its own toolchain detection (~200-300 lines each). Now: single system (~2,850 lines total) serving all languages.
+
+### 3. Extensibility
 
 - Registry pattern for custom detectors
 - Provider pattern for remote toolchains
 - Plugin architecture for new languages
 
-### 3. Type Safety
+### 4. Type Safety
 
 - Strong typing throughout (enums, structs, Result types)
 - No string parsing in hot paths
 - Compile-time capability checks
 
-### 4. Zero Tech Debt
+### 5. Zero Tech Debt
 
 - Short, focused modules (150-450 lines)
 - Single responsibility per class
 - Comprehensive unit tests
 - No external dependencies
 
-### 5. Performance
+### 6. Performance
 
 - Lazy initialization (registry initializes on first use)
 - Caching (detected toolchains cached in memory)
@@ -259,7 +309,7 @@ string compiler = compilerInfo.path;
 ### After (Unified system)
 
 ```d
-import toolchain;
+import infrastructure.toolchain;
 
 auto result = getToolchainByName("gcc");
 if (result.isErr)
@@ -285,12 +335,34 @@ dub test --filter="toolchain"
 ./bin/builder toolchains show gcc-11
 ```
 
-## Statistics
+## Module Statistics
 
-- **Total Lines**: ~2,000 lines of production code
-- **Modules**: 8 files
+### Core (`core/`)
+- **Lines**: ~700 lines
+- **Files**: 2 (platform.d, spec.d)
+- **Exports**: Platform, Toolchain, Tool, Version, ToolchainRef, Capability, ToolchainType
+
+### Detection (`detection/`)
+- **Lines**: ~950 lines
+- **Files**: 2 (detector.d, language_detectors.d)
+- **Exports**: ToolchainDetector, AutoDetector, ExecutableDetector
+- **Detectors**: 11 built-in (GCC, Clang, Rust, Go, Python, Node, Java, Zig, D, CMake)
+
+### Registry (`registry/`)
+- **Lines**: ~740 lines
+- **Files**: 2 (registry.d, constraints.d)
+- **Exports**: ToolchainRegistry, ToolchainConstraint, VersionConstraint, ConstraintSolver
+
+### Providers (`providers/`)
+- **Lines**: ~460 lines
+- **Files**: 1 (providers.d)
+- **Exports**: ToolchainProvider, LocalToolchainProvider, RepositoryToolchainProvider, ToolchainManifest
+
+### Overall
+- **Total Lines**: ~2,850 lines of production code
+- **Modules**: 4 subsystems (core, detection, registry, providers)
+- **Files**: 7 implementation files + 5 barrel exports
 - **Unit Tests**: 12 test suites
-- **Detectors**: 11 built-in
 - **Supported Platforms**: 40+ combinations
 - **Languages Integrated**: C++, D (more to come)
 

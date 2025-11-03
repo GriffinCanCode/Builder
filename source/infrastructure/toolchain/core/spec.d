@@ -1,9 +1,9 @@
-module infrastructure.toolchain.spec;
+module infrastructure.toolchain.core.spec;
 
 import std.conv : to;
 import std.string : indexOf;
 import std.array : empty;
-import infrastructure.toolchain.platform;
+import infrastructure.toolchain.core.platform;
 import infrastructure.errors;
 
 /// Toolchain type
