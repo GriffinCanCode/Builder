@@ -66,6 +66,15 @@ enum ErrorCode
     CacheGCFailed,
     NetworkError,
     
+    // Repository errors (4500-4599)
+    RepositoryError = 4500,
+    RepositoryNotFound,
+    RepositoryFetchFailed,
+    RepositoryVerificationFailed,
+    VerificationFailed,
+    RepositoryInvalid,
+    RepositoryTimeout,
+    
     // IO errors (5000-5999)
     FileNotFound = 5000,
     FileReadFailed,
@@ -218,10 +227,17 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.LSPTimeout:
         case ErrorCode.WatcherCrashed:
         case ErrorCode.FileWatchFailed:
+        case ErrorCode.RepositoryFetchFailed:
             return true;
             
         // Non-recoverable errors
         case ErrorCode.UnknownError:
+        case ErrorCode.RepositoryError:
+        case ErrorCode.RepositoryNotFound:
+        case ErrorCode.RepositoryVerificationFailed:
+        case ErrorCode.VerificationFailed:
+        case ErrorCode.RepositoryInvalid:
+        case ErrorCode.RepositoryAlreadyAdded:
         case ErrorCode.BuildFailed:
         case ErrorCode.BuildCancelled:
         case ErrorCode.TargetNotFound:
@@ -324,6 +340,7 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.RequiredFieldMissing:
         case ErrorCode.DuplicateTarget:
         case ErrorCode.ConfigConflict:
+        case ErrorCode.RepositoryTimeout:
             return false;
     }
 }
@@ -365,6 +382,14 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.CacheDeleteFailed: return "Failed to delete cache entry";
         case ErrorCode.CacheGCFailed: return "Cache garbage collection failed";
         case ErrorCode.NetworkError: return "Network communication error";
+        case ErrorCode.RepositoryError: return "Repository operation failed";
+        case ErrorCode.RepositoryNotFound: return "Repository not found";
+        case ErrorCode.RepositoryFetchFailed: return "Failed to fetch repository";
+        case ErrorCode.RepositoryVerificationFailed: return "Repository verification failed";
+        case ErrorCode.VerificationFailed: return "Verification failed";
+        case ErrorCode.RepositoryInvalid: return "Invalid repository";
+        case ErrorCode.RepositoryTimeout: return "Repository operation timed out";
+        case ErrorCode.RepositoryAlreadyAdded: return "Repository already added";
         case ErrorCode.FileNotFound: return "File not found";
         case ErrorCode.FileReadFailed: return "Failed to read file";
         case ErrorCode.FileWriteFailed: return "Failed to write file";

@@ -29,19 +29,39 @@ struct DefinitionProvider
         if (symbol.length == 0)
             return null;
         
-        // Check if it's a target dependency reference
-        if (symbol.startsWith(":") || symbol.startsWith("//"))
+        // Normalize symbol for lookup
+        string targetName = symbol;
+        
+        // Strip dependency prefix markers
+        if (targetName.startsWith(":"))
+            targetName = targetName[1 .. $];
+        else if (targetName.startsWith("//"))
         {
-            // It's a target reference
-            return workspace.findDefinition(symbol);
+            // Extract just the target name from full path
+            auto colonPos = targetName.lastIndexOf(':');
+            if (colonPos != -1)
+                targetName = targetName[colonPos + 1 .. $];
         }
         
-        // Check if we're in a deps field
+        // Check if it's a target reference
+        if (symbol.startsWith(":") || symbol.startsWith("//"))
+        {
+            return workspace.findDefinition(targetName);
+        }
+        
+        // Check if we're in a deps field (for unquoted or local references)
         auto field = workspace.findFieldAtPosition(uri, pos);
         if (field !is null && field.name == "deps")
         {
-            // Try to find the target
-            return workspace.findDefinition(symbol);
+            return workspace.findDefinition(targetName);
+        }
+        
+        // Check if cursor is on target name itself (for navigation within file)
+        auto target = workspace.findTargetAtPosition(uri, pos);
+        if (target !is null && target.name == symbol)
+        {
+            // Already at definition, no-op (or could show references)
+            return null;
         }
         
         return null;

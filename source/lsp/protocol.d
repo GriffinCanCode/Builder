@@ -457,6 +457,9 @@ struct ServerCapabilities
         // Document formatting
         json["documentFormattingProvider"] = true;
         
+        // Document symbols
+        json["documentSymbolProvider"] = true;
+        
         return json;
     }
 }

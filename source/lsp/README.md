@@ -11,11 +11,14 @@ lsp/
 ├── protocol.d      - LSP protocol types (Position, Range, Diagnostic, etc.)
 ├── server.d        - JSON-RPC 2.0 server with stdio transport
 ├── workspace.d     - Document management and AST caching
-├── completion.d    - Intelligent autocomplete provider
-├── hover.d         - Documentation on hover
-├── definition.d    - Go-to-definition support
-├── references.d    - Find all references
-├── rename.d        - Rename refactoring
+├── index.d         - Fast symbol index with O(1) lookups
+├── analysis.d      - Semantic analyzer (cyclic deps, undefined refs)
+├── completion.d    - Context-aware autocomplete with templates
+├── hover.d         - Rich documentation on hover
+├── definition.d    - Precise go-to-definition support
+├── references.d    - Find all references across workspace
+├── rename.d        - Safe rename refactoring
+├── symbols.d       - Document symbols for outline view
 └── main.d          - Standalone LSP server entry point
 ```
 
@@ -29,12 +32,14 @@ Context-aware completion for:
 - Target dependencies (`:local` or `//path:target`)
 
 ### 2. **Diagnostics**
-Real-time validation:
-- Parse errors with line/column precision
-- Missing required fields
-- Duplicate target names
-- Invalid references
-- Type mismatches
+Real-time validation with semantic analysis:
+- **Parse errors** with line/column precision
+- **Missing required fields** (type, sources, etc.)
+- **Duplicate target names** in same file
+- **Undefined target references** in dependencies
+- **Cyclic dependencies** in build graph
+- **Type-specific validation** (executables need sources)
+- **Empty sources arrays** warning
 
 ### 3. **Hover Information**
 Rich documentation:
@@ -51,6 +56,9 @@ Find all uses of a target across the workspace
 
 ### 6. **Rename Refactoring**
 Rename targets with workspace-wide edits
+
+### 7. **Document Symbols** (NEW)
+Hierarchical outline view of targets and fields
 
 ## Building
 
@@ -151,17 +159,18 @@ Typical latency:
 - Hover: < 2ms
 - Definition: < 3ms
 
+- **VSCode compatible**: Works with outline view (Ctrl+Shift+O)
+- **Rich metadata**: Shows target types and value summaries
+
 ## Future Enhancements
 
 Potential additions:
-- [ ] Workspace symbols (Ctrl+T)
-- [ ] Document symbols (outline)
-- [ ] Code actions (quick fixes)
-- [ ] Semantic tokens (better highlighting)
-- [ ] Inlay hints (type annotations)
-- [ ] Document formatting
-- [ ] Signature help
-- [ ] Code lens (test/build buttons)
+- [ ] Workspace symbols (Ctrl+T) - global symbol search
+- [ ] Code actions (quick fixes) - automated refactorings
+- [ ] Semantic tokens (better highlighting) - enhanced syntax colors
+- [ ] Inlay hints (type annotations) - inline type information
+- [ ] Signature help - parameter hints for fields
+- [ ] Code lens (test/build buttons) - inline action buttons
 
 ## Integration
 

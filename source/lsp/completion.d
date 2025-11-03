@@ -108,11 +108,31 @@ struct CompletionProvider
             CompletionItem item;
             item.label = target;
             item.kind = CompletionItemKind.Reference;
-            item.detail = "Target dependency";
-            item.documentation = "Depends on target: " ~ target;
-            item.insertText = "\"" ~ target ~ "\"";
+            
+            // Get target symbol for more detail
+            auto sym = workspace.getIndex().getSymbol(target);
+            if (sym !is null && sym.detail.length > 0)
+            {
+                item.detail = sym.detail ~ " target";
+                item.documentation = "**Target:** " ~ target ~ "\n**Type:** " ~ sym.detail;
+            }
+            else
+            {
+                item.detail = "Target dependency";
+                item.documentation = "Depends on target: " ~ target;
+            }
+            
+            // Format dependency reference
+            if (target.startsWith("//"))
+                item.insertText = "\"" ~ target ~ "\"";
+            else
+                item.insertText = "\":\" ~ target ~ \"\"";
+            
             items ~= item;
         }
+        
+        // Sort by relevance (local targets first)
+        items.sort!((a, b) => !a.label.startsWith("//") && b.label.startsWith("//"));
         
         return items;
     }
@@ -128,14 +148,43 @@ struct CompletionProvider
     
     private CompletionItem[] provideGeneralCompletion()
     {
-        // Default: suggest 'target' keyword
-        CompletionItem item;
-        item.label = "target";
-        item.kind = CompletionItemKind.Keyword;
-        item.detail = "Define a build target";
-        item.documentation = "Create a new target definition";
-        item.insertText = "target(\"${1:name}\") {\n    type: ${2:executable};\n    sources: [\"${3:main.py}\"];\n}";
-        return [item];
+        CompletionItem[] items;
+        
+        // Suggest 'target' keyword with smart templates
+        CompletionItem targetItem;
+        targetItem.label = "target";
+        targetItem.kind = CompletionItemKind.Keyword;
+        targetItem.detail = "Define a build target";
+        targetItem.documentation = "Create a new target definition";
+        targetItem.insertText = "target(\"${1:name}\") {\n    type: ${2:executable};\n    sources: [\"${3:main.py}\"];\n}";
+        items ~= targetItem;
+        
+        // Suggest common target templates
+        CompletionItem exeTemplate;
+        exeTemplate.label = "target (executable)";
+        exeTemplate.kind = CompletionItemKind.Snippet;
+        exeTemplate.detail = "Executable target template";
+        exeTemplate.documentation = "Create an executable target";
+        exeTemplate.insertText = "target(\"${1:app}\") {\n    type: executable;\n    language: ${2:python};\n    sources: [\"${3:main.py}\"];\n}";
+        items ~= exeTemplate;
+        
+        CompletionItem libTemplate;
+        libTemplate.label = "target (library)";
+        libTemplate.kind = CompletionItemKind.Snippet;
+        libTemplate.detail = "Library target template";
+        libTemplate.documentation = "Create a library target";
+        libTemplate.insertText = "target(\"${1:lib}\") {\n    type: library;\n    language: ${2:python};\n    sources: [\"${3:lib.py}\"];\n}";
+        items ~= libTemplate;
+        
+        CompletionItem testTemplate;
+        testTemplate.label = "target (test)";
+        testTemplate.kind = CompletionItemKind.Snippet;
+        testTemplate.detail = "Test target template";
+        testTemplate.documentation = "Create a test target";
+        testTemplate.insertText = "target(\"${1:test}\") {\n    type: test;\n    language: ${2:python};\n    sources: [\"${3:test_*.py}\"];\n    deps: [\":${4:lib}\"];\n}";
+        items ~= testTemplate;
+        
+        return items;
     }
     
     private CompletionItem createField(string name, string doc)

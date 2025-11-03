@@ -7,6 +7,8 @@ import std.algorithm;
 import std.array;
 import std.datetime;
 import lsp.protocol;
+import lsp.index;
+import lsp.analysis;
 import config.workspace.ast;
 import config.parsing.lexer;
 import config.interpretation.dsl;
@@ -31,10 +33,20 @@ class WorkspaceManager
 {
     private Document[string] documents;
     private string rootUri;
+    private Index index;
+    private LSPSemanticAnalyzer analyzer;
     
     this(string rootUri)
     {
         this.rootUri = rootUri;
+        this.index = Index();
+        this.analyzer = LSPSemanticAnalyzer(&this.index);
+    }
+    
+    /// Get index for direct access
+    @property ref Index getIndex()
+    {
+        return index;
     }
     
     /// Open a document
@@ -77,6 +89,7 @@ class WorkspaceManager
     /// Close a document
     void closeDocument(string uri)
     {
+        index.removeDocument(uri);
         documents.remove(uri);
         Logger.debugLog("Closed document: " ~ uri);
     }
@@ -144,84 +157,19 @@ class WorkspaceManager
     /// Get all target names in workspace
     string[] getAllTargetNames() const
     {
-        string[] names;
-        foreach (doc; documents.values)
-        {
-            foreach (ref target; doc.ast.targets)
-            {
-                names ~= target.name;
-            }
-        }
-        return names;
+        return index.getAllTargetNames();
     }
     
     /// Find all references to a target
     Location[] findReferences(string targetName) const
     {
-        Location[] locations;
-        
-        foreach (doc; documents.values)
-        {
-            // Find in dependencies
-            foreach (ref target; doc.ast.targets)
-            {
-                auto depsField = target.getField("deps");
-                if (depsField is null)
-                    continue;
-                
-                // Check if this target references the target we're looking for
-                if (depsField.value.kind == ExpressionValue.Kind.Array)
-                {
-                    auto arr = depsField.value.getArray();
-                    if (arr !is null)
-                    {
-                        foreach (elem; arr.elements)
-                        {
-                            if (elem.kind == ExpressionValue.Kind.String)
-                            {
-                                auto str = elem.getString();
-                                if (str !is null && str.value == targetName)
-                                {
-                                    // Found a reference
-                                    Location loc;
-                                    loc.uri = doc.uri;
-                                    loc.range = Range(
-                                        Position(cast(uint)(depsField.line - 1), 0),
-                                        Position(cast(uint)(depsField.line - 1), 100)
-                                    );
-                                    locations ~= loc;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        return locations;
+        return index.getReferences(targetName);
     }
     
     /// Find definition of a target
     Location* findDefinition(string targetName) const
     {
-        foreach (doc; documents.values)
-        {
-            foreach (ref target; doc.ast.targets)
-            {
-                if (target.name == targetName)
-                {
-                    auto loc = new Location;
-                    loc.uri = doc.uri;
-                    loc.range = Range(
-                        Position(cast(uint)(target.line - 1), 0),
-                        Position(cast(uint)(target.line - 1), cast(uint)target.name.length)
-                    );
-                    return loc;
-                }
-            }
-        }
-        
-        return null;
+        return index.getDefinition(targetName);
     }
     
     private void parseDocument(ref Document doc)
@@ -257,8 +205,15 @@ class WorkspaceManager
         
         doc.ast = parseResult.unwrap();
         
+        // Update index
+        index.indexDocument(doc.uri, doc.ast);
+        
         // Validate (basic checks)
         validateDocument(doc);
+        
+        // Semantic analysis
+        auto semanticDiags = analyzer.analyze(doc.uri, doc.ast);
+        doc.diagnostics ~= semanticDiags;
     }
     
     private void validateDocument(ref Document doc)

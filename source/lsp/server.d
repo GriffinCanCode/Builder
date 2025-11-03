@@ -14,6 +14,7 @@ import lsp.hover;
 import lsp.definition;
 import lsp.references;
 import lsp.rename;
+import lsp.symbols;
 import utils.logging.logger;
 
 /// LSP Server implementation
@@ -26,6 +27,7 @@ class LSPServer
     private DefinitionProvider definitionProvider;
     private ReferencesProvider referencesProvider;
     private RenameProvider renameProvider;
+    private SymbolsProvider symbolsProvider;
     private bool running;
     private string rootUri;
     
@@ -159,6 +161,10 @@ class LSPServer
                     result = handleRename(json["params"]);
                     break;
                 
+                case "textDocument/documentSymbol":
+                    result = handleDocumentSymbol(json["params"]);
+                    break;
+                
                 default:
                     Logger.warning("Unhandled request: " ~ method);
                     sendError(id, -32601, "Method not found: " ~ method);
@@ -241,6 +247,7 @@ class LSPServer
         definitionProvider = DefinitionProvider(workspace);
         referencesProvider = ReferencesProvider(workspace);
         renameProvider = RenameProvider(workspace);
+        symbolsProvider = SymbolsProvider(workspace);
         
         Logger.info("Workspace root: " ~ rootUri);
         
@@ -343,6 +350,21 @@ class LSPServer
             return JSONValue(null);
         
         return edit.toJSON();
+    }
+    
+    /// Handle document symbol request
+    private JSONValue handleDocumentSymbol(JSONValue params)
+    {
+        auto docParams = TextDocumentIdentifier.fromJSON(params["textDocument"]);
+        auto symbols = symbolsProvider.provideDocumentSymbols(docParams.uri);
+        
+        JSONValue[] symbolsJson;
+        foreach (sym; symbols)
+        {
+            symbolsJson ~= sym.toJSON();
+        }
+        
+        return JSONValue(symbolsJson);
     }
     
     /// Handle didOpen notification
