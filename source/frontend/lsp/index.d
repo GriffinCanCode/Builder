@@ -56,33 +56,39 @@ struct Index
             sym.uri = uri;
             sym.kind = SymbolKind.Target;
             sym.range = Range(
-                Position(cast(uint)(target.line - 1), 0),
-                Position(cast(uint)(target.line - 1), cast(uint)(target.name.length + 8))
+                Position(cast(uint)(target.loc.line - 1), 0),
+                Position(cast(uint)(target.loc.line - 1), cast(uint)(target.name.length + 8))
             );
             
             // Extract detail info
+            import infrastructure.config.workspace.ast : IdentExpr, LiteralExpr, Literal, LiteralKind;
+            
             auto typeField = target.getField("type");
-            if (typeField !is null && typeField.value.kind == ExpressionValue.Kind.Identifier)
+            if (typeField !is null)
             {
-                auto ident = typeField.value.getIdentifier();
+                auto ident = cast(const IdentExpr)typeField.value;
                 if (ident !is null)
                     sym.detail = ident.name;
             }
             
             // Extract dependencies
             auto depsField = target.getField("deps");
-            if (depsField !is null && depsField.value.kind == ExpressionValue.Kind.Array)
+            if (depsField !is null)
             {
-                auto arr = depsField.value.getArray();
-                if (arr !is null)
+                auto litExpr = cast(const LiteralExpr)depsField.value;
+                if (litExpr !is null && litExpr.value.kind == LiteralKind.Array)
                 {
-                    foreach (elem; arr.elements)
+                    auto arr = litExpr.value.asArray();
+                    if (arr !is null)
                     {
-                        if (elem.kind == ExpressionValue.Kind.String)
+                        foreach (elem; arr)
                         {
-                            auto str = elem.getString();
-                            if (str !is null)
-                                sym.deps ~= str.value;
+                            if (elem.kind == LiteralKind.String)
+                            {
+                                auto str = elem.asString();
+                                if (str !is null && str.length > 0)
+                                    sym.deps ~= str;
+                            }
                         }
                     }
                 }
@@ -110,23 +116,24 @@ struct Index
             if (depsField is null)
                 continue;
             
-            if (depsField.value.kind != ExpressionValue.Kind.Array)
+            auto litExpr2 = cast(const LiteralExpr)depsField.value;
+            if (litExpr2 is null || litExpr2.value.kind != LiteralKind.Array)
                 continue;
             
-            auto arr = depsField.value.getArray();
+            auto arr = litExpr2.value.asArray();
             if (arr is null)
                 continue;
             
-            foreach (elem; arr.elements)
+            foreach (elem; arr)
             {
-                if (elem.kind != ExpressionValue.Kind.String)
+                if (elem.kind != LiteralKind.String)
                     continue;
                 
-                auto str = elem.getString();
-                if (str is null)
+                auto str = elem.asString();
+                if (str is null || str.length == 0)
                     continue;
                 
-                string depName = str.value;
+                string depName = str;
                 // Normalize
                 if (depName.startsWith(":"))
                     depName = depName[1 .. $];

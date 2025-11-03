@@ -207,4 +207,30 @@ struct TelemetryConfig
     size_t maxSessions = 100;           // Maximum sessions to keep
     Duration maxAge = dur!"days"(30);   // Maximum age of sessions
     bool autoCleanup = true;            // Automatically clean old sessions
+    
+    /// Load configuration from environment
+    static TelemetryConfig fromEnvironment() @system
+    {
+        import std.process : environment;
+        import std.conv : to;
+        
+        TelemetryConfig config;
+        
+        // Optional: Max sessions
+        immutable maxSessionsStr = environment.get("BUILDER_TELEMETRY_MAX_SESSIONS");
+        if (maxSessionsStr.length > 0)
+            config.maxSessions = maxSessionsStr.to!size_t;
+        
+        // Optional: Max age (days)
+        immutable maxAgeDaysStr = environment.get("BUILDER_TELEMETRY_MAX_AGE_DAYS");
+        if (maxAgeDaysStr.length > 0)
+            config.maxAge = dur!"days"(maxAgeDaysStr.to!long);
+        
+        // Optional: Auto cleanup
+        immutable autoCleanupStr = environment.get("BUILDER_TELEMETRY_AUTO_CLEANUP");
+        if (autoCleanupStr.length > 0)
+            config.autoCleanup = autoCleanupStr != "false" && autoCleanupStr != "0";
+        
+        return config;
+    }
 }

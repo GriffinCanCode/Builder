@@ -111,7 +111,7 @@ final class DependencyStorage
                     remove(tempFile);
             }
             
-            write(tempFile, data);
+            std.file.write(tempFile, data);
             
             // Atomic rename
             if (exists(storageFile))

@@ -49,25 +49,29 @@ struct LSPSemanticAnalyzer
     /// Validate all dependencies are defined
     private Diagnostic[] validateDependencies(string uri, const ref TargetDeclStmt target)
     {
+        import infrastructure.config.workspace.ast : LiteralExpr, Literal, LiteralKind;
+        
         Diagnostic[] diagnostics;
         
         auto depsField = target.getField("deps");
         if (depsField is null)
             return diagnostics;
         
-        if (depsField.value.kind != ExpressionValue.Kind.Array)
+        // Check if value is a literal expression with array type
+        auto litExpr = cast(const LiteralExpr)depsField.value;
+        if (litExpr is null || litExpr.value.kind != LiteralKind.Array)
             return diagnostics;
         
-        auto arr = depsField.value.getArray();
+        auto arr = litExpr.value.asArray();
         if (arr is null)
             return diagnostics;
         
-        foreach (elem; arr.elements)
+        foreach (elem; arr)
         {
-            if (elem.kind != ExpressionValue.Kind.String)
+            if (elem.kind != LiteralKind.String)
                 continue;
             
-            auto str = elem.getString();
+            auto str = elem.asString();
             if (str is null)
                 continue;
             
@@ -94,8 +98,8 @@ struct LSPSemanticAnalyzer
                 diag.severity = DiagnosticSeverity.Error;
                 diag.message = "Undefined target reference: " ~ str.value;
                 diag.range = Range(
-                    Position(cast(uint)(depsField.line - 1), 0),
-                    Position(cast(uint)(depsField.line - 1), 100)
+                    Position(cast(uint)(depsField.loc.line - 1), 0),
+                    Position(cast(uint)(depsField.loc.line - 1), 100)
                 );
                 diag.source = "builder-lsp";
                 diagnostics ~= diag;
@@ -110,6 +114,8 @@ struct LSPSemanticAnalyzer
     {
         Diagnostic[] diagnostics;
         
+        import infrastructure.config.workspace.ast : IdentExpr;
+        
         auto typeField = target.getField("type");
         if (typeField is null)
             return diagnostics; // Already validated in workspace.d
@@ -117,24 +123,21 @@ struct LSPSemanticAnalyzer
         auto sourcesField = target.getField("sources");
         
         // Executables and tests require sources
-        if (typeField.value.kind == ExpressionValue.Kind.Identifier)
+        auto identExpr = cast(const IdentExpr)typeField.value;
+        if (identExpr !is null)
         {
-            auto ident = typeField.value.getIdentifier();
-            if (ident !is null)
+            string typeName = identExpr.name;
+            if ((typeName == "executable" || typeName == "test") && sourcesField is null)
             {
-                string typeName = ident.name;
-                if ((typeName == "executable" || typeName == "test") && sourcesField is null)
-                {
-                    Diagnostic diag;
-                    diag.severity = DiagnosticSeverity.Warning;
-                    diag.message = "Target of type '" ~ typeName ~ "' should have sources";
-                    diag.range = Range(
-                        Position(cast(uint)(target.line - 1), 0),
-                        Position(cast(uint)(target.line - 1), 50)
-                    );
-                    diag.source = "builder-lsp";
-                    diagnostics ~= diag;
-                }
+                Diagnostic diag;
+                diag.severity = DiagnosticSeverity.Warning;
+                diag.message = "Target of type '" ~ typeName ~ "' should have sources";
+                diag.range = Range(
+                    Position(cast(uint)(target.loc.line - 1), 0),
+                    Position(cast(uint)(target.loc.line - 1), 50)
+                );
+                diag.source = "builder-lsp";
+                diagnostics ~= diag;
             }
         }
         
@@ -144,24 +147,27 @@ struct LSPSemanticAnalyzer
     /// Validate sources (basic checks)
     private Diagnostic[] validateSources(string uri, const ref TargetDeclStmt target)
     {
+        import infrastructure.config.workspace.ast : LiteralExpr, Literal, LiteralKind;
+        
         Diagnostic[] diagnostics;
         
         auto sourcesField = target.getField("sources");
         if (sourcesField is null)
             return diagnostics;
         
-        if (sourcesField.value.kind != ExpressionValue.Kind.Array)
+        auto litExpr = cast(const LiteralExpr)sourcesField.value;
+        if (litExpr is null || litExpr.value.kind != LiteralKind.Array)
             return diagnostics;
         
-        auto arr = sourcesField.value.getArray();
-        if (arr is null || arr.elements.empty)
+        auto arr = litExpr.value.asArray();
+        if (arr is null || arr.length == 0)
         {
             Diagnostic diag;
             diag.severity = DiagnosticSeverity.Warning;
             diag.message = "Target has empty sources array";
             diag.range = Range(
-                Position(cast(uint)(sourcesField.line - 1), 0),
-                Position(cast(uint)(sourcesField.line - 1), 100)
+                Position(cast(uint)(sourcesField.loc.line - 1), 0),
+                Position(cast(uint)(sourcesField.loc.line - 1), 100)
             );
             diag.source = "builder-lsp";
             diagnostics ~= diag;
@@ -187,22 +193,23 @@ struct LSPSemanticAnalyzer
             if (depsField is null)
                 continue;
             
-            if (depsField.value.kind != ExpressionValue.Kind.Array)
+            auto litExpr2 = cast(const LiteralExpr)depsField.value;
+            if (litExpr2 is null || litExpr2.value.kind != LiteralKind.Array)
                 continue;
             
-            auto arr = depsField.value.getArray();
+            auto arr = litExpr2.value.asArray();
             if (arr is null)
                 continue;
             
             string[] deps;
-            foreach (elem; arr.elements)
+            foreach (elem; arr)
             {
-                if (elem.kind == ExpressionValue.Kind.String)
+                if (elem.kind == LiteralKind.String)
                 {
-                    auto str = elem.getString();
-                    if (str !is null)
+                    auto str = elem.asString();
+                    if (str !is null && str.length > 0)
                     {
-                        string depName = str.value;
+                        string depName = str;
                         // Normalize for local check
                         if (depName.startsWith(":"))
                             depName = depName[1 .. $];

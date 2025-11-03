@@ -138,7 +138,7 @@ struct GraphStorage
         }
         
         // Restore validation state
-        graph.isValidated = serializable.isValidated;
+        graph.validated = serializable.isValidated;
         
         return graph;
     }

@@ -79,7 +79,7 @@ struct Codec
         enum estimateSize = () {
             size_t size = 8;  // Version + magic
             static foreach (field; T.tupleof)
-            {
+            {{
                 alias FieldType = typeof(field);
                 static if (is(FieldType == string))
                     size += 64;  // Estimate
@@ -89,7 +89,7 @@ struct Codec
                     size += 256;
                 else
                     size += FieldType.sizeof;
-            }
+            }}
             return size;
         }();
     }
@@ -119,7 +119,7 @@ struct Codec
     }
     
     /// Deserialize all fields
-    private static Result!(void, string) deserializeFields(T)(
+    private static Result!(bool, string) deserializeFields(T)(
         ref ReadBuffer reader,
         ref T result,
         SchemaVersion dataVersion) @system
@@ -144,7 +144,7 @@ struct Codec
                         alias FieldType = typeof(field);
                         auto fieldResult = deserializeValue!FieldType(reader);
                         if (fieldResult.isErr)
-                            return Err!(void, string)(fieldResult.unwrapErr());
+                            return Err!(bool, string)(fieldResult.unwrapErr());
                         
                         __traits(getMember, result, __traits(identifier, field)) = 
                             fieldResult.unwrap();
@@ -157,7 +157,7 @@ struct Codec
                 {
                     // Skip field by reading as generic bytes
                     // This requires type information - for now, fail
-                    return Err!(void, string)("Unknown field ID: " ~ fieldId.stringof);
+                    return Err!(bool, string)("Unknown field ID: " ~ fieldId.stringof);
                 }
             }
             
@@ -174,11 +174,11 @@ struct Codec
                 }
             }}
             
-            return Ok!(void, string)();
+            return Ok!(bool, string)(true);
         }
         catch (Exception e)
         {
-            return Err!(void, string)(e.msg);
+            return Err!(bool, string)(e.msg);
         }
     }
     

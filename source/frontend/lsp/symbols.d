@@ -38,15 +38,17 @@ struct SymbolsProvider
                 Position(cast(uint)(target.line + target.fields.length), 0)
             );
             sym.selectionRange = Range(
-                Position(cast(uint)(target.line - 1), 0),
-                Position(cast(uint)(target.line - 1), cast(uint)(target.name.length + 8))
+                Position(cast(uint)(target.loc.line - 1), 0),
+                Position(cast(uint)(target.loc.line - 1), cast(uint)(target.name.length + 8))
             );
             
             // Add detail from type field
+            import infrastructure.config.workspace.ast : IdentExpr;
+            
             auto typeField = target.getField("type");
-            if (typeField !is null && typeField.value.kind == ExpressionValue.Kind.Identifier)
+            if (typeField !is null)
             {
-                auto ident = typeField.value.getIdentifier();
+                auto ident = cast(const IdentExpr)typeField.value;
                 if (ident !is null)
                     sym.detail = ident.name;
             }
