@@ -49,31 +49,23 @@ abstract class BaseDependencyAnalyzer : DependencyAnalyzer
     ) @system
     {
         // Try relative to source
-        string localPath = buildPath(sourceDir, dependency);
-        if (exists(localPath))
-            return buildNormalizedPath(localPath);
+        auto localPath = buildPath(sourceDir, dependency);
+        if (exists(localPath)) return buildNormalizedPath(localPath);
         
         // Try search paths
         foreach (searchPath; searchPaths)
         {
-            string fullPath = buildPath(searchPath, dependency);
-            if (exists(fullPath))
-                return buildNormalizedPath(fullPath);
+            auto fullPath = buildPath(searchPath, dependency);
+            if (exists(fullPath)) return buildNormalizedPath(fullPath);
         }
         
-        // Not found
-        return "";
+        return ""; // Not found
     }
     
     /// Default external check - checks if in system paths
     bool isExternalDependency(string dependency) @system
     {
-        foreach (sysPath; systemPaths)
-        {
-            if (dependency.startsWith(sysPath))
-                return true;
-        }
-        return false;
+        return systemPaths.any!(path => dependency.startsWith(path));
     }
 }
 
@@ -93,26 +85,19 @@ struct TransitiveAnalyzer
         
         while (!toVisit.empty)
         {
-            string current = toVisit[0];
+            auto current = toVisit[0];
             toVisit = toVisit[1 .. $];
             
-            if (current in visited)
-                continue;
-            
+            if (current in visited) continue;
             visited[current] = true;
             
             auto result = analyzer.analyzeDependencies(current, includePaths);
-            if (result.isErr)
-                continue;
+            if (result.isErr) continue;
             
-            auto deps = result.unwrap();
-            foreach (dep; deps)
+            foreach (dep; result.unwrap().filter!(d => d !in visited && !analyzer.isExternalDependency(d)))
             {
-                if (dep !in visited && !analyzer.isExternalDependency(dep))
-                {
-                    allDeps ~= dep;
-                    toVisit ~= dep;
-                }
+                allDeps ~= dep;
+                toVisit ~= dep;
             }
         }
         

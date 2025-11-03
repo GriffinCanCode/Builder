@@ -74,8 +74,7 @@ final class IncrementalEngine
         {
             result.filesToCompile = sourceFiles.dup;
             result.compiledFiles = sourceFiles.length;
-            foreach (file; sourceFiles)
-                result.reasons[file] = "full rebuild requested";
+            sourceFiles.each!(file => result.reasons[file] = "full rebuild requested");
             return result;
         }
         
@@ -88,7 +87,6 @@ final class IncrementalEngine
             auto actionId = makeActionId(sourceFile);
             auto metadata = makeMetadata(sourceFile);
             
-            // Check if this compilation is cached
             if (actionCache.isCached(actionId, [sourceFile], metadata))
             {
                 isCached[sourceFile] = true;
@@ -107,29 +105,22 @@ final class IncrementalEngine
         {
             auto changes = depCache.analyzeChanges(changedFiles);
             
-            foreach (file; changes.filesToRebuild)
+            foreach (file; changes.filesToRebuild.filter!(f => f !in needsCompile))
             {
-                if (file !in needsCompile)
-                {
-                    needsCompile[file] = true;
-                    auto reason = file in changes.changeReasons;
-                    result.reasons[file] = reason ? *reason : "dependency changed";
-                    Logger.debugLog("  [Dependency Change] " ~ file ~ ": " ~ result.reasons[file]);
-                }
+                needsCompile[file] = true;
+                auto reason = file in changes.changeReasons;
+                result.reasons[file] = reason ? *reason : "dependency changed";
+                Logger.debugLog("  [Dependency Change] " ~ file ~ ": " ~ result.reasons[file]);
             }
         }
         
         // Phase 3: Minimal strategy - only direct changes
         if (strategy == CompilationStrategy.Minimal)
         {
-            // Only compile files that directly changed or have cache misses
-            foreach (file; changedFiles)
+            foreach (f; changedFiles.filter!(f => sourceFiles.canFind(f) && f !in needsCompile))
             {
-                if (sourceFiles.canFind(file) && file !in needsCompile)
-                {
-                    needsCompile[file] = true;
-                    result.reasons[file] = "source file changed";
-                }
+                needsCompile[f] = true;
+                result.reasons[f] = "source file changed";
             }
         }
         
@@ -138,12 +129,8 @@ final class IncrementalEngine
         result.cachedFiles = isCached.keys.filter!(f => f !in needsCompile).array;
         result.compiledFiles = result.filesToCompile.length;
         result.cachedFiles_ = result.cachedFiles.length;
-        
-        if (result.totalFiles > 0)
-        {
-            result.reductionRate = 
-                (cast(float)result.cachedFiles.length / result.totalFiles) * 100.0;
-        }
+        result.reductionRate = result.totalFiles > 0 
+            ? (cast(float)result.cachedFiles.length / result.totalFiles) * 100.0 : 0.0;
         
         Logger.info("Incremental analysis: " ~
                    result.compiledFiles.to!string ~ " to compile, " ~
@@ -172,10 +159,7 @@ final class IncrementalEngine
     /// Invalidate cache for files
     void invalidate(string[] files) @system
     {
-        foreach (file; files)
-        {
-            depCache.invalidate([file]);
-        }
+        files.each!(file => depCache.invalidate([file]));
     }
     
     /// Clear all caches
