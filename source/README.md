@@ -4,50 +4,41 @@ This directory contains the complete source code for the Builder build system, o
 
 ## Package Structure
 
-### 📦 [analysis/](analysis/)
-Dependency resolution and build graph analysis
-- Dependency scanning and resolution
-- Type definitions and build specifications
-- Metadata generation
+### 🚀 [engine/](engine/)
+Core build execution engine and performance systems
+- **runtime/** - Build execution, hermetic builds, remote execution, recovery, watch mode
+- **graph/** - Dependency graph construction and management
+- **compilation/** - Incremental compilation engine
+- **caching/** - Multi-tier caching (local, action, remote)
+- **distributed/** - Distributed build execution with work-stealing
 
-### 🎨 [cli/](cli/)
-Event-driven terminal rendering system
-- Build events and progress tracking
-- Terminal control and formatting
-- Multi-stream output management
-
-### ⚙️ [config/](config/)
-Build configuration and workspace management
-- Builderfile parsing (DSL and JSON)
-- Configuration schema and validation
-- Workspace management
-
-### 🔧 [core/](core/)
-Core build system engine
-- Dependency graph construction
-- Parallel task execution
-- Build cache and artifact storage
-- Cache eviction policies
-
-### ⚠️ [errors/](errors/)
-Type-safe error handling system
-- Result<T, E> monad
-- Error codes and types
-- Rich error formatting
-- Recovery strategies
+### 🎨 [frontend/](frontend/)
+User interfaces and developer tools
+- **cli/** - Command-line interface with event-driven rendering
+- **lsp/** - Language Server Protocol implementation
+- **query/** - Build graph query language
+- **testframework/** - Test execution and reporting
 
 ### 🌐 [languages/](languages/)
-Multi-language support
-- 17+ programming languages
-- Language-specific dependency analysis
-- Build command generation
+Multi-language support (17+ languages)
+- Compiled languages (C, C++, D, Rust, Go, Zig, etc.)
+- Scripting languages (Python, Ruby, Perl, PHP, Lua, R)
+- JVM languages (Java, Kotlin, Scala)
+- .NET languages (C#, F#)
+- Web languages (JavaScript, TypeScript, CSS, Elm)
 
-### 🛠️ [utils/](utils/)
-Common utilities
-- File operations (glob, hash, metadata)
-- Parallel processing and thread pools
-- Logging infrastructure
-- Benchmarking tools
+### 🛠️ [infrastructure/](infrastructure/)
+Core infrastructure and support systems
+- **config/** - Configuration parsing, DSL, scripting, workspace management
+- **analysis/** - Dependency resolution, scanning, detection
+- **repository/** - Repository management and artifact fetching
+- **toolchain/** - Unified toolchain detection and management
+- **errors/** - Type-safe error handling with Result types
+- **telemetry/** - Build telemetry, tracing, and observability
+- **utils/** - Common utilities (files, crypto, concurrency, SIMD)
+- **plugins/** - Plugin system and SDK
+- **migration/** - Build system migration tools
+- **tools/** - Miscellaneous development tools
 
 ## Main Entry Point
 
@@ -58,14 +49,20 @@ Common utilities
 Each package can be imported individually or as a whole:
 
 ```d
-// Import entire package
-import analysis;
+// Import entire group
+import infrastructure.analysis;
 
 // Import specific module
-import analysis.scanner;
+import infrastructure.analysis.scanning.scanner;
 
 // Import multiple packages
-import core, config, errors;
+import engine.runtime, infrastructure.config, infrastructure.errors;
+
+// Import from frontend
+import frontend.cli.commands.help;
+
+// Import languages
+import languages;
 ```
 
 ## Package Organization

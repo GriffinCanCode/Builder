@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.scripting.ruby.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Ruby version manager interface
 interface VersionManager
@@ -285,7 +285,7 @@ final class RVMManager : VersionManager
     
     override string getRubyPath(string version_ = "")
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate version string to prevent injection
         if (!version_.empty && !SecurityValidator.isArgumentSafe(version_))
@@ -310,7 +310,7 @@ final class RVMManager : VersionManager
     
     override bool isVersionInstalled(string version_)
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate version before using
         if (!SecurityValidator.isArgumentSafe(version_))
@@ -332,7 +332,7 @@ final class RVMManager : VersionManager
     
     override bool installVersion(string version_)
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate version to prevent injection
         if (!SecurityValidator.isArgumentSafe(version_))
@@ -390,7 +390,7 @@ final class RVMManager : VersionManager
     /// Use specific Ruby version
     bool useVersion(string version_)
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate version
         if (!SecurityValidator.isArgumentSafe(version_))
@@ -407,7 +407,7 @@ final class RVMManager : VersionManager
     /// Create gemset
     bool createGemset(string name)
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate gemset name
         if (!SecurityValidator.isArgumentSafe(name))
@@ -424,7 +424,7 @@ final class RVMManager : VersionManager
     /// Use gemset
     bool useGemset(string name)
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate gemset name
         if (!SecurityValidator.isArgumentSafe(name))
@@ -451,7 +451,7 @@ final class ChrubyManager : VersionManager
     
     override string getRubyPath(string version_ = "")
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate version to prevent injection
         if (!version_.empty && !SecurityValidator.isArgumentSafe(version_))

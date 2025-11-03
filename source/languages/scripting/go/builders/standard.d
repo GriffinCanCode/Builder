@@ -1,7 +1,7 @@
 module languages.scripting.go.builders.standard;
 
 import std.process : Config, environment;
-import utils.security : execute;  // SECURITY: Auto-migrated
+import infrastructure.utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.path;
 import std.algorithm;
@@ -12,11 +12,11 @@ import languages.scripting.go.builders.base;
 import languages.scripting.go.core.config;
 import languages.scripting.go.managers.modules;
 import languages.scripting.go.tooling.tools;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Standard Go builder - uses go build command with action-level caching
 class StandardBuilder : GoBuilder

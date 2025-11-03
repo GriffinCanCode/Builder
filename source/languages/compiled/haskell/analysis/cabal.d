@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.regex;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Cabal package metadata
 struct CabalMetadata

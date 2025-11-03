@@ -16,12 +16,12 @@ import languages.scripting.ruby.managers;
 import languages.scripting.ruby.tooling.checkers;
 import languages.scripting.ruby.tooling.formatters;
 import languages.scripting.ruby.tooling.builders;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action;
 
 /// Ruby build handler with action-level caching
 class RubyHandler : BaseLanguageHandler
@@ -290,7 +290,7 @@ class RubyHandler : BaseLanguageHandler
         auto versionFile = buildPath(projectRoot, ".ruby-version");
         if (exists(versionFile))
         {
-            import utils.security : execute;
+            import infrastructure.utils.security : execute;
             auto checkRbenv = execute(["which", "rbenv"]);
             if (checkRbenv.status == 0)
                 return RubyVersionManager.Rbenv;

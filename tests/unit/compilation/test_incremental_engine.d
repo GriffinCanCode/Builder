@@ -4,12 +4,12 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.conv;
-import compilation.incremental.engine;
-import caching.incremental.dependency;
-import caching.actions.action;
-import testframework.execution.executor;
-import testframework.assertions.asserts;
-import errors;
+import engine.compilation.incremental.engine;
+import engine.caching.incremental.dependency;
+import engine.caching.actions.action;
+import frontend.testframework.execution.executor;
+import frontend.testframework.assertions.asserts;
+import infrastructure.errors;
 
 /// Test incremental engine rebuild determination
 class TestIncrementalEngineRebuildSet : TestCase

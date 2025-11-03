@@ -2,9 +2,9 @@ module tests.unit.config.stmtparser;
 
 import std.stdio;
 import std.algorithm;
-import config.parsing.lexer;
-import config.parsing.stmtparser;
-import config.workspace.stmt;
+import infrastructure.config.parsing.lexer;
+import infrastructure.config.parsing.stmtparser;
+import infrastructure.config.workspace.stmt;
 import tests.harness;
 
 unittest

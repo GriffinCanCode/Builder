@@ -10,10 +10,10 @@ import std.datetime.stopwatch;
 import languages.dotnet.fsharp.tooling.builders.base;
 import languages.dotnet.fsharp.config;
 import languages.dotnet.fsharp.managers.dotnet;
-import analysis.targets.types;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.analysis.targets.types;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Builder for F# libraries (DLL)
 class LibraryBuilder : FSharpBuilder

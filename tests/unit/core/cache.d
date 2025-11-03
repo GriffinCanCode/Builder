@@ -610,7 +610,7 @@ unittest
     // (Note: This test validates the expiration logic exists,
     //  but can't easily test it without mocking time)
     {
-        import utils.security.integrity;
+        import infrastructure.utils.security.integrity;
         auto validator = IntegrityValidator.create();
         
         // Create signed data with old timestamp

@@ -3,8 +3,8 @@ module tests.unit.migration.integration;
 import std.stdio;
 import std.file;
 import std.path;
-import migration;
-import config.schema.schema : TargetType, TargetLanguage;
+import infrastructure.migration;
+import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 
 /// Test end-to-end migration flow
 unittest

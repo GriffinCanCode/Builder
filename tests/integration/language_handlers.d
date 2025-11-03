@@ -8,7 +8,7 @@ import std.array;
 import std.conv;
 import tests.harness;
 import tests.fixtures;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import core.graph.graph;
 import core.execution.core.engine;
 import languages.base.base;

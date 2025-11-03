@@ -18,11 +18,11 @@ import languages.jvm.scala.tooling.detection;
 import languages.jvm.scala.tooling.info;
 import languages.jvm.scala.managers.sbt;
 import languages.jvm.scala.managers.mill;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Scala build handler with action-level caching
 class ScalaHandler : BaseLanguageHandler

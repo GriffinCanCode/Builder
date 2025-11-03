@@ -5,8 +5,8 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.conv;
-import analysis.targets.types;
-import config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.config.schema.schema;
 
 /// Kotlin build modes
 enum KotlinBuildMode

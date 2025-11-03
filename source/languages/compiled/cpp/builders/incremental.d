@@ -9,17 +9,17 @@ import std.process;
 import std.string;
 import languages.compiled.cpp.core.config;
 // import toolchain; // Replaced by unified toolchain system
-import toolchain.spec;
+import infrastructure.toolchain.spec;
 import languages.compiled.cpp.builders.base;
 import languages.compiled.cpp.analysis.incremental;
-import config.schema.schema;
-import analysis.targets.types;
-import compilation.incremental.engine;
-import caching.incremental.dependency;
-import caching.actions.action;
-import utils.files.hash;
-import utils.logging.logger;
-import errors;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import engine.compilation.incremental.engine;
+import engine.caching.incremental.dependency;
+import engine.caching.actions.action;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// Incremental C++ builder with module-level dependency tracking
 /// Only recompiles files affected by header changes

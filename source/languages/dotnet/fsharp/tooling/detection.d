@@ -7,7 +7,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.conv;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Tool information structure
 struct ToolInfo

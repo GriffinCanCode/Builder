@@ -1,9 +1,9 @@
 module languages.jvm.java.tooling.builders.base;
 
 import languages.jvm.java.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import engine.caching.actions.action : ActionCache;
 
 /// Build result for Java builds
 struct JavaBuildResult

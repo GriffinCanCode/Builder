@@ -4,7 +4,7 @@ import std.algorithm;
 import std.range;
 import std.string;
 import languages.compiled.zig.core.config;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 
 /// Base interface for Zig builders
 interface ZigBuilder
@@ -107,7 +107,7 @@ class NullZigBuilder : ZigBuilder
     )
     {
         import std.process : execute;
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         
         ZigCompileResult result;
         

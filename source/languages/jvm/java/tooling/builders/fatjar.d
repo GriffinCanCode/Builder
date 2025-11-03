@@ -11,11 +11,11 @@ import std.zip;
 import languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.tooling.builders.jar;
 import languages.jvm.java.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache;
 
 /// Fat JAR (uber-jar) builder - includes all dependencies
 class FatJARBuilder : JARBuilder
@@ -54,7 +54,7 @@ class FatJARBuilder : JARBuilder
             mkdirRecurse(outputDir);
         
         // Create atomic temporary directory (prevents TOCTOU attacks)
-        import utils.security.tempdir : AtomicTempDir;
+        import infrastructure.utils.security.tempdir : AtomicTempDir;
         auto atomicTempResult = AtomicTempDir.in_(outputDir, ".java-fatjar-" ~ target.name.split(":")[$ - 1].replace(":", "-"));
         if (atomicTempResult.isErr)
         {

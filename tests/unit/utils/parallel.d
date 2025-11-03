@@ -9,11 +9,11 @@ import std.conv;
 import core.atomic;
 =======
 import std.datetime.stopwatch;
-import utils.parallel;
+import infrastructure.utils.parallel;
 >>>>>>> Stashed changes
 import tests.harness;
-import utils.concurrency.parallel;
-import utils.concurrency.pool;
+import infrastructure.utils.concurrency.parallel;
+import infrastructure.utils.concurrency.pool;
 
 unittest
 {

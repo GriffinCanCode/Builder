@@ -15,13 +15,13 @@ import languages.web.typescript.core.config;
 import languages.web.typescript.tooling.checker;
 import languages.web.typescript.tooling.bundlers;
 import languages.web.shared_.utils;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.process.checker : isCommandAvailable;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process.checker : isCommandAvailable;
+import engine.caching.actions.action;
 
 /// TypeScript build handler with action-level caching for separate compile + bundle steps
 class TypeScriptHandler : BaseLanguageHandler

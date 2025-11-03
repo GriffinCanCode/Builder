@@ -3,7 +3,7 @@ module tests.unit.utils.validation;
 import std.stdio;
 import std.path;
 import std.file;
-import utils.security.validation;
+import infrastructure.utils.security.validation;
 import tests.harness;
 import tests.fixtures;
 

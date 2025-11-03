@@ -1,7 +1,7 @@
 module tests.unit.repository.verifier_test;
 
-import repository.verifier;
-import repository.types;
+import infrastructure.repository.verifier;
+import infrastructure.repository.types;
 import std.file : write, remove, exists;
 import std.path : buildPath;
 

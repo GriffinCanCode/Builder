@@ -11,11 +11,11 @@ import std.conv;
 import languages.base.base;
 import languages.base.mixins;
 import languages.jvm.kotlin.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Kotlin build handler with action-level caching
 class KotlinHandler : BaseLanguageHandler

@@ -11,12 +11,12 @@ import std.string;
 import std.conv;
 import languages.base.base;
 import languages.web.elm.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.process.checker : isCommandAvailable;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process.checker : isCommandAvailable;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Elm build handler with action-level caching
 class ElmHandler : BaseLanguageHandler

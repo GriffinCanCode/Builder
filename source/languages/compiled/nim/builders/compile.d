@@ -11,11 +11,11 @@ import std.conv;
 import languages.compiled.nim.builders.base;
 import languages.compiled.nim.core.config;
 import languages.compiled.nim.tooling.tools;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Direct Nim compiler builder - for direct nim c/cpp/js invocations with action-level caching
 class CompileBuilder : NimBuilder

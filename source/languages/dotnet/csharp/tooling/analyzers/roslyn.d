@@ -11,8 +11,8 @@ import std.conv;
 import languages.dotnet.csharp.tooling.analyzers.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.core.config;
-import utils.logging.logger;
-import utils.security.validation;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
 
 /// Roslyn analyzer (built-in to .NET SDK)
 class RoslynAnalyzer : CSharpAnalyzer_

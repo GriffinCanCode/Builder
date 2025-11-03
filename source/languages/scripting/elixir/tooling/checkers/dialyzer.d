@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import languages.scripting.elixir.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Dialyzer result
 struct DialyzerResult

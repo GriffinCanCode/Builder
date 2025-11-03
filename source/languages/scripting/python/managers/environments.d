@@ -1,7 +1,7 @@
 module languages.scripting.python.managers.environments;
 
 import std.process : Config;
-import utils.security : execute;  // SECURITY: Auto-migrated
+import infrastructure.utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.path;
 import std.algorithm;
@@ -10,7 +10,7 @@ import std.string;
 import languages.scripting.python.core.config;
 import languages.scripting.python.tooling.detection : ToolDetection;
 alias PyTools = ToolDetection;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Virtual environment manager - handles venv creation, activation, and management
 class VirtualEnv

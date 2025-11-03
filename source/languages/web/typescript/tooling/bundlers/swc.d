@@ -3,7 +3,7 @@ module languages.web.typescript.tooling.bundlers.swc;
 import languages.web.typescript.tooling.bundlers.base;
 import languages.web.typescript.core.config;
 import languages.web.typescript.tooling.checker;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import std.process;
 import std.path;
 import std.file;
@@ -12,8 +12,8 @@ import std.array;
 import std.conv;
 import std.string;
 import std.json;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// SWC - ultra-fast Rust-based TypeScript compiler
 class SWCBundler : TSBundler

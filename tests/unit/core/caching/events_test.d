@@ -5,7 +5,7 @@ import std.datetime;
 import core.time;
 import core.caching.events;
 import core.caching.metrics;
-import cli.events.events;
+import frontend.cli.events.events;
 import tests.harness;
 import tests.fixtures;
 

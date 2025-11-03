@@ -10,11 +10,11 @@ import std.conv;
 import languages.scripting.lua.tooling.builders.base;
 import languages.scripting.lua.tooling.detection : isAvailable, getCompilerCommand;
 import languages.scripting.lua.core.config;
-import config.schema.schema;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Bytecode builder with action-level caching - compiles Lua to bytecode using luac
 class BytecodeBuilder : LuaBuilder

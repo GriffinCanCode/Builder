@@ -1,7 +1,7 @@
 module tests.unit.cli.terminal;
 
 import tests.harness;
-import cli.control.terminal;
+import frontend.cli.control.terminal;
 import std.stdio;
 
 /// Test terminal capabilities detection

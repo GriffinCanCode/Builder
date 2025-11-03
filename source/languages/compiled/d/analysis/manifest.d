@@ -7,8 +7,8 @@ import std.json;
 import std.string;
 import std.algorithm;
 import std.array;
-import utils.logging.logger;
-import errors;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// DUB package manifest information
 struct PackageManifest

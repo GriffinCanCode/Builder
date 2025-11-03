@@ -6,7 +6,7 @@ import languages.scripting.ruby.core.config;
 import languages.scripting.ruby.managers.base;
 import languages.scripting.ruby.managers.bundler;
 import languages.scripting.ruby.managers.rubygems;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Package manager factory
 class PackageManagerFactory

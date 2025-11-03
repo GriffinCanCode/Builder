@@ -12,10 +12,10 @@ import std.string : strip;
 import languages.scripting.lua.tooling.testers.base;
 import languages.scripting.lua.tooling.detection;
 import languages.scripting.lua.core.config;
-import config.schema.schema;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Busted test framework - elegant BDD-style testing
 class BustedTester : Tester
@@ -181,7 +181,7 @@ class BustedTester : Tester
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get Busted version: " ~ e.msg);
         }
         

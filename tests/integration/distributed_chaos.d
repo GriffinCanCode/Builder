@@ -19,8 +19,8 @@ import core.distributed.protocol.protocol;
 import core.distributed.protocol.messages;
 import core.distributed.protocol.transport;
 import core.graph.graph : BuildGraph;
-import errors;
-import utils.logging.logger;
+import infrastructure.errors;
+import infrastructure.utils.logging.logger;
 
 /// Fault injection types
 enum FaultType

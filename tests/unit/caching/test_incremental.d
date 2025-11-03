@@ -4,11 +4,11 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.conv;
-import caching.incremental.dependency;
-import caching.incremental.storage;
-import testframework.execution.executor;
-import testframework.assertions.asserts;
-import errors;
+import engine.caching.incremental.dependency;
+import engine.caching.incremental.storage;
+import frontend.testframework.execution.executor;
+import frontend.testframework.assertions.asserts;
+import infrastructure.errors;
 
 /// Test dependency cache basic operations
 class TestDependencyCacheBasic : TestCase

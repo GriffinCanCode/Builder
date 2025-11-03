@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import languages.scripting.elixir.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Base interface for release builders
 interface ReleaseBuilder

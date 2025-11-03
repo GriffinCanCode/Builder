@@ -9,7 +9,7 @@ import std.regex;
 import languages.jvm.scala.core.config;
 import languages.jvm.scala.tooling.detection;
 import languages.jvm.scala.managers.sbt;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Scala dependency information
 struct ScalaDependency

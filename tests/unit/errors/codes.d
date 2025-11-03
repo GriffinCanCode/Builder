@@ -3,7 +3,7 @@ module tests.unit.errors.codes;
 import std.stdio;
 import std.algorithm;
 import std.array;
-import errors.handling.codes;
+import infrastructure.errors.handling.codes;
 import tests.harness;
 
 unittest

@@ -17,13 +17,13 @@ import languages.scripting.php.managers.composer;
 import languages.scripting.php.analysis;
 import languages.scripting.php.tooling.formatters;
 import languages.scripting.php.tooling.packagers;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.security.validation;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
+import engine.caching.actions.action;
 
 /// PHP build handler with action-level caching for syntax validation, analysis, and packaging
 class PHPHandler : BaseLanguageHandler

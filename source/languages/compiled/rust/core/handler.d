@@ -14,12 +14,12 @@ import languages.compiled.rust.core.config;
 import languages.compiled.rust.analysis.manifest;
 import languages.compiled.rust.managers.toolchain;
 import languages.compiled.rust.tooling.builders;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action;
 
 /// Advanced Rust build handler with cargo, rustup, and toolchain support with action-level caching
 class RustHandler : BaseLanguageHandler

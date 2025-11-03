@@ -9,15 +9,15 @@ import languages.dotnet.csharp.tooling.builders.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.managers.dotnet;
 import languages.dotnet.csharp.core.config;
-import analysis.targets.spec;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.analysis.targets.spec;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Native AOT builder
 class AOTBuilder : CSharpBuilder
 {
-    import caching.actions.action : ActionCache;
+    import engine.caching.actions.action : ActionCache;
     this(ActionCache cache = null) {}
     
     override BuildResult build(

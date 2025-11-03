@@ -10,8 +10,8 @@ import std.string;
 import std.conv;
 import std.uni;
 import languages.dotnet.csharp.core.config;
-import utils.logging.logger;
-import utils.security.validation;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
 
 /// MSBuild operations
 struct MSBuildOps

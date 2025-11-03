@@ -1,6 +1,6 @@
 module tests.unit.repository.integration_test;
 
-import repository;
+import infrastructure.repository;
 import std.file : write, mkdir, exists, rmdirRecurse, tempDir;
 import std.path : buildPath;
 

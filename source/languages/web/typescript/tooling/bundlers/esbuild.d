@@ -3,7 +3,7 @@ module languages.web.typescript.tooling.bundlers.esbuild;
 import languages.web.typescript.tooling.bundlers.base;
 import languages.web.typescript.core.config;
 import languages.web.typescript.tooling.checker;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import std.process;
 import std.path;
 import std.file;
@@ -11,8 +11,8 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.string;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// esbuild bundler - TypeScript optimized
 class TSESBuildBundler : TSBundler

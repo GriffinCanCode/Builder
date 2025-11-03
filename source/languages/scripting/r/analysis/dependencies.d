@@ -10,7 +10,7 @@ import std.json;
 import std.regex;
 import std.conv;
 import languages.scripting.r.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Parse dependencies from DESCRIPTION file
 RPackageDep[] parseDESCRIPTION(string descPath)
@@ -284,7 +284,7 @@ RPackageDep[] detectDependencies(string projectDir)
 RPackageDep[] scanRFilesForDependencies(string projectDir)
 {
     import std.file : dirEntries, SpanMode;
-    import utils.security.validation;
+    import infrastructure.utils.security.validation;
     
     RPackageDep[string] depsMap; // Use map to deduplicate
     

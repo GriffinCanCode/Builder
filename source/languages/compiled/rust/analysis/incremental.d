@@ -8,9 +8,9 @@ import std.regex;
 import std.string;
 import std.process;
 import std.json;
-import compilation.incremental.analyzer;
-import utils.logging.logger;
-import errors;
+import engine.compilation.incremental.analyzer;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// Rust incremental dependency analyzer
 /// Uses cargo metadata for accurate dependency tracking

@@ -5,8 +5,8 @@ import std.file;
 import std.path;
 import std.json;
 import std.string;
-import utils.logging.logger;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Find package.json in source tree
 string findPackageJson(const(string[]) sources)

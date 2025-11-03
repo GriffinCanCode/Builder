@@ -13,11 +13,11 @@ import languages.compiled.zig.core.config;
 import languages.compiled.zig.analysis.builder;
 import languages.compiled.zig.tooling.tools;
 import languages.compiled.zig.builders.base;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.security.validation;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
+import engine.caching.actions.action;
 
 /// Builder using build.zig build system with action-level caching
 class BuildZigBuilder : ZigBuilder

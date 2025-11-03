@@ -12,16 +12,16 @@ import languages.base.mixins;
 import languages.web.javascript.bundlers;
 import languages.web.javascript.core.config;
 import languages.web.shared_.utils;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.process.checker : isCommandAvailable;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process.checker : isCommandAvailable;
 // SECURITY: Use secure execute with automatic path validation
-import utils.security : execute;
+import infrastructure.utils.security : execute;
 import std.process : Config;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// JavaScript/TypeScript build handler with bundler support and action-level caching
 class JavaScriptHandler : BaseLanguageHandler

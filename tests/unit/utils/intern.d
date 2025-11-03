@@ -4,7 +4,7 @@ import std.stdio;
 import std.algorithm;
 import std.conv;
 import std.range;
-import utils.memory.intern;
+import infrastructure.utils.memory.intern;
 import tests.harness;
 
 unittest

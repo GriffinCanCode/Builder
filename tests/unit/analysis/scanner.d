@@ -3,7 +3,7 @@ module tests.unit.analysis.scanner;
 import std.stdio;
 import std.path;
 import std.regex;
-import analysis.scanning.scanner;
+import infrastructure.analysis.scanning.scanner;
 import tests.harness;
 import tests.fixtures;
 
@@ -83,7 +83,7 @@ unittest
     auto filePath = buildPath(tempDir.getPath(), "mutable.py");
     
     // Get initial hash
-    import utils.files.hash;
+    import infrastructure.utils.files.hash;
     auto hash1 = FastHash.hashMetadata(filePath);
     
     // File hasn't changed

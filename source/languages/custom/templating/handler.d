@@ -8,11 +8,11 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.base.base;
-import config.schema.schema;
-import graph.discovery;
-import analysis.targets.types;
-import utils.logging.logger;
-import utils.files.hash;
+import infrastructure.config.schema.schema;
+import engine.graph.discovery;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.files.hash;
 
 /// Template expansion handler with dynamic discovery
 /// Supports mustache-style templates that generate source files

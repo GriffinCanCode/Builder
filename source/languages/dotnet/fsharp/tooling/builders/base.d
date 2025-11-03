@@ -1,8 +1,8 @@
 module languages.dotnet.fsharp.tooling.builders.base;
 
 import languages.dotnet.fsharp.config;
-import analysis.targets.types;
-import config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.config.schema.schema;
 
 /// Build result structure
 struct FSharpBuildResult

@@ -9,7 +9,7 @@ import std.conv;
 import languages.scripting.python.managers.base;
 import languages.scripting.python.tooling.detection : ToolDetection;
 alias PyTools = ToolDetection;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Conda package manager
 class CondaManager : PackageManager

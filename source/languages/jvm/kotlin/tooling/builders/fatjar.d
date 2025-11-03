@@ -9,11 +9,11 @@ import std.array;
 import std.string;
 import languages.jvm.kotlin.tooling.builders.base;
 import languages.jvm.kotlin.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache;
 
 /// Fat JAR builder for Kotlin (includes all dependencies)
 class FatJARBuilder : KotlinBuilder

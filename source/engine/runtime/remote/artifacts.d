@@ -1,0 +1,264 @@
+module engine.runtime.remote.artifacts;
+
+import std.file : exists, read, getSize;
+import std.conv : to;
+import engine.distributed.protocol.protocol : ArtifactId, ActionId, InputSpec, OutputSpec;
+import engine.runtime.hermetic : SandboxSpec;
+import engine.caching.distributed.remote.client : RemoteCacheClient;
+import infrastructure.utils.files.chunking : ChunkTransfer, TransferStats;
+import infrastructure.errors;
+import infrastructure.utils.logging.logger;
+
+/// Artifact manager - single responsibility: manage artifact upload/download
+/// 
+/// Separation of concerns:
+/// - RemoteExecutor: orchestrates remote execution flow
+/// - ArtifactManager: handles artifact I/O and transfer
+/// - RemoteCacheClient: handles actual network transfer to cache
+final class ArtifactManager
+{
+    private RemoteCacheClient cacheClient;
+    
+    this(RemoteCacheClient cacheClient) @safe
+    {
+        this.cacheClient = cacheClient;
+    }
+    
+    /// Upload input artifacts to remote store
+    /// 
+    /// Responsibility: Read, hash, and upload all input files/directories
+    /// Uses chunk-based transfer for large files (> 1MB) for efficiency
+    /// Returns: Array of InputSpec with artifact IDs for remote execution
+    Result!(InputSpec[], BuildError) uploadInputs(SandboxSpec spec) @trusted
+    {
+        InputSpec[] inputs;
+        
+        foreach (inputPath; spec.inputs.paths)
+        {
+            // Read artifact from filesystem
+            auto readResult = readArtifact(inputPath);
+            if (readResult.isErr)
+            {
+                auto error = new GenericError(
+                    "Failed to read input: " ~ inputPath ~ ": " ~ 
+                    readResult.unwrapErr(),
+                    ErrorCode.FileNotFound
+                );
+                return Err!(InputSpec[], BuildError)(error);
+            }
+            
+            auto data = readResult.unwrap();
+            
+            // Compute artifact ID (content hash)
+            auto artifactId = computeArtifactId(data);
+            immutable artifactHash = artifactId.toString();
+            
+            // Use chunk-based upload for large files (> 1MB)
+            if (data.length > 1_048_576)
+            {
+                auto chunkResult = cacheClient.putFileChunked(inputPath, artifactHash);
+                if (chunkResult.isErr)
+                {
+                    return Err!(InputSpec[], BuildError)(chunkResult.unwrapErr());
+                }
+                
+                auto upload = chunkResult.unwrap();
+                if (upload.useChunking)
+                {
+                    Logger.debugLog("Uploaded large input using chunks: " ~ inputPath ~ 
+                                  " (" ~ upload.stats.chunksTransferred.to!string ~ " chunks, " ~
+                                  upload.stats.bytesTransferred.to!string ~ " bytes)");
+                }
+            }
+            else
+            {
+                // Use regular upload for small files
+                auto uploadResult = cacheClient.put(artifactHash, cast(const(ubyte)[])data);
+                if (uploadResult.isErr)
+                {
+                    return Err!(InputSpec[], BuildError)(uploadResult.unwrapErr());
+                }
+            }
+            
+            // Check if executable
+            bool executable = isExecutable(inputPath);
+            
+            inputs ~= InputSpec(artifactId, inputPath, executable);
+            
+            Logger.debugLog("Uploaded input: " ~ inputPath ~ 
+                          " -> " ~ artifactHash);
+        }
+        
+        return Ok!(InputSpec[], BuildError)(inputs);
+    }
+    
+    /// Upload input with incremental chunking (only changed chunks)
+    /// 
+    /// Use this when updating an existing artifact to save bandwidth
+    /// Returns: Transfer statistics showing bandwidth savings
+    Result!(TransferStats, BuildError) uploadInputIncremental(
+        string inputPath,
+        ArtifactId newArtifactId,
+        ArtifactId oldArtifactId
+    ) @trusted
+    {
+        if (!exists(inputPath))
+        {
+            auto error = new GenericError(
+                "Failed to read input: " ~ inputPath ~ ": file not found",
+                ErrorCode.FileNotFound
+            );
+            return Err!(TransferStats, BuildError)(error);
+        }
+        
+        // Check file size - only use chunking for large files
+        auto fileSize = getSize(inputPath);
+        if (fileSize < 1_048_576)  // 1 MB
+        {
+            // For small files, just do regular upload
+            auto data = cast(ubyte[])read(inputPath);
+            auto uploadResult = cacheClient.put(newArtifactId.toString(), data);
+            
+            if (uploadResult.isErr)
+                return Err!(TransferStats, BuildError)(uploadResult.unwrapErr());
+            
+            // Return stats for full upload
+            TransferStats stats;
+            stats.totalChunks = 1;
+            stats.chunksTransferred = 1;
+            stats.bytesTransferred = fileSize;
+            
+            return Ok!(TransferStats, BuildError)(stats);
+        }
+        
+        // Use incremental chunk upload
+        auto updateResult = cacheClient.updateFileChunked(
+            inputPath,
+            newArtifactId.toString(),
+            oldArtifactId.toString()
+        );
+        
+        if (updateResult.isErr)
+            return updateResult;
+        
+        auto stats = updateResult.unwrap();
+        
+        Logger.debugLog("Incremental upload: " ~ inputPath ~ 
+                      " (saved " ~ stats.bytesSaved.to!string ~ " bytes, " ~
+                      stats.savingsPercent().to!string ~ "%)");
+        
+        return Ok!(TransferStats, BuildError)(stats);
+    }
+    
+    /// Download output artifacts from remote store
+    /// 
+    /// Responsibility: Download all output artifacts specified
+    /// Uses chunk-based download for large files for efficiency
+    Result!BuildError downloadOutputs(ArtifactId[] artifacts, string outputDir) @trusted
+    {
+        import std.path : buildPath;
+        
+        foreach (artifactId; artifacts)
+        {
+            immutable artifactHash = artifactId.toString();
+            immutable outputPath = buildPath(outputDir, artifactHash);
+            
+            // Try chunk-based download first (will fallback to regular if no manifest)
+            auto downloadResult = cacheClient.getFileChunked(artifactHash, outputPath);
+            if (downloadResult.isErr)
+            {
+                return Result!BuildError.err(downloadResult.unwrapErr());
+            }
+            
+            auto stats = downloadResult.unwrap();
+            if (stats.totalChunks > 1)
+            {
+                Logger.debugLog("Downloaded output using chunks: " ~ artifactHash ~ 
+                              " (" ~ stats.chunksTransferred.to!string ~ " chunks, " ~
+                              stats.bytesTransferred.to!string ~ " bytes)");
+            }
+            else
+            {
+                Logger.debugLog("Downloaded output: " ~ artifactHash);
+            }
+        }
+        
+        return Ok!BuildError();
+    }
+    
+    /// Download output artifacts (backward compatibility - no output directory)
+    Result!BuildError downloadOutputs(ArtifactId[] artifacts) @trusted
+    {
+        foreach (artifactId; artifacts)
+        {
+            // Download from artifact store (regular download)
+            auto downloadResult = cacheClient.get(artifactId.toString());
+            if (downloadResult.isErr)
+            {
+                return Result!BuildError.err(downloadResult.unwrapErr());
+            }
+            
+            Logger.debugLog("Downloaded output: " ~ artifactId.toString());
+        }
+        
+        return Ok!BuildError();
+    }
+    
+    /// Read artifact from filesystem
+    /// 
+    /// Responsibility: Read file/directory contents
+    private Result!(ubyte[], string) readArtifact(string path) @trusted
+    {
+        if (!exists(path))
+            return Err!(ubyte[], string)("File not found: " ~ path);
+        
+        try
+        {
+            auto data = cast(ubyte[])read(path);
+            return Ok!(ubyte[], string)(data);
+        }
+        catch (Exception e)
+        {
+            return Err!(ubyte[], string)(e.msg);
+        }
+    }
+    
+    /// Compute artifact ID from content
+    /// 
+    /// Responsibility: Hash artifact content using Blake3
+    /// Uses Blake3 for consistency across the system
+    private ArtifactId computeArtifactId(const ubyte[] data) @trusted
+    {
+        import utils.crypto.blake3 : Blake3;
+        
+        auto hasher = Blake3(0);
+        hasher.put(cast(const(ubyte)[])data);
+        
+        auto hashBytes = hasher.finish(32);
+        ubyte[32] hash;
+        hash[0 .. 32] = hashBytes[0 .. 32];
+        
+        return ArtifactId(hash);
+    }
+    
+    /// Check if file is executable
+    /// 
+    /// Responsibility: Determine file execution permissions
+    private bool isExecutable(string path) @trusted
+    {
+        version(Posix)
+        {
+            import core.sys.posix.sys.stat;
+            import std.string : toStringz;
+            
+            stat_t statbuf;
+            if (stat(toStringz(path), &statbuf) == 0)
+            {
+                return (statbuf.st_mode & S_IXUSR) != 0;
+            }
+        }
+        
+        return false;
+    }
+}
+

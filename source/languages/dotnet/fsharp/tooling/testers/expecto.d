@@ -12,7 +12,7 @@ import std.conv;
 import languages.dotnet.fsharp.tooling.testers.base;
 import languages.dotnet.fsharp.config;
 import languages.dotnet.fsharp.managers.dotnet;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Expecto test runner (functional F# testing)
 class ExpectoTester : FSharpTester

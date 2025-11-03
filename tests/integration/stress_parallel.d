@@ -10,10 +10,10 @@ import std.datetime.stopwatch;
 import std.parallelism;
 import tests.harness;
 import tests.fixtures;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import core.graph.graph;
 import core.execution.core.engine;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Stress test: Build graph with 10,000+ targets
 unittest

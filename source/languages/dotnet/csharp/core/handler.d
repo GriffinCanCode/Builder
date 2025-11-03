@@ -17,11 +17,11 @@ import languages.dotnet.csharp.tooling.builders;
 import languages.dotnet.csharp.tooling.formatters;
 import languages.dotnet.csharp.tooling.analyzers;
 import languages.dotnet.csharp.analysis;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// C# build handler with action-level caching
 class CSharpHandler : BaseLanguageHandler

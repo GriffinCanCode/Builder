@@ -2,8 +2,8 @@ module tests.unit.migration.registry;
 
 import std.stdio;
 import std.algorithm;
-import migration.registry;
-import migration.base;
+import infrastructure.migration.registry;
+import infrastructure.migration.base;
 
 /// Test registry singleton
 unittest

@@ -11,11 +11,11 @@ import std.conv;
 import languages.compiled.d.builders.base;
 import languages.compiled.d.core.config;
 import languages.compiled.d.analysis.manifest;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// DUB builder implementation with action-level caching
 class DubBuilder : DBuilder

@@ -326,7 +326,7 @@ class JavaToolDetection
             }
             catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to detect Java project info: " ~ e.msg);
         }
         }
@@ -344,7 +344,7 @@ class JavaToolDetection
             }
             catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to detect Java project info: " ~ e.msg);
         }
         }
@@ -364,7 +364,7 @@ class JavaToolDetection
             }
             catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to detect Java project info: " ~ e.msg);
         }
         }
@@ -382,7 +382,7 @@ class JavaToolDetection
             }
             catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to detect Java project info: " ~ e.msg);
         }
         }

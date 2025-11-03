@@ -2,7 +2,7 @@ module languages.web.javascript.bundlers.vite;
 
 import languages.web.javascript.bundlers.base;
 import languages.web.javascript.core.config;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import std.process;
 import std.path;
 import std.file;
@@ -11,8 +11,8 @@ import std.array;
 import std.conv;
 import std.json;
 import std.string;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Vite bundler - modern dev server with lightning-fast HMR and optimized production builds
 /// Ideal for: React/Vue/Svelte apps, modern ESM projects, library development

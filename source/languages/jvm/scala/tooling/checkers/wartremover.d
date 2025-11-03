@@ -3,7 +3,7 @@ module languages.jvm.scala.tooling.checkers.wartremover;
 import std.stdio;
 import languages.jvm.scala.tooling.checkers.base;
 import languages.jvm.scala.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// WartRemover checker - functional purity linter
 class WartRemoverChecker : Checker

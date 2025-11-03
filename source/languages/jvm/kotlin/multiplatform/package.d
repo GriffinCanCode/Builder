@@ -10,7 +10,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import languages.jvm.kotlin.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Multiplatform project structure helper
 class MultiplatformHelper

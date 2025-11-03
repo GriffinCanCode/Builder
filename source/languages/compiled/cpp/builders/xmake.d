@@ -10,12 +10,12 @@ import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
 // import toolchain; // Replaced by unified toolchain system
-import toolchain.spec;
+import infrastructure.toolchain.spec;
 import languages.compiled.cpp.builders.base;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Xmake build system builder
 class XmakeBuilder : BaseCppBuilder

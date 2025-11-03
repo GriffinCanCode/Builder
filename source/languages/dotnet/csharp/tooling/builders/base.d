@@ -2,9 +2,9 @@ module languages.dotnet.csharp.tooling.builders.base;
 
 import std.string;
 import languages.dotnet.csharp.core.config;
-import analysis.targets.spec;
-import config.schema.schema;
-import caching.actions.action : ActionCache;
+import infrastructure.analysis.targets.spec;
+import infrastructure.config.schema.schema;
+import engine.caching.actions.action : ActionCache;
 
 /// Build result structure
 struct BuildResult

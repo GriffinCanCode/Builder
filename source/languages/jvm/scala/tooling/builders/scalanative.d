@@ -11,15 +11,15 @@ import std.conv : octal;
 import languages.jvm.scala.tooling.builders.base;
 import languages.jvm.scala.core.config;
 import languages.jvm.scala.tooling.detection;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Scala Native builder - compiles Scala to native binary via LLVM
 class ScalaNativeBuilder : ScalaBuilder
 {
-    import caching.actions.action : ActionCache;
+    import engine.caching.actions.action : ActionCache;
     this(ActionCache cache = null) {}
     
     override ScalaBuildResult build(

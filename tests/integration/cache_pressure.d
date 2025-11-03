@@ -12,7 +12,7 @@ import tests.harness;
 import tests.fixtures;
 import core.caching.cache;
 import core.caching.eviction;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 
 /// Test cache eviction under memory pressure
 unittest

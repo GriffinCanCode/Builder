@@ -61,7 +61,7 @@ class ScalaInfoDetector
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
@@ -93,7 +93,7 @@ class ScalaInfoDetector
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
@@ -126,7 +126,7 @@ class ScalaInfoDetector
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         
@@ -153,7 +153,7 @@ class ScalaInfoDetector
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get Scala version: " ~ e.msg);
         }
         

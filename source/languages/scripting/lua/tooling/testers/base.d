@@ -1,8 +1,8 @@
 module languages.scripting.lua.tooling.testers.base;
 
 import languages.scripting.lua.core.config;
-import config.schema.schema;
-import analysis.targets.spec;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.spec;
 
 /// Test result structure
 struct TestResult

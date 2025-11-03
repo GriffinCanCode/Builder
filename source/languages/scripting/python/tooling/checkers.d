@@ -1,7 +1,7 @@
 module languages.scripting.python.tooling.checkers;
 
 import std.process : Config;
-import utils.security : execute;  // SECURITY: Auto-migrated
+import infrastructure.utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.algorithm;
 import std.array;
@@ -9,7 +9,7 @@ import std.string;
 import languages.scripting.python.core.config;
 import languages.scripting.python.tooling.results;
 import languages.scripting.python.tooling.detection;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Type checking utilities
 class PyCheckers

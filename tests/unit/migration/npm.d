@@ -4,9 +4,9 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.json;
-import migration.systems.npm;
-import migration.common;
-import config.schema.schema : TargetType, TargetLanguage;
+import infrastructure.migration.systems.npm;
+import infrastructure.migration.common;
+import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 
 /// Test npm migrator system name
 unittest

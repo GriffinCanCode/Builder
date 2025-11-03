@@ -4,7 +4,7 @@ import std.process;
 import std.string;
 import std.algorithm;
 import std.regex;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Kotlin compiler and tool detection
 class KotlinDetection

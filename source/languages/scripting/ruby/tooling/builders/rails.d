@@ -11,10 +11,10 @@ import languages.scripting.ruby.core.config;
 import languages.scripting.ruby.tooling.builders.base;
 import languages.scripting.ruby.tooling.info;
 import languages.base.base;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Rails builder for Ruby on Rails applications
 class RailsBuilder : Builder

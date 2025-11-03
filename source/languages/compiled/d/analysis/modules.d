@@ -7,7 +7,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.regex;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// D module information
 struct ModuleInfo

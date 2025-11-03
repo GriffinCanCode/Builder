@@ -10,7 +10,7 @@ import std.string;
 import std.conv;
 import languages.scripting.ruby.core.config;
 import languages.scripting.ruby.managers.base;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Bundler package manager implementation
 class BundlerManager : PackageManager

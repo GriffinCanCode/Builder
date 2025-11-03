@@ -12,10 +12,10 @@ import languages.scripting.ruby.tooling.builders.base;
 import languages.scripting.ruby.tooling.info;
 import languages.scripting.ruby.managers.rubygems;
 import languages.base.base;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Gem builder for Ruby gems/libraries
 class GemBuilder : Builder

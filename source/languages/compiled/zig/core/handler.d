@@ -14,11 +14,11 @@ import languages.compiled.zig.analysis.builder;
 import languages.compiled.zig.tooling.tools;
 import languages.compiled.zig.analysis.targets;
 import languages.compiled.zig.builders;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Advanced Zig build handler with build.zig and cross-compilation support
 class ZigHandler : BaseLanguageHandler

@@ -2,10 +2,10 @@ module tests.unit.errors.aggregate;
 
 import std.stdio;
 import std.conv;
-import errors.handling.aggregate;
-import errors.handling.result;
-import errors.types.types;
-import errors.handling.codes;
+import infrastructure.errors.handling.aggregate;
+import infrastructure.errors.handling.result;
+import infrastructure.errors.types.types;
+import infrastructure.errors.handling.codes;
 import tests.harness;
 
 unittest

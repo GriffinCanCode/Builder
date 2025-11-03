@@ -5,8 +5,8 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.conv;
-import utils.files.chunking;
-import errors;
+import infrastructure.utils.files.chunking;
+import infrastructure.errors;
 
 /// Test basic file chunking
 unittest

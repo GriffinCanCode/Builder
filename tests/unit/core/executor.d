@@ -16,7 +16,7 @@ import core.sync.mutex;
 import core.graph.graph;
 import core.caching.cache;
 import core.execution.core.engine;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import tests.harness;
 import tests.fixtures;
 import tests.mocks;

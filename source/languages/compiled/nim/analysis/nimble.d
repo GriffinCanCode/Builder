@@ -8,7 +8,7 @@ import std.array;
 import std.string;
 import std.regex;
 import std.json;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Nimble package data
 struct NimbleData

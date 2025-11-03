@@ -4,7 +4,7 @@ import std.stdio;
 import std.exception;
 import std.algorithm : canFind, startsWith;
 import std.process : Config;
-import utils.security;
+import infrastructure.utils.security;
 
 /// Comprehensive security validation tests
 unittest

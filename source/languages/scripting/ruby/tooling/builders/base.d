@@ -7,8 +7,8 @@ import std.algorithm;
 import std.array;
 import languages.base.base;
 import languages.scripting.ruby.core.config;
-import config.schema.schema;
-import analysis.targets.types;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
 
 /// Build result specific to builders
 struct BuildResult

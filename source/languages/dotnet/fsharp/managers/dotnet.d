@@ -7,7 +7,7 @@ import std.string;
 import std.array;
 import std.algorithm;
 import std.json;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// .NET CLI operations for F# projects
 struct DotnetOps

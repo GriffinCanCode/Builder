@@ -13,12 +13,12 @@ import languages.scripting.elixir.config;
 import languages.scripting.elixir.managers;
 import languages.scripting.elixir.tooling;
 import languages.scripting.elixir.analysis;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Elixir build handler with action-level caching - comprehensive and modular
 class ElixirHandler : BaseLanguageHandler

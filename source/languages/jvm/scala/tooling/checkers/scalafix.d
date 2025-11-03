@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import languages.jvm.scala.tooling.checkers.base;
 import languages.jvm.scala.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Scalafix checker/linter implementation
 class ScalafixChecker : Checker

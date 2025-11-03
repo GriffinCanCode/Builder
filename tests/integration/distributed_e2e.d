@@ -21,8 +21,8 @@ import core.distributed.protocol.protocol;
 import core.distributed.protocol.messages;
 import core.distributed.protocol.transport;
 import core.graph.graph : BuildGraph, BuildNode, TargetId;
-import errors;
-import utils.logging.logger;
+import infrastructure.errors;
+import infrastructure.utils.logging.logger;
 
 /// End-to-end test worker (functional mock)
 class E2EWorker

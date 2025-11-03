@@ -9,9 +9,9 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.conv;
-import utils.files.chunking;
-import caching.distributed.remote.client;
-import caching.distributed.remote.protocol;
+import infrastructure.utils.files.chunking;
+import engine.caching.distributed.remote.client;
+import engine.caching.distributed.remote.protocol;
 
 void main()
 {

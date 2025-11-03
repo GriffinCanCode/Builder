@@ -1,9 +1,9 @@
 module languages.scripting.perl.services.config;
 
 import languages.scripting.perl.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.logging.logger;
 import std.json : JSONValue, parseJSON;
 import std.range : empty;
 

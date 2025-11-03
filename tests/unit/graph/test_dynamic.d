@@ -4,10 +4,10 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import std.conv;
-import graph.graph;
-import graph.dynamic;
-import graph.discovery;
-import config.schema.schema;
+import engine.graph.graph;
+import engine.graph.dynamic;
+import engine.graph.discovery;
+import infrastructure.config.schema.schema;
 import tests.harness;
 
 /// Test dynamic graph creation and basic operations

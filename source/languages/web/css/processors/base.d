@@ -1,7 +1,7 @@
 module languages.web.css.processors.base;
 
 import languages.web.css.core.config;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 
 /// Base interface for CSS processors
 interface CSSProcessor

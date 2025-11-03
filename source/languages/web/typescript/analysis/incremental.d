@@ -7,9 +7,9 @@ import std.path;
 import std.regex;
 import std.string;
 import std.json;
-import compilation.incremental.analyzer;
-import utils.logging.logger;
-import errors;
+import engine.compilation.incremental.analyzer;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// TypeScript incremental dependency analyzer
 /// Uses TypeScript's import/export system for dependency tracking

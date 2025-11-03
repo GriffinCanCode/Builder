@@ -16,7 +16,7 @@ module observability_example;
 import std.stdio;
 import std.datetime.stopwatch;
 import core.telemetry;
-import utils.logging.structured;
+import infrastructure.utils.logging.structured;
 
 void main()
 {

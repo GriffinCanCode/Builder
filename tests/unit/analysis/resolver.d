@@ -4,8 +4,8 @@ import std.stdio;
 import std.path;
 import std.algorithm;
 import std.range;
-import analysis.resolution.resolver;
-import config.schema.schema;
+import infrastructure.analysis.resolution.resolver;
+import infrastructure.config.schema.schema;
 import tests.harness;
 import tests.fixtures;
 

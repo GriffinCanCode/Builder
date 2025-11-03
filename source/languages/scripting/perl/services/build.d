@@ -1,12 +1,12 @@
 module languages.scripting.perl.services.build;
 
 import languages.scripting.perl.core.config;
-import config.schema.schema : LanguageBuildResult;
-import config.schema.schema;
-import analysis.targets.types;
-import caching.actions.action;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema : LanguageBuildResult;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import engine.caching.actions.action;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 import std.range : empty;
 
 /// Build service interface

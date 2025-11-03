@@ -15,11 +15,11 @@ import languages.compiled.haskell.tooling.ghc;
 import languages.compiled.haskell.tooling.cabal;
 import languages.compiled.haskell.tooling.stack;
 import languages.compiled.haskell.analysis.cabal : parseCabalFile;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig;
 
 /// Haskell build handler with GHC, Cabal, and Stack support and action-level caching
 class HaskellHandler : BaseLanguageHandler

@@ -3,7 +3,7 @@ module tests.unit.config.workspace;
 import std.stdio;
 import std.file;
 import std.path;
-import config.workspace.workspace;
+import infrastructure.config.workspace.workspace;
 import tests.harness;
 import tests.fixtures;
 

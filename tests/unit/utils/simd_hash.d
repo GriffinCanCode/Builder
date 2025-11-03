@@ -1,7 +1,7 @@
 module tests.unit.utils.simd_hash;
 
 import tests.harness;
-import utils.simd.hash;
+import infrastructure.utils.simd.hash;
 import std.array : replicate;
 
 /// Test standard SIMD-accelerated hash comparison

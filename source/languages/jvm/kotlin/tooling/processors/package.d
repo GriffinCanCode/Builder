@@ -10,7 +10,7 @@ import std.file;
 import std.string;
 import std.algorithm;
 import languages.jvm.kotlin.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Processor runner for KAPT and KSP
 class ProcessorRunner

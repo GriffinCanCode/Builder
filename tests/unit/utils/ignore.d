@@ -3,8 +3,8 @@ module tests.unit.utils.ignore;
 import std.stdio;
 import std.algorithm;
 import std.path;
-import utils.files.ignore;
-import config.schema.schema : TargetLanguage;
+import infrastructure.utils.files.ignore;
+import infrastructure.config.schema.schema : TargetLanguage;
 import tests.harness;
 
 unittest

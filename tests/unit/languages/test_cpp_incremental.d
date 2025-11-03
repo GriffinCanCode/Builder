@@ -5,9 +5,9 @@ import std.path;
 import std.algorithm;
 import std.conv;
 import languages.compiled.cpp.analysis.incremental;
-import testframework.execution.executor;
-import testframework.assertions.asserts;
-import errors;
+import frontend.testframework.execution.executor;
+import frontend.testframework.assertions.asserts;
+import infrastructure.errors;
 
 /// Test C++ dependency analyzer
 class TestCppDependencyAnalyzer : TestCase

@@ -9,7 +9,7 @@ import std.json;
 import std.string;
 import std.conv;
 import languages.web.typescript.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Type checking result
 struct TypeCheckResult

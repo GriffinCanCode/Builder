@@ -12,12 +12,12 @@ import languages.base.base;
 import languages.base.mixins;
 import languages.compiled.protobuf.core.config;
 import languages.compiled.protobuf.tooling.protoc;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
-import graph.discovery;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import engine.graph.discovery;
 
 /// Protocol Buffer build handler with action-level caching and dynamic discovery
 class ProtobufHandler : BaseLanguageHandler, DiscoverableAction

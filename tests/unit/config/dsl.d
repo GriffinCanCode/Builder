@@ -4,10 +4,10 @@ import std.stdio;
 import std.path;
 import std.file;
 import std.algorithm;
-import config.parsing.lexer;
-import config.workspace.ast;
-import config.interpretation.dsl;
-import config.schema.schema;
+import infrastructure.config.parsing.lexer;
+import infrastructure.config.workspace.ast;
+import infrastructure.config.interpretation.dsl;
+import infrastructure.config.schema.schema;
 import tests.harness;
 import tests.fixtures;
 

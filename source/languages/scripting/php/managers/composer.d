@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.process;
 import std.range;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Composer.json metadata
 struct ComposerMetadata

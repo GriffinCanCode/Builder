@@ -10,10 +10,10 @@ import std.random;
 import std.string;
 import tests.harness;
 import tests.fixtures;
-import config.parsing.parser;
-import config.interpretation.dsl;
-import config.schema.schema;
-import errors;
+import infrastructure.config.parsing.parser;
+import infrastructure.config.interpretation.dsl;
+import infrastructure.config.schema.schema;
+import infrastructure.errors;
 
 /// Fuzzer for DSL parser
 class DSLFuzzer

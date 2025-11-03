@@ -4,8 +4,8 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.algorithm;
-import analysis.inference.analyzer;
-import config.schema.schema : TargetLanguage;
+import infrastructure.analysis.inference.analyzer;
+import infrastructure.config.schema.schema : TargetLanguage;
 import tests.harness;
 import tests.fixtures;
 

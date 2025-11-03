@@ -1,7 +1,7 @@
 module languages.web.javascript.bundlers.base;
 
 import languages.web.javascript.core.config;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 
 /// Base interface for JavaScript bundlers
 interface Bundler
@@ -111,7 +111,7 @@ class NullBundler : Bundler
     {
         import std.process : execute;
         import std.path : buildPath;
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         
         BundleResult result;
         

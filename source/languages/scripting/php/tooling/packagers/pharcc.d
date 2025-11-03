@@ -9,8 +9,8 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.conv;
-import utils.logging.logger;
-import utils.security.validation;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
 
 /// Pharcc packager - compile PHP to standalone binary
 class PharccPackager : Packager

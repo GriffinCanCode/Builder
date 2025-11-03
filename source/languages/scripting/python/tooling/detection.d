@@ -1,10 +1,10 @@
 module languages.scripting.python.tooling.detection;
 
 import std.process : Config;
-import utils.security : execute;  // SECURITY: Auto-migrated
+import infrastructure.utils.security : execute;  // SECURITY: Auto-migrated
 import std.string;
 import std.array;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Tool detection utilities
 class ToolDetection

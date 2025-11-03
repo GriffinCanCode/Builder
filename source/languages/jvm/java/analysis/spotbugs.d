@@ -10,7 +10,7 @@ import std.string;
 import std.conv;
 import languages.jvm.java.analysis.base;
 import languages.jvm.java.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// SpotBugs static analyzer
 class SpotBugsAnalyzer : Analyzer

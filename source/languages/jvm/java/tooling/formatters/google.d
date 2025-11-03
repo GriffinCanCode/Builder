@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import languages.jvm.java.tooling.formatters.base;
 import languages.jvm.java.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Google Java Format formatter
 class GoogleJavaFormatter : JavaFormatter

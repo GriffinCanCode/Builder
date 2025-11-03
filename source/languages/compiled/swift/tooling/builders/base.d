@@ -2,7 +2,7 @@ module languages.compiled.swift.tooling.builders.base;
 
 import std.range;
 import languages.compiled.swift.config;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 
 /// Base interface for Swift builders
 interface SwiftBuilder

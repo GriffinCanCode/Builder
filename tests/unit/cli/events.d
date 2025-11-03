@@ -1,7 +1,7 @@
 module tests.unit.cli.events;
 
 import tests.harness;
-import cli.events.events;
+import frontend.cli.events.events;
 import std.datetime : dur;
 
 /// Test build started event

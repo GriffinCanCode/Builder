@@ -8,7 +8,7 @@ import std.file;
 import std.path;
 import std.conv;
 import std.regex;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Swift toolchain information
 struct Toolchain

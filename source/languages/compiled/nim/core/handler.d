@@ -14,12 +14,12 @@ import languages.compiled.nim.builders;
 import languages.compiled.nim.tooling.tools;
 import languages.compiled.nim.analysis.nimble;
 import languages.compiled.nim.managers.nimble;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig;
 
 /// Comprehensive Nim build handler with multi-backend support and action-level caching
 class NimHandler : BaseLanguageHandler

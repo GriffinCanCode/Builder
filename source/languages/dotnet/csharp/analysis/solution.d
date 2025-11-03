@@ -112,7 +112,7 @@ SolutionInfo parseSolutionFile(string filePath)
 /// Find solution file in directory
 string findSolutionFile(string dir)
 {
-    import utils.security.validation;
+    import infrastructure.utils.security.validation;
     
     if (!exists(dir) || !isDir(dir))
         return "";
@@ -131,7 +131,7 @@ string findSolutionFile(string dir)
 /// Find all solution files in directory
 string[] findSolutionFiles(string dir)
 {
-    import utils.security.validation;
+    import infrastructure.utils.security.validation;
     
     string[] solutions;
     

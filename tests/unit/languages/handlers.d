@@ -28,8 +28,8 @@ import languages.compiled.nim;
 import languages.compiled.swift;
 import languages.dotnet.fsharp;
 import languages.web.css;
-import config.schema.schema;
-import errors;
+import infrastructure.config.schema.schema;
+import infrastructure.errors;
 import tests.harness;
 import tests.fixtures;
 

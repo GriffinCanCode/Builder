@@ -8,11 +8,11 @@ import std.algorithm;
 import std.array;
 import languages.scripting.elixir.tooling.builders.base;
 import languages.scripting.elixir.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache;
 
 /// Script builder - for simple .ex/.exs files
 class ScriptBuilder : ElixirBuilder

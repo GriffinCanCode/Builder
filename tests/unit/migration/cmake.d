@@ -3,9 +3,9 @@ module tests.unit.migration.cmake;
 import std.stdio;
 import std.file;
 import std.path;
-import migration.systems.cmake;
-import migration.common;
-import config.schema.schema : TargetType, TargetLanguage;
+import infrastructure.migration.systems.cmake;
+import infrastructure.migration.common;
+import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 
 /// Test CMake migrator system name
 unittest

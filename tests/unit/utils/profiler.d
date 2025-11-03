@@ -4,7 +4,7 @@ import std.stdio;
 import std.datetime : dur;
 import std.conv : to;
 import std.algorithm : canFind;
-import utils.memory.profiler;
+import infrastructure.utils.memory.profiler;
 
 unittest
 {

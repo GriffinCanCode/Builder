@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import languages.scripting.ruby.core.config;
 import languages.scripting.ruby.tooling.formatters.base;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// StandardRB formatter (opinionated, zero-config)
 class StandardFormatter : Formatter

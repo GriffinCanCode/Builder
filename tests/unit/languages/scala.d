@@ -6,8 +6,8 @@ import std.file;
 import std.algorithm;
 import std.array;
 import languages.jvm.scala;
-import config.schema.schema;
-import errors;
+import infrastructure.config.schema.schema;
+import infrastructure.errors;
 import tests.harness;
 import tests.fixtures;
 

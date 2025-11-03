@@ -6,10 +6,10 @@ import std.file;
 import std.path;
 import std.regex;
 import std.string;
-import compilation.incremental.analyzer;
+import engine.compilation.incremental.analyzer;
 import languages.compiled.cpp.analysis.analysis;
-import utils.logging.logger;
-import errors;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// C++ incremental dependency analyzer
 /// Extracts header dependencies and resolves them to absolute paths

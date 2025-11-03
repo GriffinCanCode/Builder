@@ -10,12 +10,12 @@ import languages.dotnet.csharp.tooling.builders.base;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.managers.dotnet;
 import languages.dotnet.csharp.core.config;
-import analysis.targets.spec;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
-import runtime.shutdown.shutdown : ShutdownCoordinator;
+import infrastructure.analysis.targets.spec;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import engine.runtime.shutdown.shutdown : ShutdownCoordinator;
 
 /// Standard builder using dotnet build with action-level caching
 class StandardBuilder : CSharpBuilder

@@ -11,7 +11,7 @@ import std.regex;
 import std.conv;
 import languages.dotnet.fsharp.tooling.analyzers.base;
 import languages.dotnet.fsharp.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// FSharpLint analyzer implementation
 class FSharpLintAnalyzer : FSharpAnalyzer_

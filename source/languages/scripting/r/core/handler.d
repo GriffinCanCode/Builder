@@ -18,12 +18,12 @@ import languages.scripting.r.managers.environments;
 import languages.scripting.r.tooling.checkers;
 import languages.scripting.r.analysis.dependencies;
 import languages.scripting.r.tooling.builders;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action;
 
 /// R language handler with action-level caching for linting, formatting, package building, and tests
 class RHandler : BaseLanguageHandler

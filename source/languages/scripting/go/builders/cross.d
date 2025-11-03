@@ -6,10 +6,10 @@ import std.array;
 import languages.scripting.go.builders.standard;
 import languages.scripting.go.builders.base;
 import languages.scripting.go.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.logging.logger;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache;
 
 /// Cross-compilation builder - handles GOOS/GOARCH compilation
 class CrossBuilder : StandardBuilder

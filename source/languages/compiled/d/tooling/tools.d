@@ -7,7 +7,7 @@ import std.path;
 import std.string;
 import std.algorithm;
 import std.array;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// D formatter (dfmt) integration
 final class DFormatter

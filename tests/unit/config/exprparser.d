@@ -2,9 +2,9 @@ module tests.unit.config.exprparser;
 
 import std.stdio;
 import std.algorithm;
-import config.parsing.lexer;
-import config.parsing.exprparser;
-import config.workspace.expr;
+import infrastructure.config.parsing.lexer;
+import infrastructure.config.parsing.exprparser;
+import infrastructure.config.workspace.expr;
 import tests.harness;
 
 unittest

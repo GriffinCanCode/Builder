@@ -6,12 +6,12 @@ import std.file;
 import std.path;
 import std.string;
 import std.algorithm;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.builders.base;
 import languages.scripting.r.tooling.checkers;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Script builder - creates executable wrappers for R scripts
 class RScriptBuilder : RBuilder

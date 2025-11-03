@@ -11,11 +11,11 @@ import languages.scripting.lua.tooling.builders.base;
 import languages.scripting.lua.tooling.detection : isAvailable;
 import std.conv : to;
 import languages.scripting.lua.core.config;
-import config.schema.schema;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache;
 
 /// LuaJIT builder - uses LuaJIT for JIT compilation or bytecode generation
 class LuaJITBuilder : LuaBuilder

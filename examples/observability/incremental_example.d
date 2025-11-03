@@ -13,11 +13,11 @@ import std.path;
 import std.datetime.stopwatch;
 import std.conv;
 
-import config.schema.schema;
-import config.workspace.workspace;
-import analysis.inference.analyzer;
-import analysis.incremental;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.config.workspace.workspace;
+import infrastructure.analysis.inference.analyzer;
+import infrastructure.analysis.incremental;
+import infrastructure.utils.logging.logger;
 
 void main()
 {
@@ -142,7 +142,7 @@ void main()
     writeln("   ═══════════════════════════════════════");
     
     // Get incremental analyzer instance
-    import analysis.incremental.analyzer : IncrementalAnalyzer;
+    import infrastructure.analysis.incremental.analyzer : IncrementalAnalyzer;
     
     writeln("\n   Cache Performance:");
     writeln("   - Files reanalyzed: Reduced by ~99% (typical)");

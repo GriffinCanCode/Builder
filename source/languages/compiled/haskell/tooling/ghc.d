@@ -9,10 +9,10 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.compiled.haskell.core.config;
-import config.schema.schema;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionId, ActionType;
-import utils.files.hash : FastHash;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionId, ActionType;
+import infrastructure.utils.files.hash : FastHash;
 
 /// GHC compiler wrapper with action-level caching
 struct GHCWrapper

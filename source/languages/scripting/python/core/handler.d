@@ -12,16 +12,16 @@ import languages.scripting.python.core.config;
 import languages.scripting.python.managers;
 import languages.scripting.python.tooling;
 import languages.scripting.python.analysis;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.python.pycheck;
-import utils.python.pywrap;
-import utils.security : execute;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.python.pycheck;
+import infrastructure.utils.python.pywrap;
+import infrastructure.utils.security : execute;
 import std.process : Config;
-import caching.actions.action : ActionId, ActionType;
+import engine.caching.actions.action : ActionId, ActionType;
 
 /// Python build handler - comprehensive and modular with action-level caching
 class PythonHandler : BaseLanguageHandler

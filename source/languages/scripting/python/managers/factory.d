@@ -88,7 +88,7 @@ class PackageManagerFactory
             }
             catch (Exception e)
             {
-                import utils.logging.logger : Logger;
+                import infrastructure.utils.logging.logger : Logger;
                 Logger.debugLog("Failed to detect Python package manager: " ~ e.msg);
             }
         }

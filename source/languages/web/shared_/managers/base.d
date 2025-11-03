@@ -6,7 +6,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.json;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Base interface for Node.js package managers
 interface PackageManager

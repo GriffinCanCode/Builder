@@ -2,8 +2,8 @@ module languages.web.typescript.tooling.bundlers.base;
 
 import std.array;
 import languages.web.typescript.core.config;
-import config.schema.schema;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import engine.caching.actions.action : ActionCache;
 
 /// Base interface for TypeScript compilers/bundlers
 interface TSBundler
@@ -141,7 +141,7 @@ class NullTSBundler : TSBundler
     )
     {
         import languages.web.typescript.tooling.checker;
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         
         TSCompileResult result;
         

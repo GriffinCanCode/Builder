@@ -7,7 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 import languages.compiled.swift.config : SwiftPlatform;
 
 /// SwiftLint runner

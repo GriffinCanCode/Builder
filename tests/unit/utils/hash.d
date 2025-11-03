@@ -4,7 +4,7 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.array : replicate;
-import utils.files.hash;
+import infrastructure.utils.files.hash;
 import tests.harness;
 import tests.fixtures;
 

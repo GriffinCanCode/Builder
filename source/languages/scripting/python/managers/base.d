@@ -9,7 +9,7 @@ import std.string;
 import languages.scripting.python.core.config;
 import languages.scripting.python.tooling.detection : ToolDetection;
 alias PyTools = ToolDetection;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Package installation result
 struct InstallResult

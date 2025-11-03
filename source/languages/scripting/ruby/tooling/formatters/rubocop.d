@@ -10,7 +10,7 @@ import std.string;
 import std.conv;
 import languages.scripting.ruby.core.config;
 import languages.scripting.ruby.tooling.formatters.base;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// RuboCop formatter/linter
 class RuboCopFormatter : Formatter

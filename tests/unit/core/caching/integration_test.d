@@ -19,7 +19,7 @@ import core.caching.storage.cas;
 import core.caching.storage.gc;
 import core.caching.metrics;
 import core.caching.events;
-import cli.events.events;
+import frontend.cli.events.events;
 import tests.harness;
 import tests.fixtures;
 

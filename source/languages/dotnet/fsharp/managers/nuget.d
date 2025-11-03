@@ -8,8 +8,8 @@ import std.array;
 import std.algorithm;
 import std.json;
 import std.conv;
-import utils.files.xml;
-import utils.logging.logger;
+import infrastructure.utils.files.xml;
+import infrastructure.utils.logging.logger;
 
 /// NuGet package manager operations
 struct NuGetOps

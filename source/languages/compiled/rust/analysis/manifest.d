@@ -8,8 +8,8 @@ import std.array;
 import std.range;
 import std.json;
 import std.conv;
-import utils.logging.logger;
-import utils.security.validation;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
 
 /// Cargo.toml dependency information
 struct CargoDependency

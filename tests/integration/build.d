@@ -6,11 +6,11 @@ import std.file;
 import std.algorithm;
 import core.graph.graph;
 import core.execution.core.engine;
-import config.schema.schema;
-import config.parsing.parser;
+import infrastructure.config.schema.schema;
+import infrastructure.config.parsing.parser;
 import tests.harness;
 import tests.fixtures;
-import errors;
+import infrastructure.errors;
 
 unittest
 {

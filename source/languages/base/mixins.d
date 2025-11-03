@@ -3,18 +3,18 @@ module languages.base.mixins;
 import std.conv : to;
 import std.path : buildPath;
 import std.array : split, empty;
-import caching.actions.action : ActionCache, ActionCacheConfig;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash : FastHash;
-import utils.logging.logger : Logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash : FastHash;
+import infrastructure.utils.logging.logger : Logger;
 
 /// Generates ActionCache field, constructor, and destructor for a language handler
 /// Usage: mixin CachingHandlerMixin!"python";
 mixin template CachingHandlerMixin(string languageName)
 {
-    import caching.actions.action : ActionCache, ActionCacheConfig;
-    import runtime.shutdown.shutdown : ShutdownCoordinator;
+    import engine.caching.actions.action : ActionCache, ActionCacheConfig;
+    import engine.runtime.shutdown.shutdown : ShutdownCoordinator;
     
     private ActionCache actionCache;
     

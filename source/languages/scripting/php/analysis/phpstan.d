@@ -11,7 +11,7 @@ import std.algorithm;
 import std.array;
 import std.regex;
 import std.conv;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// PHPStan static analyzer
 class PHPStanAnalyzer : Analyzer

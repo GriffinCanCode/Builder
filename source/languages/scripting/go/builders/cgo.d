@@ -5,11 +5,11 @@ import std.range;
 import languages.scripting.go.builders.standard;
 import languages.scripting.go.builders.base;
 import languages.scripting.go.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.logging.logger;
-import utils.process : isCommandAvailable;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process : isCommandAvailable;
+import engine.caching.actions.action : ActionCache;
 
 /// CGO builder - handles C interop compilation
 class CGoBuilder : StandardBuilder

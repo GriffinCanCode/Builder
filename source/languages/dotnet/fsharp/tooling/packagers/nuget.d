@@ -9,8 +9,8 @@ import std.string;
 import languages.dotnet.fsharp.tooling.packagers.base;
 import languages.dotnet.fsharp.config;
 import languages.dotnet.fsharp.managers.dotnet;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// NuGet packager implementation
 class NuGetPackager : FSharpPackager

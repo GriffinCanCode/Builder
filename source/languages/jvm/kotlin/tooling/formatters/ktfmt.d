@@ -8,7 +8,7 @@ import std.array;
 import std.string;
 import languages.jvm.kotlin.tooling.formatters.base;
 import languages.jvm.kotlin.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// ktfmt formatter implementation (Google style)
 class KtFmtFormatter : KotlinFormatter_

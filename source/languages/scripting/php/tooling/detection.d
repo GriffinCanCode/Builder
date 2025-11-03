@@ -8,8 +8,8 @@ import std.array;
 import std.string;
 import std.regex;
 import std.conv;
-import utils.logging.logger;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Result of running a PHP tool
 struct ToolResult

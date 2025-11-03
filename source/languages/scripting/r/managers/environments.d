@@ -11,7 +11,7 @@ import std.json;
 import std.conv;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.info;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Environment management result
 struct EnvResult

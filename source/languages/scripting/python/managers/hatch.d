@@ -1,13 +1,13 @@
 module languages.scripting.python.managers.hatch;
 
 import std.process : Config;
-import utils.security : execute;  // SECURITY: Auto-migrated
+import infrastructure.utils.security : execute;  // SECURITY: Auto-migrated
 import std.string;
 import std.conv;
 import languages.scripting.python.managers.base;
 import languages.scripting.python.tooling.detection : ToolDetection;
 alias PyTools = ToolDetection;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Hatch package manager
 class HatchManager : PackageManager

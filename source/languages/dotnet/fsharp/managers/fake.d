@@ -6,7 +6,7 @@ import std.path;
 import std.string;
 import std.array;
 import std.algorithm;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// FAKE (F# Make) build system operations
 struct FAKEOps

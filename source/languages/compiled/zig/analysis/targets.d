@@ -5,7 +5,7 @@ import std.algorithm;
 import std.array;
 import std.json;
 import std.process;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Target information
 struct TargetInfo

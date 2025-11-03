@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.regex;
 import std.string;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Dependency information
 struct LuaDependency

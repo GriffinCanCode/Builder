@@ -8,9 +8,9 @@ import std.algorithm;
 import std.file;
 import std.conv;
 import languages.compiled.protobuf.core.config;
-import utils.logging.logger;
-import utils.files.hash;
-import caching.actions.action : ActionCache, ActionId, ActionType;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.files.hash;
+import engine.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Result of protoc compilation
 struct ProtocResult

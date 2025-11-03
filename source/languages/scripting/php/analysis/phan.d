@@ -11,7 +11,7 @@ import std.algorithm;
 import std.array;
 import std.regex;
 import std.conv;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Phan static analyzer (advanced inference)
 class PhanAnalyzer : Analyzer
@@ -94,7 +94,7 @@ class PhanAnalyzer : Analyzer
             }
             catch (Exception e)
             {
-                import utils.logging.logger : Logger;
+                import infrastructure.utils.logging.logger : Logger;
                 Logger.debugLog("Failed to cleanup file list: " ~ e.msg);
             }
         }

@@ -2,7 +2,7 @@ module languages.web.javascript.bundlers.rollup;
 
 import languages.web.javascript.bundlers.base;
 import languages.web.javascript.core.config;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import std.process;
 import std.path;
 import std.file;
@@ -10,8 +10,8 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.string;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Rollup bundler - optimized for library bundles with tree-shaking
 class RollupBundler : Bundler

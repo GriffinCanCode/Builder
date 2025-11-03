@@ -12,7 +12,7 @@ import std.string : strip;
 import languages.scripting.lua.tooling.formatters.base;
 import languages.scripting.lua.tooling.detection;
 import languages.scripting.lua.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// StyLua formatter - modern, opinionated Lua formatter
 class StyLuaFormatter : Formatter
@@ -134,7 +134,7 @@ class StyLuaFormatter : Formatter
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get StyLua version: " ~ e.msg);
         }
         

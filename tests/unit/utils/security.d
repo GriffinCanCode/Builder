@@ -3,8 +3,8 @@ module tests.unit.utils.security;
 import std.stdio;
 import std.file;
 import std.path;
-import utils.security.tempdir;
-import utils.security.executor;
+import infrastructure.utils.security.tempdir;
+import infrastructure.utils.security.executor;
 import tests.harness;
 import tests.fixtures;
 

@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.regex;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Parse .tool-versions file (asdf format)
 string[string] parseToolVersions(string filePath)

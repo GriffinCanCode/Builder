@@ -1,7 +1,7 @@
 module tests.unit.repository.resolver_test;
 
-import repository.resolver;
-import repository.types;
+import infrastructure.repository.resolver;
+import infrastructure.repository.types;
 import std.file : mkdir, exists, rmdirRecurse, tempDir;
 import std.path : buildPath;
 

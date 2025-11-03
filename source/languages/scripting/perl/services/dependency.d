@@ -1,9 +1,9 @@
 module languages.scripting.perl.services.dependency;
 
 import languages.scripting.perl.core.config;
-import caching.actions.action;
-import utils.files.hash;
-import utils.logging.logger;
+import engine.caching.actions.action;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 import std.range : empty;
 
 /// Dependency management service interface

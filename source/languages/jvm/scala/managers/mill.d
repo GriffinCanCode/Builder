@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.process;
 import std.regex;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 import languages.jvm.scala.core.config;
 
 /// Mill build operations

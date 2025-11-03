@@ -1,14 +1,14 @@
 module languages.scripting.go.tooling.tools;
 
 import std.process : Config;
-import utils.security : execute;  // SECURITY: Auto-migrated
+import infrastructure.utils.security : execute;  // SECURITY: Auto-migrated
 import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import utils.logging.logger;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Result of running a Go tool
 struct ToolResult

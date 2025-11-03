@@ -18,7 +18,7 @@ import core.caching.coordinator;
 import core.caching.policies.eviction;
 import tests.harness;
 import tests.fixtures;
-import errors;
+import infrastructure.errors;
 
 // ==================== CONCURRENT RACE CONDITIONS ====================
 

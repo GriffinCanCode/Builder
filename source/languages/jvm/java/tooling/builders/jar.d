@@ -12,11 +12,11 @@ import std.conv;
 import languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.core.config;
 import languages.jvm.java.tooling.detection;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionId, ActionType;
 
 /// Standard JAR builder with action-level caching for per-file compilation
 class JARBuilder : JavaBuilder

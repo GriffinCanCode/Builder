@@ -9,8 +9,8 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.dotnet.csharp.core.config;
-import utils.logging.logger;
-import utils.security.validation;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
 
 /// dotnet CLI operations
 struct DotNetOps

@@ -7,7 +7,7 @@ import std.array;
 import std.file;
 import std.path;
 import std.conv;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Rust toolchain information
 struct Toolchain

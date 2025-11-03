@@ -7,7 +7,7 @@ import std.datetime;
 import core.graph.graph;
 import core.execution.recovery.checkpoint;
 import core.execution.recovery.resume;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 
 /// Helper to create test graph
 BuildGraph createTestGraph()

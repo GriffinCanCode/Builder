@@ -12,7 +12,7 @@ import std.string : strip;
 import languages.scripting.lua.tooling.checkers.base;
 import languages.scripting.lua.tooling.detection;
 import languages.scripting.lua.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Luacheck linter - comprehensive static analyzer for Lua
 class LuacheckLinter : Checker
@@ -177,7 +177,7 @@ class LuacheckLinter : Checker
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to get Luacheck version: " ~ e.msg);
         }
         

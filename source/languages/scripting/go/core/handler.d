@@ -2,7 +2,7 @@ module languages.scripting.go.core.handler;
 
 import std.stdio;
 import std.process : Config, environment;
-import utils.security : execute;
+import infrastructure.utils.security : execute;
 import std.file;
 import std.path;
 import std.algorithm;
@@ -14,12 +14,12 @@ import languages.scripting.go.core.config;
 import languages.scripting.go.managers.modules;
 import languages.scripting.go.tooling.tools;
 import languages.scripting.go.builders;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionId, ActionType;
 
 /// Go build handler - modular and extensible with action-level caching
 class GoHandler : BaseLanguageHandler

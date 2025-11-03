@@ -11,10 +11,10 @@ import std.conv;
 import languages.compiled.swift.config;
 import languages.compiled.swift.tooling.builders.base;
 import languages.compiled.swift.managers.spm;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action;
 
 /// Swift Package Manager builder with action-level caching
 class SPMBuilder : SwiftBuilder

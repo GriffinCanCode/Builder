@@ -2,11 +2,11 @@ module tests.mocks;
 
 import std.algorithm;
 import std.array;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import core.graph.graph;
 import languages.base.base;
-import errors;
-import analysis.targets.types;
+import infrastructure.errors;
+import infrastructure.analysis.targets.types;
 
 /// Mock build node for testing
 class MockBuildNode

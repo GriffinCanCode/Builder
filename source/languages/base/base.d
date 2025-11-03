@@ -1,13 +1,13 @@
 module languages.base.base;
 
 import std.conv : to;
-import config.schema.schema;
-import analysis.targets.types;
-import telemetry.distributed.tracing;
-import caching.actions.action;
-import utils.logging.structured;
-import utils.simd.capabilities;
-import errors;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.telemetry.distributed.tracing;
+import engine.caching.actions.action;
+import infrastructure.utils.logging.structured;
+import infrastructure.utils.simd.capabilities;
+import infrastructure.errors;
 
 /// Action recording callback for fine-grained caching
 /// Allows language handlers to report individual actions to the executor
@@ -267,7 +267,7 @@ abstract class BaseLanguageHandler : LanguageHandler
     {
         // Default implementation: delegate to language spec
         // Subclasses can override for custom analysis
-        import analysis.targets.spec;
+        import infrastructure.analysis.targets.spec;
         import std.file : readText, exists, isFile;
         
         Import[] allImports;

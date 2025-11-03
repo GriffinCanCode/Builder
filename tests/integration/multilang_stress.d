@@ -12,10 +12,10 @@ import std.format;
 import std.range : repeat;
 import tests.harness;
 import tests.fixtures;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import core.graph.graph;
 import core.execution.core.engine;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Comprehensive multi-language stress test
 /// Tests system performance with many languages at scale

@@ -3,20 +3,20 @@ import std.getopt;
 import std.algorithm;
 import std.array;
 import std.conv;
-import graph.graph;
-import runtime.core.engine;
-import runtime.services.services;
-import runtime.shutdown.shutdown;
-import telemetry;
-import config.parsing.parser;
-import analysis.inference.analyzer;
-import utils.logging.logger;
-import utils.simd;
-import errors;
-import cli;
-import cli.commands;
-import cli.display.render : parseRenderMode;
-import tools;
+import engine.graph.graph;
+import engine.runtime.core.engine;
+import engine.runtime.services.services;
+import engine.runtime.shutdown.shutdown;
+import infrastructure.telemetry;
+import infrastructure.config.parsing.parser;
+import infrastructure.analysis.inference.analyzer;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.simd;
+import infrastructure.errors;
+import frontend.cli;
+import frontend.cli.commands;
+import frontend.cli.display.render : parseRenderMode;
+import infrastructure.tools;
 
 void main(string[] args)
 {

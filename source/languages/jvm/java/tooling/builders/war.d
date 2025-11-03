@@ -10,12 +10,12 @@ import std.string;
 import languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.tooling.builders.jar;
 import languages.jvm.java.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.security.validation;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.security.validation;
+import engine.caching.actions.action : ActionCache;
 
 /// WAR (Web Application Archive) builder
 class WARBuilder : JARBuilder

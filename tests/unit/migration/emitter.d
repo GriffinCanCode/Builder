@@ -3,9 +3,9 @@ module tests.unit.migration.emitter;
 import std.stdio;
 import std.string;
 import std.algorithm;
-import migration.emitter;
-import migration.common;
-import config.schema.schema : TargetType, TargetLanguage;
+import infrastructure.migration.emitter;
+import infrastructure.migration.common;
+import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 
 /// Test basic Builderfile emission
 unittest

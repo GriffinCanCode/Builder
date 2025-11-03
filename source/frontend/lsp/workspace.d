@@ -1,0 +1,286 @@
+module frontend.lsp.workspace;
+
+import std.file;
+import std.path;
+import std.string;
+import std.algorithm;
+import std.array;
+import std.datetime;
+import frontend.lsp.protocol;
+import frontend.lsp.index;
+import frontend.lsp.analysis;
+import infrastructure.config.workspace.ast;
+import infrastructure.config.parsing.lexer;
+import infrastructure.errors;
+import infrastructure.utils.logging.logger;
+
+/// Document state in workspace
+struct Document
+{
+    string uri;
+    string text;
+    int version_;
+    BuildFile ast;
+    Token[] tokens;
+    Diagnostic[] diagnostics;
+    SysTime lastModified;
+}
+
+/// Workspace manager for LSP
+/// Tracks open documents, ASTs, and provides query operations
+class WorkspaceManager
+{
+    private Document[string] documents;
+    private string rootUri;
+    private Index index;
+    private LSPSemanticAnalyzer analyzer;
+    
+    this(string rootUri)
+    {
+        this.rootUri = rootUri;
+        this.index = Index();
+        this.analyzer = LSPSemanticAnalyzer(&this.index);
+    }
+    
+    /// Get index for direct access
+    @property ref Index getIndex()
+    {
+        return index;
+    }
+    
+    /// Open a document
+    void openDocument(string uri, string text, int version_)
+    {
+        Document doc;
+        doc.uri = uri;
+        doc.text = text;
+        doc.version_ = version_;
+        doc.lastModified = Clock.currTime;
+        
+        // Parse document
+        parseDocument(doc);
+        
+        documents[uri] = doc;
+        Logger.debugLog("Opened document: " ~ uri);
+    }
+    
+    /// Update document content
+    void updateDocument(string uri, string text, int version_)
+    {
+        if (uri !in documents)
+        {
+            // Document not open, open it
+            openDocument(uri, text, version_);
+            return;
+        }
+        
+        Document* doc = &documents[uri];
+        doc.text = text;
+        doc.version_ = version_;
+        doc.lastModified = Clock.currTime;
+        
+        // Re-parse document
+        parseDocument(*doc);
+        
+        Logger.debugLog("Updated document: " ~ uri);
+    }
+    
+    /// Close a document
+    void closeDocument(string uri)
+    {
+        index.removeDocument(uri);
+        documents.remove(uri);
+        Logger.debugLog("Closed document: " ~ uri);
+    }
+    
+    /// Get document by URI
+    const(Document)* getDocument(string uri) const
+    {
+        auto doc = uri in documents;
+        return doc;
+    }
+    
+    /// Get all documents
+    const(Document)[] getAllDocuments() const
+    {
+        return documents.values;
+    }
+    
+    /// Get diagnostics for a document
+    Diagnostic[] getDiagnostics(string uri) const
+    {
+        auto doc = getDocument(uri);
+        if (doc is null)
+            return [];
+        return doc.diagnostics.dup;
+    }
+    
+    /// Find target at position
+    const(TargetDecl)* findTargetAtPosition(string uri, Position pos) const
+    {
+        auto doc = getDocument(uri);
+        if (doc is null)
+            return null;
+        
+        // Find target that contains this position
+        foreach (ref target; doc.ast.targets)
+        {
+            if (target.line <= pos.line + 1)
+            {
+                // Check if position is within target body
+                // (simplified - would need better range tracking)
+                return &target;
+            }
+        }
+        
+        return null;
+    }
+    
+    /// Find field at position
+    const(Field)* findFieldAtPosition(string uri, Position pos) const
+    {
+        auto target = findTargetAtPosition(uri, pos);
+        if (target is null)
+            return null;
+        
+        // Find field at this line
+        foreach (ref field; target.fields)
+        {
+            if (field.line == pos.line + 1)
+                return &field;
+        }
+        
+        return null;
+    }
+    
+    /// Get all target names in workspace
+    string[] getAllTargetNames() const
+    {
+        return index.getAllTargetNames();
+    }
+    
+    /// Find all references to a target
+    Location[] findReferences(string targetName) const
+    {
+        return index.getReferences(targetName);
+    }
+    
+    /// Find definition of a target
+    Location* findDefinition(string targetName) const
+    {
+        return index.getDefinition(targetName);
+    }
+    
+    private void parseDocument(ref Document doc)
+    {
+        // Clear previous diagnostics
+        doc.diagnostics = [];
+        
+        // Parse using unified parser
+        import config.parsing.unified : parse;
+        
+        string filePath = uriToPath(doc.uri);
+        auto parseResult = parse(doc.text, filePath, getRootPath(), null);
+        
+        if (parseResult.isErr)
+        {
+            // Parser error
+            auto error = parseResult.unwrapErr();
+            doc.diagnostics ~= buildErrorToDiagnostic(error);
+            return;
+        }
+        
+        doc.ast = parseResult.unwrap();
+        
+        // Update index
+        index.indexDocument(doc.uri, doc.ast);
+        
+        // Validate (basic checks)
+        validateDocument(doc);
+        
+        // Semantic analysis
+        auto semanticDiags = analyzer.analyze(doc.uri, doc.ast);
+        doc.diagnostics ~= semanticDiags;
+    }
+    
+    private void validateDocument(ref Document doc)
+    {
+        // Check for duplicate target names in same file
+        bool[string] targetNames;
+        
+        foreach (ref target; doc.ast.targets)
+        {
+            if (target.name in targetNames)
+            {
+                Diagnostic diag;
+                diag.severity = DiagnosticSeverity.Error;
+                diag.message = "Duplicate target name: " ~ target.name;
+                diag.range = Range(
+                    Position(cast(uint)(target.line - 1), 0),
+                    Position(cast(uint)(target.line - 1), 100)
+                );
+                diag.source = "builder-lsp";
+                doc.diagnostics ~= diag;
+            }
+            targetNames[target.name] = true;
+            
+            // Validate required fields
+            if (!target.hasField("type"))
+            {
+                Diagnostic diag;
+                diag.severity = DiagnosticSeverity.Error;
+                diag.message = "Missing required field 'type'";
+                diag.range = Range(
+                    Position(cast(uint)(target.line - 1), 0),
+                    Position(cast(uint)(target.line - 1), 100)
+                );
+                diag.source = "builder-lsp";
+                doc.diagnostics ~= diag;
+            }
+        }
+    }
+    
+    private Diagnostic buildErrorToDiagnostic(BuildError error)
+    {
+        Diagnostic diag;
+        diag.severity = DiagnosticSeverity.Error;
+        diag.message = error.message;
+        diag.source = "builder-lsp";
+        
+        // Try to get line information
+        import errors.types.types : ParseError;
+        if (auto parseError = cast(ParseError)error)
+        {
+            if (parseError.line > 0)
+            {
+                diag.range = Range(
+                    Position(cast(uint)(parseError.line - 1), cast(uint)(parseError.column > 0 ? parseError.column - 1 : 0)),
+                    Position(cast(uint)(parseError.line - 1), 100)
+                );
+            }
+            else
+            {
+                diag.range = Range(Position(0, 0), Position(0, 100));
+            }
+        }
+        else
+        {
+            diag.range = Range(Position(0, 0), Position(0, 100));
+        }
+        
+        return diag;
+    }
+    
+    private string uriToPath(string uri) const
+    {
+        if (uri.startsWith("file://"))
+            return uri[7 .. $];
+        return uri;
+    }
+    
+    private string pathToUri(string path) const
+    {
+        return "file://" ~ path;
+    }
+}
+

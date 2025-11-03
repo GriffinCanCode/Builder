@@ -2,16 +2,16 @@ module tests.unit.config.scripting;
 
 import std.stdio;
 import std.algorithm;
-import config.parsing.lexer;
-import config.parsing.exprparser;
-import config.parsing.stmtparser;
-import config.scripting.interpreter;
-import config.scripting.evaluator;
-import config.scripting.builtins;
-import config.scripting.scopemanager;
-import config.scripting.types;
-import config.workspace.expr;
-import config.workspace.stmt;
+import infrastructure.config.parsing.lexer;
+import infrastructure.config.parsing.exprparser;
+import infrastructure.config.parsing.stmtparser;
+import infrastructure.config.scripting.interpreter;
+import infrastructure.config.scripting.evaluator;
+import infrastructure.config.scripting.builtins;
+import infrastructure.config.scripting.scopemanager;
+import infrastructure.config.scripting.types;
+import infrastructure.config.workspace.expr;
+import infrastructure.config.workspace.stmt;
 import tests.harness;
 
 unittest

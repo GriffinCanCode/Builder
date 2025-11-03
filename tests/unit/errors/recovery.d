@@ -2,9 +2,9 @@ module tests.unit.errors.recovery;
 
 import std.stdio;
 import core.time;
-import errors.handling.recovery;
-import errors.types.types;
-import errors.handling.codes;
+import infrastructure.errors.handling.recovery;
+import infrastructure.errors.types.types;
+import infrastructure.errors.handling.codes;
 import tests.harness;
 
 unittest

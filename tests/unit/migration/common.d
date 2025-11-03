@@ -1,8 +1,8 @@
 module tests.unit.migration.common;
 
 import std.stdio;
-import migration.common;
-import config.schema.schema : TargetType, TargetLanguage, Target;
+import infrastructure.migration.common;
+import infrastructure.config.schema.schema : TargetType, TargetLanguage, Target;
 
 /// Test MigrationTarget creation and conversion
 unittest

@@ -7,7 +7,7 @@ import std.array;
 import std.conv;
 import std.regex;
 import languages.scripting.lua.core.config;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Detect the best available Lua runtime
 LuaRuntime detectRuntime()
@@ -214,7 +214,7 @@ string getLuaRocksVersion()
     }
     catch (Exception e)
     {
-        import utils.logging.logger : Logger;
+        import infrastructure.utils.logging.logger : Logger;
         Logger.debugLog("Failed to detect Lua info: " ~ e.msg);
     }
     

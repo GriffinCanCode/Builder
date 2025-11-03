@@ -1,6 +1,6 @@
 module languages.registry;
 
-import config.schema.schema : TargetLanguage;
+import infrastructure.config.schema.schema : TargetLanguage;
 import std.algorithm : canFind;
 import std.string : toLower;
 

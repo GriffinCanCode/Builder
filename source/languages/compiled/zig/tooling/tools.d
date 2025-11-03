@@ -6,8 +6,8 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
-import utils.logging.logger;
-import utils.process : isCommandAvailable;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process : isCommandAvailable;
 
 /// Result of running a Zig tool
 struct ToolResult

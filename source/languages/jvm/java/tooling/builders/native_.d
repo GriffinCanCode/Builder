@@ -12,11 +12,11 @@ import languages.jvm.java.tooling.builders.base;
 import languages.jvm.java.tooling.builders.jar;
 import languages.jvm.java.core.config;
 import languages.jvm.java.tooling.detection;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache;
 
 /// GraalVM Native Image builder
 class NativeImageBuilder : JARBuilder
@@ -70,7 +70,7 @@ class NativeImageBuilder : JARBuilder
         string jarPath = buildPath(outputDir, target.name.split(":")[$ - 1] ~ "-temp.jar");
         
         // Create a mutable copy of target for JAR building
-        import config.schema.schema : Target;
+        import infrastructure.config.schema.schema : Target;
         Target mutableTarget = cast(Target) target;
         string originalOutput = mutableTarget.outputPath;
         mutableTarget.outputPath = jarPath;

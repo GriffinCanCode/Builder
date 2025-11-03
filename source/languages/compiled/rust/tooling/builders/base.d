@@ -2,8 +2,8 @@ module languages.compiled.rust.tooling.builders.base;
 
 import std.range;
 import languages.compiled.rust.core.config;
-import config.schema.schema;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import engine.caching.actions.action : ActionCache;
 
 /// Base interface for Rust builders
 interface RustBuilder
@@ -37,7 +37,7 @@ class RustBuilderFactory
     {
         import languages.compiled.rust.tooling.builders.cargo;
         import languages.compiled.rust.tooling.builders.rustc;
-        import caching.actions.action : ActionCache;
+        import engine.caching.actions.action : ActionCache;
         
         final switch (compiler)
         {
@@ -95,7 +95,7 @@ class NullRustBuilder : RustBuilder
     )
     {
         import std.process : execute;
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         
         RustCompileResult result;
         

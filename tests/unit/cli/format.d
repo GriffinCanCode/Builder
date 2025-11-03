@@ -1,9 +1,9 @@
 module tests.unit.cli.format;
 
 import tests.harness;
-import cli.display.format;
-import cli.control.terminal;
-import cli.events.events;
+import frontend.cli.display.format;
+import frontend.cli.control.terminal;
+import frontend.cli.events.events;
 import std.datetime : dur;
 import std.algorithm : canFind;
 

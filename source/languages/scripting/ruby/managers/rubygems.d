@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import languages.scripting.ruby.core.config;
 import languages.scripting.ruby.managers.base;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// RubyGems direct package manager
 class RubyGemsManager : PackageManager

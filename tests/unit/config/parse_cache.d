@@ -4,11 +4,11 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.conv;
-import config.caching.parse;
-import config.caching.storage;
-import config.workspace.ast;
-import config.parsing.lexer;
-import config.interpretation.dsl;
+import infrastructure.config.caching.parse;
+import infrastructure.config.caching.storage;
+import infrastructure.config.workspace.ast;
+import infrastructure.config.parsing.lexer;
+import infrastructure.config.interpretation.dsl;
 
 /// Test parse cache functionality
 void testParseCache()

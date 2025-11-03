@@ -183,7 +183,7 @@ ProjectInfo parseProjectFile(string filePath)
 /// Find all .csproj files in directory
 string[] findProjectFiles(string dir)
 {
-    import utils.security.validation;
+    import infrastructure.utils.security.validation;
     
     string[] projects;
     

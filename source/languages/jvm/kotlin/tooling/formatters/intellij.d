@@ -8,7 +8,7 @@ import std.array;
 import std.string;
 import languages.jvm.kotlin.tooling.formatters.base;
 import languages.jvm.kotlin.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// IntelliJ IDEA formatter (requires IntelliJ CLI or ktlint with IntelliJ style)
 class IntelliJFormatter : KotlinFormatter_

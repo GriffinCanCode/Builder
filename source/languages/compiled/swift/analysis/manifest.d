@@ -8,7 +8,7 @@ import std.array;
 import std.string;
 import std.regex;
 import languages.compiled.swift.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Package manifest parse result
 struct PackageManifestParseResult

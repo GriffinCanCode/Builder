@@ -10,11 +10,11 @@ import std.string;
 import std.conv;
 import languages.jvm.kotlin.tooling.builders.base;
 import languages.jvm.kotlin.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Standard JAR builder for Kotlin with action-level caching
 class JARBuilder : KotlinBuilder

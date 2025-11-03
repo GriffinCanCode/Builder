@@ -10,11 +10,11 @@ import languages.base.base;
 import languages.base.mixins;
 import languages.scripting.perl.core.config;
 import languages.scripting.perl.services;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig;
-import runtime.shutdown.shutdown : ShutdownCoordinator;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig;
+import engine.runtime.shutdown.shutdown : ShutdownCoordinator;
 
 /// Thin orchestration layer for Perl builds
 /// Delegates all work to specialized services
@@ -194,7 +194,7 @@ final class PerlHandler : BaseLanguageHandler
         in PerlConfig perlConfig
     )
     {
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         
         // Syntax check only
         string[] syntaxErrors;

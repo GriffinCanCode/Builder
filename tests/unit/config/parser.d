@@ -5,11 +5,11 @@ import std.path;
 import std.file;
 import std.json;
 import std.algorithm;
-import config.parsing.parser;
-import config.schema.schema;
+import infrastructure.config.parsing.parser;
+import infrastructure.config.schema.schema;
 import tests.harness;
 import tests.fixtures;
-import errors;
+import infrastructure.errors;
 
 unittest
 {

@@ -1,7 +1,7 @@
 module tests.unit.cli.progress;
 
 import tests.harness;
-import cli.output.progress;
+import frontend.cli.output.progress;
 import std.datetime : dur;
 import core.thread : Thread;
 

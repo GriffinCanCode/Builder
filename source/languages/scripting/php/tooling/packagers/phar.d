@@ -9,7 +9,7 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.conv;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Native PHP PHAR packager
 class NativePharPackager : Packager
@@ -44,7 +44,7 @@ class NativePharPackager : Packager
         }
         catch (Exception e)
         {
-            import utils.logging.logger : Logger;
+            import infrastructure.utils.logging.logger : Logger;
             Logger.debugLog("Failed to cleanup script file: " ~ e.msg);
         }
         

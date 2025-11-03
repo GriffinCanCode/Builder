@@ -8,7 +8,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import languages.compiled.nim.analysis.nimble;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Nimble package manager operations
 class NimbleManager

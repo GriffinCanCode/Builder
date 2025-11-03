@@ -116,7 +116,7 @@ unittest
     writeln("\x1b[36m[EXAMPLE]\x1b[0m Using mock objects");
     
     import tests.mocks;
-    import config.schema;
+    import infrastructure.config.schema;
     
     // Create mock language handler
     auto handler = new MockLanguageHandler(true);

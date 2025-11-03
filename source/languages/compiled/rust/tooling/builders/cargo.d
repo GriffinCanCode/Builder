@@ -11,10 +11,10 @@ import languages.compiled.rust.tooling.builders.base;
 import languages.compiled.rust.core.config;
 import languages.compiled.rust.analysis.manifest;
 import languages.compiled.rust.managers.toolchain;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action;
 
 /// Cargo builder - uses cargo for compilation with action-level caching
 class CargoBuilder : RustBuilder

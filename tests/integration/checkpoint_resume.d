@@ -10,12 +10,12 @@ import std.datetime;
 import tests.harness;
 import tests.fixtures;
 import tests.mocks;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import core.graph.graph;
 import core.execution.core.engine;
 import core.execution.recovery.checkpoint;
 import core.execution.recovery.resume;
-import errors;
+import infrastructure.errors;
 
 /// Test checkpoint/resume functionality with actual build failures
 unittest

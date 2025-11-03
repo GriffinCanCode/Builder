@@ -1,9 +1,9 @@
 module languages.scripting.lua.tooling.builders.base;
 
 import languages.scripting.lua.core.config;
-import config.schema.schema;
-import analysis.targets.spec;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.spec;
+import engine.caching.actions.action : ActionCache;
 
 /// Build result structure
 struct BuildResult

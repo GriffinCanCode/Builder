@@ -5,10 +5,10 @@ import std.algorithm;
 import std.array;
 import std.conv : to, text;
 import core.graph.graph;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import tests.harness;
 import tests.fixtures;
-import errors;
+import infrastructure.errors;
 
 unittest
 {

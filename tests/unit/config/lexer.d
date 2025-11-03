@@ -1,7 +1,7 @@
 module tests.unit.config.lexer;
 
 import std.stdio;
-import config.parsing.lexer;
+import infrastructure.config.parsing.lexer;
 import tests.harness;
 
 unittest

@@ -10,7 +10,7 @@ import languages.scripting.python.managers.base;
 import languages.scripting.python.managers.environments;
 import languages.scripting.python.tooling.detection : ToolDetection;
 alias PyTools = ToolDetection;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Pip package manager
 class PipManager : PackageManager

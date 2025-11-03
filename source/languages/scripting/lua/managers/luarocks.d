@@ -9,7 +9,7 @@ import std.array;
 import std.regex;
 import std.string;
 import languages.scripting.lua.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// LuaRocks result structure
 struct RockResult
@@ -398,7 +398,7 @@ string getLuaRocksVersion()
     }
     catch (Exception e)
     {
-        import utils.logging.logger : Logger;
+        import infrastructure.utils.logging.logger : Logger;
         Logger.debugLog("Failed to get LuaRocks version: " ~ e.msg);
     }
     

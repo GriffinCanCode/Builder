@@ -7,9 +7,9 @@ import std.algorithm;
 import std.array;
 import languages.web.css.core.config;
 import languages.web.css.processors.base;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// SCSS/Sass processor using sass CLI
 class SCSSProcessor : CSSProcessor

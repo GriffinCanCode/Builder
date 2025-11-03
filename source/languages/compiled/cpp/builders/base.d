@@ -4,9 +4,9 @@ import std.range;
 import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import engine.caching.actions.action : ActionCache;
 
 /// Base interface for C++ builders
 interface CppBuilder
@@ -110,7 +110,7 @@ class CppBuilderFactory
     private static BuildSystem detectBuildSystem()
     {
         // import toolchain; // Replaced by unified toolchain system
-import toolchain.spec;
+import infrastructure.toolchain.spec;
         import std.file;
         import std.path;
         
@@ -158,7 +158,7 @@ abstract class BaseCppBuilder : CppBuilder
     {
         import std.path : extension;
         // import toolchain; // Replaced by unified toolchain system
-import toolchain.spec;
+import infrastructure.toolchain.spec;
         
         auto compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
         

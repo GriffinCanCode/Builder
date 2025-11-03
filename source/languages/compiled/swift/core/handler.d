@@ -14,11 +14,11 @@ import languages.compiled.swift.analysis.manifest;
 import languages.compiled.swift.managers.spm;
 import languages.compiled.swift.managers.toolchain;
 import languages.compiled.swift.tooling;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Advanced Swift build handler with SPM, Xcode, and cross-compilation support
 class SwiftHandler : BaseLanguageHandler

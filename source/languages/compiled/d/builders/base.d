@@ -1,10 +1,10 @@
 module languages.compiled.d.builders.base;
 
 import languages.compiled.d.core.config;
-import config.schema.schema;
-import analysis.targets.types;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
 import std.range : empty;
-import caching.actions.action : ActionCache;
+import engine.caching.actions.action : ActionCache;
 
 /// Base interface for D builders
 interface DBuilder

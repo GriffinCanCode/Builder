@@ -10,11 +10,11 @@ import std.conv;
 import languages.scripting.elixir.tooling.builders.base;
 import languages.scripting.elixir.config;
 import languages.scripting.elixir.managers.mix;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Mix project builder - standard OTP applications and libraries with action-level caching
 class MixProjectBuilder : ElixirBuilder

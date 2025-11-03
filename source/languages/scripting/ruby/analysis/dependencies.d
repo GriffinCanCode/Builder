@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import languages.scripting.ruby.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Gemfile parser for dependency analysis
 class GemfileParser

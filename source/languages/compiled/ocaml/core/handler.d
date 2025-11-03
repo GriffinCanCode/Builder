@@ -12,11 +12,11 @@ import std.string : lineSplitter, strip;
 import languages.base.base;
 import languages.base.mixins;
 import languages.compiled.ocaml.core.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// OCaml build handler with support for dune, ocamlopt, and ocamlc with action-level caching
 class OCamlHandler : BaseLanguageHandler

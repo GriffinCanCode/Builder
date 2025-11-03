@@ -7,9 +7,9 @@ import std.path;
 import std.regex;
 import std.string;
 import std.process;
-import compilation.incremental.analyzer;
-import utils.logging.logger;
-import errors;
+import engine.compilation.incremental.analyzer;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// Go module incremental dependency analyzer
 /// Uses Go's import system for dependency tracking

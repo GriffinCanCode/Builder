@@ -16,12 +16,12 @@ import languages.jvm.java.tooling.info;
 import languages.jvm.java.tooling.builders;
 import languages.jvm.java.tooling.formatters;
 import languages.jvm.java.analysis;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionId, ActionType;
 
 /// Java build handler - comprehensive and modular with action-level caching
 class JavaHandler : BaseLanguageHandler

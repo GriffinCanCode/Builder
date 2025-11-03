@@ -11,11 +11,11 @@ import std.conv;
 import languages.base.base;
 import languages.base.mixins;
 import languages.dotnet.fsharp.config;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// F# build handler with action-level caching
 class FSharpHandler : BaseLanguageHandler
@@ -189,7 +189,7 @@ class FSharpHandler : BaseLanguageHandler
             mkdirRecurse(outputDir);
         
         // Build metadata for cache validation
-        import caching.actions.action : ActionId, ActionType;
+        import engine.caching.actions.action : ActionId, ActionType;
         
         string[string] metadata;
         metadata["buildTool"] = "dotnet";
@@ -298,7 +298,7 @@ class FSharpHandler : BaseLanguageHandler
         
         bool success = (res.status == 0);
         
-        import caching.actions.action : ActionId, ActionType;
+        import engine.caching.actions.action : ActionId, ActionType;
         ActionId actionId2;
         actionId2.targetId = target.name;
         actionId2.type = ActionType.Package;
@@ -410,7 +410,7 @@ class FSharpHandler : BaseLanguageHandler
             mkdirRecurse(outputDir);
         
         // Build metadata for cache validation
-        import caching.actions.action : ActionId, ActionType;
+        import engine.caching.actions.action : ActionId, ActionType;
         
         string[string] metadata;
         metadata["compiler"] = "fsc";

@@ -6,7 +6,7 @@ import std.range;
 import std.conv;
 import core.time;
 import core.thread;
-import utils.concurrency.pool;
+import infrastructure.utils.concurrency.pool;
 import tests.harness;
 
 unittest

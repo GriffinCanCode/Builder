@@ -13,15 +13,15 @@ import languages.base.base;
 import languages.base.mixins;
 import languages.compiled.d.core.config;
 import languages.compiled.d.analysis.manifest;
-import toolchain;
+import infrastructure.toolchain;
 import languages.compiled.d.tooling.tools;
 import languages.compiled.d.builders;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Advanced D build handler with dub, compiler detection, and tooling support with action-level caching
 class DHandler : BaseLanguageHandler

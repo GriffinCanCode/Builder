@@ -1,6 +1,6 @@
 module languages.scripting.r.tooling.builders.base;
 
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import languages.scripting.r.core.config;
 
 /// Build result specific to builders

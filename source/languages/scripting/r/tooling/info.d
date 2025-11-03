@@ -9,7 +9,7 @@ import std.regex;
 import std.conv;
 import std.typecons;
 import languages.scripting.r.core.config;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// R tool availability and version information
 struct RToolInfo

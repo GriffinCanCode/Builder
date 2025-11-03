@@ -12,10 +12,10 @@ import std.string;
 import languages.compiled.zig.core.config;
 import languages.compiled.zig.tooling.tools;
 import languages.compiled.zig.builders.base;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
-import caching.actions.action;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import engine.caching.actions.action;
 
 /// Builder using direct zig compile commands with action-level caching
 class CompileBuilder : ZigBuilder

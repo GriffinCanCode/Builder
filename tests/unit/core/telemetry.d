@@ -5,8 +5,8 @@ import std.datetime : Clock, dur;
 import std.algorithm : all, canFind;
 import std.string : indexOf;
 import core.telemetry;
-import cli.events.events;
-import errors;
+import frontend.cli.events.events;
+import infrastructure.errors;
 
 /// Test TelemetryCollector event handling
 unittest

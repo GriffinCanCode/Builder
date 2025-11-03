@@ -4,8 +4,8 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.algorithm;
-import analysis.detection.detector;
-import config.schema.schema : TargetLanguage;
+import infrastructure.analysis.detection.detector;
+import infrastructure.config.schema.schema : TargetLanguage;
 import tests.harness;
 import tests.fixtures;
 

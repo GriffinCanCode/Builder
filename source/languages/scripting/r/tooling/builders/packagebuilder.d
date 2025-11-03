@@ -8,13 +8,13 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.conv;
-import config.schema.schema;
+import infrastructure.config.schema.schema;
 import languages.scripting.r.core.config;
 import languages.scripting.r.tooling.builders.base;
 import languages.scripting.r.analysis.dependencies;
 import languages.scripting.r.managers.packages;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 /// Package builder - builds R packages
 class RPackageBuilder : RBuilder

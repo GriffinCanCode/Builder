@@ -6,9 +6,9 @@ import std.file;
 import std.path;
 import std.regex;
 import std.string;
-import compilation.incremental.analyzer;
-import utils.logging.logger;
-import errors;
+import engine.compilation.incremental.analyzer;
+import infrastructure.utils.logging.logger;
+import infrastructure.errors;
 
 /// Java incremental dependency analyzer
 /// Tracks class dependencies via imports and inner class usage

@@ -4,7 +4,7 @@ import std.stdio;
 import std.file;
 import std.path;
 import std.algorithm;
-import utils.security.integrity;
+import infrastructure.utils.security.integrity;
 import tests.harness;
 import tests.fixtures;
 

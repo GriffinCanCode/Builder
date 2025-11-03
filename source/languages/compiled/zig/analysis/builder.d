@@ -7,7 +7,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import std.json;
-import utils.logging.logger;
+import infrastructure.utils.logging.logger;
 
 /// Build.zig project information
 struct BuildZigProject

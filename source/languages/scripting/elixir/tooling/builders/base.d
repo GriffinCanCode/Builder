@@ -7,9 +7,9 @@ import std.algorithm;
 import std.array;
 import languages.base.base;
 import languages.scripting.elixir.config;
-import config.schema.schema;
-import analysis.targets.types;
-import caching.actions.action : ActionCache;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import engine.caching.actions.action : ActionCache;
 
 /// Build result structure
 struct ElixirBuildResult

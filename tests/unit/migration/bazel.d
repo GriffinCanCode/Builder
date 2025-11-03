@@ -3,9 +3,9 @@ module tests.unit.migration.bazel;
 import std.stdio;
 import std.file;
 import std.path;
-import migration.systems.bazel;
-import migration.common;
-import config.schema.schema : TargetType, TargetLanguage;
+import infrastructure.migration.systems.bazel;
+import infrastructure.migration.common;
+import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 
 /// Test Bazel migrator system name
 unittest

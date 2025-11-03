@@ -9,9 +9,9 @@ import std.array;
 import languages.scripting.elixir.tooling.builders.base;
 import languages.scripting.elixir.tooling.builders.mix;
 import languages.scripting.elixir.config;
-import config.schema.schema;
-import analysis.targets.types;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.utils.logging.logger;
 
 /// Phoenix builder - web applications with asset compilation
 class PhoenixBuilder : MixProjectBuilder

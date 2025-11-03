@@ -10,9 +10,9 @@ import std.string;
 import languages.compiled.swift.config;
 import languages.compiled.swift.tooling.builders.base;
 import languages.compiled.swift.managers.toolchain;
-import config.schema.schema;
-import utils.files.hash;
-import utils.logging.logger;
+import infrastructure.config.schema.schema;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
 
 version(OSX)
 {

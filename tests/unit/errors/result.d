@@ -3,8 +3,8 @@ module tests.unit.errors.result;
 import std.stdio;
 import std.algorithm;
 import std.conv;
-import errors.handling.result;
-import errors.types.types;
+import infrastructure.errors.handling.result;
+import infrastructure.errors.types.types;
 import tests.harness;
 
 unittest

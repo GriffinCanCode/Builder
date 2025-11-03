@@ -18,13 +18,13 @@ import languages.scripting.lua.tooling.detection : isLuaRocksAvailable;
 import languages.scripting.lua.tooling.formatters;
 import languages.scripting.lua.tooling.checkers;
 import languages.scripting.lua.tooling.testers;
-import config.schema.schema;
-import analysis.targets.types;
-import analysis.targets.spec;
-import utils.files.hash;
-import utils.logging.logger;
-import utils.process : isCommandAvailable;
-import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import infrastructure.config.schema.schema;
+import infrastructure.analysis.targets.types;
+import infrastructure.analysis.targets.spec;
+import infrastructure.utils.files.hash;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.process : isCommandAvailable;
+import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
 
 /// Lua language build handler with action-level caching - orchestrates all Lua build operations
 class LuaHandler : BaseLanguageHandler
@@ -838,7 +838,7 @@ class LuaHandler : BaseLanguageHandler
                 }
                 catch (Exception e)
                 {
-                    import utils.logging.logger : Logger;
+                    import infrastructure.utils.logging.logger : Logger;
                     Logger.debugLog("Failed to detect Lua test framework: " ~ e.msg);
                 }
             }
