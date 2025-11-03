@@ -6,7 +6,9 @@ import std.string;
 import std.conv;
 import frontend.lsp.protocol;
 import frontend.lsp.workspace;
-import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location,
+    LiteralExpr, IdentExpr, BinaryExpr, UnaryExpr, CallExpr, MemberExpr, IndexExpr, TernaryExpr,
+    Literal, LiteralKind;
 import languages.registry : getSupportedLanguageNames;
 
 /// Hover information provider
@@ -44,6 +46,50 @@ struct HoverProvider
         return null;
     }
     
+    private struct ArrayInfo
+    {
+        bool isArray;
+        size_t count;
+        string preview;
+    }
+    
+    private ArrayInfo getArrayInfo(ref const Expr value)
+    {
+        ArrayInfo info;
+        info.isArray = false;
+        info.count = 0;
+        info.preview = "";
+        
+        if (auto lit = cast(const(LiteralExpr))value)
+        {
+            if (lit.value.kind == LiteralKind.Array)
+            {
+                info.isArray = true;
+                auto arr = lit.value.asArray();
+                info.count = arr.length;
+                
+                // Generate preview of first few items
+                if (arr.length > 0)
+                {
+                    string[] previews;
+                    size_t maxPreview = arr.length < 3 ? arr.length : 3;
+                    foreach (i; 0 .. maxPreview)
+                    {
+                        if (arr[i].kind == LiteralKind.String)
+                            previews ~= arr[i].asString();
+                        else
+                            previews ~= arr[i].toString();
+                    }
+                    info.preview = previews.join(", ");
+                    if (arr.length > 3)
+                        info.preview ~= ", ...";
+                }
+            }
+        }
+        
+        return info;
+    }
+    
     private Hover* buildTargetHover(ref const TargetDeclStmt target, Position pos)
     {
         auto hover = new Hover;
@@ -65,19 +111,40 @@ struct HoverProvider
             md ~= "**Language:** " ~ getFieldValueString(langField.value) ~ "\n\n";
         }
         
-        // TODO: Implement array value inspection with the new AST structure
         // Add sources count
         auto sourcesField = target.getField("sources");
         if (sourcesField !is null)
         {
-            md ~= "**Sources:** (see field)\n\n";
+            auto arrayInfo = getArrayInfo(sourcesField.value);
+            if (arrayInfo.isArray)
+            {
+                md ~= "**Sources:** " ~ arrayInfo.count.to!string ~ " file(s)";
+                if (arrayInfo.preview.length > 0)
+                    md ~= " - " ~ arrayInfo.preview;
+                md ~= "\n\n";
+            }
+            else
+            {
+                md ~= "**Sources:** " ~ formatFieldValue(sourcesField.value) ~ "\n\n";
+            }
         }
         
         // Add dependencies count  
         auto depsField = target.getField("deps");
         if (depsField !is null)
         {
-            md ~= "**Dependencies:** (see field)\n\n";
+            auto arrayInfo = getArrayInfo(depsField.value);
+            if (arrayInfo.isArray)
+            {
+                md ~= "**Dependencies:** " ~ arrayInfo.count.to!string ~ " target(s)";
+                if (arrayInfo.preview.length > 0)
+                    md ~= " - " ~ arrayInfo.preview;
+                md ~= "\n\n";
+            }
+            else
+            {
+                md ~= "**Dependencies:** " ~ formatFieldValue(depsField.value) ~ "\n\n";
+            }
         }
         
         hover.contents = md;
@@ -160,28 +227,68 @@ struct HoverProvider
     
     private string formatFieldValue(ref const Expr value)
     {
-        // TODO: Implement proper Expr formatting with the new AST structure
-        if (auto lit = cast(LiteralExpr)value)
+        if (auto lit = cast(const(LiteralExpr))value)
         {
             return lit.value.toString();
         }
-        else if (auto ident = cast(IdentExpr)value)
+        else if (auto ident = cast(const(IdentExpr))value)
         {
             return "`" ~ ident.name ~ "`";
         }
-        return "value";
+        else if (auto bin = cast(const(BinaryExpr))value)
+        {
+            return formatFieldValue(bin.left) ~ " " ~ bin.op ~ " " ~ formatFieldValue(bin.right);
+        }
+        else if (auto unary = cast(const(UnaryExpr))value)
+        {
+            return unary.op ~ formatFieldValue(unary.operand);
+        }
+        else if (auto call = cast(const(CallExpr))value)
+        {
+            string args = call.args.map!(a => formatFieldValue(a)).join(", ");
+            return call.callee ~ "(" ~ args ~ ")";
+        }
+        else if (auto member = cast(const(MemberExpr))value)
+        {
+            return formatFieldValue(member.object) ~ "." ~ member.member;
+        }
+        else if (auto index = cast(const(IndexExpr))value)
+        {
+            return formatFieldValue(index.object) ~ "[" ~ formatFieldValue(index.index) ~ "]";
+        }
+        else if (auto ternary = cast(const(TernaryExpr))value)
+        {
+            return formatFieldValue(ternary.condition) ~ " ? " ~ 
+                   formatFieldValue(ternary.trueExpr) ~ " : " ~ 
+                   formatFieldValue(ternary.falseExpr);
+        }
+        return "<expression>";
     }
     
     private string getFieldValueString(ref const Expr value)
     {
-        // TODO: Implement proper Expr value extraction with the new AST structure
-        if (auto lit = cast(LiteralExpr)value)
+        if (auto lit = cast(const(LiteralExpr))value)
         {
+            // For simple string literals, return without quotes
+            if (lit.value.kind == LiteralKind.String)
+                return lit.value.asString();
             return lit.value.toString();
         }
-        else if (auto ident = cast(IdentExpr)value)
+        else if (auto ident = cast(const(IdentExpr))value)
         {
             return ident.name;
+        }
+        else if (auto bin = cast(const(BinaryExpr))value)
+        {
+            return getFieldValueString(bin.left) ~ " " ~ bin.op ~ " " ~ getFieldValueString(bin.right);
+        }
+        else if (auto call = cast(const(CallExpr))value)
+        {
+            return call.callee ~ "(...)";
+        }
+        else if (auto member = cast(const(MemberExpr))value)
+        {
+            return getFieldValueString(member.object) ~ "." ~ member.member;
         }
         return "";
     }
