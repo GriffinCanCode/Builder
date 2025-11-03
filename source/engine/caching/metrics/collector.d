@@ -191,13 +191,9 @@ final class CacheMetricsCollector : EventSubscriber
     /// Update exponential moving average for latency
     private void updateLatency(ref float avg, Duration latency) pure nothrow @system
     {
-        immutable newValue = latency.total!"usecs" / 1000.0;  // Convert to ms
-        immutable alpha = 0.2;  // Smoothing factor
-        
-        if (avg == 0.0)
-            avg = newValue;
-        else
-            avg = alpha * newValue + (1.0 - alpha) * avg;
+        immutable newValue = latency.total!"usecs" / 1000.0;
+        enum alpha = 0.2;
+        avg = (avg == 0.0) ? newValue : alpha * newValue + (1.0 - alpha) * avg;
     }
 }
 

@@ -94,140 +94,67 @@ final class BuildCache
     
     /// Explicitly close cache and flush to disk
     /// Call this before program termination to ensure data is saved
-    /// 
-    /// This method prevents silent data loss that can occur if the
-    /// destructor runs during abnormal shutdown or GC finalization.
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Synchronization ensures thread-safe access
-    /// 2. flush() is a trusted member function
-    /// 3. File I/O operations are inherently system-dependent
-    /// 
-    /// Invariants:
-    /// - After close(), the cache should not be modified
-    /// - Multiple calls to close() are safe (idempotent)
-    /// - Destructor detects closed state and skips flushing
+    /// Prevents data loss from abnormal shutdown or GC finalization
+    /// Multiple calls are safe (idempotent)
     void close() @system
     {
         synchronized (cacheMutex)
         {
             if (!closed)
             {
-                if (dirty)
-                {
-                    flush(false); // Flush without eviction on close
-                }
+                if (dirty) flush(false); // Flush without eviction on close
                 closed = true;
             }
         }
     }
     
     /// Destructor: ensure cache is written (best-effort fallback)
-    /// Skip if called during GC to avoid InvalidMemoryOperationError
-    /// 
-    /// NOTE: This is a fallback only. Always call close() explicitly
-    /// before program termination to guarantee data integrity.
+    /// NOTE: Always call close() explicitly before program termination
     ~this()
     {
         import core.memory : GC;
+        if (closed || !dirty || GC.inFinalizer()) return;
         
-        // If already closed explicitly, nothing to do
-        if (closed)
-            return;
-        
-        // Don't flush during GC - it allocates memory which is forbidden
-        // The cache will be saved on next run instead
-        if (dirty && !GC.inFinalizer())
+        try
         {
-            try
-            {
-                import infrastructure.utils.logging.logger;
-                Logger.debugLog("Warning: Cache destroyed without explicit close() - flushing as fallback");
-                flush(false); // Don't evict during destruction
-            }
-            catch (Exception e)
-            {
-                // Best effort - ignore errors during destruction
-                // User should have called close() explicitly
-            }
+            import infrastructure.utils.logging.logger;
+            Logger.debugLog("Warning: Cache destroyed without explicit close() - flushing as fallback");
+            flush(false);
         }
+        catch (Exception e) {}
     }
     
     /// Check if a target is cached and up-to-date
     /// Uses two-tier hashing for 1000x speedup on unchanged files
-    /// Thread-safe: synchronized via internal mutex
+    /// Thread-safe via internal mutex
     /// 
-    /// WARNING: TOCTOU (Time-Of-Check-Time-Of-Use) Race Condition
-    /// This function is subject to race conditions where files may be modified
-    /// between the exists() check and hashFileTwoTier() call. This is acceptable
-    /// for build caching (eventual consistency model) but NOT suitable for
-    /// security-critical applications requiring strong integrity guarantees.
-    /// 
-    /// For build systems, this TOCTOU is benign because:
-    /// 1. Concurrent file modifications during a build are user errors
-    /// 2. Next build will detect the changes via updated hashes
-    /// 3. Worst case: unnecessary rebuild (safe failure mode)
-    /// 4. Does NOT compromise system security or data integrity
-    /// 
-    /// DO NOT use this caching strategy for:
-    /// - Cryptographic validation of untrusted files
-    /// - Security-sensitive file integrity checking
-    /// - Tamper detection in production systems
-    /// - Any scenario where file atomicity is required
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. Mutex synchronization ensures thread-safe access to entries
-    /// 2. File system operations (exists, timeLastModified, FastHash) are unsafe I/O
-    /// 3. Associative array access is bounds-checked (safe)
-    /// 4. Pointer access (entryPtr) is safe within synchronized block
-    /// 
-    /// Invariants:
-    /// - cacheMutex must be held for entire duration of cache lookup
-    /// - Entry access times are updated atomically with the check
-    /// - File metadata is consistent at time of check (TOCTOU acknowledged)
-    /// 
-    /// What could go wrong:
-    /// - TOCTOU: file could be modified between check and use (unavoidable)
-    /// - File could be deleted between metadata check and hash: returns false (safe)
-    /// - Hash computation could fail: caught and returns false
-    /// - Large files could slow down hashing: mitigated by FastHash tiers
+    /// WARNING: TOCTOU race condition exists but is benign for build caching.
+    /// Safe failure mode: unnecessary rebuild. NOT for security-critical use.
     bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @system
     {
         synchronized (cacheMutex)
         {
             auto entryPtr = targetId in entries;
-            if (entryPtr is null)
-                return false;
+            if (entryPtr is null) return false;
             
-            // Update access time for LRU - use pointer to avoid copy
             entryPtr.lastAccess = Clock.currTime();
             dirty = true;
             
             // Check if any source files changed (two-tier strategy)
             foreach (source; sources)
             {
-                if (!exists(source))
-                    return false;
+                if (!exists(source)) return false;
                 
-                // Get old metadata hash if exists
-                immutable oldMetadataHash = entryPtr.sourceMetadata.get(source, "");
-                
-                // Two-tier hash: check metadata first
-                const hashResult = FastHash.hashFileTwoTier(source, oldMetadataHash);
+                const hashResult = FastHash.hashFileTwoTier(source, entryPtr.sourceMetadata.get(source, ""));
                 
                 if (hashResult.contentHashed)
                 {
-                    // Metadata changed, check content hash
                     contentHashCount++;
-                    
-                    immutable oldContentHash = entryPtr.sourceHashes.get(source, "");
-                    // Use SIMD-accelerated comparison for hash strings
-                    if (!SIMDHash.equals(hashResult.contentHash, oldContentHash))
+                    if (!SIMDHash.equals(hashResult.contentHash, entryPtr.sourceHashes.get(source, "")))
                         return false;
                 }
                 else
                 {
-                    // Metadata unchanged, assume content unchanged (fast path)
                     metadataHitCount++;
                 }
             }
@@ -235,11 +162,7 @@ final class BuildCache
             // Check if any dependencies changed
             foreach (dep; deps)
             {
-                if (dep !in entries)
-                    return false;
-                
-                // SIMD-accelerated hash comparison
-                if (!SIMDHash.equals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
+                if (dep !in entries || !SIMDHash.equals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
                     return false;
             }
             
@@ -355,7 +278,6 @@ final class BuildCache
     }
     
     /// Invalidate cache for a target
-    /// Thread-safe: synchronized via internal mutex
     void invalidate(in string targetId) @system nothrow
     {
         try
@@ -366,10 +288,7 @@ final class BuildCache
                 dirty = true;
             }
         }
-        catch (Exception e)
-        {
-            // Mutex lock failed, ignore (nothrow requirement)
-        }
+        catch (Exception e) {}
     }
     
     /// Clear entire cache
@@ -388,46 +307,33 @@ final class BuildCache
     }
     
     /// Flush cache to disk (lazy write)
-    /// This is called once at the end of build instead of on every update
-    /// Thread-safe: synchronized via internal mutex
-    /// Params:
-    ///   runEviction = whether to run eviction policy (default true, false in destructor)
+    /// Called once at end of build instead of on every update
     void flush(in bool runEviction = true) @system
     {
         synchronized (cacheMutex)
         {
-            if (!dirty)
-                return;
+            if (!dirty) return;
         
-        // Run eviction policy before saving (skip in destructor to avoid GC issues)
-        if (runEviction)
-        {
-            try
+            // Run eviction policy before saving
+            if (runEviction)
             {
-                immutable currentSize = eviction.calculateTotalSize(entries);
-                auto toEvict = eviction.selectEvictions(entries, currentSize);
-                
-                foreach (key; toEvict)
-                    entries.remove(key);
-                
-                // Log eviction if any
-                if (toEvict.length > 0)
+                try
                 {
-                    writeln("Cache evicted ", toEvict.length, " entries");
+                    auto toEvict = eviction.selectEvictions(entries, eviction.calculateTotalSize(entries));
+                    foreach (key; toEvict)
+                        entries.remove(key);
+                    
+                    if (toEvict.length > 0)
+                        writeln("Cache evicted ", toEvict.length, " entries");
+                }
+                catch (Exception e)
+                {
+                    writeln("Warning: Cache eviction failed, saving without eviction");
                 }
             }
-            catch (Exception e)
-            {
-                // If eviction fails, just save what we have
-                writeln("Warning: Cache eviction failed, saving without eviction");
-            }
-        }
         
-            // Save to binary format
             saveCache();
             dirty = false;
-            
-            // Clear hash cache at end of build
             hashCache.clear();
         }
     }

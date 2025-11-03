@@ -32,43 +32,34 @@ struct IncrementalFilter
         string[string] metadata
     ) @system
     {
-        if (changedFiles.empty || depCache is null)
-            return allFiles;  // No filter info, process all
+        if (changedFiles.empty || depCache is null) return allFiles;
         
-        // Get affected files from dependency analysis
-        auto changes = depCache.analyzeChanges(changedFiles);
-        auto affectedFiles = changes.filesToRebuild;
-        
+        auto affectedFiles = depCache.analyzeChanges(changedFiles).filesToRebuild;
         bool[string] needsProcessing;
         
         foreach (file; allFiles)
         {
-            // Check if file affected by changes
             if (affectedFiles.canFind(file))
             {
                 needsProcessing[file] = true;
                 continue;
             }
             
-            // Check action cache if available
             if (actionCache !is null)
             {
-                ActionId actionId;
-                actionId.targetId = "filter";
-                actionId.type = operationType;
-                actionId.subId = file;
-                
                 import infrastructure.utils.files.hash;
-                actionId.inputHash = FastHash.hashFile(file);
+                ActionId actionId = {
+                    targetId: "filter",
+                    type: operationType,
+                    subId: file,
+                    inputHash: FastHash.hashFile(file)
+                };
                 
                 if (!actionCache.isCached(actionId, [file], metadata))
-                {
                     needsProcessing[file] = true;
-                }
             }
             else
             {
-                // No action cache, must process
                 needsProcessing[file] = true;
             }
         }

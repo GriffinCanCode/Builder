@@ -131,14 +131,13 @@ struct CacheMetrics
     /// Format bytes as human-readable
     private static string formatBytes(size_t bytes) pure @system
     {
-        if (bytes < 1024)
-            return format("%d B", bytes);
-        else if (bytes < 1024 * 1024)
-            return format("%.1f KB", bytes / 1024.0);
-        else if (bytes < 1024 * 1024 * 1024)
-            return format("%.1f MB", bytes / (1024.0 * 1024.0));
-        else
-            return format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        enum MB = 1024 * 1024;
+        enum GB = MB * 1024;
+        
+        return bytes < 1024 ? format("%d B", bytes)
+             : bytes < MB ? format("%.1f KB", bytes / 1024.0)
+             : bytes < GB ? format("%.1f MB", bytes / cast(double)MB)
+             : format("%.2f GB", bytes / cast(double)GB);
     }
 }
 

@@ -37,35 +37,18 @@ final class DistributedCache
     bool isCached(string targetId, scope const(string)[] sources, scope const(string)[] deps) @trusted
     {
         // Check local cache first (fast path)
-        if (localCache.isCached(targetId, sources, deps))
-            return true;
+        if (localCache.isCached(targetId, sources, deps)) return true;
+        if (remoteCache is null) return false;
         
-        // Check remote cache if available
-        if (remoteCache is null)
-            return false;
-        
-        // Compute target hash for remote lookup
+        // Check remote cache
         auto hashResult = computeTargetHash(targetId, sources, deps);
-        if (hashResult.isErr)
-            return false;
+        if (hashResult.isErr) return false;
         
-        auto targetHash = hashResult.unwrap();
-        
-        // Check if remote has this artifact
-        auto hasResult = remoteCache.has(targetHash);
-        if (hasResult.isErr || !hasResult.unwrap())
-            return false;
+        auto hasResult = remoteCache.has(hashResult.unwrap());
+        if (hasResult.isErr || !hasResult.unwrap()) return false;
         
         // Pull from remote and store locally
-        auto pullResult = pullFromRemote(targetHash, targetId);
-        if (pullResult.isErr)
-            return false;
-        
-        // Update local cache with pulled data
-        // Note: This doesn't update BuildCache directly, but stores the artifact
-        // The actual build won't need to execute since we have the artifact
-        
-        return true;
+        return pullFromRemote(hashResult.unwrap(), targetId).isOk;
     }
     
     /// Update cache after successful build
@@ -115,10 +98,8 @@ final class DistributedCache
     /// Close all caches
     void close() @trusted
     {
-        if (localCache !is null)
-            localCache.close();
-        if (actionCache !is null)
-            actionCache.close();
+        if (localCache !is null) localCache.close();
+        if (actionCache !is null) actionCache.close();
     }
     
     private Result!(string, BuildError) computeTargetHash(
@@ -206,28 +187,14 @@ final class DistributedCache
     {
         try
         {
-            // Locate artifact file(s) by output hash
             immutable artifactPath = buildPath(cacheDir, "artifacts", outputHash);
+            if (!exists(artifactPath)) return;
             
-            if (!exists(artifactPath))
-                return;  // Artifact doesn't exist, nothing to push
-            
-            // Read artifact data
             auto artifactData = cast(ubyte[])read(artifactPath);
-            
-            // Serialize artifact with metadata
             auto serialized = serializeArtifact(targetId, artifactData);
-            
-            // Push to remote cache
-            auto pushResult = remoteCache.put(targetHash, serialized);
-            
-            // Errors are silently ignored for async pushes (logged internally by client)
+            remoteCache.put(targetHash, serialized);
         }
-        catch (Exception e)
-        {
-            // Silently ignore errors in background thread
-            // In production, you'd log these
-        }
+        catch (Exception e) {}
     }
     
     /// Push action artifacts to remote cache (runs asynchronously)

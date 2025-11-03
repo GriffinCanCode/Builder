@@ -24,28 +24,14 @@ struct FileDependency
     /// Check if this dependency is still valid
     bool isValid() const @system
     {
-        // Check source exists and hash matches
-        if (!exists(sourceFile))
+        if (!exists(sourceFile) || FastHash.hashFile(sourceFile) != sourceHash)
             return false;
         
-        auto currentHash = FastHash.hashFile(sourceFile);
-        if (currentHash != sourceHash)
-            return false;
-        
-        // Check all dependencies exist and hashes match
         foreach (i, dep; dependencies)
         {
-            if (!exists(dep))
+            if (!exists(dep) || (i < depHashes.length && FastHash.hashFile(dep) != depHashes[i]))
                 return false;
-            
-            if (i < depHashes.length)
-            {
-                auto depHash = FastHash.hashFile(dep);
-                if (depHash != depHashes[i])
-                    return false;
-            }
         }
-        
         return true;
     }
     
@@ -54,17 +40,9 @@ struct FileDependency
     {
         foreach (i, dep; dependencies)
         {
-            if (!exists(dep))
+            if (!exists(dep) || (i < depHashes.length && FastHash.hashFile(dep) != depHashes[i]))
                 return true;
-            
-            if (i < depHashes.length)
-            {
-                auto currentHash = FastHash.hashFile(dep);
-                if (currentHash != depHashes[i])
-                    return true;
-            }
         }
-        
         return false;
     }
 }
@@ -99,10 +77,7 @@ final class DependencyCache
     }
     
     /// Record dependencies for a source file
-    void recordDependencies(
-        string sourceFile,
-        string[] dependencies
-    ) @system
+    void recordDependencies(string sourceFile, string[] dependencies) @system
     {
         synchronized (mutex)
         {
@@ -111,7 +86,6 @@ final class DependencyCache
             dep.dependencies = dependencies.dup;
             dep.timestamp = Clock.currTime();
             
-            // Hash source and dependencies
             if (exists(sourceFile))
                 dep.sourceHash = FastHash.hashFile(sourceFile);
             
@@ -121,8 +95,7 @@ final class DependencyCache
                     dep.depHashes ~= FastHash.hashFile(depFile);
             }
             
-            auto key = buildNormalizedPath(sourceFile);
-            this.dependencies[key] = dep;
+            this.dependencies[buildNormalizedPath(sourceFile)] = dep;
             dirty = true;
             
             Logger.debugLog("Recorded " ~ dependencies.length.to!string ~ 
@@ -135,18 +108,11 @@ final class DependencyCache
     {
         synchronized (mutex)
         {
-            auto key = buildNormalizedPath(sourceFile);
-            auto depPtr = key in dependencies;
-            
-            if (depPtr is null)
-            {
-                return Result!(FileDependency*, BuildError).err(
-                    new GenericError("No dependencies recorded for: " ~ sourceFile,
-                                 ErrorCode.FileNotFound)
-                );
-            }
-            
-            return Result!(FileDependency*, BuildError).ok(depPtr);
+            auto depPtr = buildNormalizedPath(sourceFile) in dependencies;
+            return depPtr is null 
+                ? Result!(FileDependency*, BuildError).err(
+                    new GenericError("No dependencies recorded for: " ~ sourceFile, ErrorCode.FileNotFound))
+                : Result!(FileDependency*, BuildError).ok(depPtr);
         }
     }
     
@@ -226,8 +192,7 @@ final class DependencyCache
     {
         synchronized (mutex)
         {
-            if (!dirty)
-                return;
+            if (!dirty) return;
             
             try
             {

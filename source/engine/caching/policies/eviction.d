@@ -30,19 +30,17 @@ struct EvictionPolicy
         {
             foreach (key, entry; entries)
             {
-                auto age = now - entry.timestamp;
-                if (age.total!"days" > maxAge)
+                if ((now - entry.timestamp).total!"days" > maxAge)
                     toEvict ~= key;
             }
         }
         
+        // Sort once for LRU operations
+        auto sorted = entries.byKeyValue.array.sort!((a, b) => a.value.lastAccess < b.value.lastAccess);
+        
         // 2. Remove entries if count exceeds limit (LRU)
         if (entries.length > maxEntries)
         {
-            auto sorted = entries.byKeyValue
-                .array
-                .sort!((a, b) => a.value.lastAccess < b.value.lastAccess);
-            
             auto excess = entries.length - maxEntries;
             foreach (i; 0 .. excess)
             {
@@ -54,15 +52,10 @@ struct EvictionPolicy
         // 3. Remove entries if size exceeds limit (LRU)
         if (currentSize > maxSize)
         {
-            auto sorted = entries.byKeyValue
-                .array
-                .sort!((a, b) => a.value.lastAccess < b.value.lastAccess);
-            
             size_t removed = 0;
             foreach (kv; sorted)
             {
-                if (currentSize - removed <= maxSize)
-                    break;
+                if (currentSize - removed <= maxSize) break;
                 
                 if (!toEvict.canFind(kv.key))
                 {
