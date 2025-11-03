@@ -112,7 +112,7 @@ struct MacroLoader
         // Full implementation would compile and load the D module
         Logger.info("Loading macros from: " ~ filename);
         
-        // TODO: Implement dynamic compilation and loading
+        // Future enhancement: Dynamic compilation and loading of D macros (Tier 2)
         // This requires:
         // 1. Compile the D file to a shared library
         // 2. Load the shared library dynamically

@@ -272,7 +272,7 @@ struct TestCommand
         // Generate analytics if enabled
         if (config.analytics)
         {
-            generateAnalytics(results, stats);
+            generateAnalytics(results, stats, executor);
         }
         
         // Export JUnit XML if requested
@@ -302,7 +302,7 @@ struct TestCommand
     }
     
     /// Generate test analytics
-    private static void generateAnalytics(TestResult[] results, TestStats stats) @system
+    private static void generateAnalytics(TestResult[] results, TestStats stats, TestExecutor executor) @system
     {
         try
         {
@@ -311,7 +311,13 @@ struct TestCommand
             Logger.info("Test Analytics Report");
             Logger.info("═".replicate(60));
             
-            FlakyRecord[] flakyRecords; // TODO: Get from detector
+            // Get flaky records from detector
+            FlakyRecord[] flakyRecords;
+            if (executor.flakyDetector !is null)
+            {
+                flakyRecords = executor.flakyDetector.getFlakyTests();
+            }
+            
             auto health = TestAnalytics.analyzeHealth(results, flakyRecords);
             auto performance = TestAnalytics.analyzePerformance(results);
             auto report = TestAnalytics.generateReport(stats, health, performance);

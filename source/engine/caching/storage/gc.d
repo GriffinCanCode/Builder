@@ -93,8 +93,8 @@ final class CacheGarbageCollector
         
         // Collect from target cache
         auto targetStats = targetCache.getStats();
-        // Note: We'd need to extend BuildCache to expose output hashes
-        // For now, mark this as a TODO for cache API extension
+        // Note: Future enhancement - extend BuildCache API to expose output hashes
+        // for more comprehensive garbage collection
         
         // Collect from action cache
         auto actionStats = actionCache.getStats();

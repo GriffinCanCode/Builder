@@ -33,24 +33,147 @@ class Evaluator
     /// Evaluate expression value from AST
     Result!(Value, BuildError) evaluate(Expr expr) @system
     {
-        // TODO: Implement proper Expr evaluation with the new AST structure
-        // Placeholder implementation
+        // Handle all expression types from the unified AST
         if (auto lit = cast(LiteralExpr)expr)
         {
-            // Handle literal values
-            if (lit.value.kind == LiteralKind.String)
-                return Result!(Value, BuildError).ok(Value.makeString(lit.value.asString()));
-            else if (lit.value.kind == LiteralKind.Number)
-                return Result!(Value, BuildError).ok(Value.makeNumber(cast(double)lit.value.asNumber()));
-            else if (lit.value.kind == LiteralKind.Bool)
-                return Result!(Value, BuildError).ok(Value.makeBool(lit.value.asBool()));
+            return evaluateLiteral(lit.value);
         }
         else if (auto ident = cast(IdentExpr)expr)
         {
             return evaluateIdentifier(ident.name);
         }
+        else if (auto bin = cast(BinaryExpr)expr)
+        {
+            auto leftResult = evaluate(bin.left);
+            if (leftResult.isErr)
+                return leftResult;
+            
+            auto rightResult = evaluate(bin.right);
+            if (rightResult.isErr)
+                return rightResult;
+            
+            return evaluateBinary(bin.op, leftResult.unwrap(), rightResult.unwrap());
+        }
+        else if (auto unary = cast(UnaryExpr)expr)
+        {
+            auto operandResult = evaluate(unary.operand);
+            if (operandResult.isErr)
+                return operandResult;
+            
+            return evaluateUnary(unary.op, operandResult.unwrap());
+        }
+        else if (auto call = cast(CallExpr)expr)
+        {
+            Value[] args;
+            foreach (arg; call.args)
+            {
+                auto argResult = evaluate(arg);
+                if (argResult.isErr)
+                    return argResult;
+                args ~= argResult.unwrap();
+            }
+            return evaluateCall(call.callee, args);
+        }
+        else if (auto index = cast(IndexExpr)expr)
+        {
+            auto objectResult = evaluate(index.object);
+            if (objectResult.isErr)
+                return objectResult;
+            
+            auto indexResult = evaluate(index.index);
+            if (indexResult.isErr)
+                return indexResult;
+            
+            return evaluateIndex(objectResult.unwrap(), indexResult.unwrap());
+        }
+        else if (auto slice = cast(SliceExpr)expr)
+        {
+            auto objectResult = evaluate(slice.object);
+            if (objectResult.isErr)
+                return objectResult;
+            
+            Value start = Value.makeNull();
+            if (slice.start)
+            {
+                auto startResult = evaluate(slice.start);
+                if (startResult.isErr)
+                    return startResult;
+                start = startResult.unwrap();
+            }
+            
+            Value end = Value.makeNull();
+            if (slice.end)
+            {
+                auto endResult = evaluate(slice.end);
+                if (endResult.isErr)
+                    return endResult;
+                end = endResult.unwrap();
+            }
+            
+            return evaluateSlice(objectResult.unwrap(), start, end);
+        }
+        else if (auto member = cast(MemberExpr)expr)
+        {
+            auto objectResult = evaluate(member.object);
+            if (objectResult.isErr)
+                return objectResult;
+            
+            return evaluateMapAccess(objectResult.unwrap(), member.member);
+        }
+        else if (auto ternary = cast(TernaryExpr)expr)
+        {
+            auto conditionResult = evaluate(ternary.condition);
+            if (conditionResult.isErr)
+                return conditionResult;
+            
+            if (conditionResult.unwrap().toBool())
+                return evaluate(ternary.trueExpr);
+            else
+                return evaluate(ternary.falseExpr);
+        }
+        else if (auto lambda = cast(LambdaExpr)expr)
+        {
+            // Lambda expressions not yet implemented in MVP
+            return err("Lambda expressions not yet supported");
+        }
         
-        return Result!(Value, BuildError).ok(Value.makeNull());
+        return err("Unknown expression type: " ~ expr.nodeType());
+    }
+    
+    /// Evaluate a Literal to a Value
+    private Result!(Value, BuildError) evaluateLiteral(Literal lit) @system
+    {
+        final switch (lit.kind)
+        {
+            case LiteralKind.Null:
+                return ok(Value.makeNull());
+            case LiteralKind.Bool:
+                return ok(Value.makeBool(lit.asBool()));
+            case LiteralKind.Number:
+                return ok(Value.makeNumber(cast(double)lit.asNumber()));
+            case LiteralKind.String:
+                return ok(Value.makeString(lit.asString()));
+            case LiteralKind.Array:
+                Value[] arr;
+                foreach (elem; lit.asArray())
+                {
+                    auto elemResult = evaluateLiteral(elem);
+                    if (elemResult.isErr)
+                        return elemResult;
+                    arr ~= elemResult.unwrap();
+                }
+                return ok(Value.makeArray(arr));
+            case LiteralKind.Map:
+                Value[string] map;
+                foreach (key, value; lit.asMap())
+                {
+                    auto valueResult = evaluateLiteral(value);
+                    if (valueResult.isErr)
+                        return Result!(Value, BuildError).err(valueResult.unwrapErr());
+                    map[key] = valueResult.unwrap();
+                }
+                return ok(Value.makeMap(map));
+        }
     }
     
     /// Evaluate string with interpolation ${expr}
@@ -371,17 +494,100 @@ class Evaluator
     /// Get type information for expression (without evaluation)
     Result!(ScriptTypeInfo, BuildError) inferType(Expr expr) @system
     {
-        // TODO: Implement proper type inference with the new AST structure
+        // Comprehensive type inference for all expression types
         if (auto lit = cast(LiteralExpr)expr)
         {
-            if (lit.value.kind == LiteralKind.String)
-                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.String));
-            else if (lit.value.kind == LiteralKind.Number)
-                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Number));
-            else if (lit.value.kind == LiteralKind.Bool)
-                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
+            return inferLiteralType(lit.value);
         }
+        else if (auto ident = cast(IdentExpr)expr)
+        {
+            // Lookup identifier type in scope
+            auto lookupResult = scope_.lookup(ident.name);
+            if (lookupResult.isOk)
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(lookupResult.unwrap().type()));
+            return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
+        }
+        else if (auto bin = cast(BinaryExpr)expr)
+        {
+            // Infer binary expression result type
+            auto leftResult = inferType(bin.left);
+            if (leftResult.isErr)
+                return leftResult;
+            
+            auto rightResult = inferType(bin.right);
+            if (rightResult.isErr)
+                return rightResult;
+            
+            // Most binary ops preserve numeric/string types
+            if (bin.op == "+" || bin.op == "-" || bin.op == "*" || bin.op == "/" || bin.op == "%")
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Number));
+            else if (bin.op == "==" || bin.op == "!=" || bin.op == "<" || bin.op == ">" || 
+                     bin.op == "<=" || bin.op == ">=" || bin.op == "&&" || bin.op == "||")
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
+            
+            return leftResult;
+        }
+        else if (auto unary = cast(UnaryExpr)expr)
+        {
+            if (unary.op == "!")
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
+            else if (unary.op == "-")
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Number));
+            
+            return inferType(unary.operand);
+        }
+        else if (auto call = cast(CallExpr)expr)
+        {
+            // Function calls - would need function signature registry for proper inference
+            // For now, assume returns null
+            return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
+        }
+        else if (auto index = cast(IndexExpr)expr)
+        {
+            // Array indexing - return element type (unknown for now)
+            return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
+        }
+        else if (auto slice = cast(SliceExpr)expr)
+        {
+            // Slicing returns array
+            return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Array));
+        }
+        else if (auto member = cast(MemberExpr)expr)
+        {
+            // Member access - type depends on object structure
+            return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
+        }
+        else if (auto ternary = cast(TernaryExpr)expr)
+        {
+            // Ternary returns type of branches (assume true branch)
+            return inferType(ternary.trueExpr);
+        }
+        else if (auto lambda = cast(LambdaExpr)expr)
+        {
+            return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Function));
+        }
+        
         return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
+    }
+    
+    /// Infer type of a Literal
+    private Result!(ScriptTypeInfo, BuildError) inferLiteralType(Literal lit) @system
+    {
+        final switch (lit.kind)
+        {
+            case LiteralKind.Null:
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
+            case LiteralKind.Bool:
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
+            case LiteralKind.Number:
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Number));
+            case LiteralKind.String:
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.String));
+            case LiteralKind.Array:
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Array));
+            case LiteralKind.Map:
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Map));
+        }
     }
     
     // Helper methods

@@ -25,8 +25,7 @@ import infrastructure.errors;
 /// Only recompiles files affected by header changes
 class IncrementalCppBuilder : BaseCppBuilder
 {
-    // TODO: Add compiler detection using toolchain system
-    // private CompilerInfo compilerInfo;
+    private const(Toolchain)* toolchain;
     private ActionCache actionCache;
     private DependencyCache depCache;
     private IncrementalEngine incEngine;
@@ -35,8 +34,45 @@ class IncrementalCppBuilder : BaseCppBuilder
     this(CppConfig config, ActionCache actionCache = null, DependencyCache depCache = null)
     {
         super(config);
-        // TODO: Implement compiler detection
-        // compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
+        
+        // Detect compiler toolchain using unified toolchain system
+        import infrastructure.toolchain.detector : AutoDetector;
+        import infrastructure.toolchain.registry : ToolchainRegistry;
+        
+        auto registry = ToolchainRegistry.instance();
+        
+        // Try to find appropriate C++ compiler toolchain
+        // Priority: config-specified > clang > gcc
+        if (!config.customCompiler.empty)
+        {
+            // Look for specific compiler by name
+            auto toolchains = registry.find(config.customCompiler);
+            if (!toolchains.empty)
+                this.toolchain = &toolchains[0];
+        }
+        else
+        {
+            // Auto-detect based on compiler preference
+            auto detector = new AutoDetector();
+            auto allToolchains = detector.detectAll();
+            
+            // Find C++ capable toolchain
+            foreach (ref tc; allToolchains)
+            {
+                auto compiler = tc.getToolByName("g++");
+                if (compiler is null)
+                    compiler = tc.getToolByName("clang++");
+                
+                if (compiler !is null && compiler.type == ToolchainType.Compiler)
+                {
+                    this.toolchain = &tc;
+                    break;
+                }
+            }
+        }
+        
+        if (this.toolchain is null)
+            Logger.warning("No C++ compiler toolchain detected, build may fail");
         
         // Initialize caches
         if (actionCache is null)
@@ -74,13 +110,13 @@ class IncrementalCppBuilder : BaseCppBuilder
     {
         CppCompileResult result;
         
-        if (!compilerInfo.isAvailable)
+        if (toolchain is null || !toolchain.isComplete())
         {
-            result.error = "Compiler not available: " ~ config.compiler.to!string;
+            result.error = "Compiler toolchain not available: " ~ config.compiler.to!string;
             return result;
         }
         
-        Logger.info("Incremental C++ compilation with " ~ compilerInfo.name);
+        Logger.info("Incremental C++ compilation with " ~ toolchain.name);
         
         // Separate C and C++ files
         string[] cppFiles;
@@ -182,9 +218,25 @@ class IncrementalCppBuilder : BaseCppBuilder
         CppCompileResult result;
         result.success = true;
         
-        string compiler = isCpp ? 
-            Toolchain.getCppCompiler(compilerInfo) :
-            Toolchain.getCCompiler(compilerInfo);
+        // Get appropriate compiler from toolchain
+        const(Tool)* compilerTool = isCpp ? 
+            toolchain.getToolByName("g++") : 
+            toolchain.getToolByName("gcc");
+        
+        // Fallback to clang if gcc not available
+        if (compilerTool is null)
+            compilerTool = isCpp ? 
+                toolchain.getToolByName("clang++") : 
+                toolchain.getToolByName("clang");
+        
+        if (compilerTool is null)
+        {
+            result.success = false;
+            result.error = "No suitable compiler found in toolchain";
+            return result;
+        }
+        
+        string compiler = compilerTool.path;
         
         auto flags = buildCompilerFlags(config, isCpp);
         
@@ -330,9 +382,23 @@ class IncrementalCppBuilder : BaseCppBuilder
     {
         CppCompileResult result;
         
-        string linker = isCpp ?
-            Toolchain.getCppCompiler(compilerInfo) :
-            Toolchain.getCCompiler(compilerInfo);
+        // Use compiler as linker (standard practice)
+        const(Tool)* linkerTool = isCpp ? 
+            toolchain.getToolByName("g++") : 
+            toolchain.getToolByName("gcc");
+        
+        if (linkerTool is null)
+            linkerTool = isCpp ? 
+                toolchain.getToolByName("clang++") : 
+                toolchain.getToolByName("clang");
+        
+        if (linkerTool is null)
+        {
+            result.error = "No suitable linker found in toolchain";
+            return result;
+        }
+        
+        string linker = linkerTool.path;
         
         auto linkerFlags = buildLinkerFlags(config);
         
@@ -395,17 +461,24 @@ class IncrementalCppBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return compilerInfo.isAvailable;
+        return toolchain !is null && toolchain.isComplete();
     }
     
     override string name() const
     {
-        return "IncrementalBuilder (" ~ compilerInfo.name ~ ")";
+        if (toolchain is null)
+            return "IncrementalBuilder (no toolchain)";
+        return "IncrementalBuilder (" ~ toolchain.name ~ ")";
     }
     
     override string getVersion()
     {
-        return compilerInfo.version_;
+        if (toolchain is null)
+            return "unknown";
+        auto compiler = toolchain.compiler();
+        if (compiler is null)
+            return "unknown";
+        return compiler.version_.toString();
     }
     
     override bool supportsFeature(string feature)

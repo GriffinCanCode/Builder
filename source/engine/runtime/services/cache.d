@@ -195,7 +195,7 @@ final class CacheService : ICacheService
     
     /// Get internal BuildCache for backwards compatibility
     /// Note: Direct BuildCache access breaks unified caching
-    /// TODO: Remove once all code uses CacheService interface
+    /// Legacy method: Prefer using CacheService interface methods directly
     auto getInternalCache() @trusted
     {
         import engine.caching.targets.cache : BuildCache;

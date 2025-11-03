@@ -208,7 +208,7 @@ class ConfigParser
         try
         {
             auto content = readText(path);
-            // TODO: Parse workspace file using unified parser
+            // Future: Migrate to unified parser for workspace files
             // For now, just succeed
             return Result!BuildError.ok();
         }

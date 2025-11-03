@@ -96,9 +96,48 @@ class Interpreter
         // Register macro with expander
         // Convert Stmt[] to Statement[] (old format)
         Statement[] body;
-        // TODO: Convert body statements
+        foreach (s; stmt.body)
+        {
+            body ~= convertToLegacyStatement(s);
+        }
         
-        return expander.define(stmt.name, stmt.parameters, body);
+        return expander.define(stmt.name, stmt.params, body);
+    }
+    
+    /// Convert new unified Stmt to legacy Statement format
+    private Statement convertToLegacyStatement(Stmt stmt) @system
+    {
+        Statement legacyStmt;
+        
+        if (auto targetDecl = cast(TargetDeclStmt)stmt)
+        {
+            legacyStmt.type = StatementType.TargetDeclStmt;
+            legacyStmt.targetDecl = targetDecl;
+        }
+        else if (auto forStmt = cast(ForStmt)stmt)
+        {
+            legacyStmt.type = StatementType.ForLoop;
+            legacyStmt.loopVar = forStmt.variable;
+            legacyStmt.loopIterable = forStmt.iterable;
+            foreach (s; forStmt.body)
+                legacyStmt.loopBody ~= convertToLegacyStatement(s);
+        }
+        else if (auto ifStmt = cast(IfStmt)stmt)
+        {
+            legacyStmt.type = StatementType.IfStatement;
+            legacyStmt.condition = ifStmt.condition;
+            foreach (s; ifStmt.thenBranch)
+                legacyStmt.thenBranch ~= convertToLegacyStatement(s);
+            foreach (s; ifStmt.elseBranch)
+                legacyStmt.elseBranch ~= convertToLegacyStatement(s);
+        }
+        else if (auto varDecl = cast(VarDeclStmt)stmt)
+        {
+            legacyStmt.type = varDecl.isConst ? StatementType.LetDecl : StatementType.LetDecl;
+            // For variables, would need to extend Statement struct if needed
+        }
+        
+        return legacyStmt;
     }
     
     /// Execute if statement

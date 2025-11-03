@@ -432,6 +432,12 @@ final class TestExecutor
         }
     }
     
+    /// Get flaky detector instance
+    @property FlakyDetector flakyDetector() @safe nothrow @nogc
+    {
+        return detector;
+    }
+    
     /// Shutdown and cleanup
     void shutdown() @system
     {

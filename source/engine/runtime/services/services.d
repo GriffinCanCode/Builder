@@ -68,7 +68,7 @@ final class BuildServices
         import engine.runtime.services.cache : CacheService;
         auto cacheService = new CacheService(options.cacheDir, this._publisher);
         // For backwards compatibility, extract the internal BuildCache
-        // TODO: Refactor to use CacheService directly throughout
+        // Note: CacheService interface is now available for direct use
         this._cache = cacheService.getInternalCache();
         
         // Register cache with shutdown coordinator
