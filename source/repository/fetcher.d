@@ -147,13 +147,13 @@ final class RepositoryFetcher
             
             case ArchiveFormat.TarGz:
                 cmd = ["tar", "-xzf", archivePath, "-C", targetDir];
-                if (!stripPrefix.empty)
+                if (stripPrefix.length > 0)
                     cmd ~= ["--strip-components=1"];
                 break;
             
             case ArchiveFormat.Tar:
                 cmd = ["tar", "-xf", archivePath, "-C", targetDir];
-                if (!stripPrefix.empty)
+                if (stripPrefix.length > 0)
                     cmd ~= ["--strip-components=1"];
                 break;
             
@@ -163,13 +163,13 @@ final class RepositoryFetcher
             
             case ArchiveFormat.TarXz:
                 cmd = ["tar", "-xJf", archivePath, "-C", targetDir];
-                if (!stripPrefix.empty)
+                if (stripPrefix.length > 0)
                     cmd ~= ["--strip-components=1"];
                 break;
             
             case ArchiveFormat.TarBz2:
                 cmd = ["tar", "-xjf", archivePath, "-C", targetDir];
-                if (!stripPrefix.empty)
+                if (stripPrefix.length > 0)
                     cmd ~= ["--strip-components=1"];
                 break;
         }
@@ -223,11 +223,11 @@ final class RepositoryFetcher
         string[] cloneCmd = ["git", "clone"];
         
         // Use specific commit or tag
-        if (!rule.gitCommit.empty)
+        if (rule.gitCommit.length > 0)
         {
             cloneCmd ~= ["--depth", "1", "--branch", rule.gitCommit];
         }
-        else if (!rule.gitTag.empty)
+        else if (rule.gitTag.length > 0)
         {
             cloneCmd ~= ["--depth", "1", "--branch", rule.gitTag];
         }

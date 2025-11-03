@@ -9,7 +9,8 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
-import languages.compiled.cpp.tooling.toolchain;
+// import languages.compiled.cpp.tooling.toolchain; // Replaced by unified toolchain system
+import toolchain.spec;
 import utils.logging.logger;
 
 /// Convert CppStandard enum to compiler flag

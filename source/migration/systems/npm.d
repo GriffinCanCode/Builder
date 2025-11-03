@@ -69,12 +69,12 @@ final class NpmMigrator : BaseMigrator
             if ("devDependencies" in pkg)
             {
                 auto devDeps = pkg["devDependencies"].object;
-                isTypeScript = "typescript" in devDeps;
+                isTypeScript = ("typescript" in devDeps) !is null;
             }
             if ("dependencies" in pkg)
             {
                 auto deps = pkg["dependencies"].object;
-                if ("typescript" in deps)
+                if (("typescript" in deps) !is null)
                     isTypeScript = true;
             }
             

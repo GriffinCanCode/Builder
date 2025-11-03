@@ -26,7 +26,7 @@ final class RepositoryResolver
     }
     
     /// Register a repository rule
-    Result!RepositoryError registerRule(RepositoryRule rule) @safe
+    Result!RepositoryError registerRule(RepositoryRule rule) @system
     {
         auto validationResult = rule.validate();
         if (validationResult.isErr)
@@ -157,7 +157,7 @@ final class RepositoryResolver
         
         // Build absolute path
         string absolutePath_;
-        if (relativePath.empty)
+        if (relativePath.length == 0)
         {
             absolutePath_ = repo.path;
         }

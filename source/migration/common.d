@@ -31,7 +31,9 @@ struct MigrationTarget
         target.flags = flags.dup;
         target.includes = includes.dup;
         target.outputPath = output;
-        target.env = env.dup;
+        // Create a mutable copy of env
+        foreach (k, v; env)
+            target.env[k] = v;
         return target;
     }
 }
@@ -92,7 +94,11 @@ struct MigrationResult
     {
         import std.algorithm : filter;
         import std.array : array;
-        return warnings.filter!(w => w.level == WarningLevel.Error).array;
+        MigrationWarning[] result;
+        foreach (w; warnings)
+            if (w.level == WarningLevel.Error)
+                result ~= cast(MigrationWarning)w;
+        return result;
     }
     
     /// Add warning

@@ -30,7 +30,7 @@ final class RepositoryCache
     }
     
     /// Get cached repository by name
-    Result!(CachedRepository, RepositoryError) get(string name) @safe
+    Result!(CachedRepository, RepositoryError) get(string name) @system
     {
         auto cached = name in cache;
         if (cached is null)

@@ -9,7 +9,7 @@ import runtime.services.services;
 import runtime.shutdown.shutdown;
 import telemetry;
 import config.parsing.parser;
-import config.constants : VERSION;
+import config.core.constants : VERSION;
 import analysis.inference.analyzer;
 import utils.logging.logger;
 import utils.simd;

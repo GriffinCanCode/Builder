@@ -44,8 +44,7 @@ struct IntegrityVerifier
         {
             // Read file and compute BLAKE3 hash
             auto data = cast(ubyte[])read(filePath);
-            auto actualHash = Blake3.hashData(data);
-            auto actualHex = Blake3.toHex(actualHash).toLower();
+            auto actualHex = Blake3.hashHex(data).toLower();
             auto expectedHex = expectedHash.toLower();
             
             if (actualHex != expectedHex)
@@ -79,8 +78,8 @@ struct IntegrityVerifier
         try
         {
             auto data = cast(ubyte[])read(filePath);
-            auto hash = Blake3.hashData(data);
-            return Result!(string, RepositoryError).ok(Blake3.toHex(hash));
+            auto hash = Blake3.hashHex(data);
+            return Result!(string, RepositoryError).ok(hash);
         }
         catch (Exception e)
         {

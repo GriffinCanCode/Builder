@@ -36,23 +36,23 @@ struct RepositoryRule
     string[string] patches;        // Patches to apply after fetch (name -> content)
     
     /// Validate repository rule
-    Result!RepositoryError validate() const @safe
+    Result!RepositoryError validate() const @system
     {
-        if (name.empty)
+        if (name.length == 0)
             return Result!RepositoryError.err(
-                new RepositoryError("Repository name cannot be empty", ErrorCode.InvalidConfig));
+                new RepositoryError("Repository name cannot be empty", ErrorCode.InvalidConfiguration));
         
-        if (url.empty && kind != RepositoryKind.Local)
+        if (url.length == 0 && kind != RepositoryKind.Local)
             return Result!RepositoryError.err(
-                new RepositoryError("Repository URL is required for " ~ kind.to!string, ErrorCode.InvalidConfig));
+                new RepositoryError("Repository URL is required for " ~ kind.to!string, ErrorCode.InvalidConfiguration));
         
-        if (kind == RepositoryKind.Http && integrity.empty)
+        if (kind == RepositoryKind.Http && integrity.length == 0)
             return Result!RepositoryError.err(
-                new RepositoryError("Integrity hash is required for HTTP repositories", ErrorCode.InvalidConfig));
+                new RepositoryError("Integrity hash is required for HTTP repositories", ErrorCode.InvalidConfiguration));
         
-        if (kind == RepositoryKind.Git && gitCommit.empty && gitTag.empty)
+        if (kind == RepositoryKind.Git && gitCommit.length == 0 && gitTag.length == 0)
             return Result!RepositoryError.err(
-                new RepositoryError("Git commit or tag is required for Git repositories", ErrorCode.InvalidConfig));
+                new RepositoryError("Git commit or tag is required for Git repositories", ErrorCode.InvalidConfiguration));
         
         return Ok!RepositoryError();
     }
@@ -98,7 +98,7 @@ struct ResolvedRepository
     string buildTargetPath(string relativePath, string targetName) const pure @safe
     {
         import std.path : buildPath;
-        if (relativePath.empty)
+        if (relativePath.length == 0)
             return "@" ~ name ~ "//:" ~ targetName;
         return "@" ~ name ~ "//" ~ relativePath ~ ":" ~ targetName;
     }
@@ -120,7 +120,7 @@ final class RepositoryError : BaseBuildError
     
     override ErrorCategory category() const pure nothrow
     {
-        return ErrorCategory.User;
+        return ErrorCategory.Config;
     }
     
     override bool recoverable() const pure nothrow
