@@ -11,6 +11,7 @@ import engine.graph : BuildGraph;
 import engine.distributed.coordinator.coordinator;
 import engine.distributed.coordinator.registry;
 import engine.distributed.protocol.protocol : ActionId, WorkerId;
+import engine.runtime.remote.core.interface_ : IRemoteExecutionService, ServiceStatus;
 import engine.runtime.remote.core.executor;
 import engine.runtime.remote.pool.manager;
 import engine.runtime.remote.protocol.reapi;
@@ -74,7 +75,7 @@ struct RemoteServiceConfig
 ///   │Worker1│        │Worker2│  (Native hermetic sandboxing)
 ///   └───────┘        └───────┘
 ///
-final class RemoteExecutionService
+final class RemoteExecutionService : IRemoteExecutionService
 {
     private RemoteServiceConfig config;
     private Coordinator coordinator;
@@ -324,15 +325,6 @@ final class RemoteExecutionService
             Logger.error("Failed to log final stats: " ~ e.msg);
         }
     }
-}
-
-/// Service status
-struct ServiceStatus
-{
-    bool running;
-    Coordinator.CoordinatorStats coordinatorStats;
-    PoolStats poolStats;
-    ServiceMetrics metrics;
 }
 
 /// Service builder for convenient configuration
