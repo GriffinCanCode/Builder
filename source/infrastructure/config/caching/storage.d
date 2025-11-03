@@ -2,7 +2,8 @@ module infrastructure.config.caching.storage;
 
 import infrastructure.utils.serialization;
 import infrastructure.config.caching.schema;
-import infrastructure.config.workspace.ast;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Location, Expr,
+    ASTField = Field;  // Alias to avoid conflict with serialization.Field
 import infrastructure.errors;
 
 /// High-performance binary serialization for AST nodes
@@ -76,7 +77,7 @@ struct ASTStorage
             cast(size_t)serialTarget.loc.column
         );
         
-        Field[] fields;
+        ASTField[] fields;
         foreach (ref serialField; serialTarget.fields)
         {
             fields ~= reconstructField(serialField);
@@ -86,7 +87,7 @@ struct ASTStorage
     }
     
     /// Reconstruct runtime field from serializable format
-    private static Field reconstructField(ref const SerializableField serialField)
+    private static ASTField reconstructField(ref const SerializableField serialField)
     {
         Location loc = Location(
             serialField.loc.file,
@@ -96,7 +97,7 @@ struct ASTStorage
         
         Expr value = reconstructExpr(serialField.value);
         
-        return Field(serialField.name, value, loc);
+        return ASTField(serialField.name, value, loc);
     }
     
     /// Reconstruct runtime expression from serializable format

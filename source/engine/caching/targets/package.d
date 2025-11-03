@@ -30,4 +30,5 @@ module engine.caching.targets;
 
 public import engine.caching.targets.cache;
 public import engine.caching.targets.storage;
+public import engine.caching.targets.schema;
 

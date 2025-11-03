@@ -1,6 +1,9 @@
 module infrastructure.config.caching.schema;
 
 import infrastructure.utils.serialization;
+import infrastructure.config.workspace.ast : Expr, Literal, LiteralKind, Location,
+    LiteralExpr, IdentExpr, BinaryExpr, UnaryExpr, CallExpr, IndexExpr,
+    SliceExpr, MemberExpr, TernaryExpr, LambdaExpr;
 
 /// Serializable location for AST nodes
 @Serializable(SchemaVersion(1, 0))
@@ -175,8 +178,6 @@ SerializableLiteral toSerializableLiteral(T)(auto ref const T literal) @trusted
 /// Convert from runtime Expr to serializable format
 SerializableExpr toSerializableExpr(Expr expr) @trusted
 {
-    import infrastructure.config.workspace.ast;
-    
     SerializableExpr serializable;
     serializable.loc = toSerializableLocation(expr.location());
     
@@ -287,8 +288,6 @@ SerializableBuildFile toSerializable(T)(auto ref const T buildFile) @trusted
 /// Convert from serializable Literal to runtime Literal
 Literal fromSerializableLiteral(ref const SerializableLiteral serializable) @trusted
 {
-    import infrastructure.config.workspace.ast;
-    
     switch (cast(LiteralKind)serializable.kind)
     {
         case LiteralKind.Null:
@@ -317,8 +316,6 @@ Literal fromSerializableLiteral(ref const SerializableLiteral serializable) @tru
 /// Convert from serializable Expr to runtime Expr
 Expr fromSerializableExpr(ref const SerializableExpr serializable) @trusted
 {
-    import infrastructure.config.workspace.ast;
-    
     Location loc = Location(
         serializable.loc.file,
         cast(size_t)serializable.loc.line,

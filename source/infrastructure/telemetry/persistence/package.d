@@ -10,4 +10,5 @@ module infrastructure.telemetry.persistence;
 /// - TelemetryConfig: Retention and storage configuration
 
 public import infrastructure.telemetry.persistence.storage;
+public import infrastructure.telemetry.persistence.schema;
 

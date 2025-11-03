@@ -215,4 +215,6 @@ public import engine.runtime.remote.service;
 public import engine.runtime.remote.executor;
 public import engine.runtime.remote.pool;
 public import engine.runtime.remote.reapi;
+public import engine.runtime.remote.schema;
+public import engine.runtime.remote.codec;
 

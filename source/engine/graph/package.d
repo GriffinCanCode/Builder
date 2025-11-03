@@ -16,6 +16,7 @@ module engine.graph;
 public import engine.graph.graph;
 public import engine.graph.cache;
 public import engine.graph.storage;
+public import engine.graph.schema;
 public import engine.graph.discovery;
 public import engine.graph.dynamic;
 

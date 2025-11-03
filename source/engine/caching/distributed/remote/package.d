@@ -42,6 +42,7 @@ module engine.caching.distributed.remote;
 /// ```
 
 public import engine.caching.distributed.remote.protocol;
+public import engine.caching.distributed.remote.schema;
 public import engine.caching.distributed.remote.transport;
 public import engine.caching.distributed.remote.client;
 public import engine.caching.distributed.remote.server;

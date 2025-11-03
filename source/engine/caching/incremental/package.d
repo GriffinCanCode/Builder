@@ -35,5 +35,6 @@ module engine.caching.incremental;
 
 public import engine.caching.incremental.dependency;
 public import engine.caching.incremental.storage;
+public import engine.caching.incremental.schema;
 public import engine.caching.incremental.filter;
 

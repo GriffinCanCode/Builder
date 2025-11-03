@@ -27,4 +27,5 @@ module engine.caching.actions;
 
 public import engine.caching.actions.action;
 public import engine.caching.actions.storage;
+public import engine.caching.actions.schema;
 
