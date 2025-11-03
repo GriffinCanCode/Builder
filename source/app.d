@@ -9,15 +9,15 @@ import runtime.services.services;
 import runtime.shutdown.shutdown;
 import telemetry;
 import config.parsing.parser;
+import config.constants : VERSION;
 import analysis.inference.analyzer;
 import utils.logging.logger;
 import utils.simd;
 import errors;
 import cli;
 import cli.commands;
+import cli.display.render : parseRenderMode;
 import tools;
-
-enum VERSION = "1.0.0";
 
 void main(string[] args)
 {
@@ -260,25 +260,6 @@ void buildCommand(in string target, in bool showGraph, in string modeStr, in boo
         import core.stdc.stdlib : exit;
         exit(1);
     }
-}
-
-RenderMode parseRenderMode(in string mode) @system pure
-{
-    import std.string : toLower;
-    import std.uni : sicmp;
-    
-    if (sicmp(mode, "auto") == 0)
-        return RenderMode.Auto;
-    else if (sicmp(mode, "interactive") == 0)
-        return RenderMode.Interactive;
-    else if (sicmp(mode, "plain") == 0)
-        return RenderMode.Plain;
-    else if (sicmp(mode, "verbose") == 0)
-        return RenderMode.Verbose;
-    else if (sicmp(mode, "quiet") == 0)
-        return RenderMode.Quiet;
-    else
-        return RenderMode.Auto; // Default fallback
 }
 
 /// Clean command handler - removes build artifacts and cache

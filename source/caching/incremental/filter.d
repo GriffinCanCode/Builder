@@ -2,6 +2,7 @@ module caching.incremental.filter;
 
 import std.algorithm;
 import std.array;
+import std.conv;
 import caching.incremental.dependency;
 import caching.actions.action;
 import utils.logging.logger;

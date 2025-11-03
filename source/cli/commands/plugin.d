@@ -11,7 +11,7 @@ import plugins;
 import utils.logging.logger;
 import cli.control.terminal;
 import cli.display.format;
-import app : VERSION;
+import config.constants : VERSION;
 
 /// Plugin management command
 struct PluginCommand {

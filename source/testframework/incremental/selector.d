@@ -2,6 +2,7 @@ module testframework.incremental.selector;
 
 import std.algorithm;
 import std.array;
+import std.conv;
 import std.path;
 import caching.incremental.dependency;
 import config.schema.schema;

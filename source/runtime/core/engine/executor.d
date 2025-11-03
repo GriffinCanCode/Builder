@@ -116,7 +116,7 @@ struct EngineExecutor
             buildContext.target = target;
             buildContext.config = config;
             buildContext.simd = simdCaps;
-            buildContext.incrementalEnabled = config.options.incrementalEnabled;
+            buildContext.incrementalEnabled = config.options.incremental;
             buildContext.recorder = (actionId, inputs, outputs, metadata, success) {
                 cache.recordAction(actionId, inputs, outputs, metadata, success);
             };

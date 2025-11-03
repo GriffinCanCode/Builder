@@ -236,7 +236,7 @@ struct TestCommand
         // Shutdown coordinator automatically registered in BuildServices
         
         // Set render mode
-        import app : parseRenderMode;
+        import cli.display.render : parseRenderMode;
         immutable rm = parseRenderMode(renderMode);
         services.setRenderMode(rm);
         

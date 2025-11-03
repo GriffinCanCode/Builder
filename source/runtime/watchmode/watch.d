@@ -210,7 +210,7 @@ final class WatchModeService
             _services = new BuildServices(_config, _config.options);
             
             // Set render mode
-            import app : parseRenderMode;
+            import cli.display.render : parseRenderMode;
             auto renderMode = parseRenderMode(_watchConfig.renderMode);
             _services.setRenderMode(renderMode);
             

@@ -283,6 +283,26 @@ enum RenderMode
     Quiet        // Minimal output
 }
 
+/// Parse render mode string into RenderMode enum
+RenderMode parseRenderMode(in string mode) @system pure
+{
+    import std.string : toLower;
+    import std.uni : sicmp;
+    
+    if (sicmp(mode, "auto") == 0)
+        return RenderMode.Auto;
+    else if (sicmp(mode, "interactive") == 0)
+        return RenderMode.Interactive;
+    else if (sicmp(mode, "plain") == 0)
+        return RenderMode.Plain;
+    else if (sicmp(mode, "verbose") == 0)
+        return RenderMode.Verbose;
+    else if (sicmp(mode, "quiet") == 0)
+        return RenderMode.Quiet;
+    else
+        return RenderMode.Auto; // Default fallback
+}
+
 /// Factory for creating renderers
 struct RendererFactory
 {
