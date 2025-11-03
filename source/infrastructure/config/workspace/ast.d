@@ -666,6 +666,16 @@ struct BuildFile
 }
 
 // ============================================================================
+// TYPE ALIASES (For backward compatibility)
+// ============================================================================
+
+/// Backward compatibility alias
+alias TargetDecl = TargetDeclStmt;
+
+/// Backward compatibility alias
+alias ExpressionValue = Expr;
+
+// ============================================================================
 // VISITORS
 // ============================================================================
 

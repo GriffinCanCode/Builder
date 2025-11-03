@@ -13,10 +13,10 @@ build: build-c
 build-c:
 	@echo "Building C libraries..."
 	@mkdir -p bin/obj
-	@cd source/utils/simd/c && $(MAKE) clean && $(MAKE)
-	@cp source/utils/simd/c/*.o bin/obj/ 2>/dev/null || true
-	@cd source/utils/crypto/c && $(MAKE) clean && $(MAKE)
-	@cp source/utils/crypto/c/*.o bin/obj/ 2>/dev/null || true
+	@cd source/infrastructure/utils/simd/c && $(MAKE) clean && $(MAKE)
+	@cp source/infrastructure/utils/simd/c/*.o bin/obj/ 2>/dev/null || true
+	@cd source/infrastructure/utils/crypto/c && $(MAKE) clean && $(MAKE)
+	@cp source/infrastructure/utils/crypto/c/*.o bin/obj/ 2>/dev/null || true
 	@echo "C libraries built"
 
 # Build LSP server
@@ -67,8 +67,8 @@ clean:
 	@rm -rf bin/
 	@rm -rf .builder-cache/
 	@rm -f *.lst
-	@cd source/utils/simd/c && $(MAKE) clean 2>/dev/null || true
-	@cd source/utils/crypto/c && $(MAKE) clean 2>/dev/null || true
+	@cd source/infrastructure/utils/simd/c && $(MAKE) clean 2>/dev/null || true
+	@cd source/infrastructure/utils/crypto/c && $(MAKE) clean 2>/dev/null || true
 	@find . -name "*.o" -delete
 	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 

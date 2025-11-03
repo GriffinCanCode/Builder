@@ -6,7 +6,7 @@ import std.string;
 import std.conv;
 import frontend.lsp.protocol;
 import frontend.lsp.workspace;
-import infrastructure.config.workspace.ast;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ExpressionValue, ASTLocation = Location;
 import languages.registry : getSupportedLanguageNames;
 
 /// Hover information provider

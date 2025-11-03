@@ -5,7 +5,7 @@ import std.array;
 import std.string;
 import frontend.lsp.protocol;
 import frontend.lsp.index;
-import infrastructure.config.workspace.ast;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
 import infrastructure.config.schema.schema;
 
 /// LSP semantic analyzer for Builderfiles

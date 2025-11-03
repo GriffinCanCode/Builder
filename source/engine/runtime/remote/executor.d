@@ -229,7 +229,7 @@ final class RemoteExecutor
     
     
     /// Submit action to worker via coordinator
-    private Result!(distributed.protocol.protocol.ActionResult, BuildError) 
+    private Result!(engine.distributed.protocol.protocol.ActionResult, BuildError) 
     submitToWorker(ActionRequest request) @trusted
     {
         if (coordinator is null)
@@ -238,7 +238,7 @@ final class RemoteExecutor
                 "Coordinator not initialized",
                 ErrorCode.InternalError
             );
-            return Err!(distributed.protocol.protocol.ActionResult, BuildError)(error);
+            return Err!(engine.distributed.protocol.protocol.ActionResult, BuildError)(error);
         }
         
         // Submit to coordinator
@@ -249,16 +249,16 @@ final class RemoteExecutor
                 "Failed to schedule action: " ~ scheduleResult.unwrapErr().message(),
                 ErrorCode.ActionSchedulingFailed
             );
-            return Err!(distributed.protocol.protocol.ActionResult, BuildError)(error);
+            return Err!(engine.distributed.protocol.protocol.ActionResult, BuildError)(error);
         }
         
         // Wait for completion (would use proper async mechanism)
         // For now, placeholder
-        distributed.protocol.protocol.ActionResult result;
+        engine.distributed.protocol.protocol.ActionResult result;
         result.id = request.id;
         result.status = ResultStatus.Success;
         
-        return Ok!(distributed.protocol.protocol.ActionResult, BuildError)(result);
+        return Ok!(engine.distributed.protocol.protocol.ActionResult, BuildError)(result);
     }
     
     /// Check action cache

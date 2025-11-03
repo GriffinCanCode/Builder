@@ -5,7 +5,7 @@ import std.array;
 import std.string;
 import frontend.lsp.protocol;
 import frontend.lsp.workspace;
-import infrastructure.config.workspace.ast;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, ASTLocation = Location;
 
 /// Go-to-definition provider
 struct DefinitionProvider

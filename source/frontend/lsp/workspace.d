@@ -9,7 +9,7 @@ import std.datetime;
 import frontend.lsp.protocol;
 import frontend.lsp.index;
 import frontend.lsp.analysis;
-import infrastructure.config.workspace.ast;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, Token, ASTLocation = Location;
 import infrastructure.config.parsing.lexer;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;

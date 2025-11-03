@@ -4,7 +4,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import frontend.lsp.protocol;
-import infrastructure.config.workspace.ast;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
 
 /// Symbol information for quick lookups
 struct Symbol
