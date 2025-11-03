@@ -121,8 +121,7 @@ final class HttpTransport : Transport
     private Result!(Envelope!T, DistributedError) receiveGeneric(T)(Duration timeout) @trusted
     {
         if (!isConnected())
-            return Err!(Envelope!T, DistributedError)(
-                new NetworkError("Not connected"));
+            return Err!(Envelope!T, DistributedError)(new NetworkError("Not connected"));
         
         try
         {
@@ -130,8 +129,7 @@ final class HttpTransport : Transport
             ubyte[4] lengthBytes;
             auto received = socket.receive(lengthBytes);
             if (received != 4)
-                return Err!(Envelope!T, DistributedError)(
-                    new NetworkError("Failed to receive length"));
+                return Err!(Envelope!T, DistributedError)(new NetworkError("Failed to receive length"));
             
             immutable length = *cast(uint*)lengthBytes.ptr;
             
@@ -139,16 +137,14 @@ final class HttpTransport : Transport
             auto data = new ubyte[length];
             received = socket.receive(data);
             if (received != length)
-                return Err!(Envelope!T, DistributedError)(
-                    new NetworkError("Failed to receive message"));
+                return Err!(Envelope!T, DistributedError)(new NetworkError("Failed to receive message"));
             
             // Deserialize
             return deserializeMessage!T(data);
         }
         catch (Exception e)
         {
-            return Err!(Envelope!T, DistributedError)(
-                new NetworkError("Failed to receive: " ~ e.msg));
+            return Err!(Envelope!T, DistributedError)(new NetworkError("Failed to receive: " ~ e.msg));
         }
     }
     
@@ -159,24 +155,15 @@ final class HttpTransport : Transport
     }
     
     /// Check if connected
-    bool isConnected() @trusted
-    {
-        return socket !is null && socket.isAlive;
-    }
+    bool isConnected() @trusted => socket !is null && socket.isAlive;
     
     /// Close connection
     void close() @trusted
     {
-        if (socket !is null)
-        {
-            try
-            {
-                socket.shutdown(SocketShutdown.BOTH);
-                socket.close();
-            }
-            catch (Exception) {}
-            socket = null;
-        }
+        if (socket is null) return;
+        try { socket.shutdown(SocketShutdown.BOTH); socket.close(); }
+        catch (Exception) {}
+        socket = null;
     }
     
     /// Binary serialization (efficient, no external dependencies)
@@ -247,8 +234,7 @@ final class HttpTransport : Transport
         import std.datetime : SysTime;
         
         if (data.length < 30)
-            return Err!(Envelope!T, DistributedError)(
-                new NetworkError("Message too short"));
+            return Err!(Envelope!T, DistributedError)(new NetworkError("Message too short"));
         
         try
         {
@@ -296,50 +282,40 @@ final class HttpTransport : Transport
             static if (is(T == ActionRequest))
             {
                 if (payloadType != 1)
-                    return Err!(Envelope!T, DistributedError)(
-                        new NetworkError("Type mismatch: expected ActionRequest"));
+                    return Err!(Envelope!T, DistributedError)(new NetworkError("Type mismatch: expected ActionRequest"));
                 // ActionRequest deserialization is complex, return error for now
-                return Err!(Envelope!T, DistributedError)(
-                    new NetworkError("ActionRequest deserialization not yet implemented"));
+                return Err!(Envelope!T, DistributedError)(new NetworkError("ActionRequest deserialization not yet implemented"));
             }
             else static if (is(T == ActionResult))
             {
                 if (payloadType != 2)
-                    return Err!(Envelope!T, DistributedError)(
-                        new NetworkError("Type mismatch: expected ActionResult"));
+                    return Err!(Envelope!T, DistributedError)(new NetworkError("Type mismatch: expected ActionResult"));
                 auto result = deserializeActionResult(payloadData);
-                if (result.isErr)
-                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                if (result.isErr) return Err!(Envelope!T, DistributedError)(result.unwrapErr());
                 envelope.payload = result.unwrap();
             }
             else static if (is(T == HeartBeat))
             {
                 if (payloadType != 3)
-                    return Err!(Envelope!T, DistributedError)(
-                        new NetworkError("Type mismatch: expected HeartBeat"));
+                    return Err!(Envelope!T, DistributedError)(new NetworkError("Type mismatch: expected HeartBeat"));
                 auto result = deserializeHeartBeat(payloadData);
-                if (result.isErr)
-                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                if (result.isErr) return Err!(Envelope!T, DistributedError)(result.unwrapErr());
                 envelope.payload = result.unwrap();
             }
             else static if (is(T == StealRequest))
             {
                 if (payloadType != 4)
-                    return Err!(Envelope!T, DistributedError)(
-                        new NetworkError("Type mismatch: expected StealRequest"));
+                    return Err!(Envelope!T, DistributedError)(new NetworkError("Type mismatch: expected StealRequest"));
                 auto result = deserializeStealRequest(payloadData);
-                if (result.isErr)
-                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                if (result.isErr) return Err!(Envelope!T, DistributedError)(result.unwrapErr());
                 envelope.payload = result.unwrap();
             }
             else static if (is(T == StealResponse))
             {
                 if (payloadType != 5)
-                    return Err!(Envelope!T, DistributedError)(
-                        new NetworkError("Type mismatch: expected StealResponse"));
+                    return Err!(Envelope!T, DistributedError)(new NetworkError("Type mismatch: expected StealResponse"));
                 auto result = deserializeStealResponse(payloadData);
-                if (result.isErr)
-                    return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                if (result.isErr) return Err!(Envelope!T, DistributedError)(result.unwrapErr());
                 envelope.payload = result.unwrap();
             }
             else
@@ -349,8 +325,7 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!(Envelope!T, DistributedError)(
-                new NetworkError("Deserialization failed: " ~ e.msg));
+            return Err!(Envelope!T, DistributedError)(new NetworkError("Deserialization failed: " ~ e.msg));
         }
     }
     
@@ -395,8 +370,7 @@ final class HttpTransport : Transport
         import std.datetime : msecs;
         
         if (data.length < 32)
-            return Err!(ActionResult, DistributedError)(
-                new NetworkError("ActionResult data too short"));
+            return Err!(ActionResult, DistributedError)(new NetworkError("ActionResult data too short"));
         
         try
         {
@@ -461,8 +435,7 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!(ActionResult, DistributedError)(
-                new NetworkError("Failed to deserialize ActionResult: " ~ e.msg));
+            return Err!(ActionResult, DistributedError)(new NetworkError("Failed to deserialize ActionResult: " ~ e.msg));
         }
     }
     
@@ -491,8 +464,7 @@ final class HttpTransport : Transport
         import std.datetime : SysTime;
         
         if (data.length < 41)
-            return Err!(HeartBeat, DistributedError)(
-                new NetworkError("HeartBeat data too short"));
+            return Err!(HeartBeat, DistributedError)(new NetworkError("HeartBeat data too short"));
         
         try
         {
@@ -528,8 +500,7 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!(HeartBeat, DistributedError)(
-                new NetworkError("Failed to deserialize HeartBeat: " ~ e.msg));
+            return Err!(HeartBeat, DistributedError)(new NetworkError("Failed to deserialize HeartBeat: " ~ e.msg));
         }
     }
     
@@ -552,8 +523,7 @@ final class HttpTransport : Transport
         import std.bitmanip : read;
         
         if (data.length < 17)
-            return Err!(StealRequest, DistributedError)(
-                new NetworkError("StealRequest data too short"));
+            return Err!(StealRequest, DistributedError)(new NetworkError("StealRequest data too short"));
         
         try
         {
@@ -574,8 +544,7 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!(StealRequest, DistributedError)(
-                new NetworkError("Failed to deserialize StealRequest: " ~ e.msg));
+            return Err!(StealRequest, DistributedError)(new NetworkError("Failed to deserialize StealRequest: " ~ e.msg));
         }
     }
     
@@ -601,8 +570,7 @@ final class HttpTransport : Transport
         import std.bitmanip : read;
         
         if (data.length < 17)
-            return Err!(StealResponse, DistributedError)(
-                new NetworkError("StealResponse data too short"));
+            return Err!(StealResponse, DistributedError)(new NetworkError("StealResponse data too short"));
         
         try
         {
@@ -629,8 +597,7 @@ final class HttpTransport : Transport
         }
         catch (Exception e)
         {
-            return Err!(StealResponse, DistributedError)(
-                new NetworkError("Failed to deserialize StealResponse: " ~ e.msg));
+            return Err!(StealResponse, DistributedError)(new NetworkError("Failed to deserialize StealResponse: " ~ e.msg));
         }
     }
     
@@ -655,31 +622,18 @@ final class TransportFactory
     static Result!(Transport, DistributedError) create(string url) @system
     {
         // Parse URL (simplified)
-        if (url.startsWith("http://"))
-        {
-            auto parts = url[7 .. $].split(":");
-            if (parts.length != 2)
-                return Err!(Transport, DistributedError)(
-                    new DistributedError("Invalid URL format"));
-            
-            immutable host = parts[0];
-            immutable port = parts[1].to!ushort;
-            
-            auto transport = new HttpTransport(host, port);
-            auto connectResult = transport.connect();
-            
-            if (connectResult.isErr)
-                return Err!(Transport, DistributedError)(connectResult.unwrapErr());
-            
-            return Ok!(Transport, DistributedError)(cast(Transport)transport);
-        }
-        else
-        {
-            return Err!(Transport, DistributedError)(
-                new DistributedError("Unsupported transport protocol"));
-        }
+        if (!url.startsWith("http://"))
+            return Err!(Transport, DistributedError)(new DistributedError("Unsupported transport protocol"));
+        
+        auto parts = url[7 .. $].split(":");
+        if (parts.length != 2)
+            return Err!(Transport, DistributedError)(new DistributedError("Invalid URL format"));
+        
+        auto transport = new HttpTransport(parts[0], parts[1].to!ushort);
+        auto connectResult = transport.connect();
+        if (connectResult.isErr)
+            return Err!(Transport, DistributedError)(connectResult.unwrapErr());
+        
+        return Ok!(Transport, DistributedError)(cast(Transport)transport);
     }
 }
-
-
-

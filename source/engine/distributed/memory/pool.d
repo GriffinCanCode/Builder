@@ -61,8 +61,7 @@ template ObjectPool(T)
         /// Release object back to pool
         void release(T obj) @trusted
         {
-            if (obj is null)
-                return;
+            if (obj is null) return;
             
             // Reset object state
             static if (__traits(hasMember, T, "reset"))
@@ -71,9 +70,7 @@ template ObjectPool(T)
             synchronized (mutex)
             {
                 if (available.length < maxSize)
-                {
                     available ~= obj;
-                }
                 // else: let it be GC'd
             }
             
@@ -96,27 +93,20 @@ template ObjectPool(T)
             }
         }
         
-        /// Get pool statistics
-        struct PoolStats
-        {
-            size_t available;
-            size_t totalCreated;
-            size_t currentlyActive;
-            size_t maxSize;
-        }
-        
-        PoolStats getStats() @trusted
-        {
-            synchronized (mutex)
-            {
-                return PoolStats(
-                    available.length,
-                    atomicLoad(totalCreated),
-                    atomicLoad(currentlyActive),
-                    maxSize
-                );
-            }
-        }
+    /// Get pool statistics
+    struct PoolStats
+    {
+        size_t available;
+        size_t totalCreated;
+        size_t currentlyActive;
+        size_t maxSize;
+    }
+    
+    PoolStats getStats() @trusted
+    {
+        synchronized (mutex) return PoolStats(available.length, atomicLoad(totalCreated), 
+                                              atomicLoad(currentlyActive), maxSize);
+    }
         
         private:
         
@@ -155,16 +145,11 @@ struct Pooled(T)
     ~this() @trusted
     {
         if (pool !is null && obj !is null)
-        {
             pool.release(obj);
-        }
     }
     
     /// Get underlying object
-    T get() @safe nothrow @nogc
-    {
-        return obj;
-    }
+    T get() @safe nothrow @nogc => obj;
     
     /// Convenience: forward to object
     alias get this;
@@ -210,8 +195,7 @@ final class BufferPool
     /// Release buffer back to pool
     void release(ubyte[] buffer) @trusted
     {
-        if (buffer is null || buffer.length != bufferSize)
-            return;
+        if (buffer is null || buffer.length != bufferSize) return;
         
         // Zero out buffer (security)
         buffer[] = 0;
@@ -219,9 +203,7 @@ final class BufferPool
         synchronized (mutex)
         {
             if (available.length < maxBuffers)
-            {
                 available ~= buffer;
-            }
         }
     }
     
@@ -252,18 +234,7 @@ final class BufferPool
     
     PoolStats getStats() @trusted
     {
-        synchronized (mutex)
-        {
-            return PoolStats(
-                available.length,
-                atomicLoad(totalCreated),
-                bufferSize,
-                maxBuffers,
-                atomicLoad(totalCreated) * bufferSize
-            );
-        }
+        immutable created = atomicLoad(totalCreated);
+        synchronized (mutex) return PoolStats(available.length, created, bufferSize, maxBuffers, created * bufferSize);
     }
 }
-
-
-

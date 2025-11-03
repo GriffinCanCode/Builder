@@ -88,19 +88,15 @@ ubyte[] serializeRegistration(WorkerRegistration reg) @trusted
 Result!(WorkerRegistration, DistributedError) deserializeRegistration(const ubyte[] data) @system
 {
     auto result = Codec.deserialize!SerializableWorkerRegistration(cast(ubyte[])data);
-    
     if (result.isErr)
-        return Err!(WorkerRegistration, DistributedError)(
-            new NetworkError("Failed to deserialize registration: " ~ result.unwrapErr()));
+        return Err!(WorkerRegistration, DistributedError)(new NetworkError("Failed to deserialize registration: " ~ result.unwrapErr()));
     
     auto serializable = result.unwrap();
-    
-    WorkerRegistration reg;
-    reg.address = cast(string)serializable.address;
-    reg.capabilities = fromSerializableCapabilities!Capabilities(serializable.capabilities);
-    reg.metrics = fromSerializableMetrics!SystemMetrics(serializable.metrics);
-    
-    return Ok!(WorkerRegistration, DistributedError)(reg);
+    return Ok!(WorkerRegistration, DistributedError)(WorkerRegistration(
+        cast(string)serializable.address,
+        fromSerializableCapabilities!Capabilities(serializable.capabilities),
+        fromSerializableMetrics!SystemMetrics(serializable.metrics)
+    ));
 }
 
 /// Serialize WorkRequest using high-performance Codec
@@ -117,18 +113,14 @@ ubyte[] serializeWorkRequest(WorkRequest req) @trusted
 Result!(WorkRequest, DistributedError) deserializeWorkRequest(const ubyte[] data) @system
 {
     auto result = Codec.deserialize!SerializableWorkRequest(cast(ubyte[])data);
-    
     if (result.isErr)
-        return Err!(WorkRequest, DistributedError)(
-            new NetworkError("Failed to deserialize WorkRequest: " ~ result.unwrapErr()));
+        return Err!(WorkRequest, DistributedError)(new NetworkError("Failed to deserialize WorkRequest: " ~ result.unwrapErr()));
     
     auto serializable = result.unwrap();
-    
-    WorkRequest req;
-    req.worker = WorkerId(serializable.workerId);
-    req.desiredBatchSize = cast(size_t)serializable.desiredBatchSize;
-    
-    return Ok!(WorkRequest, DistributedError)(req);
+    return Ok!(WorkRequest, DistributedError)(WorkRequest(
+        WorkerId(serializable.workerId),
+        cast(size_t)serializable.desiredBatchSize
+    ));
 }
 
 /// Serialize PeerDiscoveryRequest using high-performance Codec
@@ -144,17 +136,10 @@ ubyte[] serializePeerDiscoveryRequest(PeerDiscoveryRequest req) @trusted
 Result!(PeerDiscoveryRequest, DistributedError) deserializePeerDiscoveryRequest(const ubyte[] data) @system
 {
     auto result = Codec.deserialize!SerializablePeerDiscoveryRequest(cast(ubyte[])data);
-    
     if (result.isErr)
-        return Err!(PeerDiscoveryRequest, DistributedError)(
-            new NetworkError("Failed to deserialize PeerDiscoveryRequest: " ~ result.unwrapErr()));
+        return Err!(PeerDiscoveryRequest, DistributedError)(new NetworkError("Failed to deserialize PeerDiscoveryRequest: " ~ result.unwrapErr()));
     
-    auto serializable = result.unwrap();
-    
-    PeerDiscoveryRequest req;
-    req.worker = WorkerId(serializable.workerId);
-    
-    return Ok!(PeerDiscoveryRequest, DistributedError)(req);
+    return Ok!(PeerDiscoveryRequest, DistributedError)(PeerDiscoveryRequest(WorkerId(result.unwrap().workerId)));
 }
 
 /// Serialize PeerDiscoveryResponse using high-performance Codec
@@ -178,27 +163,21 @@ ubyte[] serializePeerDiscoveryResponse(PeerDiscoveryResponse resp) @trusted
 /// Deserialize PeerDiscoveryResponse using high-performance Codec
 Result!(PeerDiscoveryResponse, DistributedError) deserializePeerDiscoveryResponse(const ubyte[] data) @system
 {
+    import std.algorithm : map;
+    import std.array : array;
+    
     auto result = Codec.deserialize!SerializablePeerDiscoveryResponse(cast(ubyte[])data);
-    
     if (result.isErr)
-        return Err!(PeerDiscoveryResponse, DistributedError)(
-            new NetworkError("Failed to deserialize PeerDiscoveryResponse: " ~ result.unwrapErr()));
+        return Err!(PeerDiscoveryResponse, DistributedError)(new NetworkError("Failed to deserialize PeerDiscoveryResponse: " ~ result.unwrapErr()));
     
-    auto serializable = result.unwrap();
+    auto peers = result.unwrap().peers.map!(e => PeerEntry(
+        WorkerId(e.workerId),
+        cast(string)e.address,
+        cast(size_t)e.queueDepth,
+        e.loadFactor
+    )).array;
     
-    PeerDiscoveryResponse resp;
-    
-    foreach (ref entry; serializable.peers)
-    {
-        PeerEntry peer;
-        peer.id = WorkerId(entry.workerId);
-        peer.address = cast(string)entry.address;
-        peer.queueDepth = cast(size_t)entry.queueDepth;
-        peer.loadFactor = entry.loadFactor;
-        resp.peers ~= peer;
-    }
-    
-    return Ok!(PeerDiscoveryResponse, DistributedError)(resp);
+    return Ok!(PeerDiscoveryResponse, DistributedError)(PeerDiscoveryResponse(peers));
 }
 
 /// Serialize PeerAnnounce using high-performance Codec
@@ -217,20 +196,13 @@ ubyte[] serializePeerAnnounce(PeerAnnounce announce) @trusted
 Result!(PeerAnnounce, DistributedError) deserializePeerAnnounce(const ubyte[] data) @system
 {
     auto result = Codec.deserialize!SerializablePeerAnnounce(cast(ubyte[])data);
-    
     if (result.isErr)
-        return Err!(PeerAnnounce, DistributedError)(
-            new NetworkError("Failed to deserialize PeerAnnounce: " ~ result.unwrapErr()));
+        return Err!(PeerAnnounce, DistributedError)(new NetworkError("Failed to deserialize PeerAnnounce: " ~ result.unwrapErr()));
     
-    auto serializable = result.unwrap();
-    
-    PeerAnnounce announce;
-    announce.worker = WorkerId(serializable.workerId);
-    announce.address = cast(string)serializable.address;
-    announce.queueDepth = cast(size_t)serializable.queueDepth;
-    announce.loadFactor = serializable.loadFactor;
-    
-    return Ok!(PeerAnnounce, DistributedError)(announce);
+    auto s = result.unwrap();
+    return Ok!(PeerAnnounce, DistributedError)(PeerAnnounce(
+        WorkerId(s.workerId), cast(string)s.address, cast(size_t)s.queueDepth, s.loadFactor
+    ));
 }
 
 /// Serialize PeerMetricsUpdate using high-performance Codec
@@ -249,18 +221,11 @@ ubyte[] serializePeerMetricsUpdate(PeerMetricsUpdate update) @trusted
 Result!(PeerMetricsUpdate, DistributedError) deserializePeerMetricsUpdate(const ubyte[] data) @system
 {
     auto result = Codec.deserialize!SerializablePeerMetricsUpdate(cast(ubyte[])data);
-    
     if (result.isErr)
-        return Err!(PeerMetricsUpdate, DistributedError)(
-            new NetworkError("Failed to deserialize PeerMetricsUpdate: " ~ result.unwrapErr()));
+        return Err!(PeerMetricsUpdate, DistributedError)(new NetworkError("Failed to deserialize PeerMetricsUpdate: " ~ result.unwrapErr()));
     
-    auto serializable = result.unwrap();
-    
-    PeerMetricsUpdate update;
-    update.worker = WorkerId(serializable.workerId);
-    update.queueDepth = cast(size_t)serializable.queueDepth;
-    update.loadFactor = serializable.loadFactor;
-    update.activeActions = cast(size_t)serializable.activeActions;
-    
-    return Ok!(PeerMetricsUpdate, DistributedError)(update);
+    auto s = result.unwrap();
+    return Ok!(PeerMetricsUpdate, DistributedError)(PeerMetricsUpdate(
+        WorkerId(s.workerId), cast(size_t)s.queueDepth, s.loadFactor, cast(size_t)s.activeActions
+    ));
 }

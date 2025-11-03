@@ -309,7 +309,6 @@ struct StealStats
     }
 }
 
-/// Per-peer metrics
 struct PeerMetrics
 {
     size_t attempts;
@@ -319,20 +318,14 @@ struct PeerMetrics
     size_t rejections;
     long totalLatencyUs;
     
-    /// Success rate for this peer
-    float successRate() const pure @safe nothrow @nogc
-    {
-        if (attempts == 0)
-            return 0.0;
-        return cast(float)successes / attempts;
+    float successRate() const pure @safe nothrow @nogc 
+    { 
+        return attempts == 0 ? 0.0 : cast(float)successes / attempts; 
     }
     
-    /// Average latency for this peer
-    long avgLatencyUs() const pure @safe nothrow @nogc
-    {
-        if (successes == 0)
-            return 0;
-        return totalLatencyUs / successes;
+    long avgLatencyUs() const pure @safe nothrow @nogc 
+    { 
+        return successes == 0 ? 0 : totalLatencyUs / successes; 
     }
 }
 

@@ -74,11 +74,7 @@ final class LocalArtifactStore : ArtifactStore
     
     Result!(bool, DistributedError) has(ArtifactId id) @trusted
     {
-        synchronized (mutex)
-        {
-            immutable path = artifactPath(id);
-            return Ok!(bool, DistributedError)(exists(path));
-        }
+        synchronized (mutex) return Ok!(bool, DistributedError)(exists(artifactPath(id)));
     }
     
     Result!(ubyte[], DistributedError) get(ArtifactId id) @trusted
@@ -86,25 +82,20 @@ final class LocalArtifactStore : ArtifactStore
         synchronized (mutex)
         {
             immutable path = artifactPath(id);
-            
             if (!exists(path))
-                return Err!(ubyte[], DistributedError)(
-                    new DistributedError("Artifact not found: " ~ id.toString()));
+                return Err!(ubyte[], DistributedError)(new DistributedError("Artifact not found: " ~ id.toString()));
             
             try
             {
                 auto data = cast(ubyte[])read(path);
-                
                 // Update access time (LRU)
                 if (auto entry = id in entries)
                     entry.lastAccess = Clock.currTime;
-                
                 return Ok!(ubyte[], DistributedError)(data);
             }
             catch (Exception e)
             {
-                return Err!(ubyte[], DistributedError)(
-                    new DistributedError("Failed to read artifact: " ~ e.msg));
+                return Err!(ubyte[], DistributedError)(new DistributedError("Failed to read artifact: " ~ e.msg));
             }
         }
     }
@@ -191,19 +182,15 @@ final class LocalArtifactStore : ArtifactStore
         return Ok!(ubyte[][], DistributedError)(results);
     }
     
-    /// Compute artifact ID from content
     private ArtifactId computeArtifactId(const ubyte[] data) @trusted
     {
         import infrastructure.utils.files.hash : FastHash;
-        auto hash = FastHash.compute(data);
-        return ArtifactId(cast(ubyte[])hash);
+        return ArtifactId(cast(ubyte[])FastHash.compute(data));
     }
     
-    /// Get filesystem path for artifact
     private string artifactPath(ArtifactId id) @safe
     {
-        immutable idStr = id.toString();
-        // Use first 2 chars as subdirectory (256-way split)
+        auto idStr = id.toString();
         return buildPath(cacheDir, idStr[0 .. 2], idStr);
     }
     
@@ -342,9 +329,7 @@ final class LocalArtifactStore : ArtifactStore
         }
         
         if (freed < needed)
-            return Result!DistributedError.err(
-                new DistributedError("Failed to evict enough space"));
-        
+            return Result!DistributedError.err(new DistributedError("Failed to evict enough space"));
         return Result!DistributedError.ok();
     }
 }
@@ -420,8 +405,7 @@ final class TieredArtifactStore : ArtifactStore
             }
         }
         
-        return Err!(ubyte[], DistributedError)(
-            new DistributedError("Artifact not found in any tier: " ~ id.toString()));
+        return Err!(ubyte[], DistributedError)(new DistributedError("Artifact not found in any tier: " ~ id.toString()));
     }
     
     Result!(ArtifactId, DistributedError) put(ubyte[] data) @trusted
@@ -464,6 +448,3 @@ final class TieredArtifactStore : ArtifactStore
         return Ok!(ubyte[][], DistributedError)(results);
     }
 }
-
-
-
