@@ -221,20 +221,7 @@ struct WorkerCommunication
     }
     
     /// Calculate current load factor
-    float calculateLoadFactor(
-        size_t queueSize,
-        size_t queueCapacity,
-        WorkerState state,
-        size_t maxConcurrentActions
-    ) @trusted nothrow
-    {
-        immutable queueLoad = cast(float)queueSize / queueCapacity;
-        
-        immutable executing = state == WorkerState.Executing ? 1 : 0;
-        immutable executionLoad = cast(float)executing / maxConcurrentActions;
-        
-        // Weighted average
-        return queueLoad * 0.7 + executionLoad * 0.3;
-    }
+    float calculateLoadFactor(size_t queueSize, size_t queueCapacity, WorkerState state, size_t maxConcurrentActions) @trusted nothrow => 
+        cast(float)queueSize / queueCapacity * 0.7 + cast(float)(state == WorkerState.Executing) / maxConcurrentActions * 0.3;
 }
 

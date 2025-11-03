@@ -100,14 +100,8 @@ Result!(WorkerRegistration, DistributedError) deserializeRegistration(const ubyt
 }
 
 /// Serialize WorkRequest using high-performance Codec
-ubyte[] serializeWorkRequest(WorkRequest req) @trusted
-{
-    SerializableWorkRequest serializable;
-    serializable.workerId = req.worker.value;
-    serializable.desiredBatchSize = req.desiredBatchSize;
-    
-    return Codec.serialize(serializable);
-}
+ubyte[] serializeWorkRequest(WorkRequest req) @trusted =>
+    Codec.serialize(SerializableWorkRequest(req.worker.value, req.desiredBatchSize));
 
 /// Deserialize WorkRequest using high-performance Codec
 Result!(WorkRequest, DistributedError) deserializeWorkRequest(const ubyte[] data) @system
@@ -124,13 +118,8 @@ Result!(WorkRequest, DistributedError) deserializeWorkRequest(const ubyte[] data
 }
 
 /// Serialize PeerDiscoveryRequest using high-performance Codec
-ubyte[] serializePeerDiscoveryRequest(PeerDiscoveryRequest req) @trusted
-{
-    SerializablePeerDiscoveryRequest serializable;
-    serializable.workerId = req.worker.value;
-    
-    return Codec.serialize(serializable);
-}
+ubyte[] serializePeerDiscoveryRequest(PeerDiscoveryRequest req) @trusted =>
+    Codec.serialize(SerializablePeerDiscoveryRequest(req.worker.value));
 
 /// Deserialize PeerDiscoveryRequest using high-performance Codec
 Result!(PeerDiscoveryRequest, DistributedError) deserializePeerDiscoveryRequest(const ubyte[] data) @system
@@ -181,16 +170,9 @@ Result!(PeerDiscoveryResponse, DistributedError) deserializePeerDiscoveryRespons
 }
 
 /// Serialize PeerAnnounce using high-performance Codec
-ubyte[] serializePeerAnnounce(PeerAnnounce announce) @trusted
-{
-    SerializablePeerAnnounce serializable;
-    serializable.workerId = announce.worker.value;
-    serializable.address = announce.address;
-    serializable.queueDepth = announce.queueDepth;
-    serializable.loadFactor = announce.loadFactor;
-    
-    return Codec.serialize(serializable);
-}
+ubyte[] serializePeerAnnounce(PeerAnnounce announce) @trusted =>
+    Codec.serialize(SerializablePeerAnnounce(
+        announce.worker.value, announce.address, announce.queueDepth, announce.loadFactor));
 
 /// Deserialize PeerAnnounce using high-performance Codec
 Result!(PeerAnnounce, DistributedError) deserializePeerAnnounce(const ubyte[] data) @system
@@ -206,16 +188,9 @@ Result!(PeerAnnounce, DistributedError) deserializePeerAnnounce(const ubyte[] da
 }
 
 /// Serialize PeerMetricsUpdate using high-performance Codec
-ubyte[] serializePeerMetricsUpdate(PeerMetricsUpdate update) @trusted
-{
-    SerializablePeerMetricsUpdate serializable;
-    serializable.workerId = update.worker.value;
-    serializable.queueDepth = update.queueDepth;
-    serializable.loadFactor = update.loadFactor;
-    serializable.activeActions = update.activeActions;
-    
-    return Codec.serialize(serializable);
-}
+ubyte[] serializePeerMetricsUpdate(PeerMetricsUpdate update) @trusted =>
+    Codec.serialize(SerializablePeerMetricsUpdate(
+        update.worker.value, update.queueDepth, update.loadFactor, update.activeActions));
 
 /// Deserialize PeerMetricsUpdate using high-performance Codec
 Result!(PeerMetricsUpdate, DistributedError) deserializePeerMetricsUpdate(const ubyte[] data) @system

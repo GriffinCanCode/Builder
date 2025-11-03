@@ -151,40 +151,23 @@ final class Coordinator
     /// Select best worker considering load and work-stealing
     private Result!(WorkerId, DistributedError) selectBestWorker(Capabilities caps) @trusted
     {
-        // Try regular worker selection first
         auto workerResult = registry.selectWorker(caps);
-        if (workerResult.isErr)
+        if (workerResult.isErr || !config.enableWorkStealing || peerRegistry is null)
             return workerResult;
         
-        // If work-stealing is enabled, consider peer metrics
-        if (config.enableWorkStealing && peerRegistry !is null)
+        // Check if selected worker is overloaded and find alternative
+        auto workerId = workerResult.unwrap();
+        auto peerResult = peerRegistry.getPeer(workerId);
+        
+        if (peerResult.isOk && atomicLoad(peerResult.unwrap().loadFactor) > 0.8)
         {
-            auto workerId = workerResult.unwrap();
-            auto peerResult = peerRegistry.getPeer(workerId);
-            
-            if (peerResult.isOk)
+            // Find less loaded peer
+            foreach (p; peerRegistry.getAlivePeers())
             {
-                auto peer = peerResult.unwrap();
-                immutable load = atomicLoad(peer.loadFactor);
-                
-                // If worker is overloaded, try to find a less loaded one
-                if (load > 0.8)
+                if (atomicLoad(p.loadFactor) < 0.5 && registry.getWorker(p.id).isOk)
                 {
-                    // Scan for less loaded peer
-                    auto peers = peerRegistry.getAlivePeers();
-                    foreach (p; peers)
-                    {
-                        if (atomicLoad(p.loadFactor) < 0.5)
-                        {
-                            // Check if this peer has compatible capabilities
-                            auto altWorker = registry.getWorker(p.id);
-                            if (altWorker.isOk)
-                            {
-                                Logger.debugLog("Redirecting work to less loaded peer");
-                                return Ok!(WorkerId, DistributedError)(p.id);
-                            }
-                        }
-                    }
+                    Logger.debugLog("Redirecting work to less loaded peer");
+                    return Ok!(WorkerId, DistributedError)(p.id);
                 }
             }
         }
