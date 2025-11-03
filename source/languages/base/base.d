@@ -13,14 +13,20 @@ import errors;
 /// Allows language handlers to report individual actions to the executor
 alias ActionRecorder = void delegate(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success);
 
-/// Build context with action-level caching support
+/// Dependency recording callback for incremental compilation
+/// Allows language handlers to report file-level dependencies
+alias DependencyRecorder = void delegate(string sourceFile, string[] dependencies);
+
+/// Build context with action-level caching and incremental compilation support
 /// Extended to include SIMD capabilities for hardware-accelerated operations
 struct BuildContext
 {
     Target target;
     WorkspaceConfig config;
-    ActionRecorder recorder;  // Optional action recorder
-    SIMDCapabilities simd;    // SIMD capabilities (null if not available)
+    ActionRecorder recorder;         // Optional action recorder
+    DependencyRecorder depRecorder;  // Optional dependency recorder
+    SIMDCapabilities simd;           // SIMD capabilities (null if not available)
+    bool incrementalEnabled;         // Whether incremental compilation is enabled
     
     /// Record an action for fine-grained caching
     void recordAction(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success)
@@ -29,10 +35,23 @@ struct BuildContext
             recorder(actionId, inputs, outputs, metadata, success);
     }
     
+    /// Record dependencies for incremental compilation
+    void recordDependencies(string sourceFile, string[] dependencies)
+    {
+        if (depRecorder !is null && incrementalEnabled)
+            depRecorder(sourceFile, dependencies);
+    }
+    
     /// Check if SIMD acceleration is available
     bool hasSIMD() const pure nothrow
     {
         return simd !is null && simd.active;
+    }
+    
+    /// Check if incremental compilation is enabled
+    bool hasIncremental() const pure nothrow
+    {
+        return incrementalEnabled && depRecorder !is null;
     }
 }
 

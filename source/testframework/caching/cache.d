@@ -11,6 +11,8 @@ import core.sync.mutex : Mutex;
 import testframework.results : TestResult, TestCase;
 import testframework.caching.storage : TestCacheStorage, StorageEntry = TestCacheEntry;
 import caching.policies.eviction : EvictionPolicy;
+import caching.incremental.dependency : DependencyCache;
+import testframework.incremental.selector : IncrementalTestSelector;
 import utils.logging.logger;
 
 /// Test cache configuration
@@ -36,7 +38,7 @@ struct TestCacheEntry
 }
 
 /// Multi-level test result cache
-/// Integrates with existing ActionCache infrastructure
+/// Integrates with ActionCache and incremental test selection
 final class TestCache
 {
     private string cacheDir;
@@ -46,6 +48,7 @@ final class TestCache
     private Mutex mutex;
     private bool dirty;
     private EvictionPolicy evictionPolicy;
+    private IncrementalTestSelector selector;
     
     // Statistics
     private size_t hits;
@@ -65,6 +68,10 @@ final class TestCache
             config.maxEntries,
             cast(size_t)config.maxAge.total!"days"
         );
+        
+        // Initialize incremental test selector
+        auto depCache = new DependencyCache(buildPath(cacheDir, "test-deps"));
+        this.selector = new IncrementalTestSelector(depCache);
         
         if (!exists(cacheDir))
             mkdirRecurse(cacheDir);

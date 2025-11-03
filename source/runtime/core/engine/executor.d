@@ -111,13 +111,18 @@ struct EngineExecutor
             auto compileSpan = observability.startSpan("compile", SpanKind.Internal, targetSpan);
             observability.setSpanAttribute(compileSpan, "target.sources_count", target.sources.length.to!string);
             
-            // Create build context with action recorder and SIMD capabilities
+            // Create build context with action recorder, SIMD, and incremental support
             BuildContext buildContext;
             buildContext.target = target;
             buildContext.config = config;
             buildContext.simd = simdCaps;
+            buildContext.incrementalEnabled = config.options.incrementalEnabled;
             buildContext.recorder = (actionId, inputs, outputs, metadata, success) {
                 cache.recordAction(actionId, inputs, outputs, metadata, success);
+            };
+            buildContext.depRecorder = (sourceFile, dependencies) {
+                // Dependency recording handled by language handlers
+                Logger.debugLog("Dependencies recorded for " ~ sourceFile);
             };
             
             // Execute with retry logic

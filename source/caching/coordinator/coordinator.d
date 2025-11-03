@@ -6,6 +6,8 @@ import std.conv : to;
 import core.sync.mutex : Mutex;
 import caching.targets.cache : BuildCache, CacheConfig;
 import caching.actions.action : ActionCache, ActionCacheConfig, ActionId;
+import caching.incremental.dependency : DependencyCache;
+import caching.incremental.filter : IncrementalFilter;
 import caching.distributed.remote.client : RemoteCacheClient;
 import caching.distributed.remote.protocol : RemoteCacheConfig;
 import caching.storage : ContentAddressableStorage, CacheGarbageCollector;
@@ -17,6 +19,7 @@ import utils.logging.logger;
 /// Unified cache coordinator orchestrating all caching tiers
 /// Single source of truth for cache operations with:
 /// - Multi-tier caching (local target, action, remote)
+/// - Incremental compilation and smart filtering
 /// - Content-addressable storage with deduplication
 /// - Automatic garbage collection
 /// - Event emission for telemetry integration
@@ -24,6 +27,8 @@ final class CacheCoordinator
 {
     private BuildCache targetCache;
     private ActionCache actionCache;
+    private DependencyCache depCache;
+    private IncrementalFilter filter;
     private RemoteCacheClient remoteCache;
     private ContentAddressableStorage cas;
     private CacheGarbageCollector gc;
@@ -51,6 +56,12 @@ final class CacheCoordinator
         // Initialize action cache
         auto actionConfig = ActionCacheConfig.fromEnvironment();
         this.actionCache = new ActionCache(cacheDir ~ "/actions", actionConfig);
+        
+        // Initialize dependency cache for incremental compilation
+        this.depCache = new DependencyCache(cacheDir ~ "/incremental");
+        
+        // Initialize smart filter
+        this.filter = IncrementalFilter.create(depCache, actionCache);
         
         // Initialize remote cache if configured
         auto remoteConfig = RemoteCacheConfig.fromEnvironment();
@@ -465,6 +476,24 @@ final class CacheCoordinator
             publisher.publish(event);
         }
         catch (Exception) {}
+    }
+    
+    /// Get action cache
+    ActionCache getActionCache() @system
+    {
+        return actionCache;
+    }
+    
+    /// Get dependency cache
+    DependencyCache getDependencyCache() @system
+    {
+        return depCache;
+    }
+    
+    /// Get incremental filter
+    IncrementalFilter getFilter() @system
+    {
+        return filter;
     }
 }
 
