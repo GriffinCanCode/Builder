@@ -5,7 +5,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import std.datetime.stopwatch;
-import engine.graph.graph;
+import engine.graph;
 import infrastructure.config.schema.schema;
 import languages.base.base;
 import engine.runtime.services;

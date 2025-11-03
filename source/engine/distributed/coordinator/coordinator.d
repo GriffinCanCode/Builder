@@ -8,7 +8,7 @@ import std.conv : to;
 import core.thread : Thread;
 import core.atomic;
 import core.sync.mutex : Mutex;
-import engine.graph.graph : BuildGraph;
+import engine.graph : BuildGraph;
 import engine.distributed.protocol.protocol;
 import engine.distributed.protocol.messages;
 import engine.distributed.coordinator.registry;

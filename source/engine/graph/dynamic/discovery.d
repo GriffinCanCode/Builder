@@ -1,11 +1,11 @@
-module engine.graph.discovery;
+module engine.graph.dynamic.discovery;
 
 import std.array;
 import std.algorithm;
 import std.conv;
 import core.sync.mutex;
 import infrastructure.config.schema.schema;
-import engine.graph.graph;
+import engine.graph.core.graph;
 import infrastructure.errors;
 
 /// Discovery metadata emitted by actions during execution

@@ -9,7 +9,7 @@ import std.string;
 import std.conv;
 import languages.base.base;
 import infrastructure.config.schema.schema;
-import engine.graph.discovery;
+import engine.graph;
 import infrastructure.analysis.targets.types;
 import infrastructure.utils.logging.logger;
 import infrastructure.utils.files.hash;

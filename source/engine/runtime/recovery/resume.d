@@ -6,7 +6,7 @@ import std.array;
 import std.conv;
 import std.datetime;
 import std.range;
-import engine.graph.graph;
+import engine.graph;
 import engine.runtime.recovery.checkpoint;
 import infrastructure.errors;
 

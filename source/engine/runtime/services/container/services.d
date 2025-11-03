@@ -2,7 +2,7 @@ module engine.runtime.services.container.services;
 
 import std.stdio;
 import std.conv : to;
-import engine.graph.graph;
+import engine.graph;
 import engine.runtime.core.engine : ExecutionEngine;
 import engine.runtime.services.registry : HandlerRegistry;
 import engine.runtime.remote : RemoteExecutionService, RemoteServiceBuilder;

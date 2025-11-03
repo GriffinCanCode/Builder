@@ -2,7 +2,7 @@ module frontend.query.execution.operators;
 
 import std.algorithm;
 import std.array;
-import engine.graph.graph;
+import engine.graph;
 
 /// Set operations on BuildNode collections
 /// 

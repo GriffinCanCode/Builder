@@ -3,7 +3,7 @@ import std.getopt;
 import std.algorithm;
 import std.array;
 import std.conv;
-import engine.graph.graph;
+import engine.graph;
 import engine.runtime.core.engine;
 import engine.runtime.services;
 import engine.runtime.shutdown.shutdown;

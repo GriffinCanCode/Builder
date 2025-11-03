@@ -9,7 +9,7 @@ import std.conv : to;
 import std.string : strip, startsWith;
 import infrastructure.config.parsing.parser;
 import infrastructure.config.schema.schema;
-import engine.graph.graph;
+import engine.graph;
 import engine.runtime.services;
 import frontend.testframework;
 import frontend.testframework.config;

@@ -3,7 +3,7 @@ module frontend.cli.commands.infrastructure.coordinator;
 import std.stdio;
 import std.conv : to;
 import std.string : strip;
-import engine.graph.graph : BuildGraph;
+import engine.graph : BuildGraph;
 import engine.distributed.coordinator : Coordinator, CoordinatorConfig;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;

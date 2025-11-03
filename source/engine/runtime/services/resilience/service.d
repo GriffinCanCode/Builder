@@ -3,7 +3,7 @@ module engine.runtime.services.resilience.service;
 import engine.runtime.recovery.retry : RetryOrchestrator, RetryPolicy;
 import engine.runtime.recovery.checkpoint : CheckpointManager, Checkpoint;
 import engine.runtime.recovery.resume : ResumePlanner, ResumePlan, ResumeConfig;
-import engine.graph.graph : BuildGraph;
+import engine.graph : BuildGraph;
 import infrastructure.errors;
 
 /// Resilience service interface

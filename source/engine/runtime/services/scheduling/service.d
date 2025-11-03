@@ -2,7 +2,7 @@ module engine.runtime.services.scheduling.service;
 
 import std.parallelism : totalCPUs;
 import core.atomic;
-import engine.graph.graph : BuildNode;
+import engine.graph : BuildNode;
 import infrastructure.utils.concurrency.pool : ThreadPool;
 import infrastructure.utils.concurrency.scheduler : WorkStealingScheduler;
 import infrastructure.utils.concurrency.lockfree : LockFreeQueue;

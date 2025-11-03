@@ -46,4 +46,4 @@ public import frontend.query.output;
 
 // Convenience imports for common usage
 import infrastructure.errors;
-import engine.graph.graph;
+import engine.graph;

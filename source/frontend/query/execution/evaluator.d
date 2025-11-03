@@ -8,7 +8,7 @@ import std.string : indexOf, startsWith;
 import frontend.query.parsing.ast;
 import frontend.query.execution.algorithms;
 import frontend.query.execution.operators;
-import engine.graph.graph;
+import engine.graph;
 import infrastructure.errors;
 
 /// Query evaluator - executes AST against build graph

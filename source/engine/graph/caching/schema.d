@@ -1,4 +1,4 @@
-module engine.graph.schema;
+module engine.graph.caching.schema;
 
 import infrastructure.utils.serialization;
 

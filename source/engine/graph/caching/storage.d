@@ -1,8 +1,8 @@
-module engine.graph.storage;
+module engine.graph.caching.storage;
 
 import std.datetime;
-import engine.graph.graph;
-import engine.graph.schema;
+import engine.graph.core.graph;
+import engine.graph.caching.schema;
 import infrastructure.config.schema.schema;
 import infrastructure.utils.serialization;
 import infrastructure.errors : Result, Ok, Err;

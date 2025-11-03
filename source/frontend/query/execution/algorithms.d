@@ -5,7 +5,7 @@ import std.array;
 import std.container : DList, RedBlackTree;
 import std.range;
 import std.string : toLower, lastIndexOf, indexOf;
-import engine.graph.graph;
+import engine.graph;
 import infrastructure.config.schema.schema;
 
 /// Graph traversal algorithms library

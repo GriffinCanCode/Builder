@@ -17,7 +17,7 @@ import infrastructure.analysis.targets.types;
 import infrastructure.utils.files.hash;
 import infrastructure.utils.logging.logger;
 import engine.caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
-import engine.graph.discovery;
+import engine.graph;
 
 /// Protocol Buffer build handler with action-level caching and dynamic discovery
 class ProtobufHandler : BaseLanguageHandler, DiscoverableAction

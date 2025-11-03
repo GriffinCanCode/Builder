@@ -1,7 +1,7 @@
 module frontend.cli.events.events;
 
 import std.datetime : Duration;
-import engine.graph.graph : BuildStatus;
+import engine.graph : BuildStatus;
 
 /// Strongly-typed build events for event-driven rendering
 /// Events are immutable to enable lock-free publishing

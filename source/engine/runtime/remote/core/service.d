@@ -7,7 +7,7 @@ import std.conv : to;
 import core.atomic;
 import core.sync.mutex : Mutex;
 import core.thread : Thread;
-import engine.graph.graph : BuildGraph;
+import engine.graph : BuildGraph;
 import engine.distributed.coordinator.coordinator;
 import engine.distributed.coordinator.registry;
 import engine.distributed.protocol.protocol : ActionId, WorkerId;

@@ -1,12 +1,12 @@
-module engine.graph.dynamic;
+module engine.graph.dynamic.dynamic;
 
 import std.algorithm;
 import std.array;
 import std.conv;
 import core.atomic;
 import core.sync.mutex;
-import engine.graph.graph;
-import engine.graph.discovery;
+import engine.graph.core.graph;
+import engine.graph.dynamic.discovery;
 import infrastructure.config.schema.schema;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;

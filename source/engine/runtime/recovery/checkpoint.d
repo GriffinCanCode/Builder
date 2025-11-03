@@ -7,7 +7,7 @@ import std.datetime;
 import std.algorithm;
 import std.array;
 import std.conv;
-import engine.graph.graph;
+import engine.graph;
 import infrastructure.utils.files.hash;
 import infrastructure.errors.handling.result;
 

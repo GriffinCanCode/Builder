@@ -4,7 +4,7 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import std.conv;
-import engine.graph.discovery;
+import engine.graph;
 import infrastructure.config.schema.schema : TargetId;
 import engine.distributed.protocol.protocol;
 import infrastructure.utils.logging.logger;

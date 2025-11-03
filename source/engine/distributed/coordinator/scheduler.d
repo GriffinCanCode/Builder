@@ -7,7 +7,7 @@ import std.datetime : Duration, msecs;
 import std.conv : to;
 import core.sync.mutex : Mutex;
 import core.atomic;
-import engine.graph.graph : BuildGraph, BuildNode;
+import engine.graph : BuildGraph, BuildNode;
 import engine.distributed.protocol.protocol;
 import engine.distributed.coordinator.registry;
 import infrastructure.errors;

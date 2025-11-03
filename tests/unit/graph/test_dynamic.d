@@ -4,9 +4,7 @@ import std.stdio;
 import std.algorithm;
 import std.array;
 import std.conv;
-import engine.graph.graph;
-import engine.graph.dynamic;
-import engine.graph.discovery;
+import engine.graph;
 import infrastructure.config.schema.schema;
 import tests.harness;
 

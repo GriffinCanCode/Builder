@@ -1,4 +1,4 @@
-module engine.graph.cache;
+module engine.graph.caching.cache;
 
 import std.stdio;
 import std.file;
@@ -8,8 +8,8 @@ import std.conv;
 import std.algorithm;
 import std.array;
 import core.sync.mutex;
-import engine.graph.graph;
-import engine.graph.storage;
+import engine.graph.core.graph;
+import engine.graph.caching.storage;
 import infrastructure.utils.files.hash;
 import infrastructure.utils.simd.hash;
 import infrastructure.utils.security.integrity;

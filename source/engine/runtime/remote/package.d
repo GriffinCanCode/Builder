@@ -63,7 +63,7 @@ module engine.runtime.remote;
 /// ```d
 /// import engine.runtime.remote;
 /// import engine.runtime.hermetic;
-/// import engine.graph.graph;
+/// import engine.graph;
 ///
 /// // Build service
 /// auto service = RemoteServiceBuilder.create()

@@ -1,4 +1,4 @@
-module engine.graph.graph;
+module engine.graph.core.graph;
 
 import std.stdio;
 import std.algorithm;

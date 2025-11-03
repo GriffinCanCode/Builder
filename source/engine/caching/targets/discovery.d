@@ -8,7 +8,7 @@ import std.array;
 import std.conv;
 import std.json;
 import std.datetime;
-import engine.graph.discovery;
+import engine.graph;
 import infrastructure.config.schema.schema : TargetId;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;

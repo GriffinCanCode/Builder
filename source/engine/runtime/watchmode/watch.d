@@ -8,7 +8,7 @@ import std.conv;
 import std.path;
 import core.thread;
 import core.time;
-import engine.graph.graph;
+import engine.graph;
 import engine.runtime.core.engine;
 import engine.runtime.services;
 import engine.caching.targets.cache;

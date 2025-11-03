@@ -6,7 +6,7 @@ import std.array;
 import std.conv : to;
 import std.json;
 import std.string;
-import engine.graph.graph;
+import engine.graph;
 import infrastructure.config.schema.schema : TargetType;
 import frontend.cli.control.terminal : Terminal, Capabilities, Color, Style;
 import frontend.cli.display.format : Formatter;
