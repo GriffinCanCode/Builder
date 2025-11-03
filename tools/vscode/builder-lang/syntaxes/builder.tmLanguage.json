@@ -34,11 +34,11 @@
       "patterns": [
         {
           "name": "keyword.control.builder",
-          "match": "\\b(target|workspace|deps|env|if|else|when)\\b"
+          "match": "\\b(target|repository|workspace|deps|env|if|else|when)\\b"
         },
         {
           "name": "storage.type.builder",
-          "match": "\\b(type|language|sources|output|mode|verbose|parallel)\\b"
+          "match": "\\b(type|language|sources|output|mode|verbose|parallel|url|integrity|gitCommit|gitTag|stripPrefix)\\b"
         },
         {
           "name": "keyword.other.builder",
@@ -50,7 +50,7 @@
       "patterns": [
         {
           "name": "entity.name.function.builder",
-          "match": "\\b(target|workspace)\\s*\\("
+          "match": "\\b(target|repository|workspace)\\s*\\("
         }
       ]
     },

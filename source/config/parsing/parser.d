@@ -104,7 +104,7 @@ class ConfigParser
             Logger.debugLog("Found " ~ buildFiles.length.to!string ~ " Builderfile files");
             
             // Parse each Builderfile with error aggregation
-            auto aggregated = aggregateFlatMap(
+            auto aggregated = aggregateMap(
                 buildFiles,
                 (string buildFile) => parseBuildFile(buildFile, root),
                 policy
@@ -128,11 +128,24 @@ class ConfigParser
             
             if (aggregated.hasSuccesses)
             {
-                config.targets = aggregated.successes;
+                // Extract targets and repositories from parse results
+                import repository.types : RepositoryRule;
+                
+                foreach (result; aggregated.successes)
+                {
+                    config.targets ~= result.targets;
+                    config.repositories ~= result.repositories;
+                }
+                
                 Logger.success(
-                    "Successfully parsed " ~ aggregated.successes.length.to!string ~
+                    "Successfully parsed " ~ config.targets.length.to!string ~
                     " target(s) from " ~ buildFiles.length.to!string ~ " Builderfile file(s)"
                 );
+                
+                if (config.repositories.length > 0)
+                {
+                    Logger.info("Found " ~ config.repositories.length.to!string ~ " repository rule(s)");
+                }
             }
             else if (aggregated.hasErrors && !aggregated.hasSuccesses)
             {
@@ -220,19 +233,31 @@ class ConfigParser
         return buildFiles;
     }
     
+    /// Result from parsing a Builderfile
+    private struct BuildFileParseResult
+    {
+        Target[] targets;
+        import repository.types : RepositoryRule;
+        RepositoryRule[] repositories;
+    }
+    
     /// Parse a single Builderfile file - returns Result type for type-safe error handling
-    private static Result!(Target[], BuildError) parseBuildFile(string path, string root)
+    private static Result!(BuildFileParseResult, BuildError) parseBuildFile(string path, string root)
     {
         try
         {
             Target[] targets;
+            import repository.types : RepositoryRule;
+            RepositoryRule[] repositories;
             
             // Use D-based DSL parser
             auto content = readText(path);
             auto dslResult = parseDSL(content, path, root);
             if (dslResult.isOk)
             {
-                targets = dslResult.unwrap();
+                auto parseResult = dslResult.unwrap();
+                targets = parseResult.targets;
+                repositories = parseResult.repositories;
                 
                 // Resolve glob patterns in sources
                 string dir = dirName(path);
@@ -254,7 +279,7 @@ class ConfigParser
                             error.addSuggestion("Check for '..' in paths that escape the workspace");
                             error.addSuggestion("Copy external files into the workspace if needed");
                             error.addContext(ErrorContext("validating sources", "path traversal detected"));
-                            return Err!(Target[], BuildError)(error);
+                            return Err!(BuildFileParseResult, BuildError)(error);
                         }
                     }
                     
@@ -266,10 +291,13 @@ class ConfigParser
             else
             {
                 // Return the error from DSL parser
-                return Err!(Target[], BuildError)(dslResult.unwrapErr());
+                return Err!(BuildFileParseResult, BuildError)(dslResult.unwrapErr());
             }
             
-            return Ok!(Target[], BuildError)(targets);
+            BuildFileParseResult result;
+            result.targets = targets;
+            result.repositories = repositories;
+            return Ok!(BuildFileParseResult, BuildError)(result);
         }
         catch (JSONException e)
         {
@@ -286,14 +314,14 @@ class ConfigParser
                 .build();
             
             Logger.error(format(error));
-            return Err!(Target[], BuildError)(error);
+            return Err!(BuildFileParseResult, BuildError)(error);
         }
         catch (FileException e)
         {
             // Use smart constructor with built-in context-aware suggestions
             auto error = fileReadError(path, e.msg, "reading Builderfile");
             Logger.error(format(error));
-            return Err!(Target[], BuildError)(error);
+            return Err!(BuildFileParseResult, BuildError)(error);
         }
         catch (Exception e)
         {
@@ -305,7 +333,7 @@ class ConfigParser
             error.addSuggestion("Review examples in the examples/ directory");
             error.addSuggestion("Validate JSON syntax if using JSON format");
             Logger.error(format(error));
-            return Err!(Target[], BuildError)(error);
+            return Err!(BuildFileParseResult, BuildError)(error);
         }
     }
     

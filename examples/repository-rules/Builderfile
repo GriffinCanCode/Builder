@@ -1,0 +1,46 @@
+// Example: Using External Dependencies
+//
+// Reference external repositories using @repo//path:target syntax
+
+target("app-with-fmt") {
+    type: executable;
+    language: cpp;
+    sources: ["main-fmt.cpp"];
+    
+    // Use external fmt library
+    includes: ["@fmt//include"];
+    deps: ["@fmt//:fmt"];
+}
+
+target("app-with-json") {
+    type: executable;
+    language: cpp;
+    sources: ["main-json.cpp"];
+    
+    // Use external JSON library (header-only)
+    includes: ["@json//include"];
+}
+
+target("app-with-both") {
+    type: executable;
+    language: cpp;
+    sources: ["main-both.cpp"];
+    
+    // Mix external and local dependencies
+    includes: [
+        "@fmt//include",
+        "@json//include"
+    ];
+    deps: [
+        "@fmt//:fmt",
+        ":local-utils"
+    ];
+}
+
+// Local target
+target("local-utils") {
+    type: library;
+    language: cpp;
+    sources: ["utils.cpp"];
+}
+

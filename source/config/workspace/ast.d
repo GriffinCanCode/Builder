@@ -382,10 +382,39 @@ struct TargetDecl
     }
 }
 
-/// Root node containing all targets
+/// Repository declaration (external dependencies)
+struct RepositoryDecl
+{
+    string name;
+    Field[] fields;
+    size_t line;
+    size_t column;
+    
+    string nodeType() const { return "RepositoryDecl"; }
+    
+    /// Get field by name (returns null if not found)
+    const(Field)* getField(string name) const
+    {
+        foreach (ref field; fields)
+        {
+            if (field.name == name)
+                return &field;
+        }
+        return null;
+    }
+    
+    /// Check if has field
+    bool hasField(string name) const
+    {
+        return getField(name) !is null;
+    }
+}
+
+/// Root node containing all targets and repositories
 struct BuildFile
 {
     TargetDecl[] targets;
+    RepositoryDecl[] repositories;
     string filePath;
     
     string nodeType() const { return "BuildFile"; }
@@ -396,6 +425,7 @@ interface ASTVisitor
 {
     void visitBuildFile(ref BuildFile node);
     void visitTargetDecl(ref TargetDecl node);
+    void visitRepositoryDecl(ref RepositoryDecl node);
     void visitField(ref Field node);
 }
 

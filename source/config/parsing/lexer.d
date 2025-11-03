@@ -21,6 +21,7 @@ enum TokenType
     
     // Keywords - Target fields
     Target,
+    Repository,
     Type,
     Language,
     Sources,
@@ -123,6 +124,7 @@ struct Lexer
         keywords = [
             // Target field keywords
             "target": "Target",
+            "repository": "Repository",
             "type": "Type",
             "language": "Language",
             "sources": "Sources",

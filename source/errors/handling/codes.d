@@ -74,6 +74,7 @@ enum ErrorCode
     VerificationFailed,
     RepositoryInvalid,
     RepositoryTimeout,
+    RepositoryAlreadyAdded,
     
     // IO errors (5000-5999)
     FileNotFound = 5000,
@@ -180,7 +181,10 @@ enum ErrorCode
     DeprecatedField,
     RequiredFieldMissing,
     DuplicateTarget,
-    ConfigConflict
+    ConfigConflict,
+    
+    // Migration errors (17000-17999)
+    MigrationFailed = 17000
 }
 
 /// Get error category from error code
@@ -204,6 +208,7 @@ ErrorCategory categoryOf(ErrorCode code) pure nothrow @nogc
         case 14: return ErrorCategory.LSP;       // LSP errors
         case 15: return ErrorCategory.Watch;     // Watch mode errors
         case 16: return ErrorCategory.Config;    // Configuration/Validation errors
+        case 17: return ErrorCategory.Parse;     // Migration errors
         case 0: return ErrorCategory.Internal;
     }
 }
@@ -341,6 +346,7 @@ bool isRecoverable(ErrorCode code) pure nothrow @nogc
         case ErrorCode.DuplicateTarget:
         case ErrorCode.ConfigConflict:
         case ErrorCode.RepositoryTimeout:
+        case ErrorCode.MigrationFailed:
             return false;
     }
 }
@@ -474,6 +480,7 @@ string messageTemplate(ErrorCode code) pure nothrow
         case ErrorCode.RequiredFieldMissing: return "Required field missing";
         case ErrorCode.DuplicateTarget: return "Duplicate target name";
         case ErrorCode.ConfigConflict: return "Configuration conflict";
+        case ErrorCode.MigrationFailed: return "Migration from build system failed";
     }
 }
 

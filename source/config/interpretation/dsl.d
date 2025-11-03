@@ -34,22 +34,36 @@ struct DSLParser
         
         while (!isAtEnd())
         {
-            auto targetResult = parseTarget();
-            if (targetResult.isErr)
-                return Err!(BuildFile, BuildError)(targetResult.unwrapErr());
+            auto token = peek();
             
-            file.targets ~= targetResult.unwrap();
+            // Check if this is a repository or target declaration
+            if (token.type == TokenType.Repository)
+            {
+                auto repoResult = parseRepository();
+                if (repoResult.isErr)
+                    return Err!(BuildFile, BuildError)(repoResult.unwrapErr());
+                
+                file.repositories ~= repoResult.unwrap();
+            }
+            else
+            {
+                auto targetResult = parseTarget();
+                if (targetResult.isErr)
+                    return Err!(BuildFile, BuildError)(targetResult.unwrapErr());
+                
+                file.targets ~= targetResult.unwrap();
+            }
         }
         
-        if (file.targets.empty)
+        if (file.targets.empty && file.repositories.empty)
         {
             auto error = new ParseError(filePath, 
-                "Builderfile is empty or contains no valid target definitions",
+                "Builderfile is empty or contains no valid declarations",
                 ErrorCode.InvalidBuildFile);
-            error.addSuggestion("Add at least one target definition to the Builderfile");
+            error.addSuggestion("Add at least one target or repository definition to the Builderfile");
             error.addSuggestion("See examples/ directory for valid Builderfile examples");
             error.addSuggestion("Run 'builder init' to create a template Builderfile");
-            error.addSuggestion("Check docs/architecture/DSL.md for target syntax");
+            error.addSuggestion("Check docs/architecture/DSL.md for syntax");
             return Err!(BuildFile, BuildError)(error);
         }
         
@@ -122,6 +136,74 @@ struct DSLParser
         }
         
         return Ok!(TargetDecl, BuildError)(TargetDecl(name, fields, line, col));
+    }
+    
+    /// Parse single repository declaration
+    private Result!(RepositoryDecl, BuildError) parseRepository()
+    {
+        auto token = peek();
+        
+        // Expect: repository
+        if (!match(TokenType.Repository))
+        {
+            return error!(RepositoryDecl)("Expected 'repository' keyword");
+        }
+        
+        size_t line = previous().line;
+        size_t col = previous().column;
+        
+        // Expect: (
+        if (!match(TokenType.LeftParen))
+        {
+            return error!(RepositoryDecl)("Expected '(' after 'repository'");
+        }
+        
+        // Expect: "name"
+        if (!check(TokenType.String))
+        {
+            return error!(RepositoryDecl)("Expected repository name as string literal");
+        }
+        
+        string name = advance().value;
+        
+        // Validate repository name is not empty or whitespace-only
+        import std.string : strip;
+        if (name.strip().empty)
+        {
+            return error!(RepositoryDecl)("Repository name cannot be empty or whitespace-only");
+        }
+        
+        // Expect: )
+        if (!match(TokenType.RightParen))
+        {
+            return error!(RepositoryDecl)("Expected ')' after repository name");
+        }
+        
+        // Expect: {
+        if (!match(TokenType.LeftBrace))
+        {
+            return error!(RepositoryDecl)("Expected '{' to begin repository body");
+        }
+        
+        // Parse fields
+        Field[] fields;
+        
+        while (!check(TokenType.RightBrace) && !isAtEnd())
+        {
+            auto fieldResult = parseField();
+            if (fieldResult.isErr)
+                return Err!(RepositoryDecl, BuildError)(fieldResult.unwrapErr());
+            
+            fields ~= fieldResult.unwrap();
+        }
+        
+        // Expect: }
+        if (!match(TokenType.RightBrace))
+        {
+            return error!(RepositoryDecl)("Expected '}' to end repository body");
+        }
+        
+        return Ok!(RepositoryDecl, BuildError)(RepositoryDecl(name, fields, line, col));
     }
     
     /// Parse field assignment
@@ -561,12 +643,20 @@ struct SemanticAnalyzer
 }
 
 /// High-level API for parsing DSL Builderfile files
-Result!(Target[], BuildError) parseDSL(string source, string filePath, string workspaceRoot)
+/// Parse result containing both targets and repositories
+struct ParseResult
+{
+    Target[] targets;
+    import repository.types : RepositoryRule;
+    RepositoryRule[] repositories;
+}
+
+Result!(ParseResult, BuildError) parseDSL(string source, string filePath, string workspaceRoot)
 {
     // Lex
     auto lexResult = lex(source, filePath);
     if (lexResult.isErr)
-        return Err!(Target[], BuildError)(lexResult.unwrapErr());
+        return Err!(ParseResult, BuildError)(lexResult.unwrapErr());
     
     auto tokens = lexResult.unwrap();
     
@@ -574,13 +664,77 @@ Result!(Target[], BuildError) parseDSL(string source, string filePath, string wo
     auto parser = DSLParser(tokens, filePath);
     auto parseResult = parser.parse();
     if (parseResult.isErr)
-        return Err!(Target[], BuildError)(parseResult.unwrapErr());
+        return Err!(ParseResult, BuildError)(parseResult.unwrapErr());
     
     auto ast = parseResult.unwrap();
     
-    // Semantic analysis
+    // Semantic analysis for targets
     auto analyzer = SemanticAnalyzer(workspaceRoot, filePath);
-    return analyzer.analyze(ast);
+    auto targetsResult = analyzer.analyze(ast);
+    if (targetsResult.isErr)
+        return Err!(ParseResult, BuildError)(targetsResult.unwrapErr());
+    
+    // Convert repository declarations to rules
+    import repository.types : RepositoryRule, RepositoryKind, ArchiveFormat;
+    RepositoryRule[] repositories;
+    
+    foreach (ref repoDecl; ast.repositories)
+    {
+        RepositoryRule rule;
+        rule.name = repoDecl.name;
+        
+        // Parse fields
+        foreach (ref field; repoDecl.fields)
+        {
+            auto valueResult = field.value.asString();
+            if (valueResult.isErr)
+                continue;
+            
+            auto value = valueResult.unwrap();
+            
+            switch (field.name)
+            {
+                case "url":
+                    rule.url = value;
+                    break;
+                case "integrity":
+                    rule.integrity = value;
+                    break;
+                case "gitCommit":
+                    rule.gitCommit = value;
+                    rule.kind = RepositoryKind.Git;
+                    break;
+                case "gitTag":
+                    rule.gitTag = value;
+                    rule.kind = RepositoryKind.Git;
+                    break;
+                case "stripPrefix":
+                    rule.stripPrefix = value;
+                    break;
+                default:
+                    break;
+            }
+        }
+        
+        // Infer repository kind if not set
+        if (rule.kind == RepositoryKind.init)
+        {
+            if (!rule.gitCommit.empty || !rule.gitTag.empty)
+                rule.kind = RepositoryKind.Git;
+            else if (rule.url.startsWith("/") || rule.url.startsWith("./"))
+                rule.kind = RepositoryKind.Local;
+            else
+                rule.kind = RepositoryKind.Http;
+        }
+        
+        repositories ~= rule;
+    }
+    
+    ParseResult result;
+    result.targets = targetsResult.unwrap();
+    result.repositories = repositories;
+    
+    return Ok!(ParseResult, BuildError)(result);
 }
 
 unittest
@@ -599,10 +753,32 @@ unittest
     auto result = parseDSL(dsl, "Builderfile", "/tmp");
     assert(result.isOk);
     
-    auto targets = result.unwrap();
-    assert(targets.length == 1);
-    assert(targets[0].name == "app");
-    assert(targets[0].type == TargetType.Executable);
-    assert(targets[0].language == TargetLanguage.Python);
+    auto parseResult = result.unwrap();
+    assert(parseResult.targets.length == 1);
+    assert(parseResult.targets[0].name == "app");
+    assert(parseResult.targets[0].type == TargetType.Executable);
+    assert(parseResult.targets[0].language == TargetLanguage.Python);
+    
+    // Test repository parsing
+    string dslWithRepo = `
+        repository("fmt") {
+            url: "https://example.com/fmt.tar.gz";
+            integrity: "abc123";
+        }
+        
+        target("app") {
+            type: executable;
+            sources: ["main.cpp"];
+        }
+    `;
+    
+    auto repoResult = parseDSL(dslWithRepo, "Builderfile", "/tmp");
+    assert(repoResult.isOk);
+    
+    auto repoParseResult = repoResult.unwrap();
+    assert(repoParseResult.targets.length == 1);
+    assert(repoParseResult.repositories.length == 1);
+    assert(repoParseResult.repositories[0].name == "fmt");
+    assert(repoParseResult.repositories[0].url == "https://example.com/fmt.tar.gz");
 }
 

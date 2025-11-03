@@ -1,0 +1,24 @@
+// Example: External Repository Dependencies
+//
+// This example demonstrates using repository rules to fetch and use
+// external dependencies (libraries, tools, frameworks).
+
+// HTTP archive with integrity verification
+repository("fmt") {
+    url: "https://github.com/fmtlib/fmt/releases/download/10.2.1/fmt-10.2.1.zip";
+    integrity: "312151a2d13c8327f5c9c586ac6cf7cddc1658e8f53edae0ec56509c8fa516c9";
+    stripPrefix: "fmt-10.2.1";
+}
+
+// Git repository with commit pinning
+repository("json") {
+    url: "https://github.com/nlohmann/json.git";
+    gitTag: "v3.11.3";
+    integrity: "d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d";
+}
+
+// Local filesystem (for development)
+repository("mylib-dev") {
+    url: "/path/to/local/library";
+}
+

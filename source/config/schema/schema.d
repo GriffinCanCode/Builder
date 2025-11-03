@@ -324,6 +324,10 @@ struct WorkspaceConfig
     string[string] globalEnv;
     BuildOptions options;
     
+    // Repository rules (external dependencies)
+    import repository.types : RepositoryRule;
+    RepositoryRule[] repositories;
+    
     /// Find a target by name (string version for backward compatibility)
     const(Target)* findTarget(string name) const
     {

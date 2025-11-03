@@ -9,6 +9,7 @@ import std.conv;
 import config.schema.schema;
 import analysis.targets.types;
 import errors;
+import repository.resolver : RepositoryResolver;
 
 /// Resolves import statements to build targets
 class DependencyResolver
@@ -16,17 +17,51 @@ class DependencyResolver
     private WorkspaceConfig config;
     private string[string] importCache;
     private ImportIndex index;
+    private RepositoryResolver repoResolver;
     
-    this(WorkspaceConfig config)
+    this(WorkspaceConfig config, string cacheDir = ".builder-cache")
     {
         this.config = config;
         this.index = new ImportIndex(config);
+        
+        // Initialize repository resolver if repositories are defined
+        if (config.repositories.length > 0)
+        {
+            import repository.resolver : RepositoryResolver;
+            this.repoResolver = new RepositoryResolver(cacheDir, config.root);
+            
+            // Register all repository rules
+            foreach (ref repo; config.repositories)
+            {
+                auto result = repoResolver.registerRule(repo);
+                if (result.isErr)
+                {
+                    import utils.logging.logger : Logger;
+                    Logger.warning("Failed to register repository " ~ repo.name ~ ": " ~ 
+                                 result.unwrapErr().message());
+                }
+            }
+        }
+        
         buildImportCache();
     }
     
     /// Resolve a dependency reference to a target name
     string resolve(string dep, string fromTarget)
     {
+        // External repository reference: @repo//path:target
+        if (dep.startsWith("@"))
+        {
+            if (repoResolver !is null)
+            {
+                auto result = repoResolver.resolveTarget(dep);
+                if (result.isOk)
+                    return result.unwrap();
+            }
+            // If resolution fails, return as-is (will error later)
+            return dep;
+        }
+        
         // Absolute reference: //path/to:target
         if (dep.startsWith("//"))
             return dep;
@@ -47,6 +82,31 @@ class DependencyResolver
     Result!(TargetId, BuildError) resolveToId(string dep, TargetId fromTarget)
     {
         import errors : ParseError;
+        
+        // External repository reference: @repo//path:target
+        if (dep.startsWith("@"))
+        {
+            if (repoResolver !is null)
+            {
+                auto result = repoResolver.resolveTarget(dep);
+                if (result.isOk)
+                {
+                    // Convert resolved path to TargetId
+                    return TargetId.parse(dep);
+                }
+                else
+                {
+                    return Result!(TargetId, BuildError).err(result.unwrapErr());
+                }
+            }
+            else
+            {
+                auto error = new ParseError("",
+                    "External repository reference but no repositories defined: " ~ dep,
+                    ErrorCode.MissingDependency);
+                return Result!(TargetId, BuildError).err(error);
+            }
+        }
         
         // Absolute reference: //path/to:target or workspace//path:target
         if (dep.indexOf("//") >= 0 || dep.indexOf(":") >= 0)
