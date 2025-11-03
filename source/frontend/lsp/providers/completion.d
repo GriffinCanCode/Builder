@@ -1,10 +1,10 @@
-module frontend.lsp.completion;
+module frontend.lsp.providers.completion;
 
 import std.algorithm;
 import std.array;
 import std.string;
-import frontend.lsp.protocol;
-import frontend.lsp.workspace;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.workspace;
 import infrastructure.config.workspace.ast;
 import infrastructure.config.parsing.lexer;
 

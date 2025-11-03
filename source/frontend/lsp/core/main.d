@@ -1,6 +1,6 @@
-module frontend.lsp.main;
+module frontend.lsp.core.main;
 
-import frontend.lsp.server;
+import frontend.lsp.core.server;
 import infrastructure.utils.logging.logger;
 
 /// Entry point for the standalone LSP server binary

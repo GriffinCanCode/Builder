@@ -1,10 +1,10 @@
-module frontend.lsp.definition;
+module frontend.lsp.providers.definition;
 
 import std.algorithm;
 import std.array;
 import std.string;
-import frontend.lsp.protocol;
-import frontend.lsp.workspace;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.workspace;
 import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, ASTLocation = Location;
 
 /// Go-to-definition provider

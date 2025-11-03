@@ -1,10 +1,10 @@
-module frontend.lsp.analysis;
+module frontend.lsp.workspace.analysis;
 
 import std.algorithm;
 import std.array;
 import std.string;
-import frontend.lsp.protocol;
-import frontend.lsp.index;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.index;
 import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, LiteralExpr, LiteralKind, ASTLocation = Location;
 import infrastructure.config.schema.schema;
 

@@ -1,4 +1,4 @@
-module frontend.lsp.workspace;
+module frontend.lsp.workspace.workspace;
 
 import std.file;
 import std.path;
@@ -6,9 +6,9 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.datetime;
-import frontend.lsp.protocol;
-import frontend.lsp.index;
-import frontend.lsp.analysis;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.index;
+import frontend.lsp.workspace.analysis;
 import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
 import infrastructure.config.parsing.lexer : Token;
 import infrastructure.errors;

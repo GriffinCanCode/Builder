@@ -1,214 +1,219 @@
-# Builder Language Server Protocol (LSP)
+# Builder Language Server Protocol (LSP) Implementation
 
-Complete Language Server Protocol implementation for Builderfile configuration files.
+This directory contains the complete Language Server Protocol implementation for Builder, providing rich IDE features for Builderfile editing.
 
-## Architecture
-
-The Builder LSP is designed with elegance and extensibility:
+## 📁 Directory Structure
 
 ```
 lsp/
-├── protocol.d      - LSP protocol types (Position, Range, Diagnostic, etc.)
-├── server.d        - JSON-RPC 2.0 server with stdio transport
-├── workspace.d     - Document management and AST caching
-├── index.d         - Fast symbol index with O(1) lookups
-├── analysis.d      - Semantic analyzer (cyclic deps, undefined refs)
-├── completion.d    - Context-aware autocomplete with templates
-├── hover.d         - Rich documentation on hover
-├── definition.d    - Precise go-to-definition support
-├── references.d    - Find all references across workspace
-├── rename.d        - Safe rename refactoring
-├── symbols.d       - Document symbols for outline view
-└── main.d          - Standalone LSP server entry point
+├── core/              # Core LSP server and protocol
+│   ├── server.d       # LSP server implementation (JSON-RPC 2.0)
+│   ├── protocol.d     # LSP protocol types and structures
+│   ├── main.d         # Entry point for standalone server
+│   └── package.d      # Module barrel export
+│
+├── workspace/         # Workspace and document management
+│   ├── workspace.d    # Document state and workspace manager
+│   ├── index.d        # Fast symbol indexing and lookups
+│   ├── analysis.d     # Semantic analysis and validation
+│   └── package.d      # Module barrel export
+│
+├── providers/         # LSP feature providers
+│   ├── completion.d   # Code completion (fields, values, targets)
+│   ├── hover.d        # Hover information with types and docs
+│   ├── definition.d   # Go-to-definition navigation
+│   ├── references.d   # Find all references
+│   ├── rename.d       # Symbol renaming
+│   ├── symbols.d      # Document symbols and outline
+│   └── package.d      # Module barrel export
+│
+├── package.d          # Root module barrel export
+└── README.md          # This file
 ```
 
-## Features
+## 🏗️ Architecture
 
-### 1. **Autocomplete** 
-Context-aware completion for:
-- Field names (`type`, `language`, `sources`, `deps`, etc.)
-- Type values (`executable`, `library`, `test`, `custom`)
-- Language identifiers (20+ languages)
-- Target dependencies (`:local` or `//path:target`)
+### Core Module (`frontend.lsp.core`)
 
-### 2. **Diagnostics**
-Real-time validation with semantic analysis:
-- **Parse errors** with line/column precision
-- **Missing required fields** (type, sources, etc.)
-- **Duplicate target names** in same file
-- **Undefined target references** in dependencies
-- **Cyclic dependencies** in build graph
-- **Type-specific validation** (executables need sources)
-- **Empty sources arrays** warning
+The core module handles the fundamental LSP server infrastructure:
 
-### 3. **Hover Information**
-Rich documentation:
-- Target details (type, language, dependencies)
-- Field documentation
-- Current values
-- Markdown formatted
+- **server.d**: Implements the LSP server using JSON-RPC 2.0 protocol over stdin/stdout
+  - Message parsing and routing
+  - Request/response handling
+  - Notification processing
+  - Lifecycle management (initialize, shutdown, exit)
 
-### 4. **Go to Definition**
-Navigate to target definitions instantly
+- **protocol.d**: Defines all LSP protocol types
+  - Position, Range, Location
+  - Diagnostic, CompletionItem, Hover
+  - TextDocumentIdentifier, VersionedTextDocumentIdentifier
+  - InitializeParams, InitializeResult, ServerCapabilities
 
-### 5. **Find References**
-Find all uses of a target across the workspace
+- **main.d**: Entry point for the standalone LSP server binary
+  - Invoked automatically by editor extensions
+  - Sets up logging and starts the server
 
-### 6. **Rename Refactoring**
-Rename targets with workspace-wide edits
+### Workspace Module (`frontend.lsp.workspace`)
 
-### 7. **Document Symbols** (NEW)
-Hierarchical outline view of targets and fields
+The workspace module manages document state and provides efficient querying:
 
-## Building
+- **workspace.d**: WorkspaceManager class
+  - Tracks open documents and their versions
+  - Parses Builderfiles into ASTs
+  - Maintains diagnostics (syntax and semantic errors)
+  - Provides query methods for document content
 
-```bash
-# Build LSP server
-make build-lsp
+- **index.d**: Fast symbol indexing
+  - O(1) lookups for definitions and references
+  - Cross-document symbol tracking
+  - Efficient incremental updates
 
-# Install to system
-make install-lsp
+- **analysis.d**: Semantic analyzer
+  - Validates target dependencies
+  - Detects cyclic dependencies
+  - Type-specific validation rules
+  - Deep validation beyond syntax checking
 
-# Build and package VS Code extension
-make extension
-```
+### Providers Module (`frontend.lsp.providers`)
 
-## Usage
+The providers module implements LSP feature capabilities:
 
-The LSP server is invoked automatically by editors, not by users:
+- **completion.d**: Code completion provider
+  - Context-aware suggestions (field names, type values, languages)
+  - Target dependency completion with cross-references
+  - Smart templates for common patterns (executable, library, test)
 
-### VS Code
-The Builder extension automatically starts the LSP server when a Builderfile is opened.
+- **hover.d**: Hover information provider
+  - Rich markdown-formatted hover content
+  - Type information and documentation
+  - Field value details
 
-### Other Editors
-Configure your LSP client to run:
-```bash
-builder-lsp
-```
+- **definition.d**: Go-to-definition provider
+  - Navigate to target definitions
+  - Dependency resolution
 
-The server uses stdio for JSON-RPC communication.
+- **references.d**: Find all references
+  - Workspace-wide reference search
+  - Include/exclude declaration option
 
-## Protocol
+- **rename.d**: Symbol renaming provider
+  - Workspace edits for renaming targets
+  - Updates all references atomically
 
-The server implements LSP 3.17 specification:
-- JSON-RPC 2.0 transport over stdio
-- Full text synchronization
-- Standard LSP capabilities
+- **symbols.d**: Document symbols provider
+  - Document outline view
+  - Symbol hierarchy (targets and fields)
 
-### Capabilities
+## 🚀 Usage
 
-```json
+### As a Library
+
+```d
+import frontend.lsp;
+
+void main()
 {
-  "textDocumentSync": 1,
-  "completionProvider": {
-    "triggerCharacters": [":", "\"", "/"]
-  },
-  "hoverProvider": true,
-  "definitionProvider": true,
-  "referencesProvider": true,
-  "renameProvider": true
+    auto server = new LSPServer();
+    server.start();  // Runs until shutdown
 }
 ```
 
-## Implementation Details
+### With VS Code
 
-### Zero-Allocation Parsing
-Reuses the existing optimized Builderfile parser:
-- Result monad for error handling
-- Token-based lexer with efficient buffering
-- AST caching per document
+The LSP server is automatically invoked by the Builder VS Code extension. The extension is located at:
+```
+distribution/editors/vscode/
+```
 
-### Document Management
-- Tracks open documents in memory
-- Incremental updates on change
-- Efficient diagnostics publishing
+### Standalone Testing
 
-### Provider Pattern
-Each feature is a separate provider module:
-- Single responsibility
-- Easy to test
-- Simple to extend
-
-### Type Safety
-Strong typing throughout:
-- Protocol types mirror LSP spec
-- Result types for error handling
-- No `any` types
-
-## Testing
-
+Build and run the LSP server:
 ```bash
-# Test LSP manually
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | builder-lsp
+# Build the builder-lsp binary
+make lsp
 
-# Integration tests (TODO)
-dub test --config=lsp-test
+# Run manually (communicates via stdin/stdout)
+./bin/builder-lsp
 ```
 
-## Performance
+## 🔌 LSP Features Supported
 
-The LSP server is designed for speed:
-- Reuses optimized parser (zero-allocation)
-- Document-level caching
-- Efficient JSON serialization
-- Minimal memory footprint
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **textDocument/completion** | ✅ | Context-aware code completion |
+| **textDocument/hover** | ✅ | Hover information with types |
+| **textDocument/definition** | ✅ | Go-to-definition navigation |
+| **textDocument/references** | ✅ | Find all references |
+| **textDocument/rename** | ✅ | Symbol renaming |
+| **textDocument/documentSymbol** | ✅ | Document outline |
+| **textDocument/publishDiagnostics** | ✅ | Real-time error checking |
+| **textDocument/didOpen** | ✅ | Document lifecycle |
+| **textDocument/didChange** | ✅ | Incremental updates |
+| **textDocument/didClose** | ✅ | Document cleanup |
+| **textDocument/didSave** | ✅ | Save notifications |
 
-Typical latency:
-- Completion: < 5ms
-- Diagnostics: < 10ms
-- Hover: < 2ms
-- Definition: < 3ms
+## 🧪 Testing
 
-- **VSCode compatible**: Works with outline view (Ctrl+Shift+O)
-- **Rich metadata**: Shows target types and value summaries
+The LSP implementation can be tested in several ways:
 
-## Future Enhancements
+1. **Integration tests**: Use `tests/integration/lsp_test.d`
+2. **Manual testing**: Use the VS Code extension in development mode
+3. **Unit tests**: Test individual providers with mock workspace data
 
-Potential additions:
-- [ ] Workspace symbols (Ctrl+T) - global symbol search
-- [ ] Code actions (quick fixes) - automated refactorings
-- [ ] Semantic tokens (better highlighting) - enhanced syntax colors
-- [ ] Inlay hints (type annotations) - inline type information
-- [ ] Signature help - parameter hints for fields
-- [ ] Code lens (test/build buttons) - inline action buttons
+## 📝 Adding New Features
 
-## Integration
+To add a new LSP feature:
 
-### VS Code
-See `tools/vscode/builder-lang/` for the extension implementation.
+1. **Add protocol types** (if needed) to `core/protocol.d`
+2. **Create provider** in `providers/` directory
+3. **Update server** in `core/server.d` to route requests
+4. **Export in package.d** files for proper module visibility
+5. **Update capabilities** in `InitializeResult.toJSON()`
 
-### IntelliJ/CLion
-Use the LSP4IJ plugin and configure the builder-lsp command.
+Example:
+```d
+// 1. Add to core/protocol.d
+struct MyFeatureParams { ... }
 
-### Vim/Neovim
-With nvim-lspconfig:
-```lua
-require'lspconfig'.builder.setup{
-  cmd = {'builder-lsp'},
-  filetypes = {'builder'},
-  root_dir = function(fname)
-    return vim.fn.getcwd()
-  end
-}
+// 2. Create providers/myfeature.d
+module frontend.lsp.providers.myfeature;
+struct MyFeatureProvider { ... }
+
+// 3. Update core/server.d
+import frontend.lsp.providers.myfeature;
+private MyFeatureProvider myFeatureProvider;
+// Add case in handleRequest()
+
+// 4. Update providers/package.d
+public import frontend.lsp.providers.myfeature;
 ```
 
-### Emacs
-With lsp-mode:
-```elisp
-(lsp-register-client
- (make-lsp-client
-  :new-connection (lsp-stdio-connection "builder-lsp")
-  :major-modes '(builder-mode)
-  :server-id 'builder-lsp))
+## 🔍 Debugging
+
+Enable debug logging:
+```d
+Logger.setVerbose(true);
 ```
 
-## Contributing
+The LSP server logs to stderr (stdout is reserved for LSP protocol messages).
 
-When adding new features:
-1. Add protocol types to `protocol.d`
-2. Create a new provider module
-3. Integrate in `server.d`
-4. Update capabilities
-5. Test thoroughly
-6. Document in this README
+## 📚 Resources
 
+- [LSP Specification](https://microsoft.github.io/language-server-protocol/)
+- [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
+- [VS Code Extension API](https://code.visualstudio.com/api)
+
+## 🤝 Contributing
+
+When contributing to the LSP implementation:
+
+1. Follow the existing module structure
+2. Keep protocol types in `core/protocol.d`
+3. Put feature logic in `providers/`
+4. Update all package.d files for new modules
+5. Add comprehensive documentation
+6. Test with the VS Code extension
+
+## 📄 License
+
+This LSP implementation is part of the Builder project and follows the same license.

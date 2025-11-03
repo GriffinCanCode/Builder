@@ -1,4 +1,4 @@
-module frontend.lsp.server;
+module frontend.lsp.core.server;
 
 import std.json;
 import std.stdio;
@@ -7,14 +7,14 @@ import std.string;
 import std.algorithm;
 import std.array;
 import std.exception;
-import frontend.lsp.protocol;
-import frontend.lsp.workspace;
-import frontend.lsp.completion;
-import frontend.lsp.hover;
-import frontend.lsp.definition;
-import frontend.lsp.references;
-import frontend.lsp.rename;
-import frontend.lsp.symbols;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.workspace;
+import frontend.lsp.providers.completion;
+import frontend.lsp.providers.hover;
+import frontend.lsp.providers.definition;
+import frontend.lsp.providers.references;
+import frontend.lsp.providers.rename;
+import frontend.lsp.providers.symbols;
 import infrastructure.utils.logging.logger;
 
 /// LSP Server implementation

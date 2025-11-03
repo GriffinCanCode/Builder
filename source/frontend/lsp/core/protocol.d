@@ -1,4 +1,4 @@
-module frontend.lsp.protocol;
+module frontend.lsp.core.protocol;
 
 import std.json;
 import std.conv;

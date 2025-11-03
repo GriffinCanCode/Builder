@@ -1,13 +1,13 @@
-module frontend.lsp.references;
+module frontend.lsp.providers.rename;
 
 import std.algorithm;
 import std.array;
 import std.string;
-import frontend.lsp.protocol;
-import frontend.lsp.workspace;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.workspace;
 
-/// References provider (find all uses)
-struct ReferencesProvider
+/// Rename refactoring provider
+struct RenameProvider
 {
     private WorkspaceManager workspace;
     
@@ -16,30 +16,44 @@ struct ReferencesProvider
         this.workspace = workspace;
     }
     
-    /// Find all references to symbol at position
-    Location[] provideReferences(string uri, Position pos, bool includeDeclaration)
+    /// Provide workspace edits for renaming symbol at position
+    WorkspaceEdit* provideRename(string uri, Position pos, string newName)
     {
         auto doc = workspace.getDocument(uri);
         if (doc is null)
-            return [];
+            return null;
         
         // Get the symbol at the cursor
-        auto symbol = getSymbolAtPosition(doc.text, pos);
-        if (symbol.length == 0)
-            return [];
+        auto oldName = getSymbolAtPosition(doc.text, pos);
+        if (oldName.length == 0)
+            return null;
         
-        // Find all references
-        auto references = workspace.findReferences(symbol);
+        // Find all references (including definition)
+        auto references = workspace.findReferences(oldName);
+        auto definition = workspace.findDefinition(oldName);
+        if (definition !is null)
+            references ~= *definition;
         
-        // Add definition if requested
-        if (includeDeclaration)
+        if (references.length == 0)
+            return null;
+        
+        // Build workspace edit
+        auto edit = new WorkspaceEdit;
+        
+        foreach (ref loc; references)
         {
-            auto def = workspace.findDefinition(symbol);
-            if (def !is null)
-                references ~= *def;
+            // Create text edit for this location
+            TextEdit textEdit;
+            textEdit.range = loc.range;
+            textEdit.newText = newName;
+            
+            // Add to workspace edit
+            if (loc.uri !in edit.changes)
+                edit.changes[loc.uri] = [];
+            edit.changes[loc.uri] ~= textEdit;
         }
         
-        return references;
+        return edit;
     }
     
     private string getSymbolAtPosition(string text, Position pos)

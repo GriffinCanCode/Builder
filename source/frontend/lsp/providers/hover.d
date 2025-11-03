@@ -1,11 +1,11 @@
-module frontend.lsp.hover;
+module frontend.lsp.providers.hover;
 
 import std.algorithm;
 import std.array;
 import std.string;
 import std.conv;
-import frontend.lsp.protocol;
-import frontend.lsp.workspace;
+import frontend.lsp.core.protocol;
+import frontend.lsp.workspace.workspace;
 import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location,
     LiteralExpr, IdentExpr, BinaryExpr, UnaryExpr, CallExpr, MemberExpr, IndexExpr, TernaryExpr,
     Literal, LiteralKind;

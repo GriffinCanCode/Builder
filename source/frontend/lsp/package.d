@@ -1,32 +1,52 @@
 /**
  * LSP Package - Language Server Protocol Implementation
  * 
- * This package provides Language Server Protocol support for Builder.
+ * This package provides comprehensive Language Server Protocol support for Builder,
+ * enabling IDE features like code completion, go-to-definition, hover information,
+ * and more for Builderfile editing.
  * 
- * Modules:
- * - server: LSP server implementation
- * - protocol: LSP protocol definitions
- * - analysis: Code analysis for LSP
- * - completion: Code completion provider
- * - definition: Go-to-definition support
- * - hover: Hover information provider
- * - references: Find references support
- * - rename: Symbol renaming
- * - symbols: Document and workspace symbols
- * - workspace: Workspace management for LSP
- * - index: Code indexing
+ * ## Architecture
+ * 
+ * The LSP implementation is organized into three main modules:
+ * 
+ * ### Core (`frontend.lsp.core`)
+ * - **server**: LSP server implementation (JSON-RPC 2.0 protocol)
+ * - **protocol**: LSP protocol types and structures
+ * - **main**: Entry point for the standalone LSP server binary
+ * 
+ * ### Workspace (`frontend.lsp.workspace`)
+ * - **workspace**: Document and workspace state management
+ * - **index**: Fast symbol indexing for lookups and cross-references
+ * - **analysis**: Semantic analysis and validation
+ * 
+ * ### Providers (`frontend.lsp.providers`)
+ * - **completion**: Code completion suggestions
+ * - **hover**: Rich hover information with types and documentation
+ * - **definition**: Go-to-definition navigation
+ * - **references**: Find all references to symbols
+ * - **rename**: Workspace-wide symbol renaming
+ * - **symbols**: Document outline and symbol navigation
+ * 
+ * ## Usage
+ * 
+ * The LSP server is typically invoked automatically by editor extensions
+ * (e.g., VS Code) and communicates via stdin/stdout using the LSP protocol.
+ * 
+ * For manual testing or integration:
+ * ```d
+ * import frontend.lsp;
+ * 
+ * void main()
+ * {
+ *     auto server = new LSPServer();
+ *     server.start();
+ * }
+ * ```
  */
 module frontend.lsp;
 
-public import frontend.lsp.server;
-public import frontend.lsp.protocol;
-public import frontend.lsp.analysis;
-public import frontend.lsp.completion;
-public import frontend.lsp.definition;
-public import frontend.lsp.hover;
-public import frontend.lsp.references;
-public import frontend.lsp.rename;
-public import frontend.lsp.symbols;
+// Re-export all submodules for convenience
+public import frontend.lsp.core;
 public import frontend.lsp.workspace;
-public import frontend.lsp.index;
+public import frontend.lsp.providers;
 

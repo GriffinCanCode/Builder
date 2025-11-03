@@ -1,9 +1,9 @@
-module frontend.lsp.index;
+module frontend.lsp.workspace.index;
 
 import std.algorithm;
 import std.array;
 import std.string;
-import frontend.lsp.protocol;
+import frontend.lsp.core.protocol;
 import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, IdentExpr, LiteralExpr, LiteralKind, ASTLocation = Location;
 
 /// Symbol information for quick lookups

@@ -10,7 +10,7 @@
     
     "sourcePaths": ["source"],
     "importPaths": ["source"],
-    "excludedSourceFiles": ["source/frontend/lsp/main.d"],
+    "excludedSourceFiles": ["source/frontend/lsp/core/main.d"],
     
     "mainSourceFile": "source/app.d",
     
@@ -22,7 +22,7 @@
             "targetType": "executable",
             "targetName": "builder",
             "mainSourceFile": "source/app.d",
-            "excludedSourceFiles": ["source/frontend/lsp/main.d"],
+            "excludedSourceFiles": ["source/frontend/lsp/core/main.d"],
             "sourceFiles": [
                 "bin/obj/blake3.o",
                 "bin/obj/blake3_dispatch.o",
@@ -36,7 +36,7 @@
             "name": "lsp",
             "targetType": "executable",
             "targetName": "builder-lsp",
-            "mainSourceFile": "source/frontend/lsp/main.d",
+            "mainSourceFile": "source/frontend/lsp/core/main.d",
             "excludedSourceFiles": [
                 "source/app.d"
             ],
