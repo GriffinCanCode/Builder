@@ -1,0 +1,120 @@
+module infrastructure.resilience.integrations.cache;
+
+import std.datetime;
+import engine.caching.distributed.remote.transport : HttpTransport;
+import engine.caching.distributed.remote.protocol : RemoteCacheConfig;
+import infrastructure.resilience;
+import infrastructure.errors;
+
+/// Resilient remote cache transport wrapper
+/// Wraps HttpTransport with circuit breaker and rate limiting
+/// 
+/// NOTE: This provides CLIENT-SIDE resilience for cache clients.
+/// The cache server itself has its own server-side rate limiter
+/// at engine.caching.distributed.remote.limiter
+final class ResilientCacheTransport
+{
+    private HttpTransport transport;
+    private NetworkResilience resilience;
+    private string endpoint;
+    
+    this(RemoteCacheConfig config, NetworkResilience resilience = null) @trusted
+    {
+        this.transport = new HttpTransport(config);
+        this.endpoint = config.url;
+        
+        // Use provided resilience service or create new one
+        if (resilience is null)
+        {
+            this.resilience = new NetworkResilience(PolicyPresets.network());
+        }
+        else
+        {
+            this.resilience = resilience;
+        }
+        
+        // Register with network-optimized policy
+        this.resilience.registerEndpoint(endpoint, PolicyPresets.network());
+    }
+    
+    /// Execute GET request with resilience
+    Result!(ubyte[], BuildError) get(string contentHash) @trusted
+    {
+        return resilience.execute!(ubyte[])(
+            endpoint,
+            () => transport.get(contentHash),
+            Priority.Normal,
+            30.seconds
+        );
+    }
+    
+    /// Execute PUT request with resilience
+    Result!BuildError put(string contentHash, const(ubyte)[] data) @trusted
+    {
+        // PUT operations are lower priority to not block reads
+        return resilience.execute!BuildError(
+            endpoint,
+            () {
+                auto putResult = transport.put(contentHash, data);
+                if (putResult.isErr)
+                    return Err!BuildError(putResult.unwrapErr());
+                return Ok!BuildError();
+            },
+            Priority.Low,
+            60.seconds
+        );
+    }
+    
+    /// Execute HEAD request with resilience  
+    Result!(bool, BuildError) head(string contentHash) @trusted
+    {
+        // HEAD is lightweight - use high priority
+        return resilience.execute!bool(
+            endpoint,
+            () => transport.head(contentHash),
+            Priority.High,
+            10.seconds
+        );
+    }
+    
+    /// Execute DELETE request with resilience
+    Result!BuildError remove(string contentHash) @trusted
+    {
+        return resilience.execute!BuildError(
+            endpoint,
+            () {
+                auto delResult = transport.remove(contentHash);
+                if (delResult.isErr)
+                    return Err!BuildError(delResult.unwrapErr());
+                return Ok!BuildError();
+            },
+            Priority.Low,
+            30.seconds
+        );
+    }
+    
+    /// Get circuit breaker state
+    BreakerState getBreakerState() @trusted
+    {
+        return resilience.getBreakerState(endpoint);
+    }
+    
+    /// Get rate limiter metrics
+    LimiterMetrics getMetrics() @trusted
+    {
+        return resilience.getLimiterMetrics(endpoint);
+    }
+    
+    /// Adjust rate based on cache server health
+    void adjustRate(float healthScore) @trusted
+    {
+        resilience.adjustRate(endpoint, healthScore);
+    }
+    
+    /// Get underlying transport (for migration)
+    HttpTransport getTransport() @trusted
+    {
+        return transport;
+    }
+}
+

@@ -11,6 +11,7 @@
  * - toolchain: Unified toolchain detection and management
  * - errors: Type-safe error handling with Result types
  * - telemetry: Build telemetry, tracing, and observability
+ * - resilience: Circuit breakers and rate limiting for distributed systems
  * - utils: Common utilities (files, crypto, concurrency, SIMD)
  * - plugins: Plugin system and SDK
  * - migration: Build system migration tools
@@ -24,6 +25,7 @@ public import infrastructure.repository;
 public import infrastructure.toolchain;
 public import infrastructure.errors;
 public import infrastructure.telemetry;
+public import infrastructure.resilience;
 public import infrastructure.utils;
 public import infrastructure.plugins;
 public import infrastructure.migration;
