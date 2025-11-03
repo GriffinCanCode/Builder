@@ -9,6 +9,7 @@ import std.array : appender;
 import std.bitmanip : nativeToBigEndian, bigEndianToNative;
 import utils.crypto.blake3;
 import utils.simd.ops;
+import errors : Result, Ok, Err;
 
 /// Content-defined chunking for incremental hashing
 /// Uses Rabin fingerprinting to identify chunk boundaries
@@ -260,6 +261,260 @@ struct ContentChunker
         }
         
         return result;
+    }
+}
+
+/// Chunk manifest for tracking remote chunks
+struct ChunkManifest
+{
+    string fileHash;           // Hash of the entire file
+    ContentChunker.Chunk[] chunks;            // List of chunks
+    size_t totalSize;          // Total file size
+    
+    /// Check if two manifests have common chunks (for deduplication)
+    size_t[] findCommonChunks(ref ChunkManifest other) const pure @safe
+    {
+        size_t[] commonIndices;
+        
+        foreach (i, chunk; chunks)
+        {
+            foreach (otherChunk; other.chunks)
+            {
+                if (chunk.hash == otherChunk.hash)
+                {
+                    commonIndices ~= i;
+                    break;
+                }
+            }
+        }
+        
+        return commonIndices;
+    }
+    
+    /// Calculate how much data would be saved by chunk deduplication
+    size_t calculateDedupSavings(ref ChunkManifest other) const pure @safe
+    {
+        size_t savings = 0;
+        
+        foreach (i, chunk; chunks)
+        {
+            foreach (otherChunk; other.chunks)
+            {
+                if (chunk.hash == otherChunk.hash)
+                {
+                    savings += chunk.length;
+                    break;
+                }
+            }
+        }
+        
+        return savings;
+    }
+}
+
+/// Network transfer interface for chunk-based uploads/downloads
+struct ChunkTransfer
+{
+    /// Upload only changed chunks to remote store
+    /// Returns: Number of chunks uploaded, bytes transferred
+    @system
+    static Result!(TransferStats, string) uploadChangedChunks(
+        string filePath,
+        ChunkManifest localManifest,
+        ChunkManifest remoteManifest,
+        scope bool delegate(string chunkHash, const(ubyte)[] data) @trusted uploadChunk
+    )
+    {
+        TransferStats stats;
+        stats.totalChunks = localManifest.chunks.length;
+        
+        // Find chunks that differ
+        auto changedIndices = ContentChunker.findChangedChunks(
+            ContentChunker.ChunkResult(remoteManifest.chunks, remoteManifest.fileHash),
+            ContentChunker.ChunkResult(localManifest.chunks, localManifest.fileHash)
+        );
+        
+        stats.changedChunks = changedIndices.length;
+        
+        if (!exists(filePath))
+            return Err!(TransferStats, string)("File not found: " ~ filePath);
+        
+        auto file = File(filePath, "rb");
+        
+        // Upload only changed chunks
+        foreach (idx; changedIndices)
+        {
+            if (idx >= localManifest.chunks.length)
+                continue;
+            
+            auto chunk = localManifest.chunks[idx];
+            
+            // Read chunk data
+            file.seek(chunk.offset);
+            ubyte[] chunkData = new ubyte[chunk.length];
+            auto readData = file.rawRead(chunkData);
+            
+            if (readData.length != chunk.length)
+            {
+                return Err!(TransferStats, string)(
+                    "Failed to read complete chunk at offset " ~ chunk.offset.to!string
+                );
+            }
+            
+            // Upload chunk
+            if (!uploadChunk(chunk.hash, chunkData))
+            {
+                return Err!(TransferStats, string)(
+                    "Failed to upload chunk: " ~ chunk.hash
+                );
+            }
+            
+            stats.bytesTransferred += chunk.length;
+            stats.chunksTransferred++;
+        }
+        
+        stats.bytesSaved = localManifest.totalSize - stats.bytesTransferred;
+        
+        return Ok!(TransferStats, string)(stats);
+    }
+    
+    /// Download chunks and reconstruct file
+    /// Returns: Number of chunks downloaded, bytes transferred
+    @system
+    static Result!(TransferStats, string) downloadChunks(
+        string outputPath,
+        ChunkManifest manifest,
+        scope Result!(ubyte[], string) delegate(string chunkHash) @trusted downloadChunk
+    )
+    {
+        TransferStats stats;
+        stats.totalChunks = manifest.chunks.length;
+        
+        // Create output file
+        auto file = File(outputPath, "wb");
+        
+        // Download and write each chunk
+        foreach (chunk; manifest.chunks)
+        {
+            auto result = downloadChunk(chunk.hash);
+            if (result.isErr)
+            {
+                return Err!(TransferStats, string)(
+                    "Failed to download chunk: " ~ chunk.hash ~ " - " ~ result.unwrapErr()
+                );
+            }
+            
+            auto chunkData = result.unwrap();
+            
+            // Verify chunk size
+            if (chunkData.length != chunk.length)
+            {
+                return Err!(TransferStats, string)(
+                    "Chunk size mismatch: expected " ~ chunk.length.to!string ~
+                    ", got " ~ chunkData.length.to!string
+                );
+            }
+            
+            // Verify chunk hash
+            auto hasher = Blake3(0);
+            hasher.put(chunkData);
+            auto actualHash = hasher.finishHex();
+            
+            if (actualHash != chunk.hash)
+            {
+                return Err!(TransferStats, string)(
+                    "Chunk hash mismatch: expected " ~ chunk.hash ~
+                    ", got " ~ actualHash
+                );
+            }
+            
+            // Write chunk to file
+            file.rawWrite(chunkData);
+            
+            stats.bytesTransferred += chunkData.length;
+            stats.chunksTransferred++;
+        }
+        
+        stats.totalChunks = manifest.chunks.length;
+        stats.changedChunks = manifest.chunks.length;
+        
+        return Ok!(TransferStats, string)(stats);
+    }
+    
+    /// Upload entire file using chunks (initial upload)
+    /// Returns: Manifest for the uploaded file
+    @system
+    static Result!(ChunkManifest, string) uploadFileChunked(
+        string filePath,
+        scope bool delegate(string chunkHash, const(ubyte)[] data) @trusted uploadChunk
+    )
+    {
+        // First, chunk the file
+        auto chunkResult = ContentChunker.chunkFile(filePath);
+        if (chunkResult.chunks.length == 0)
+            return Err!(ChunkManifest, string)("Failed to chunk file: " ~ filePath);
+        
+        auto file = File(filePath, "rb");
+        auto fileSize = getSize(filePath);
+        
+        // Upload all chunks
+        foreach (chunk; chunkResult.chunks)
+        {
+            file.seek(chunk.offset);
+            ubyte[] chunkData = new ubyte[chunk.length];
+            auto readData = file.rawRead(chunkData);
+            
+            if (readData.length != chunk.length)
+            {
+                return Err!(ChunkManifest, string)(
+                    "Failed to read chunk at offset " ~ chunk.offset.to!string
+                );
+            }
+            
+            if (!uploadChunk(chunk.hash, chunkData))
+            {
+                return Err!(ChunkManifest, string)(
+                    "Failed to upload chunk: " ~ chunk.hash
+                );
+            }
+        }
+        
+        // Build manifest
+        ChunkManifest manifest;
+        manifest.fileHash = chunkResult.combinedHash;
+        manifest.chunks = chunkResult.chunks;
+        manifest.totalSize = fileSize;
+        
+        return Ok!(ChunkManifest, string)(manifest);
+    }
+}
+
+/// Transfer statistics
+struct TransferStats
+{
+    size_t totalChunks;        // Total number of chunks
+    size_t changedChunks;      // Number of changed chunks
+    size_t chunksTransferred;  // Number of chunks actually transferred
+    size_t bytesTransferred;   // Bytes transferred over network
+    size_t bytesSaved;         // Bytes saved by deduplication
+    
+    /// Calculate transfer efficiency (0.0 to 1.0)
+    double efficiency() const pure @safe nothrow
+    {
+        if (totalChunks == 0)
+            return 1.0;
+        
+        return 1.0 - (cast(double)chunksTransferred / cast(double)totalChunks);
+    }
+    
+    /// Get percentage of data saved
+    double savingsPercent() const pure @safe nothrow
+    {
+        immutable total = bytesTransferred + bytesSaved;
+        if (total == 0)
+            return 0.0;
+        
+        return (cast(double)bytesSaved / cast(double)total) * 100.0;
     }
 }
 

@@ -17,9 +17,10 @@ import analysis.targets.types;
 import utils.files.hash;
 import utils.logging.logger;
 import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, ActionType;
+import graph.discovery;
 
-/// Protocol Buffer build handler with action-level caching
-class ProtobufHandler : BaseLanguageHandler
+/// Protocol Buffer build handler with action-level caching and dynamic discovery
+class ProtobufHandler : BaseLanguageHandler, DiscoverableAction
 {
     mixin CachingHandlerMixin!"protobuf";
     
@@ -125,6 +126,146 @@ class ProtobufHandler : BaseLanguageHandler
         }
         
         return allImports;
+    }
+    
+    /// Execute with discovery to find generated files
+    DiscoveryResult executeWithDiscovery(Target target, WorkspaceConfig config) @system
+    {
+        DiscoveryResult result;
+        result.success = false;
+        result.hasDiscovery = false;
+        
+        Logger.info("Executing protobuf discovery for " ~ target.name);
+        
+        // Parse configuration
+        ProtobufConfig pbConfig = parseProtobufConfig(target, config);
+        
+        // Filter proto files
+        string[] protoFiles;
+        foreach (source; target.sources)
+        {
+            if (extension(source) == ".proto")
+                protoFiles ~= source;
+        }
+        
+        if (protoFiles.empty)
+        {
+            result.error = "No .proto files found";
+            return result;
+        }
+        
+        // Compile to generate output files
+        auto buildResult = compileProtoFiles(protoFiles, pbConfig, config);
+        if (!buildResult.success)
+        {
+            result.error = buildResult.error;
+            return result;
+        }
+        
+        result.success = true;
+        
+        // Discover generated files
+        string[] discoveredFiles = buildResult.outputs;
+        if (discoveredFiles.empty)
+        {
+            // No files generated (shouldn't happen), no discovery
+            return result;
+        }
+        
+        // Create discovery metadata
+        result.hasDiscovery = true;
+        
+        auto builder = DiscoveryBuilder.forTarget(target.id);
+        builder = builder.addOutputs(discoveredFiles);
+        builder = builder.withMetadata("generator", "protobuf");
+        builder = builder.withMetadata("output_language", pbConfig.outputLanguage.to!string);
+        
+        // Create compile targets for generated files by language
+        Target[] compileTargets;
+        TargetId[] compileIds;
+        
+        // Group files by extension
+        string[][string] filesByExt;
+        foreach (file; discoveredFiles)
+        {
+            auto ext = extension(file);
+            if (ext !in filesByExt)
+                filesByExt[ext] = [];
+            filesByExt[ext] ~= file;
+        }
+        
+        // Create targets for each language
+        foreach (ext, files; filesByExt)
+        {
+            auto targetName = target.name ~ "-generated" ~ ext.replace(".", "-");
+            auto compileTarget = createCompileTarget(targetName, files, target.id, pbConfig);
+            if (compileTarget.language != TargetLanguage.Generic)
+            {
+                compileTargets ~= compileTarget;
+                compileIds ~= TargetId(targetName);
+            }
+        }
+        
+        if (!compileTargets.empty)
+        {
+            builder = builder.addTargets(compileTargets);
+            builder = builder.addDependents(compileIds);
+            
+            Logger.success("Discovered " ~ compileTargets.length.to!string ~ 
+                         " compile targets from protobuf generation");
+        }
+        
+        result.discovery = builder.build();
+        return result;
+    }
+    
+    /// Create a compile target for generated files
+    private Target createCompileTarget(
+        string name,
+        string[] sources,
+        TargetId protoTargetId,
+        ProtobufConfig pbConfig
+    ) @system
+    {
+        Target target;
+        target.name = name;
+        target.sources = sources;
+        target.deps = [protoTargetId.toString()];
+        target.type = TargetType.Library;
+        
+        // Infer language from protobuf output language setting
+        switch (pbConfig.outputLanguage)
+        {
+            case ProtobufOutputLanguage.Cpp:
+                target.language = TargetLanguage.Cpp;
+                break;
+            case ProtobufOutputLanguage.CSharp:
+                target.language = TargetLanguage.CSharp;
+                break;
+            case ProtobufOutputLanguage.Java:
+                target.language = TargetLanguage.Java;
+                break;
+            case ProtobufOutputLanguage.Python:
+                target.language = TargetLanguage.Python;
+                break;
+            case ProtobufOutputLanguage.Go:
+                target.language = TargetLanguage.Go;
+                break;
+            case ProtobufOutputLanguage.Rust:
+                target.language = TargetLanguage.Rust;
+                break;
+            case ProtobufOutputLanguage.JavaScript:
+                target.language = TargetLanguage.JavaScript;
+                break;
+            case ProtobufOutputLanguage.TypeScript:
+                target.language = TargetLanguage.TypeScript;
+                break;
+            default:
+                target.language = TargetLanguage.Generic;
+                break;
+        }
+        
+        return target;
     }
     
     private LanguageBuildResult compileProtoFiles(
