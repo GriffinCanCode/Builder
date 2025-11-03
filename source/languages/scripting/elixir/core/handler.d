@@ -44,8 +44,12 @@ class ElixirHandler : BaseLanguageHandler
         }
     }
     
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config) @system
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context) @system
     {
+        // Extract target and config from context for convenience
+        auto target = context.target;
+        auto config = context.config;
+        
         LanguageBuildResult result;
         
         Logger.debugLog("Building Elixir target: " ~ target.name);

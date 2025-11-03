@@ -80,7 +80,7 @@ func main() {
     
     try
     {
-        auto result = handler.build(target, config);
+        auto result = testBuild(handler, target, config);
         Assert.isTrue(result.isOk || result.isErr);
     }
     catch (Exception e)

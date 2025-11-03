@@ -71,7 +71,7 @@ console.log(add(2, 3));
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -115,7 +115,7 @@ export class UserService {
     config.root = tempDir.getPath();
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -346,7 +346,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // TypeScript handler falls back to SWC when tsc fails, so build may succeed
     // but we should detect that the source file doesn't exist
@@ -393,7 +393,7 @@ function add(a: number, b: number): string {
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation if tsc is available
     Assert.isTrue(result.isOk || result.isErr);
@@ -428,7 +428,7 @@ function broken( {
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation
     Assert.isTrue(result.isOk || result.isErr);
@@ -461,7 +461,7 @@ const x = new NonExistent();
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail if module resolution is strict
     Assert.isTrue(result.isOk || result.isErr);
@@ -492,7 +492,7 @@ console.log(greeting);
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Test Result type - should be either Ok or Err
     Assert.isTrue(result.isOk || result.isErr, "Result should be valid");
@@ -518,7 +518,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "dist");
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with no sources");
     

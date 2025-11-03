@@ -40,9 +40,12 @@ Handles transient failures with exponential backoff and jitter.
 **Usage:**
 ```d
 auto orchestrator = new RetryOrchestrator();
+BuildContext context;
+context.target = target;
+context.config = config;
 auto result = orchestrator.withRetry(
     "build-target",
-    () => handler.build(target, config),
+    () => handler.buildWithContext(context),
     RetryPolicy.forCategory(ErrorCategory.System)
 );
 ```

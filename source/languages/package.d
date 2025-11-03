@@ -47,7 +47,10 @@ module languages;
 ///   // Create language handler
 ///   auto handler = LanguageFactory.create("python");
 ///   auto deps = handler.analyzeDependencies(sourceFile);
-///   handler.build(target);
+///   BuildContext context;
+///   context.target = target;
+///   context.config = config;
+///   handler.buildWithContext(context);
 
 public import languages.base.base;
 public import languages.base.mixins;

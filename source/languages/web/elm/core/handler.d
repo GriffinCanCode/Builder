@@ -42,8 +42,12 @@ class ElmHandler : BaseLanguageHandler
         }
     }
     
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
     {
+        // Extract target and config from context for convenience
+        auto target = context.target;
+        auto config = context.config;
+        
         LanguageBuildResult result;
         
         Logger.debugLog("Building Elm target: " ~ target.name);

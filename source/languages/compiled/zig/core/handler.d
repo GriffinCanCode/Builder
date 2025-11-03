@@ -23,8 +23,12 @@ import infrastructure.utils.logging.logger;
 /// Advanced Zig build handler with build.zig and cross-compilation support
 class ZigHandler : BaseLanguageHandler
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
     {
+        // Extract target and config from context for convenience
+        auto target = context.target;
+        auto config = context.config;
+        
         LanguageBuildResult result;
         
         Logger.debugLog("Building Zig target: " ~ target.name);

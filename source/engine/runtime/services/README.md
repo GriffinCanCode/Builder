@@ -138,7 +138,10 @@ registry.initialize();
 auto handler = registry.get(TargetLanguage.Python);
 if (handler !is null)
 {
-    auto result = handler.build(target, config);
+    BuildContext context;
+    context.target = target;
+    context.config = config;
+    auto result = handler.buildWithContext(context);
 }
 ```
 

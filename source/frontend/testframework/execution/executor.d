@@ -9,6 +9,7 @@ import std.parallelism : parallel;
 import core.atomic;
 import infrastructure.config.schema.schema : Target, WorkspaceConfig;
 import engine.runtime.services.container.services : BuildServices;
+import languages.base.base : BuildContext;
 import frontend.testframework.results;
 import frontend.testframework.sharding;
 import frontend.testframework.caching;
@@ -366,8 +367,13 @@ final class TestExecutor
                 );
             }
             
-            // Build/run the test
-            auto buildResult = handler.build(target, wsConfig);
+            // Build/run the test with context
+            BuildContext buildContext;
+            buildContext.target = target;
+            buildContext.config = wsConfig;
+            buildContext.incrementalEnabled = false; // Tests always run fresh
+            
+            auto buildResult = handler.buildWithContext(buildContext);
             
             sw.stop();
             

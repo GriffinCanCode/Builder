@@ -111,8 +111,12 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
     static if (ContextType.length == 0)
     {
         // No additional context needed
-        protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+        protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
         {
+            // Extract target and config from context for convenience
+            auto target = context.target;
+            auto config = context.config;
+            
             LanguageBuildResult result;
             
             Logger.debugLog("Building " ~ target.language.to!string ~ " target: " ~ target.name);
@@ -153,8 +157,12 @@ mixin template BuildOrchestrationMixin(TConfig, string configParserName, Context
     else
     {
         // With additional context (e.g., command string)
-        protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+        protected override LanguageBuildResult buildImplWithContext(in BuildContext buildContext)
         {
+            // Extract target and config from context for convenience
+            auto target = buildContext.target;
+            auto config = buildContext.config;
+            
             LanguageBuildResult result;
             
             Logger.debugLog("Building " ~ target.language.to!string ~ " target: " ~ target.name);
@@ -201,8 +209,12 @@ mixin template SimpleBuildOrchestrationMixin(TConfig, string configParserName)
 {
     import std.conv : to;
     
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
     {
+        // Extract target and config from context for convenience
+        auto target = context.target;
+        auto config = context.config;
+        
         LanguageBuildResult result;
         
         Logger.debugLog("Building " ~ target.language.to!string ~ " target: " ~ target.name);

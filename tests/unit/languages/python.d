@@ -106,7 +106,7 @@ if __name__ == "__main__":
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk);
     if (result.isOk)
@@ -143,7 +143,7 @@ class Helper:
     config.root = tempDir.getPath();
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk);
     if (result.isOk)
@@ -175,7 +175,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with missing source file");
     if (result.isErr)
@@ -212,7 +212,7 @@ def broken_function(:
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should complete (Python is interpreted, so build may succeed but validation should catch it)
     Assert.isTrue(result.isOk || result.isErr);
@@ -247,7 +247,7 @@ def main():
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Build may succeed (interpreted language) but imports exist
     auto imports = handler.analyzeImports([buildPath(tempDir.getPath(), "needs_dep.py")]);
@@ -274,7 +274,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with no sources");
     if (result.isErr)
@@ -306,7 +306,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Test Result monad operations
     auto mapped = result.map((string hash) => "Output: " ~ hash);
@@ -339,7 +339,7 @@ unittest
     config.options.outputDir = "/invalid/path/that/does/not/exist/xyz123";
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // May fail or succeed depending on handler implementation
     Assert.isTrue(result.isOk || result.isErr);

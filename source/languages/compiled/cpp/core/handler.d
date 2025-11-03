@@ -53,8 +53,12 @@ private string generatePchHeader(string[] headers, string outputDir)
 class CppHandler : BaseLanguageHandler
 {
     mixin CachingHandlerMixin!"cpp";
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
     {
+        // Extract target and config from context for convenience
+        auto target = context.target;
+        auto config = context.config;
+        
         LanguageBuildResult result;
         
         Logger.debugLog("Building C++ target: " ~ target.name);
@@ -515,10 +519,10 @@ class CppHandler : BaseLanguageHandler
 /// C handler (reuses CppHandler with C-specific settings)
 class CHandler : CppHandler
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
     {
-        Logger.debugLog("Building C target: " ~ target.name);
-        return super.buildImpl(target, config);
+        Logger.debugLog("Building C target: " ~ context.target.name);
+        return super.buildImplWithContext(context);
     }
     
     override Import[] analyzeImports(in string[] sources)

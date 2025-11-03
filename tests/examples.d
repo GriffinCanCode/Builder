@@ -132,7 +132,7 @@ unittest
     
     // Test
     WorkspaceConfig wsConfig;
-    auto result = handler.build(target, wsConfig);
+    auto result = testBuild(handler, target, wsConfig);
     
     Assert.isTrue(result.isOk);
     Assert.isTrue(handler.buildCalled);

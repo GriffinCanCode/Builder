@@ -58,15 +58,16 @@ struct BuildContext
 /// Base interface for language-specific build handlers
 interface LanguageHandler
 {
-    /// Build a target - returns Result type for type-safe error handling
-    Result!(string, BuildError) build(Target target, WorkspaceConfig config);
-    
-    /// Build with action-level context (optional, for fine-grained caching)
-    /// Default implementation calls basic build() for backward compatibility
-    final Result!(string, BuildError) buildWithContext(BuildContext context)
-    {
-        return build(context.target, context.config);
-    }
+    /// Build with full context including action-level caching, incremental compilation, and SIMD
+    /// 
+    /// This is the PRIMARY method to implement in language handlers.
+    /// Provides access to:
+    /// - ActionRecorder for fine-grained caching
+    /// - DependencyRecorder for incremental compilation
+    /// - SIMDCapabilities for hardware-accelerated operations
+    /// 
+    /// Handlers should implement buildImplWithContext() instead of overriding this directly.
+    Result!(string, BuildError) buildWithContext(BuildContext context);
     
     /// Check if target needs rebuild
     bool needsRebuild(in Target target, in WorkspaceConfig config);
@@ -85,29 +86,30 @@ interface LanguageHandler
 abstract class BaseLanguageHandler : LanguageHandler
 {
     
-    /// Build a target with error handling and Result wrapper
+    /// Build with full context including action-level caching, incremental compilation, and SIMD
     /// 
-    /// Safety: Calls buildImpl() and getOutputs() through @system wrappers because
+    /// Safety: Calls buildImplWithContext() and getOutputs() through @system wrappers because
     /// language handlers may perform file I/O, process execution, and other
     /// operations that are inherently @system but have been validated for safety.
     /// 
     /// The @system lambda wrapper pattern:
     /// - Delegates responsibility to concrete language handlers
-    /// - Each handler marks buildImpl() as @system with justification
+    /// - Each handler marks buildImplWithContext() as @system with justification
     /// - This function remains @system by wrapping the call
     /// - Exceptions are caught and converted to Result types
     /// 
     /// Invariants:
-    /// - buildImpl() is overridden in each language handler
+    /// - buildImplWithContext() is overridden in each language handler
     /// - All file I/O and process execution is validated by handlers
     /// - Result type ensures type-safe error propagation
     /// - No unsafe operations leak to caller
+    /// - BuildContext provides access to action recorder, dependency recorder, and SIMD
     /// 
     /// What could go wrong:
-    /// - Handler buildImpl() has memory safety bug: contained within handler
+    /// - Handler buildImplWithContext() has memory safety bug: contained within handler
     /// - Exception thrown: caught and converted to BuildError Result
     /// - Invalid target: handler validates and returns error Result
-    Result!(string, BuildError) build(Target target, WorkspaceConfig config) @system
+    Result!(string, BuildError) buildWithContext(BuildContext context) @system
     {
         // Get global tracer and structured logger (safe operations)
         auto tracer = getTracer();
@@ -120,17 +122,19 @@ abstract class BaseLanguageHandler : LanguageHandler
         scope(exit) tracer.finishSpan(handlerSpan);;
         
         () @system {
-            handlerSpan.setAttribute("handler.language", target.language.to!string);
-            handlerSpan.setAttribute("handler.target", target.name);
-            handlerSpan.setAttribute("handler.type", target.type.to!string);
+            handlerSpan.setAttribute("handler.language", context.target.language.to!string);
+            handlerSpan.setAttribute("handler.target", context.target.name);
+            handlerSpan.setAttribute("handler.type", context.target.type.to!string);
+            handlerSpan.setAttribute("handler.incremental", context.incrementalEnabled.to!string);
+            handlerSpan.setAttribute("handler.simd", context.hasSIMD().to!string);
         }();
         
         try
         {
-            // Safety: buildImpl() performs I/O and process execution
+            // Safety: buildImplWithContext() performs I/O and process execution
             // Marked @system in each language handler with specific justification
-            // This lambda wrapper keeps build() @system while allowing @system ops
-            auto result = buildImpl(target, config);
+            // This lambda wrapper keeps buildWithContext() @system while allowing @system ops
+            auto result = buildImplWithContext(context);
             
             if (result.success)
             {
@@ -144,13 +148,13 @@ abstract class BaseLanguageHandler : LanguageHandler
             else
             {
                 auto error = new BuildFailureError(
-                    target.name,
+                    context.target.name,
                     "Build command failed: " ~ result.error,
                     ErrorCode.BuildFailed
                 );
                 error.addContext(ErrorContext(
                     "building target",
-                    "language: " ~ target.language.to!string
+                    "language: " ~ context.target.language.to!string
                 ));
                 error.addSuggestion("Review the error output above for specific compilation errors");
                 error.addSuggestion("Check that all dependencies and build tools are installed");
@@ -168,7 +172,7 @@ abstract class BaseLanguageHandler : LanguageHandler
         catch (Exception e)
         {
             auto error = new BuildFailureError(
-                target.name,
+                context.target.name,
                 "Build failed with exception: " ~ e.msg,
                 ErrorCode.BuildFailed
             );
@@ -292,7 +296,20 @@ abstract class BaseLanguageHandler : LanguageHandler
         return allImports;
     }
     
-    /// Subclasses implement the actual build logic
-    protected abstract LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config);
+    /// Subclasses implement the actual build logic with full context
+    /// 
+    /// This method receives BuildContext with access to:
+    /// - target and config (context.target, context.config)
+    /// - ActionRecorder for fine-grained caching (context.recordAction)
+    /// - DependencyRecorder for incremental compilation (context.recordDependencies)
+    /// - SIMDCapabilities for hardware acceleration (context.simd)
+    /// 
+    /// Example usage:
+    ///   if (context.hasSIMD()) {
+    ///       // Use SIMD-accelerated operations
+    ///   }
+    ///   context.recordAction(actionId, inputs, outputs, metadata, success);
+    ///   context.recordDependencies(sourceFile, deps);
+    protected abstract LanguageBuildResult buildImplWithContext(in BuildContext context);
 }
 

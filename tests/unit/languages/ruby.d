@@ -65,7 +65,7 @@ greet("World")
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new RubyHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -227,7 +227,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new RubyHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with missing source file");
     if (result.isErr)
@@ -263,7 +263,7 @@ def broken_method(
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new RubyHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -292,7 +292,7 @@ puts "Hello, Ruby!"
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new RubyHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Test Result type - should be either Ok or Err
     Assert.isTrue(result.isOk || result.isErr, "Result should be valid");
@@ -318,7 +318,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new RubyHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with no sources");
     

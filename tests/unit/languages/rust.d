@@ -63,7 +63,7 @@ fn main() {
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -103,7 +103,7 @@ mod tests {
     config.root = tempDir.getPath();
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -227,7 +227,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with missing source file");
     if (result.isErr)
@@ -265,7 +265,7 @@ fn main() {
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation if rustc is available
     Assert.isTrue(result.isOk || result.isErr);
@@ -301,7 +301,7 @@ fn main() {
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation if rustc is available
     Assert.isTrue(result.isOk || result.isErr);
@@ -345,7 +345,7 @@ fn main() {
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail if cargo tries to fetch dependencies
     Assert.isTrue(result.isOk || result.isErr);
@@ -377,7 +377,7 @@ fn main() {
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Test Result type - should be either Ok or Err
     Assert.isTrue(result.isOk || result.isErr, "Result should be valid");
@@ -403,7 +403,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "target");
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with no sources");
     

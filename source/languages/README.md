@@ -53,7 +53,11 @@ import languages;
 
 auto handler = LanguageFactory.create("python");
 auto deps = handler.analyzeDependencies(sourceFile);
-handler.build(target);
+// Build with context (provides access to caching, incremental, SIMD)
+BuildContext context;
+context.target = target;
+context.config = config;
+handler.buildWithContext(context);
 ```
 
 ## Key Features

@@ -18,8 +18,12 @@ import infrastructure.utils.files.hash;
 /// Supports mustache-style templates that generate source files
 class TemplateHandler : BaseLanguageHandler, DiscoverableAction
 {
-    protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
+    protected override LanguageBuildResult buildImplWithContext(in BuildContext context)
     {
+        // Extract target and config from context for convenience
+        auto target = context.target;
+        auto config = context.config;
+        
         LanguageBuildResult result;
         
         // Template expansion happens in executeWithDiscovery

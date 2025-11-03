@@ -68,7 +68,7 @@ public class Main {
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -106,7 +106,7 @@ public class Utils {
     config.root = tempDir.getPath();
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isOk || result.isErr);
     
@@ -292,7 +292,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with missing source file");
     if (result.isErr)
@@ -333,7 +333,7 @@ public class Broken {
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation if javac is available
     Assert.isTrue(result.isOk || result.isErr);
@@ -366,7 +366,7 @@ public class Syntax {
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation
     Assert.isTrue(result.isOk || result.isErr);
@@ -402,7 +402,7 @@ public class Main {
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Should fail compilation
     Assert.isTrue(result.isOk || result.isErr);
@@ -436,7 +436,7 @@ public class Main {
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     // Test Result type - should be either Ok or Err
     Assert.isTrue(result.isOk || result.isErr, "Result should be valid");
@@ -462,7 +462,7 @@ unittest
     config.options.outputDir = buildPath(tempDir.getPath(), "bin");
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, config);
+    auto result = testBuild(handler, target, config);
     
     Assert.isTrue(result.isErr, "Build should fail with no sources");
     

@@ -106,7 +106,7 @@ unittest
     );
     
     auto handler = new PythonHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     Assert.isTrue(result.isOk, "Python build should succeed");
     
@@ -136,7 +136,7 @@ unittest
     );
     
     auto handler = new JavaScriptHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     Assert.isTrue(result.isOk, "JavaScript build should succeed");
     
@@ -173,7 +173,7 @@ unittest
     );
     
     auto handler = new TypeScriptHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     // TypeScript build may fail if tsc is not installed, check gracefully
     if (result.isOk)
@@ -210,7 +210,7 @@ unittest
     );
     
     auto handler = new GoHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -246,7 +246,7 @@ unittest
     );
     
     auto handler = new RustHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -278,7 +278,7 @@ unittest
     );
     
     auto handler = new DHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     Assert.isTrue(result.isOk, "D build should succeed");
     
@@ -305,7 +305,7 @@ unittest
     );
     
     auto handler = new CppHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -337,7 +337,7 @@ unittest
     );
     
     auto handler = new CHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -369,7 +369,7 @@ unittest
     );
     
     auto handler = new JavaHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -401,7 +401,7 @@ unittest
     );
     
     auto handler = new KotlinHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -433,7 +433,7 @@ unittest
     );
     
     auto handler = new CSharpHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -465,7 +465,7 @@ unittest
     );
     
     auto handler = new FSharpHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -497,7 +497,7 @@ unittest
     );
     
     auto handler = new ZigHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -529,7 +529,7 @@ unittest
     );
     
     auto handler = new SwiftHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -561,7 +561,7 @@ unittest
     );
     
     auto handler = new RubyHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -593,7 +593,7 @@ unittest
     );
     
     auto handler = new PHPHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -625,7 +625,7 @@ unittest
     );
     
     auto handler = new ScalaHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -657,7 +657,7 @@ unittest
     );
     
     auto handler = new ElixirHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -689,7 +689,7 @@ unittest
     );
     
     auto handler = new NimHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -721,7 +721,7 @@ unittest
     );
     
     auto handler = new LuaHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -753,7 +753,7 @@ unittest
     );
     
     auto handler = new RHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -785,7 +785,7 @@ unittest
     );
     
     auto handler = new CSSHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     Assert.isTrue(result.isOk, "CSS build should succeed");
     
@@ -812,7 +812,7 @@ unittest
     );
     
     auto handler = new HaskellHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -844,7 +844,7 @@ unittest
     );
     
     auto handler = new PerlHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -876,7 +876,7 @@ unittest
     );
     
     auto handler = new OCamlHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -908,7 +908,7 @@ unittest
     );
     
     auto handler = new ProtobufHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
@@ -958,7 +958,7 @@ unittest
     );
     
     auto handler = new ElmHandler();
-    auto result = handler.build(target, fixture.config);
+    auto result = testBuild(handler, target, fixture.config);
     
     if (result.isOk)
     {
