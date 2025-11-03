@@ -5,8 +5,8 @@ import std.string;
 import std.array;
 import std.algorithm;
 import std.uni : toLower;
-import infrastructure.migration.base;
-import infrastructure.migration.common;
+import infrastructure.migration.core.base;
+import infrastructure.migration.core.common;
 import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 import infrastructure.errors;
 

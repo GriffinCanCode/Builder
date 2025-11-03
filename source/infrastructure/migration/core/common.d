@@ -1,4 +1,4 @@
-module infrastructure.migration.common;
+module infrastructure.migration.core.common;
 
 import std.array;
 import infrastructure.errors;

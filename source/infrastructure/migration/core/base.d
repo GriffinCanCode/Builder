@@ -1,9 +1,9 @@
-module infrastructure.migration.base;
+module infrastructure.migration.core.base;
 
 import std.file : readText, exists;
 import std.path : baseName;
 import infrastructure.errors;
-import infrastructure.migration.common;
+import infrastructure.migration.core.common;
 
 /// Interface for build system migrators
 /// Each build system implements this to provide migration capabilities
@@ -96,7 +96,7 @@ struct MigratorFactory
     static IMigrator create(string systemName) @system
     {
         import std.string : toLower;
-        import infrastructure.migration.registry : getMigratorRegistry;
+        import infrastructure.migration.registry.registry : getMigratorRegistry;
         
         auto registry = getMigratorRegistry();
         return registry.create(systemName.toLower());
@@ -105,7 +105,7 @@ struct MigratorFactory
     /// Get all available migrator names
     static string[] availableSystems() @system
     {
-        import infrastructure.migration.registry : getMigratorRegistry;
+        import infrastructure.migration.registry.registry : getMigratorRegistry;
         
         auto registry = getMigratorRegistry();
         return registry.availableSystems();
@@ -115,7 +115,7 @@ struct MigratorFactory
     static IMigrator autoDetect(string filePath) @system
     {
         import std.path : baseName;
-        import infrastructure.migration.registry : getMigratorRegistry;
+        import infrastructure.migration.registry.registry : getMigratorRegistry;
         
         auto registry = getMigratorRegistry();
         auto fileName = baseName(filePath);

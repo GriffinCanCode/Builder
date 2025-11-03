@@ -1,7 +1,7 @@
-module infrastructure.migration.registry;
+module infrastructure.migration.registry.registry;
 
 import std.string : toLower;
-import infrastructure.migration.base;
+import infrastructure.migration.core.base;
 import infrastructure.migration.systems;
 
 /// Registry for build system migrators

@@ -1,10 +1,10 @@
-module infrastructure.migration.emitter;
+module infrastructure.migration.emission.emitter;
 
 import std.array;
 import std.algorithm;
 import std.string;
 import std.conv;
-import infrastructure.migration.common;
+import infrastructure.migration.core.common;
 import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 
 /// Emits Builderfile DSL from intermediate representation
