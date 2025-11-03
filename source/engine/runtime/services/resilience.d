@@ -83,12 +83,7 @@ final class ResilienceService : IResilienceService
         RetryPolicy policy
     ) @trusted
     {
-        if (!enableRetries)
-        {
-            return action();
-        }
-        
-        return retryOrchestrator.withRetry(targetId, action, policy);
+        return !enableRetries ? action() : retryOrchestrator.withRetry(targetId, action, policy);
     }
     
     /// Execute action with retry logic (string result version)
@@ -103,18 +98,12 @@ final class ResilienceService : IResilienceService
     
     bool hasCheckpoint() @trusted
     {
-        if (!enableCheckpoints)
-            return false;
-        
-        return checkpointManager.exists();
+        return enableCheckpoints && checkpointManager.exists();
     }
     
     bool isCheckpointStale() @trusted
     {
-        if (!enableCheckpoints)
-            return true;
-        
-        return checkpointManager.isStale();
+        return !enableCheckpoints || checkpointManager.isStale();
     }
     
     bool saveCheckpoint(BuildGraph graph) @trusted
@@ -192,43 +181,36 @@ final class ResilienceService : IResilienceService
 /// Null resilience service for testing/disabled resilience
 final class NullResilienceService : IResilienceService
 {
-    /// Execute action with retry logic (string result version)
-    Result!(string, BuildError) withRetryString(
-        string targetId,
-        Result!(string, BuildError) delegate() action,
-        RetryPolicy policy
-    ) @trusted
+    private __gshared SystemError nullError;
+    
+    shared static this()
     {
-        return action();
+        nullError = new SystemError("Null resilience service", ErrorCode.UnknownError);
     }
     
-    bool hasCheckpoint() @trusted { return false; }
-    bool isCheckpointStale() @trusted { return true; }
-    
-    bool saveCheckpoint(BuildGraph graph) @trusted
-    {
-        return true;
-    }
-    
-    Result!(Checkpoint, BuildError) loadCheckpoint() @trusted
-    {
-        return Result!(Checkpoint, BuildError).err(
-            new SystemError("Null resilience service", ErrorCode.UnknownError)
-        );
-    }
-    
-    Result!(ResumePlan, BuildError) planResume(BuildGraph graph) @trusted
-    {
-        return Result!(ResumePlan, BuildError).err(
-            new SystemError("Null resilience service", ErrorCode.UnknownError)
-        );
-    }
-    
-    void clearCheckpoint() @trusted { }
-    
-    RetryPolicy policyFor(BuildError error) @trusted
-    {
-        return RetryPolicy();
+    @trusted {
+        Result!(string, BuildError) withRetryString(
+            string targetId,
+            Result!(string, BuildError) delegate() action,
+            RetryPolicy policy
+        ) { return action(); }
+        
+        bool hasCheckpoint() { return false; }
+        bool isCheckpointStale() { return true; }
+        bool saveCheckpoint(BuildGraph graph) { return true; }
+        
+        Result!(Checkpoint, BuildError) loadCheckpoint()
+        {
+            return Result!(Checkpoint, BuildError).err(cast(BuildError)nullError);
+        }
+        
+        Result!(ResumePlan, BuildError) planResume(BuildGraph graph)
+        {
+            return Result!(ResumePlan, BuildError).err(cast(BuildError)nullError);
+        }
+        
+        void clearCheckpoint() { }
+        RetryPolicy policyFor(BuildError error) { return RetryPolicy(); }
     }
 }
 

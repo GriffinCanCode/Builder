@@ -76,20 +76,17 @@ struct WorkerLifecycle
     /// Start worker
     Result!DistributedError start() @trusted
     {
-        if (atomicLoad(running))
-            return Result!DistributedError.ok();
+        if (atomicLoad(running)) return Ok!DistributedError();
         
         // Connect to coordinator
         auto transportResult = TransportFactory.create(config.coordinatorUrl);
-        if (transportResult.isErr)
-            return Result!DistributedError.err(transportResult.unwrapErr());
+        if (transportResult.isErr) return Result!DistributedError.err(transportResult.unwrapErr());
         
         coordinatorTransport = transportResult.unwrap();
         
         // Register with coordinator
         auto registerResult = registerWithCoordinator();
-        if (registerResult.isErr)
-            return Result!DistributedError.err(registerResult.unwrapErr());
+        if (registerResult.isErr) return Result!DistributedError.err(registerResult.unwrapErr());
         
         id = registerResult.unwrap();
         
@@ -103,7 +100,6 @@ struct WorkerLifecycle
         }
         
         atomicStore(running, true);
-        
         Logger.info("Worker started: " ~ id.toString());
         
         return Ok!DistributedError();
@@ -190,26 +186,16 @@ struct WorkerLifecycle
     private SystemMetrics collectMetrics() @trusted
     {
         SystemMetrics m;
-        
-        // Collect real metrics
         m.queueDepth = localQueue.size();
         m.activeActions = atomicLoad(state) == WorkerState.Executing ? 1 : 0;
         
-        // Get CPU and memory usage
         import core.memory : GC;
         auto stats = GC.stats();
-        m.memoryUsage = stats.usedSize > 0 ? 
-            cast(float)stats.usedSize / cast(float)stats.usedSize : 0.0f;
+        m.memoryUsage = stats.usedSize > 0 ? cast(float)stats.usedSize / stats.usedSize : 0.0f;
         
-        // CPU usage approximation (would use platform-specific code in production)
-        // For now, base on queue depth and active actions
-        immutable queueLoad = localQueue.size() > 0 ? 
-            cast(float)localQueue.size() / cast(float)config.localQueueSize : 0.0f;
-        immutable actionLoad = m.activeActions > 0 ? 
-            cast(float)m.activeActions / cast(float)config.maxConcurrentActions : 0.0f;
+        immutable queueLoad = localQueue.size() > 0 ? cast(float)localQueue.size() / config.localQueueSize : 0.0f;
+        immutable actionLoad = m.activeActions > 0 ? cast(float)m.activeActions / config.maxConcurrentActions : 0.0f;
         m.cpuUsage = queueLoad * 0.5 + actionLoad * 0.5;
-        
-        // Disk usage (platform-specific)
         m.diskUsage = getDiskUsage();
         
         return m;
@@ -225,50 +211,28 @@ struct WorkerLifecycle
             import std.string : toStringz;
             
             statvfs_t stat;
-            immutable cwd = getcwd();
-            if (statvfs(toStringz(cwd), &stat) == 0)
+            if (statvfs(toStringz(getcwd()), &stat) == 0)
             {
                 immutable totalBytes = stat.f_blocks * stat.f_frsize;
-                immutable availBytes = stat.f_bavail * stat.f_frsize;
-                
                 if (totalBytes > 0)
-                {
-                    immutable usedBytes = totalBytes - availBytes;
-                    return cast(float)usedBytes / cast(float)totalBytes;
-                }
+                    return cast(float)(totalBytes - stat.f_bavail * stat.f_frsize) / totalBytes;
             }
-            
-            // Fallback
             return 0.2f;
         }
         else version(Windows)
         {
             import core.sys.windows.windows;
             import std.file : getcwd;
-            import std.string : toUTF16z;
             import std.utf : toUTF16;
             
             ULARGE_INTEGER freeBytesAvailable, totalBytes, freeBytes;
-            immutable cwd = getcwd();
-            immutable wpath = (cwd ~ "\0").toUTF16;
+            immutable wpath = (getcwd() ~ "\0").toUTF16;
             
-            if (GetDiskFreeSpaceExW(wpath.ptr, &freeBytesAvailable, &totalBytes, &freeBytes))
-            {
-                if (totalBytes.QuadPart > 0)
-                {
-                    immutable usedBytes = totalBytes.QuadPart - freeBytes.QuadPart;
-                    return cast(float)usedBytes / cast(float)totalBytes.QuadPart;
-                }
-            }
-            
-            // Fallback
+            if (GetDiskFreeSpaceExW(wpath.ptr, &freeBytesAvailable, &totalBytes, &freeBytes) && totalBytes.QuadPart > 0)
+                return cast(float)(totalBytes.QuadPart - freeBytes.QuadPart) / totalBytes.QuadPart;
             return 0.2f;
         }
-        else
-        {
-            // Unsupported platform
-            return 0.2f;
-        }
+        else return 0.2f;
     }
     
     /// Backoff strategy (exponential with jitter)
@@ -277,38 +241,25 @@ struct WorkerLifecycle
         import core.time : msecs;
         import std.algorithm : min;
         
-        if (attempt < 10)
-        {
-            // Short spin
-            Thread.yield();
-        }
+        if (attempt < 10) Thread.yield();
         else if (attempt < 20)
-        {
-            // Exponential backoff
-            immutable baseDelay = min(1 << (attempt - 10), 100);
-            immutable jitter = uniform(0, baseDelay / 2);
-            Thread.sleep((baseDelay + jitter).msecs);
-        }
-        else
-        {
-            // Long sleep
-            Thread.sleep(100.msecs);
-        }
+            Thread.sleep((min(1 << (attempt - 10), 100) + uniform(0, min(1 << (attempt - 10), 100) / 2)).msecs);
+        else Thread.sleep(100.msecs);
     }
     
     /// Access methods
-    WorkerId getId() @trusted { return id; }
-    WorkerConfig getConfig() @trusted { return config; }
-    ref WorkStealingDeque!ActionRequest getLocalQueue() @trusted { return localQueue; }
-    Transport getCoordinatorTransport() @trusted { return coordinatorTransport; }
-    WorkerState getState() @trusted { return atomicLoad(state); }
+    WorkerId getId() @trusted => id;
+    WorkerConfig getConfig() @trusted => config;
+    ref WorkStealingDeque!ActionRequest getLocalQueue() @trusted => localQueue;
+    Transport getCoordinatorTransport() @trusted => coordinatorTransport;
+    WorkerState getState() @trusted => atomicLoad(state);
     void setState(WorkerState newState) @trusted { atomicStore(state, newState); }
-    bool isRunning() @trusted { return atomicLoad(running); }
-    shared(bool*) getRunningPtr() @trusted { return &running; }
-    PeerRegistry getPeerRegistry() @trusted { return peerRegistry; }
-    StealEngine getStealEngine() @trusted { return stealEngine; }
-    StealTelemetry getStealTelemetry() @trusted { return stealTelemetry; }
-    SystemMetrics getMetrics() @trusted { return collectMetrics(); }
+    bool isRunning() @trusted => atomicLoad(running);
+    shared(bool*) getRunningPtr() @trusted => &running;
+    PeerRegistry getPeerRegistry() @trusted => peerRegistry;
+    StealEngine getStealEngine() @trusted => stealEngine;
+    StealTelemetry getStealTelemetry() @trusted => stealTelemetry;
+    SystemMetrics getMetrics() @trusted => collectMetrics();
     
     /// Set thread handles (called by worker main)
     void setMainThread(Thread t) @trusted { mainThread = t; }

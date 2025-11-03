@@ -24,10 +24,7 @@ struct MessageId
         return MessageId(uniform!ulong());
     }
     
-    string toString() const pure @safe
-    {
-        return value.to!string;
-    }
+    string toString() const pure @safe => value.to!string;
 }
 
 /// Worker identifier (unique per worker instance)
@@ -35,21 +32,9 @@ struct WorkerId
 {
     ulong value;
     
-    /// Broadcast sentinel (0 = all workers)
-    static WorkerId broadcast() pure nothrow @safe @nogc
-    {
-        return WorkerId(0);
-    }
-    
-    bool isBroadcast() const pure nothrow @safe @nogc
-    {
-        return value == 0;
-    }
-    
-    string toString() const pure @safe
-    {
-        return value.to!string;
-    }
+    static WorkerId broadcast() pure nothrow @safe @nogc => WorkerId(0);  // Broadcast sentinel
+    bool isBroadcast() const pure nothrow @safe @nogc => value == 0;
+    string toString() const pure @safe => value.to!string;
 }
 
 /// Action identifier (content-addressed via BLAKE3)
@@ -57,32 +42,16 @@ struct ActionId
 {
     ubyte[32] hash;  // BLAKE3 output
     
-    this(const ubyte[32] hash) pure nothrow @safe @nogc
-    {
-        this.hash = hash;
-    }
-    
+    this(const ubyte[32] hash) pure nothrow @safe @nogc { this.hash = hash; }
     this(const ubyte[] hash) pure @safe
     {
         assert(hash.length == 32, "ActionId requires 32-byte hash");
-        this.hash[0 .. 32] = hash[0 .. 32];
+        this.hash[] = hash[0 .. 32];
     }
     
-    string toString() const @trusted
-    {
-        return toHexString(hash[]).toLower();
-    }
-    
-    bool opEquals(const ActionId other) const pure nothrow @safe @nogc
-    {
-        return hash == other.hash;
-    }
-    
-    size_t toHash() const pure nothrow @trusted @nogc
-    {
-        // Use first 8 bytes as hash
-        return *cast(size_t*)hash.ptr;
-    }
+    string toString() const @trusted => toHexString(hash[]).toLower();
+    bool opEquals(const ActionId other) const pure nothrow @safe @nogc => hash == other.hash;
+    size_t toHash() const pure nothrow @trusted @nogc => *cast(size_t*)hash.ptr;
 }
 
 /// Artifact identifier (content-addressed via BLAKE3)
@@ -144,11 +113,8 @@ struct Capabilities
         ubyte[] buffer;
         buffer.reserve(256);
         
-        // Flags
-        ubyte flags = 0;
-        if (network) flags |= 0x01;
-        if (writeHome) flags |= 0x02;
-        if (writeTmp) flags |= 0x04;
+        // Flags (compact bit manipulation)
+        immutable flags = cast(ubyte)((network ? 0x01 : 0) | (writeHome ? 0x02 : 0) | (writeTmp ? 0x04 : 0));
         buffer.write!ubyte(flags, buffer.length);
         
         // Paths (length-prefixed arrays)
@@ -178,13 +144,10 @@ struct Capabilities
     static Result!(Capabilities, BuildError) deserialize(const ubyte[] data) @system
     {
         if (data.length < 1)
-            return Err!(Capabilities, BuildError)(
-                new DistributedError("Invalid capabilities: empty data"));
+            return Err!(Capabilities, BuildError)(new DistributedError("Invalid capabilities: empty data"));
         
         Capabilities caps;
         size_t offset = 0;
-        
-        // Make a mutable copy for read operations
         ubyte[] mutableData = cast(ubyte[])data.dup;
         
         try
@@ -240,8 +203,7 @@ struct Capabilities
         }
         catch (Exception e)
         {
-            return Err!(Capabilities, BuildError)(
-                new DistributedError("Failed to deserialize capabilities: " ~ e.msg));
+            return Err!(Capabilities, BuildError)(new DistributedError("Failed to deserialize capabilities: " ~ e.msg));
         }
     }
 }
@@ -454,29 +416,20 @@ class DistributedError : BaseBuildError
 /// Execution errors (sandbox, timeout, etc.)
 class ExecutionError : DistributedError
 {
-    this(string message, string file = __FILE__, size_t line = __LINE__) @safe
-    {
+    this(string message, string file = __FILE__, size_t line = __LINE__) @safe =>
         super("Execution failed: " ~ message, file, line);
-    }
 }
 
 /// Network errors (connection, timeout, etc.)
 class NetworkError : DistributedError
 {
-    this(string message, string file = __FILE__, size_t line = __LINE__) @safe
-    {
+    this(string message, string file = __FILE__, size_t line = __LINE__) @safe =>
         super("Network error: " ~ message, file, line);
-    }
 }
 
 /// Worker errors (unavailable, failed, etc.)
 class WorkerError : DistributedError
 {
-    this(string message, string file = __FILE__, size_t line = __LINE__) @safe
-    {
+    this(string message, string file = __FILE__, size_t line = __LINE__) @safe =>
         super("Worker error: " ~ message, file, line);
-    }
 }
-
-
-

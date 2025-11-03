@@ -167,15 +167,8 @@ final class WatchModeService
         performBuild(target);
         
         writeln();
-        if (_lastBuildSuccess)
-        {
-            Logger.success("Build #" ~ _buildNumber.to!string ~ " completed successfully");
-        }
-        else
-        {
-            Logger.error("Build #" ~ _buildNumber.to!string ~ " failed");
-        }
-        
+        auto buildMsg = "Build #" ~ _buildNumber.to!string;
+        (_lastBuildSuccess ? &Logger.success : &Logger.error)(buildMsg ~ (_lastBuildSuccess ? " completed successfully" : " failed"));
         Logger.info("Watching for changes...");
         writeln();
     }
@@ -253,22 +246,17 @@ final class WatchModeService
     /// Print watch mode header
     private void printWatchHeader() @system
     {
-        writeln();
-        writeln("═══════════════════════════════════════════════════════════");
-        writeln("  Builder Watch Mode");
-        writeln("═══════════════════════════════════════════════════════════");
-        writeln();
+        writeln("\n═══════════════════════════════════════════════════════════\n",
+                "  Builder Watch Mode\n",
+                "═══════════════════════════════════════════════════════════\n");
     }
     
     /// Print build header
     private void printBuildHeader() @system
     {
-        auto now = Clock.currTime();
-        writeln();
-        writeln("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        writeln("  Build #" ~ _buildNumber.to!string ~ " - " ~ now.toSimpleString());
-        writeln("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        writeln();
+        writeln("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                "  Build #", _buildNumber, " - ", Clock.currTime().toSimpleString(), "\n",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
     }
     
     /// Clear the terminal screen
@@ -281,7 +269,6 @@ final class WatchModeService
         }
         else
         {
-            // ANSI escape code to clear screen and move cursor to top
             write("\033[2J\033[H");
             stdout.flush();
         }
@@ -370,17 +357,9 @@ struct WatchStats
     void recordBuild(bool success, Duration buildTime) @system
     {
         totalBuilds++;
-        if (success)
-            successfulBuilds++;
-        else
-            failedBuilds++;
-        
+        if (success) successfulBuilds++; else failedBuilds++;
         totalBuildTime += buildTime;
-        
-        if (totalBuilds > 0)
-        {
-            averageBuildTime = totalBuildTime / totalBuilds;
-        }
+        if (totalBuilds > 0) averageBuildTime = totalBuildTime / totalBuilds;
     }
     
     /// Print statistics

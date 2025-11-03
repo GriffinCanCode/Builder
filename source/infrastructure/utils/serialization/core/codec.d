@@ -254,6 +254,19 @@ struct Codec
                 serializeValue(writer, v);
             }
         }
+        else static if (is(T == U*, U))
+        {
+            // Pointer
+            if (value is null)
+            {
+                writer.writeByte(0);
+            }
+            else
+            {
+                writer.writeByte(1);
+                serializeValue(writer, *cast(U*)value);
+            }
+        }
         else
         {
             static assert(0, "Cannot serialize type: " ~ T.stringof);
@@ -355,6 +368,24 @@ struct Codec
                 }
                 
                 return Ok!(T, string)(result);
+            }
+            else static if (is(T == U*, U))
+            {
+                // Pointer
+                bool hasValue = reader.readByte() != 0;
+                if (!hasValue)
+                {
+                    return Ok!(T, string)(null);
+                }
+                else
+                {
+                    auto valueResult = deserializeValue!U(reader);
+                    if (valueResult.isErr)
+                        return Err!(T, string)(valueResult.unwrapErr());
+                    auto ptr = new U;
+                    *ptr = valueResult.unwrap();
+                    return Ok!(T, string)(ptr);
+                }
             }
             else
             {

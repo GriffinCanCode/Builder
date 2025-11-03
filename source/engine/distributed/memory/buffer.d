@@ -51,14 +51,10 @@ struct RingBuffer(T)
     bool pop(ref T item) @trusted nothrow @nogc
     {
         immutable read = atomicLoad!(MemoryOrder.raw)(readPos);
-        immutable write = atomicLoad!(MemoryOrder.acq)(writePos);
-        
-        if (read == write)
-            return false;  // Empty
+        if (read == atomicLoad!(MemoryOrder.acq)(writePos)) return false;  // Empty
         
         item = buffer[read & mask];
         atomicStore!(MemoryOrder.rel)(readPos, read + 1);
-        
         return true;
     }
     
