@@ -5,7 +5,7 @@ import std.conv : to;
 import engine.graph;
 import engine.runtime.core.engine : ExecutionEngine;
 import engine.runtime.services.registry : HandlerRegistry;
-import engine.runtime.remote : RemoteExecutionService, RemoteServiceBuilder;
+import engine.runtime.remote : IRemoteExecutionService, RemoteExecutionService, RemoteServiceBuilder;
 import engine.caching.targets.cache;
 import engine.runtime.shutdown.shutdown : ShutdownCoordinator;
 import infrastructure.telemetry;
@@ -42,7 +42,7 @@ final class BuildServices
     private StructuredLogger _structuredLogger;
     private SIMDCapabilities _simdCapabilities;
     private HandlerRegistry _registry;
-    private RemoteExecutionService _remoteService;
+    private IRemoteExecutionService _remoteService;
     private ShutdownCoordinator _shutdownCoordinator;
     
     /// Create services with production configuration
@@ -51,14 +51,15 @@ final class BuildServices
         this._config = config;
         this._renderMode = RenderMode.Auto;
         
-        // Initialize shutdown coordinator (non-singleton, DI-based)
-        this._shutdownCoordinator = new ShutdownCoordinator();
-        
         // Initialize SIMD capabilities early (detect hardware once)
         this._initializeSIMD();
         
         // Initialize observability (tracing and structured logging)
         this._initializeObservability();
+        
+        // Initialize shutdown coordinator (non-singleton, DI-based)
+        // Created after SIMD/observability for semantic consistency
+        this._shutdownCoordinator = new ShutdownCoordinator();
         
         // Initialize handler registry
         this._registry = new HandlerRegistry();
@@ -205,6 +206,10 @@ final class BuildServices
         this._publisher = publisher;
         this._renderer = renderer;
         this._telemetryEnabled = false;
+        
+        // Initialize handler registry (required for createEngine)
+        this._registry = new HandlerRegistry();
+        this._registry.initialize();
     }
     
     /// Get workspace configuration
@@ -289,9 +294,8 @@ final class BuildServices
         // Create resilience service
         auto resilience = new ResilienceService(enableRetries, enableCheckpoints, ".");
         
-        // Create handler registry
-        auto handlers = new HandlerRegistry();
-        handlers.initialize();
+        // Use existing handler registry (already initialized in constructor)
+        // No need to create/initialize again - avoids duplicate handler registration
         
         // Create execution engine with SIMD capabilities
         return new ExecutionEngine(
@@ -301,7 +305,7 @@ final class BuildServices
             cacheService,
             observability,
             resilience,
-            handlers,
+            _registry,
             _simdCapabilities
         );
     }
@@ -405,7 +409,7 @@ final class BuildServices
     }
     
     /// Get remote execution service (if available)
-    RemoteExecutionService remoteService() @property
+    IRemoteExecutionService remoteService() @property
     {
         return _remoteService;
     }
