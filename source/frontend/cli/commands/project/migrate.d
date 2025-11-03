@@ -1,4 +1,4 @@
-module frontend.cli.commands.migrate;
+module frontend.cli.commands.project.migrate;
 
 import std.stdio;
 import std.file;

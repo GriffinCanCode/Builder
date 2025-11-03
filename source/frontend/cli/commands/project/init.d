@@ -1,4 +1,4 @@
-module frontend.cli.commands.init;
+module frontend.cli.commands.project.init;
 
 import std.stdio;
 import std.path;

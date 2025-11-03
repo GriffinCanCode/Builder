@@ -1,4 +1,4 @@
-module frontend.cli.commands.wizard;
+module frontend.cli.commands.project.wizard;
 
 import std.stdio;
 import std.path;

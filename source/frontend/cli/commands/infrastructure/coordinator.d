@@ -1,4 +1,4 @@
-module frontend.cli.commands.coordinator;
+module frontend.cli.commands.infrastructure.coordinator;
 
 import std.stdio;
 import std.conv : to;

@@ -1,4 +1,4 @@
-module frontend.cli.commands.test;
+module frontend.cli.commands.execution.test;
 
 import std.stdio;
 import std.datetime.stopwatch : StopWatch, AutoStart;

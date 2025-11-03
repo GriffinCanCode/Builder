@@ -1,4 +1,4 @@
-module frontend.cli.commands.watch;
+module frontend.cli.commands.extensions.watch;
 
 import std.stdio;
 import std.conv;

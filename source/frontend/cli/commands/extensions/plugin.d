@@ -1,4 +1,4 @@
-module frontend.cli.commands.plugin;
+module frontend.cli.commands.extensions.plugin;
 
 import std.stdio;
 import std.algorithm : map, max, reduce;

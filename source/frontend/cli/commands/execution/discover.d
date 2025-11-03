@@ -1,4 +1,4 @@
-module frontend.cli.commands.discover;
+module frontend.cli.commands.execution.discover;
 
 import std.stdio;
 import std.algorithm;

@@ -1,4 +1,4 @@
-module frontend.cli.commands.help;
+module frontend.cli.commands.help.help;
 
 import std.stdio;
 import std.string : toLower;

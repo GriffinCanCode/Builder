@@ -1,4 +1,4 @@
-module frontend.cli.commands.infer;
+module frontend.cli.commands.execution.infer;
 
 import std.stdio;
 import std.path;

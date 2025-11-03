@@ -1,4 +1,4 @@
-module frontend.cli.commands.cacheserver;
+module frontend.cli.commands.infrastructure.cacheserver;
 
 import std.stdio : writeln, writefln;
 import std.conv : to;

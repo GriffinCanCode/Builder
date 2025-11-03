@@ -1,4 +1,4 @@
-module frontend.cli.commands.telemetry;
+module frontend.cli.commands.extensions.telemetry;
 
 import std.stdio;
 import std.conv : to;

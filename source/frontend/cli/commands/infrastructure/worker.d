@@ -1,4 +1,4 @@
-module frontend.cli.commands.worker;
+module frontend.cli.commands.infrastructure.worker;
 
 import std.stdio;
 import std.conv : to;

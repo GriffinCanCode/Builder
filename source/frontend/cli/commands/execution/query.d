@@ -1,4 +1,4 @@
-module frontend.cli.commands.query;
+module frontend.cli.commands.execution.query;
 
 import std.stdio;
 import std.string;
