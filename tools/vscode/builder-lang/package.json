@@ -2,7 +2,7 @@
   "name": "builder-lang",
   "displayName": "Builder Language Support",
   "description": "Complete language support for Builder configuration files with LSP",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publisher": "builder",
   "engines": {
     "vscode": "^1.75.0"
@@ -11,7 +11,6 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "onLanguage:builder",
     "onStartupFinished"
   ],
   "main": "./extension.js",
@@ -42,6 +41,19 @@
           "light": "./icons/file-icon.svg",
           "dark": "./icons/file-icon.svg"
         }
+      },
+      {
+        "id": "builderignore",
+        "aliases": [
+          "Builder Ignore"
+        ],
+        "filenames": [
+          ".builderignore"
+        ],
+        "icon": {
+          "light": "./icons/builderignore-icon.svg",
+          "dark": "./icons/builderignore-icon.svg"
+        }
       }
     ],
     "grammars": [
@@ -49,13 +61,6 @@
         "language": "builder",
         "scopeName": "source.builder",
         "path": "./syntaxes/builder.tmLanguage.json"
-      }
-    ],
-    "iconThemes": [
-      {
-        "id": "builder-icons",
-        "label": "Builder Icons",
-        "path": "./fileicons/builder-icon-theme.json"
       }
     ],
     "configuration": {

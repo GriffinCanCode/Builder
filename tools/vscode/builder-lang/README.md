@@ -6,7 +6,7 @@ Complete language support for Builder configuration files with Language Server P
 
 ### 🎨 Syntax Highlighting
 - Full syntax highlighting for `Builderfile` and `Builderspace` files
-- Custom file icons
+- Custom file icons for `Builderfile`, `Builderspace`, and `.builderignore` (works with any icon theme!)
 - Auto-closing brackets and quotes
 - Comment toggling (Cmd+/)
 - Smart code folding
@@ -116,6 +116,10 @@ make extension
 ```
 
 ## Release Notes
+
+### 2.0.1
+- Fixed `.builderignore` file icon to display automatically
+- Icons now work with any icon theme (no longer requires switching themes)
 
 ### 2.0.0
 - Added full Language Server Protocol support
