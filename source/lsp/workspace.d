@@ -11,7 +11,6 @@ import lsp.index;
 import lsp.analysis;
 import config.workspace.ast;
 import config.parsing.lexer;
-import config.interpretation.dsl;
 import errors;
 import utils.logging.logger;
 

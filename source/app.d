@@ -9,7 +9,6 @@ import runtime.services.services;
 import runtime.shutdown.shutdown;
 import telemetry;
 import config.parsing.parser;
-import config.core.constants : VERSION;
 import analysis.inference.analyzer;
 import utils.logging.logger;
 import utils.simd;
@@ -52,7 +51,7 @@ void main(string[] args)
     
     if (showVersion)
     {
-        writeln("Builder version ", VERSION);
+        writeln("Builder version 1.0.5");
         writeln("High-performance build system for mixed-language monorepos");
         return;
     }
@@ -159,7 +158,7 @@ void main(string[] args)
                 HelpCommand.execute(helpCommand);
                 break;
             case "version":
-                writeln("Builder version ", VERSION);
+                writeln("Builder version 1.0.5");
                 writeln("High-performance build system for mixed-language monorepos");
                 break;
             default:

@@ -5,7 +5,6 @@ import std.algorithm;
 import std.array;
 import std.string;
 import config.parsing.lexer;
-import config.parsing.exprparser;
 import config.workspace.ast;
 import config.schema.schema;
 import errors;
@@ -42,7 +41,7 @@ struct WorkspaceDecl
 struct WorkspaceField
 {
     string name;
-    ExpressionValue value;
+    Expr value;
     size_t line;
     size_t column;
 }
@@ -216,22 +215,21 @@ struct WorkspaceParser
         return Ok!(WorkspaceField, BuildError)(WorkspaceField(fieldName, value, line, col));
     }
     
-    /// Parse expression - delegates to unified ExprParser (single source of truth)
-    private Result!(ExpressionValue, BuildError) parseExpression()
+    /// Parse expression - simple placeholder implementation
+    private Result!(Expr, BuildError) parseExpression()
     {
-        // Create expression parser starting from current position
-        auto exprParser = new ExprParser(tokens[current .. $], filePath);
+        auto token = peek();
+        auto loc = Location(filePath, token.line, token.column);
         
-        // Parse and convert to ExpressionValue
-        auto result = exprParser.parseAsExpressionValue();
-        
-        if (result.isOk)
+        // Simple literal parsing
+        if (token.type == TokenType.String)
         {
-            // Advance current position by how many tokens were consumed
-            current += exprParser.position();
+            advance();
+            import config.workspace.ast : Literal, LiteralExpr;
+            return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeString(token.value), loc));
         }
         
-        return result;
+        return error!Expr("Expression parsing not fully implemented in workspace parser");
     }
     
     /// Parsing utilities

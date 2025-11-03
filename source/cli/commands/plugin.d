@@ -11,7 +11,6 @@ import plugins;
 import utils.logging.logger;
 import cli.control.terminal;
 import cli.display.format;
-import config.core.constants : VERSION;
 
 /// Plugin management command
 struct PluginCommand {
@@ -27,7 +26,7 @@ struct PluginCommand {
             auto caps = Capabilities.detect();
             terminal = Terminal(caps);
             formatter = Formatter(caps);
-            registry = new PluginRegistry(VERSION);
+            registry = new PluginRegistry("1.0.5");
             loader = new PluginLoader();
             initialized = true;
         }
@@ -353,7 +352,7 @@ struct PluginCommand {
         terminal.writeln();
         
         // Validate plugin info
-        auto validator = new PluginValidator(VERSION);
+        auto validator = new PluginValidator("1.0.5");
         auto validateResult = validator.validate(info);
         
         if (validateResult.isErr) {

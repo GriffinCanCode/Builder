@@ -7,8 +7,6 @@ import config.scripting.types;
 import config.scripting.evaluator;
 import config.scripting.expander;
 import config.workspace.ast;
-import config.workspace.expr;
-import config.workspace.stmt;
 import errors;
 
 /// Statement interpreter that executes Tier 1 programmability features
