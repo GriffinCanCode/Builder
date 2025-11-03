@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.spec;
+module engine.runtime.hermetic.core.spec;
 
 import std.algorithm : canFind, map, filter;
 import std.array : array;

@@ -1,8 +1,8 @@
-module engine.runtime.hermetic.monitor;
+module engine.runtime.hermetic.monitoring;
 
 import std.datetime : Duration, msecs;
 import core.time : MonoTime;
-import engine.runtime.hermetic.spec : ResourceLimits;
+import engine.runtime.hermetic.core.spec : ResourceLimits;
 import engine.distributed.protocol.protocol : ResourceUsage;
 
 /// Resource monitoring abstraction
@@ -147,17 +147,17 @@ ResourceMonitor createMonitor(ResourceLimits limits) @safe
 {
     version(linux)
     {
-        import engine.runtime.hermetic.monitor.linux : LinuxMonitor;
+        import engine.runtime.hermetic.monitoring.linux : LinuxMonitor;
         return new LinuxMonitor(limits);
     }
     else version(OSX)
     {
-        import engine.runtime.hermetic.monitor.macos : MacOSMonitor;
+        import engine.runtime.hermetic.monitoring.macos : MacOSMonitor;
         return new MacOSMonitor(limits);
     }
     else version(Windows)
     {
-        import engine.runtime.hermetic.monitor.windows : WindowsMonitor;
+        import engine.runtime.hermetic.monitoring.windows : WindowsMonitor;
         return new WindowsMonitor(limits);
     }
     else

@@ -27,27 +27,30 @@ module engine.runtime.hermetic;
 /// monitor.stop();
 /// ```
 
-public import engine.runtime.hermetic.spec;
-public import engine.runtime.hermetic.executor;
-public import engine.runtime.hermetic.audit;
-public import engine.runtime.hermetic.monitor;
-public import engine.runtime.hermetic.timeout;
+// Core abstractions
+public import engine.runtime.hermetic.core;
 
+// Security features
+public import engine.runtime.hermetic.security;
+
+// Resource monitoring
+public import engine.runtime.hermetic.monitoring;
+
+// Platform-specific implementations
 version(linux)
 {
-    public import engine.runtime.hermetic.linux;
-    public import engine.runtime.hermetic.monitor.linux;
+    public import engine.runtime.hermetic.platforms.linux;
+    public import engine.runtime.hermetic.monitoring.linux;
 }
 
 version(OSX)
 {
-    public import engine.runtime.hermetic.macos;
-    public import engine.runtime.hermetic.monitor.macos;
+    public import engine.runtime.hermetic.platforms.macos;
+    public import engine.runtime.hermetic.monitoring.macos;
 }
 
 version(Windows)
 {
-    public import engine.runtime.hermetic.windows;
-    public import engine.runtime.hermetic.monitor.windows;
+    public import engine.runtime.hermetic.platforms.windows;
+    public import engine.runtime.hermetic.monitoring.windows;
 }
-

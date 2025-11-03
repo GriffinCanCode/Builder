@@ -1,9 +1,9 @@
-module engine.runtime.hermetic.monitor.windows;
+module engine.runtime.hermetic.monitoring.windows;
 
 version(Windows):
 
-import engine.runtime.hermetic.monitor;
-import engine.runtime.hermetic.spec : ResourceLimits;
+import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.core.spec : ResourceLimits;
 import engine.distributed.protocol.protocol : ResourceUsage;
 import std.datetime : Duration, msecs;
 import std.conv : to;

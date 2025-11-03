@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.linux;
+module engine.runtime.hermetic.platforms.linux;
 
 version(linux):
 
@@ -15,7 +15,7 @@ import std.path : buildPath;
 import std.algorithm : map;
 import std.array : array;
 import core.stdc.errno : errno, ENOENT;
-import engine.runtime.hermetic.spec;
+import engine.runtime.hermetic.core.spec;
 import infrastructure.errors;
 
 /// Linux namespace-based sandbox implementation

@@ -1,9 +1,9 @@
-module engine.runtime.hermetic.monitor.linux;
+module engine.runtime.hermetic.monitoring.linux;
 
 version(linux):
 
-import engine.runtime.hermetic.monitor;
-import engine.runtime.hermetic.spec : ResourceLimits;
+import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.core.spec : ResourceLimits;
 import engine.distributed.protocol.protocol : ResourceUsage;
 import std.datetime : Duration, msecs;
 import std.file : exists, readText, writeText;

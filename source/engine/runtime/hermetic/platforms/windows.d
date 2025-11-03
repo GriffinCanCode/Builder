@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.windows;
+module engine.runtime.hermetic.platforms.windows;
 
 version(Windows):
 
@@ -7,9 +7,9 @@ import std.path : buildPath;
 import std.conv : to;
 import std.string : toStringz, fromStringz;
 import std.array : appender;
-import engine.runtime.hermetic.spec;
-import engine.runtime.hermetic.monitor;
-import engine.runtime.hermetic.monitor.windows;
+import engine.runtime.hermetic.core.spec;
+import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.monitoring.windows;
 import infrastructure.errors;
 
 /// Windows job object-based sandboxing

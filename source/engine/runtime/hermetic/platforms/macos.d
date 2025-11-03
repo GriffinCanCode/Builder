@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.macos;
+module engine.runtime.hermetic.platforms.macos;
 
 version(OSX):
 
@@ -9,7 +9,7 @@ import std.string : join, replace;
 import std.conv : to;
 import std.algorithm : map;
 import std.array : array;
-import engine.runtime.hermetic.spec;
+import engine.runtime.hermetic.core.spec;
 import infrastructure.errors;
 
 /// macOS sandbox-exec based sandboxing

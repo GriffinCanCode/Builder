@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.audit;
+module engine.runtime.hermetic.security.audit;
 
 import std.datetime : Clock, SysTime;
 import std.conv : to;

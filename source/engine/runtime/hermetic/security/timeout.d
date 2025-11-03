@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.timeout;
+module engine.runtime.hermetic.security.timeout;
 
 import std.datetime : Duration;
 import core.time : MonoTime;

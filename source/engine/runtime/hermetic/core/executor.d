@@ -1,4 +1,4 @@
-module engine.runtime.hermetic.executor;
+module engine.runtime.hermetic.core.executor;
 
 import std.process : execute, Config;
 import std.file : exists, mkdirRecurse, tempDir;
@@ -6,22 +6,22 @@ import std.path : buildPath, absolutePath;
 import std.datetime : Duration;
 import std.conv : to;
 import std.range : empty;
-import engine.runtime.hermetic.spec;
-import engine.runtime.hermetic.audit;
+import engine.runtime.hermetic.core.spec;
+import engine.runtime.hermetic.security.audit;
 import infrastructure.errors;
 
 // Platform-specific imports
 version(linux)
 {
-    import engine.runtime.hermetic.linux;
+    import engine.runtime.hermetic.platforms.linux;
 }
 version(OSX)
 {
-    import engine.runtime.hermetic.macos;
+    import engine.runtime.hermetic.platforms.macos;
 }
 version(Windows)
 {
-    import engine.runtime.hermetic.windows;
+    import engine.runtime.hermetic.platforms.windows;
 }
 
 /// Unified hermetic execution interface
@@ -126,7 +126,7 @@ struct HermeticExecutor
     /// Execute with timeout
     Result!(Output, BuildError) executeWithTimeout(string[] command, Duration timeout, string workingDir = "") @system
     {
-        import engine.runtime.hermetic.timeout : createTimeoutEnforcer;
+        import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
         
         if (!initialized)
             return Result!(Output, BuildError).err(

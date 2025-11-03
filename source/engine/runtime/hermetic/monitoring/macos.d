@@ -1,9 +1,9 @@
-module engine.runtime.hermetic.monitor.macos;
+module engine.runtime.hermetic.monitoring.macos;
 
 version(OSX):
 
-import engine.runtime.hermetic.monitor;
-import engine.runtime.hermetic.spec : ResourceLimits;
+import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.core.spec : ResourceLimits;
 import engine.distributed.protocol.protocol : ResourceUsage;
 import std.datetime : Duration, msecs;
 import std.conv : to;

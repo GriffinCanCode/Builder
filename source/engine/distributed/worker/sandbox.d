@@ -91,7 +91,7 @@ final class NoSandboxEnv : SandboxEnv
         mkdirRecurse(workDir);
         
         // Create no-op monitor
-        import engine.runtime.hermetic.monitor : NoOpMonitor;
+        import engine.runtime.hermetic.monitoring : NoOpMonitor;
         _monitor = new NoOpMonitor();
     }
     
@@ -218,7 +218,7 @@ version(linux)
             this.workDir = workDir;
             
             // Create Linux resource monitor
-            import engine.runtime.hermetic.monitor : createMonitor;
+            import engine.runtime.hermetic.monitoring : createMonitor;
             _monitor = createMonitor(spec.resources);
         }
         
@@ -246,7 +246,7 @@ version(linux)
             auto cmdArray = parseCommand(command);
             
             // Execute hermetically with timeout
-            import engine.runtime.hermetic.timeout : createTimeoutEnforcer;
+            import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
             auto timeoutEnforcer = createTimeoutEnforcer();
             if (timeout > Duration.zero)
             {
@@ -372,7 +372,7 @@ version(OSX)
             this.workDir = workDir;
             
             // Create macOS resource monitor
-            import engine.runtime.hermetic.monitor : createMonitor;
+            import engine.runtime.hermetic.monitoring : createMonitor;
             _monitor = createMonitor(spec.resources);
         }
         
@@ -400,7 +400,7 @@ version(OSX)
             auto cmdArray = parseCommand(command);
             
             // Execute hermetically with timeout
-            import engine.runtime.hermetic.timeout : createTimeoutEnforcer;
+            import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
             auto timeoutEnforcer = createTimeoutEnforcer();
             if (timeout > Duration.zero)
             {
@@ -520,7 +520,7 @@ version(Windows)
             this.workDir = workDir;
             
             // Create Windows resource monitor
-            import engine.runtime.hermetic.monitor : createMonitor;
+            import engine.runtime.hermetic.monitoring : createMonitor;
             _monitor = createMonitor(spec.resources);
         }
         
@@ -548,7 +548,7 @@ version(Windows)
             auto cmdArray = parseCommand(command);
             
             // Execute hermetically with timeout
-            import engine.runtime.hermetic.timeout : createTimeoutEnforcer;
+            import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
             auto timeoutEnforcer = createTimeoutEnforcer();
             if (timeout > Duration.zero)
             {
