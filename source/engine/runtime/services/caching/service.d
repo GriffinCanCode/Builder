@@ -1,4 +1,4 @@
-module engine.runtime.services.cache;
+module engine.runtime.services.caching.service;
 
 import engine.caching.coordinator : CacheCoordinator, CoordinatorConfig;
 import engine.caching.actions.action : ActionId;
@@ -204,5 +204,4 @@ final class CacheService : ICacheService
         return cast(BuildCache)coordinator;  // Will need proper accessor
     }
 }
-
 

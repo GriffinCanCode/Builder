@@ -8,7 +8,7 @@ import std.conv;
 import infrastructure.config.parsing.parser;
 import infrastructure.config.schema.schema;
 import engine.graph.graph;
-import engine.runtime.services.services;
+import engine.runtime.services;
 import frontend.query;
 import infrastructure.utils.logging.logger;
 import frontend.cli.control.terminal;

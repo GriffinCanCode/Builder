@@ -1,4 +1,4 @@
-module engine.runtime.services.observability;
+module engine.runtime.services.observability.service;
 
 import frontend.cli.events.events;
 import infrastructure.telemetry.distributed.tracing : Tracer, Span, SpanKind, SpanStatus, getTracer, setTracer;

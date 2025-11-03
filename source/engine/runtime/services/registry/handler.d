@@ -1,4 +1,4 @@
-module engine.runtime.services.registry;
+module engine.runtime.services.registry.handler;
 
 import infrastructure.config.schema.schema : TargetLanguage;
 import languages.base.base : LanguageHandler;

@@ -9,7 +9,7 @@ import std.path;
 import std.json;
 import infrastructure.config.parsing.parser;
 import infrastructure.analysis.inference.analyzer;
-import engine.runtime.services.services;
+import engine.runtime.services;
 import engine.graph.dynamic;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;

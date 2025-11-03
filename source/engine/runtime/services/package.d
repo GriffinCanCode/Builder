@@ -1,15 +1,60 @@
 module engine.runtime.services;
 
-/// Service Container Module
-/// Dependency injection and service lifecycle management
+/// Runtime Services Module
 /// 
-/// This module provides a centralized service container for managing
-/// the lifecycle and wiring of core build system components.
+/// This module provides the core service infrastructure for the Builder build system.
+/// It implements a modular, dependency-injection based architecture that decouples
+/// components and enables testing.
+/// 
+/// Architecture:
+///   - Service Container: Centralized DI container (BuildServices)
+///   - Caching: Unified cache abstraction (CacheService)
+///   - Observability: Events, tracing, and logging (ObservabilityService)
+///   - Resilience: Retry and checkpoint/resume (ResilienceService)
+///   - Registry: Language handler management (HandlerRegistry)
+///   - Scheduling: Parallel task execution (SchedulingService)
+/// 
+/// Usage:
+///   import engine.runtime.services;
+///   
+///   auto services = ServiceFactory.createProduction(config, options);
+///   auto engine = services.createEngine(graph);
+///   auto result = engine.execute();
+///   services.shutdown();
 
-public import engine.runtime.services.services;
-public import engine.runtime.services.scheduling : ISchedulingService, SchedulingService, SchedulingMode;
-public import engine.runtime.services.cache : ICacheService, CacheService;
-public import engine.runtime.services.observability : IObservabilityService, ObservabilityService;
-public import engine.runtime.services.resilience : IResilienceService, ResilienceService;
-public import engine.runtime.services.registry : IHandlerRegistry, HandlerRegistry;
+// Container and factory
+public import engine.runtime.services.container : 
+    BuildServices, 
+    ServiceFactory;
 
+// Caching service
+public import engine.runtime.services.caching : 
+    ICacheService, 
+    CacheService,
+    ServiceCacheStats;
+
+// Observability service
+public import engine.runtime.services.observability : 
+    IObservabilityService, 
+    ObservabilityService,
+    NullObservabilityService;
+
+// Resilience service
+public import engine.runtime.services.resilience : 
+    IResilienceService, 
+    ResilienceService,
+    NullResilienceService;
+
+// Handler registry
+public import engine.runtime.services.registry : 
+    IHandlerRegistry, 
+    HandlerRegistry,
+    NullHandlerRegistry;
+
+// Scheduling service
+public import engine.runtime.services.scheduling : 
+    ISchedulingService, 
+    SchedulingService,
+    SchedulingMode,
+    SchedulingStats,
+    BuildResult;

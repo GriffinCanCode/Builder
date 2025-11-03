@@ -1,4 +1,4 @@
-module engine.runtime.services.scheduling;
+module engine.runtime.services.scheduling.service;
 
 import std.parallelism : totalCPUs;
 import core.atomic;

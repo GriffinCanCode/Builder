@@ -1,4 +1,4 @@
-module engine.runtime.services.resilience;
+module engine.runtime.services.resilience.service;
 
 import engine.runtime.recovery.retry : RetryOrchestrator, RetryPolicy;
 import engine.runtime.recovery.checkpoint : CheckpointManager, Checkpoint;

@@ -1,4 +1,4 @@
-module engine.runtime.services.services;
+module engine.runtime.services.container.services;
 
 import std.stdio;
 import std.conv : to;
@@ -65,7 +65,7 @@ final class BuildServices
         this._registry.initialize();
         
         // Initialize cache (using coordinator for unified caching)
-        import engine.runtime.services.cache : CacheService;
+        import engine.runtime.services.caching : CacheService;
         auto cacheService = new CacheService(options.cacheDir, this._publisher);
         this._cache = cacheService.getInternalCache();
         this._shutdownCoordinator.registerCache(this._cache);
@@ -441,41 +441,4 @@ final class BuildServices
             _simdCapabilities.shutdown();
     }
 }
-
-/// Factory methods for creating services in different contexts
-struct ServiceFactory
-{
-    /// Create services for production use
-    static BuildServices createProduction(WorkspaceConfig config, BuildOptions options)
-    {
-        return new BuildServices(config, options);
-    }
-    
-    /// Create services with workspace auto-detection
-    static Result!(BuildServices, BuildError) createFromWorkspace(
-        string workspaceRoot,
-        BuildOptions options)
-    {
-        auto configResult = ConfigParser.parseWorkspace(workspaceRoot);
-        if (configResult.isErr)
-        {
-            return Result!(BuildServices, BuildError).err(configResult.unwrapErr());
-        }
-        
-        auto config = configResult.unwrap();
-        auto services = new BuildServices(config, options);
-        return Result!(BuildServices, BuildError).ok(services);
-    }
-    
-    /// Create services for testing with mocks
-    static BuildServices createForTesting(
-        WorkspaceConfig config,
-        DependencyAnalyzer analyzer,
-        BuildCache cache,
-        EventPublisher publisher)
-    {
-        return new BuildServices(config, analyzer, cache, publisher);
-    }
-}
-
 
