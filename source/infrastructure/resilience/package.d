@@ -86,8 +86,15 @@ module infrastructure.resilience;
 /// 
 /// See individual integration modules for details.
 
-public import infrastructure.resilience.breaker;
-public import infrastructure.resilience.limiter;
-public import infrastructure.resilience.policy;
-public import infrastructure.resilience.network;
+// Core components
+public import infrastructure.resilience.core;
+
+// Policy configurations
+public import infrastructure.resilience.policies;
+
+// Coordination layer
+public import infrastructure.resilience.coordination;
+
+// Pre-built integrations
+public import infrastructure.resilience.integrations;
 

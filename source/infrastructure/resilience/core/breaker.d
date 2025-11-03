@@ -1,4 +1,4 @@
-module infrastructure.resilience.breaker;
+module infrastructure.resilience.core.breaker;
 
 import std.datetime;
 import std.algorithm : sum, map;

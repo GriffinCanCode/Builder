@@ -1,4 +1,4 @@
-module infrastructure.resilience.limiter;
+module infrastructure.resilience.core.limiter;
 
 import std.datetime;
 import std.algorithm : min;

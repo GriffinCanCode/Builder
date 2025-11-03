@@ -4,7 +4,7 @@ Production-grade circuit breakers and rate limiting for distributed system resil
 
 ## Overview
 
-This module provides comprehensive resilience mechanisms to prevent cascading failures and resource exhaustion in distributed build systems. It combines two complementary patterns:
+This module provides comprehensive resilience mechanisms to prevent cascading failures and resource exhaustion in distributed build systems. It combines two complementary patterns with a modular architecture.
 
 ### Circuit Breakers
 
@@ -32,17 +32,78 @@ Control request throughput using token bucket algorithm with adaptive features:
 - Adaptive rate adjustment based on service health
 - Wait-with-timeout support
 
+## Module Organization
+
+```
+infrastructure.resilience/
+├── core/                   # Fundamental resilience components
+│   ├── breaker.d          # Circuit breaker implementation
+│   ├── limiter.d          # Rate limiter implementation
+│   └── package.d          # Core barrel exports
+├── policies/              # Configuration and policy management
+│   ├── policy.d           # Policy presets and builder
+│   └── package.d          # Policy barrel exports
+├── coordination/          # High-level orchestration
+│   ├── network.d          # NetworkResilience coordinator
+│   └── package.d          # Coordination barrel exports
+├── integrations/          # Pre-built integration wrappers
+│   ├── cache.d            # Remote cache transport wrapper
+│   ├── protocol.d         # Distributed protocol wrapper
+│   ├── executor.d         # Remote executor wrapper
+│   └── package.d          # Integration barrel exports
+├── package.d              # Root barrel exports
+└── README.md              # This file
+```
+
 ## Architecture
 
 ```
-ResilienceService
-├── CircuitBreaker (per endpoint)
+NetworkResilience (coordination layer)
+├── CircuitBreaker (per endpoint, from core)
 │   ├── RollingWindow (failure tracking)
 │   └── State Machine (CLOSED/OPEN/HALF_OPEN)
-└── RateLimiter (per endpoint)
+└── RateLimiter (per endpoint, from core)
     ├── Token Bucket (rate control)
     └── Adaptive Controller (health-based adjustment)
 ```
+
+## Module Descriptions
+
+### core/
+
+The `core` module provides the fundamental building blocks:
+
+- **breaker.d**: Circuit breaker implementation with rolling window tracking, state machine, and configurable thresholds
+- **limiter.d**: Token bucket and sliding window rate limiters with priority support and adaptive control
+
+These components can be used standalone for fine-grained control or composed through the coordination layer.
+
+### policies/
+
+The `policies` module provides configuration management:
+
+- **policy.d**: ResiliencePolicy struct, PolicyPresets, and PolicyBuilder
+- Preset policies for common scenarios (critical, standard, relaxed, network, highThroughput)
+- Builder pattern for custom policy configuration
+
+### coordination/
+
+The `coordination` module provides high-level orchestration:
+
+- **network.d**: NetworkResilience class that manages circuit breakers and rate limiters as a unified system
+- Per-endpoint policy management
+- Automatic adaptive rate adjustment based on circuit breaker state
+- Comprehensive metrics aggregation and monitoring
+
+### integrations/
+
+The `integrations` module provides pre-built wrappers:
+
+- **cache.d**: Remote cache HTTP transport wrapper
+- **protocol.d**: Distributed protocol transport wrapper  
+- **executor.d**: Remote executor wrapper
+
+These wrappers integrate resilience at the highest levels for proper cascading behavior.
 
 ## Integration Points
 
@@ -73,9 +134,10 @@ ResilienceService
 ```d
 import infrastructure.resilience;
 
-auto resilience = new ResilienceService();
+// Create network resilience coordinator
+auto resilience = new NetworkResilience();
 
-// Execute with automatic registration
+// Execute with automatic registration and default policy
 auto result = resilience.execute!Data(
     "https://cache.example.com",
     () => transport.get(key),
@@ -84,16 +146,41 @@ auto result = resilience.execute!Data(
 );
 ```
 
-### Custom Policy
+### Using Core Components Directly
 
 ```d
-auto policy = PolicyBuilder.fromPreset(PolicyPresets.network())
+import infrastructure.resilience.core;
+
+// Create standalone circuit breaker
+auto breaker = new CircuitBreaker("my-service", BreakerConfig.init);
+auto result = breaker.execute!Data(() => operation());
+
+// Create standalone rate limiter
+auto limiter = new RateLimiter("my-service", LimiterConfig.init);
+auto acquireResult = limiter.acquire(Priority.Normal, 5.seconds);
+if (acquireResult.isOk)
+{
+    // Proceed with operation
+}
+```
+
+### Using Policies
+
+```d
+import infrastructure.resilience.policies;
+
+// Use a preset policy
+auto policy = PolicyPresets.network();
+resilience.registerEndpoint("cache-server", policy);
+
+// Build a custom policy
+auto customPolicy = PolicyBuilder.fromPreset(PolicyPresets.network())
     .withBreakerThreshold(0.4)
     .withRateLimit(200)
     .adaptive(true)
     .build();
 
-resilience.registerEndpoint("cache-server", policy);
+resilience.registerEndpoint("custom-service", customPolicy);
 ```
 
 ### Priority Requests
@@ -276,6 +363,53 @@ unittest
     assert(rejected.isErr);
 }
 ```
+
+## Importing Specific Modules
+
+You can import specific modules based on your needs:
+
+```d
+// Import everything (recommended for most use cases)
+import infrastructure.resilience;
+
+// Import only core components
+import infrastructure.resilience.core;
+
+// Import only policies
+import infrastructure.resilience.policies;
+
+// Import only coordination layer
+import infrastructure.resilience.coordination;
+
+// Import only integrations
+import infrastructure.resilience.integrations;
+```
+
+## Design Principles
+
+### Modularity
+
+Each module has a single responsibility:
+- `core` provides primitive resilience mechanisms
+- `policies` provides configuration management
+- `coordination` provides orchestration
+- `integrations` provides ready-to-use wrappers
+
+This allows you to use just what you need without unnecessary dependencies.
+
+### Type Safety
+
+- No `any` types - everything strongly typed
+- Compile-time guarantees where possible
+- Result types for error handling
+- No exceptions for control flow
+
+### Observable
+
+- Comprehensive metrics collection
+- Event callbacks for state changes
+- Statistics for capacity planning
+- Integration with telemetry system
 
 ## Future Enhancements
 

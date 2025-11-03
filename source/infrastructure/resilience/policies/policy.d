@@ -1,8 +1,8 @@
-module infrastructure.resilience.policy;
+module infrastructure.resilience.policies.policy;
 
 import std.datetime;
-import infrastructure.resilience.breaker;
-import infrastructure.resilience.limiter;
+import infrastructure.resilience.core.breaker;
+import infrastructure.resilience.core.limiter;
 import infrastructure.errors;
 
 /// Resilience policy combining circuit breaker and rate limiter

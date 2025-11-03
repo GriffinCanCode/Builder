@@ -1,10 +1,10 @@
-module infrastructure.resilience.network;
+module infrastructure.resilience.coordination.network;
 
 import std.datetime;
 import core.sync.mutex;
-import infrastructure.resilience.breaker;
-import infrastructure.resilience.limiter;
-import infrastructure.resilience.policy;
+import infrastructure.resilience.core.breaker;
+import infrastructure.resilience.core.limiter;
+import infrastructure.resilience.policies.policy;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;
 
