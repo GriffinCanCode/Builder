@@ -72,25 +72,20 @@ final class LocalArtifactStore : ArtifactStore
         loadEntries();
     }
     
-    Result!(bool, DistributedError) has(ArtifactId id) @trusted
-    {
-        synchronized (mutex) return Ok!(bool, DistributedError)(exists(artifactPath(id)));
-    }
+    Result!(bool, DistributedError) has(ArtifactId id) @trusted =>
+        Ok!(bool, DistributedError)(exists(artifactPath(id)));
     
     Result!(ubyte[], DistributedError) get(ArtifactId id) @trusted
     {
         synchronized (mutex)
         {
             immutable path = artifactPath(id);
-            if (!exists(path))
-                return Err!(ubyte[], DistributedError)(new DistributedError("Artifact not found: " ~ id.toString()));
+            if (!exists(path)) return Err!(ubyte[], DistributedError)(new DistributedError("Artifact not found: " ~ id.toString()));
             
             try
             {
                 auto data = cast(ubyte[])read(path);
-                // Update access time (LRU)
-                if (auto entry = id in entries)
-                    entry.lastAccess = Clock.currTime;
+                if (auto entry = id in entries) entry.lastAccess = Clock.currTime;
                 return Ok!(ubyte[], DistributedError)(data);
             }
             catch (Exception e)
@@ -102,50 +97,34 @@ final class LocalArtifactStore : ArtifactStore
     
     Result!(ArtifactId, DistributedError) put(ubyte[] data) @trusted
     {
-        // Compute content hash (BLAKE3)
         auto id = computeArtifactId(data);
         
         synchronized (mutex)
         {
             immutable path = artifactPath(id);
+            if (exists(path)) return Ok!(ArtifactId, DistributedError)(id);
             
-            // Skip if already exists
-            if (exists(path))
-                return Ok!(ArtifactId, DistributedError)(id);
-            
-            // Check if eviction needed
             if (currentSize + data.length > maxSize)
             {
                 auto evictResult = evictLRU(data.length);
-                if (evictResult.isErr)
-                    return Err!(ArtifactId, DistributedError)(evictResult.unwrapErr());
+                if (evictResult.isErr) return Err!(ArtifactId, DistributedError)(evictResult.unwrapErr());
             }
             
             try
             {
-                // Ensure directory exists
                 immutable dir = dirName(path);
-                if (!exists(dir))
-                    mkdirRecurse(dir);
+                if (!exists(dir)) mkdirRecurse(dir);
                 
-                // Write artifact
                 write(path, data);
                 
-                // Update metadata
-                CacheEntry entry;
-                entry.id = id;
-                entry.size = data.length;
-                entry.lastAccess = Clock.currTime;
-                entries[id] = entry;
-                
+                entries[id] = CacheEntry(id, data.length, Clock.currTime);
                 currentSize += data.length;
                 
                 return Ok!(ArtifactId, DistributedError)(id);
             }
             catch (Exception e)
             {
-                return Err!(ArtifactId, DistributedError)(
-                    new DistributedError("Failed to write artifact: " ~ e.msg));
+                return Err!(ArtifactId, DistributedError)(new DistributedError("Failed to write artifact: " ~ e.msg));
             }
         }
     }
@@ -298,39 +277,25 @@ final class LocalArtifactStore : ArtifactStore
     {
         import std.algorithm : sort;
         
-        // Sort entries by last access time
-        auto sorted = entries.values.array
-            .sort!((a, b) => a.lastAccess < b.lastAccess);
-        
+        auto sorted = entries.values.array.sort!((a, b) => a.lastAccess < b.lastAccess);
         size_t freed = 0;
         
         foreach (entry; sorted)
         {
-            if (freed >= needed)
-                break;
+            if (freed >= needed) break;
             
             try
             {
-                // Remove from filesystem
                 immutable path = artifactPath(entry.id);
-                if (exists(path))
-                    remove(path);
-                
-                // Remove from map
+                if (exists(path)) remove(path);
                 entries.remove(entry.id);
-                
                 freed += entry.size;
                 currentSize -= entry.size;
             }
-            catch (Exception e)
-            {
-                // Continue evicting even if one fails
-            }
+            catch (Exception) {}
         }
         
-        if (freed < needed)
-            return Result!DistributedError.err(new DistributedError("Failed to evict enough space"));
-        return Result!DistributedError.ok();
+        return freed >= needed ? Ok!DistributedError() : Result!DistributedError.err(new DistributedError("Failed to evict enough space"));
     }
 }
 

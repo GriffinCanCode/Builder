@@ -26,26 +26,16 @@ struct Checkpoint
     /// Calculate completion percentage
     float completion() const pure nothrow @nogc @system
     {
-        if (totalTargets == 0)
-            return 0.0;
-        return (cast(float)completedTargets / cast(float)totalTargets) * 100.0;
+        return totalTargets == 0 ? 0.0 : (cast(float)completedTargets / cast(float)totalTargets) * 100.0;
     }
     
     /// Check if checkpoint is valid for given graph
     bool isValid(const BuildGraph graph) const @system
     {
-        // Check target count matches
-        if (graph.nodes.length != totalTargets)
-            return false;
+        import std.algorithm : all;
         
-        // Check all targets exist
-        foreach (targetId; nodeStates.byKey)
-        {
-            if (targetId !in graph.nodes)
-                return false;
-        }
-        
-        return true;
+        return graph.nodes.length == totalTargets && 
+               nodeStates.byKey.all!(id => id in graph.nodes);
     }
     
     /// Merge with current graph state (preserves successful builds)
@@ -121,20 +111,16 @@ final class CheckpointManager
             if (!node.hash.empty)
                 checkpoint.nodeHashes[targetId] = node.hash;
             
-            final switch (node.status)
+            with (BuildStatus) final switch (node.status)
             {
-                case BuildStatus.Success:
-                case BuildStatus.Cached:
+                case Success, Cached:
                     checkpoint.completedTargets++;
                     break;
-                
-                case BuildStatus.Failed:
+                case Failed:
                     checkpoint.failedTargets++;
                     checkpoint.failedTargetIds ~= targetId;
                     break;
-                
-                case BuildStatus.Pending:
-                case BuildStatus.Building:
+                case Pending, Building:
                     break;
             }
         }
@@ -197,43 +183,21 @@ final class CheckpointManager
     }
     
     /// Check if checkpoint exists
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. std.file.exists() is file system query (read-only)
-    /// 2. Exception handling ensures nothrow guarantee
-    /// 3. Returns simple bool (no references)
     @system
     bool exists() const nothrow
     {
-        try
-        {
-            return std.file.exists(checkpointPath);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        try { return std.file.exists(checkpointPath); }
+        catch (Exception) { return false; }
     }
     
     /// Clear checkpoint
-    /// 
-    /// Safety: This function is @system because:
-    /// 1. std.file.exists() and remove() are file I/O operations
-    /// 2. Exception handling prevents crashes
-    /// 3. File removal is safe operation (idempotent)
     @system
     void clear()
     {
         if (std.file.exists(checkpointPath))
         {
-            try
-            {
-                std.file.remove(checkpointPath);
-            }
-            catch (Exception e)
-            {
-                writeln("Warning: Failed to clear checkpoint: ", e.msg);
-            }
+            try { std.file.remove(checkpointPath); }
+            catch (Exception e) { writeln("Warning: Failed to clear checkpoint: ", e.msg); }
         }
     }
     

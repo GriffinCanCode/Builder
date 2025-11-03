@@ -84,9 +84,7 @@ final class StealTelemetry
         
         synchronized (mutex)
         {
-            if (victim !in peerMetrics)
-                peerMetrics[victim] = PeerMetrics.init;
-            
+            if (victim !in peerMetrics) peerMetrics[victim] = PeerMetrics.init;
             peerMetrics[victim].timeouts++;
         }
     }
@@ -99,9 +97,7 @@ final class StealTelemetry
         
         synchronized (mutex)
         {
-            if (victim !in peerMetrics)
-                peerMetrics[victim] = PeerMetrics.init;
-            
+            if (victim !in peerMetrics) peerMetrics[victim] = PeerMetrics.init;
             peerMetrics[victim].networkErrors++;
         }
     }
@@ -114,9 +110,7 @@ final class StealTelemetry
         
         synchronized (mutex)
         {
-            if (victim !in peerMetrics)
-                peerMetrics[victim] = PeerMetrics.init;
-            
+            if (victim !in peerMetrics) peerMetrics[victim] = PeerMetrics.init;
             peerMetrics[victim].rejections++;
         }
     }
@@ -158,21 +152,13 @@ final class StealTelemetry
     PeerMetrics getPeerStats(WorkerId peer) @trusted
     {
         synchronized (mutex)
-        {
-            if (auto metrics = peer in peerMetrics)
-                return *metrics;
-            
-            return PeerMetrics.init;
-        }
+            return (peer in peerMetrics) ? *peerMetrics[peer] : PeerMetrics.init;
     }
     
     /// Get all peer statistics
     PeerMetrics[WorkerId] getAllPeerStats() @trusted
     {
-        synchronized (mutex)
-        {
-            return peerMetrics.dup;
-        }
+        synchronized (mutex) return peerMetrics.dup;
     }
     
     /// Reset all metrics
@@ -328,6 +314,3 @@ struct PeerMetrics
         return successes == 0 ? 0 : totalLatencyUs / successes; 
     }
 }
-
-
-

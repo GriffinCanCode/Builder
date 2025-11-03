@@ -83,25 +83,21 @@ struct EngineCoordinator
         if (sortResult.isErr)
         {
             auto error = sortResult.unwrapErr();
-            observability.recordException(buildSpan, new Exception(error.message()));
-            observability.setSpanStatus(buildSpan, SpanStatus.Error, error.message());
-            
-            string[string] fields;
-            fields["error.type"] = "topological_sort_failed";
-            observability.logError("Cannot build: " ~ error.message(), fields);
-            
-            observability.publishEvent(new BuildFailedEvent(error.message(), 0, sw.peek(), sw.peek()));
+            auto errorMsg = error.message();
+            observability.recordException(buildSpan, new Exception(errorMsg));
+            observability.setSpanStatus(buildSpan, SpanStatus.Error, errorMsg);
+            observability.logError("Cannot build: " ~ errorMsg, ["error.type": "topological_sort_failed"]);
+            observability.publishEvent(new BuildFailedEvent(errorMsg, 0, sw.peek(), sw.peek()));
             return false;
         }
         
         auto sorted = sortResult.unwrap();
         observability.setSpanAttribute(buildSpan, "build.total_targets", sorted.length.to!string);
         observability.setSpanAttribute(buildSpan, "build.max_parallelism", scheduling.workerCount().to!string);
-        
-        string[string] fields;
-        fields["total_targets"] = sorted.length.to!string;
-        fields["parallelism"] = scheduling.workerCount().to!string;
-        observability.logInfo("Building targets", fields);
+        observability.logInfo("Building targets", [
+            "total_targets": sorted.length.to!string,
+            "parallelism": scheduling.workerCount().to!string
+        ]);
         
         // Handle checkpoint/resume
         if (!handleCheckpointResume(buildSpan, sorted.length))
@@ -116,10 +112,7 @@ struct EngineCoordinator
             GC.disable();
             observability.setSpanAttribute(buildSpan, "gc.disabled", "true");
             observability.addSpanEvent(buildSpan, "gc-disabled");
-            
-            string[string] gcFields;
-            gcFields["target_count"] = sorted.length.to!string;
-            observability.logDebug("GC disabled for large build", gcFields);
+            observability.logDebug("GC disabled for large build", ["target_count": sorted.length.to!string]);
         }
         
         scope(exit)
@@ -338,12 +331,10 @@ struct EngineCoordinator
         
         if (checkpoint.isValid(graph) && !resilience.isCheckpointStale())
         {
+            auto timestampStr = checkpoint.timestamp.toSimpleString();
             observability.setSpanAttribute(checkpointSpan, "checkpoint.valid", "true");
-            observability.setSpanAttribute(checkpointSpan, "checkpoint.timestamp", checkpoint.timestamp.toSimpleString());
-            
-            string[string] cpFields;
-            cpFields["checkpoint.timestamp"] = checkpoint.timestamp.toSimpleString();
-            observability.logInfo("Found valid checkpoint", cpFields);
+            observability.setSpanAttribute(checkpointSpan, "checkpoint.timestamp", timestampStr);
+            observability.logInfo("Found valid checkpoint", ["checkpoint.timestamp": timestampStr]);
             
             // Plan resume
             auto planResult = resilience.planResume(graph);
@@ -351,10 +342,9 @@ struct EngineCoordinator
             {
                 auto plan = planResult.unwrap();
                 plan.print();
-                
-                observability.setSpanAttribute(checkpointSpan, "checkpoint.savings_pct", plan.estimatedSavings().to!string);
-                cpFields["savings_percent"] = plan.estimatedSavings().to!string;
-                observability.logInfo("Resuming build", cpFields);
+                auto savings = plan.estimatedSavings().to!string;
+                observability.setSpanAttribute(checkpointSpan, "checkpoint.savings_pct", savings);
+                observability.logInfo("Resuming build", ["savings_percent": savings, "checkpoint.timestamp": timestampStr]);
                 return true;
             }
         }
@@ -451,21 +441,19 @@ struct EngineCoordinator
     /// Format size in human-readable format
     private static string formatSize(size_t bytes) pure @system
     {
-        if (bytes < BYTES_PER_KB)
-            return format("%d B", bytes);
-        else if (bytes < BYTES_PER_KB * KB_PER_MB)
-            return format("%d KB", bytes / BYTES_PER_KB);
-        else if (bytes < BYTES_PER_KB * KB_PER_MB * MB_PER_GB)
-            return format("%d MB", bytes / (BYTES_PER_KB * KB_PER_MB));
-        else
-            return format("%d GB", bytes / (BYTES_PER_KB * KB_PER_MB * MB_PER_GB));
+        static immutable size_t[4] thresholds = [1, BYTES_PER_KB, BYTES_PER_KB * KB_PER_MB, BYTES_PER_KB * KB_PER_MB * MB_PER_GB];
+        static immutable string[4] units = [" B", " KB", " MB", " GB"];
+        
+        foreach_reverse (i, threshold; thresholds)
+            if (bytes >= threshold)
+                return format("%d%s", bytes / threshold, units[i]);
+        
+        return format("%d B", bytes);
     }
     
     /// Format percentage
     private static string formatPercent(float rate) pure @system
     {
-        import std.algorithm : min;
-        
         auto str = rate.to!string;
         return str[0..min(MAX_STAT_STRING_LENGTH, str.length)] ~ "%";
     }

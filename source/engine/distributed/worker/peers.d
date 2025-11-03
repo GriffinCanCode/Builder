@@ -44,14 +44,12 @@ final class PeerRegistry
     /// Register peer worker
     Result!DistributedError register(WorkerId id, string address) @trusted
     {
-        if (id.value == selfId.value)
-            return Result!DistributedError.ok();  // Don't register self
+        if (id.value == selfId.value) return Ok!DistributedError();  // Don't register self
         
         synchronized (mutex)
         {
             if (peers.length >= MAX_PEERS)
-                return Result!DistributedError.err(
-                    new DistributedError("Peer registry full"));
+                return Result!DistributedError.err(new DistributedError("Peer registry full"));
             
             PeerInfo info;
             info.id = id;
@@ -62,7 +60,6 @@ final class PeerRegistry
             atomicStore(info.alive, true);
             
             peers[id] = info;
-            
             Logger.debugLog("Peer registered: " ~ id.toString() ~ " @ " ~ address);
         }
         
@@ -117,45 +114,23 @@ final class PeerRegistry
         {
             // Filter to alive peers with work
             auto candidates = peers.values
-                .filter!(p => atomicLoad(p.alive))
-                .filter!(p => atomicLoad(p.queueDepth) >= MIN_QUEUE_FOR_STEAL)
+                .filter!(p => atomicLoad(p.alive) && atomicLoad(p.queueDepth) >= MIN_QUEUE_FOR_STEAL)
                 .array;
             
             if (candidates.length == 0)
-                return Err!(WorkerId, DistributedError)(
-                    new DistributedError("No suitable victims"));
+                return Err!(WorkerId, DistributedError)(new DistributedError("No suitable victims"));
             
             // Power-of-two-choices: sample 2 random peers, pick best
-            if (candidates.length == 1)
-            {
-                return Ok!(WorkerId, DistributedError)(candidates[0].id);
-            }
-            else if (candidates.length == 2)
-            {
-                auto p1 = candidates[0];
-                auto p2 = candidates[1];
-                immutable score1 = calculateStealScore(p1);
-                immutable score2 = calculateStealScore(p2);
-                return Ok!(WorkerId, DistributedError)(
-                    score1 > score2 ? p1.id : p2.id);
-            }
-            else
-            {
-                // Sample 2 random
-                immutable idx1 = uniform(0, candidates.length);
-                size_t idx2 = uniform(0, candidates.length);
-                while (idx2 == idx1)
-                    idx2 = uniform(0, candidates.length);
-                
-                auto p1 = candidates[idx1];
-                auto p2 = candidates[idx2];
-                
-                immutable score1 = calculateStealScore(p1);
-                immutable score2 = calculateStealScore(p2);
-                
-                return Ok!(WorkerId, DistributedError)(
-                    score1 > score2 ? p1.id : p2.id);
-            }
+            if (candidates.length == 1) return Ok!(WorkerId, DistributedError)(candidates[0].id);
+            
+            immutable idx1 = uniform(0, candidates.length);
+            size_t idx2 = uniform(0, candidates.length);
+            while (idx2 == idx1) idx2 = uniform(0, candidates.length);
+            
+            immutable score1 = calculateStealScore(candidates[idx1]);
+            immutable score2 = calculateStealScore(candidates[idx2]);
+            
+            return Ok!(WorkerId, DistributedError)(score1 > score2 ? candidates[idx1].id : candidates[idx2].id);
         }
     }
     
@@ -191,17 +166,10 @@ final class PeerRegistry
         synchronized (mutex)
         {
             immutable now = Clock.currTime;
-            size_t pruned = 0;
-            
             WorkerId[] toRemove;
+            
             foreach (id, peer; peers)
-            {
-                if (now - peer.lastSeen > staleThreshold)
-                {
-                    toRemove ~= id;
-                    pruned++;
-                }
-            }
+                if (now - peer.lastSeen > staleThreshold) toRemove ~= id;
             
             foreach (id; toRemove)
             {
@@ -209,7 +177,7 @@ final class PeerRegistry
                 Logger.info("Pruned stale peer: " ~ id.toString());
             }
             
-            return pruned;
+            return toRemove.length;
         }
     }
     
@@ -238,8 +206,8 @@ final class PeerRegistry
         {
             RegistryStats stats;
             stats.totalPeers = peers.length;
-            
             float totalLoad = 0.0;
+            
             foreach (peer; peers.values)
             {
                 if (atomicLoad(peer.alive))
@@ -248,14 +216,10 @@ final class PeerRegistry
                     stats.totalQueueDepth += atomicLoad(peer.queueDepth);
                     totalLoad += atomicLoad(peer.loadFactor);
                 }
-                else
-                {
-                    stats.deadPeers++;
-                }
+                else stats.deadPeers++;
             }
             
-            if (stats.alivePeers > 0)
-                stats.avgLoadFactor = totalLoad / stats.alivePeers;
+            if (stats.alivePeers > 0) stats.avgLoadFactor = totalLoad / stats.alivePeers;
             
             return stats;
         }

@@ -45,9 +45,6 @@ struct DiscoveryExecutor
         }
         
         DiscoveryExecResult result;
-        result.success = false;
-        result.cached = false;
-        result.hasDiscovery = false;
         
         // Check if this node supports discovery
         if (!dynamicGraph.isDiscoverable(node.id))
@@ -127,11 +124,8 @@ struct DiscoveryCoordinator
         foreach (node; nodes)
         {
             auto result = discoveryExec.executeWithDiscovery(node);
-            
             if (!result.success && result.hasDiscovery)
-            {
                 Logger.error("Discovery failed for " ~ node.idString ~ ": " ~ result.error);
-            }
         }
         
         // Apply discoveries and get new nodes
@@ -141,16 +135,10 @@ struct DiscoveryCoordinator
             if (applyResult.isOk)
             {
                 discoveredNodes = applyResult.unwrap();
-                
-                string[string] fields;
-                fields["discovered_nodes"] = discoveredNodes.length.to!string;
-                observability.logInfo("Discovery phase complete", fields);
+                observability.logInfo("Discovery phase complete", ["discovered_nodes": discoveredNodes.length.to!string]);
             }
             else
-            {
-                auto error = applyResult.unwrapErr();
-                Logger.error("Failed to apply discoveries: " ~ error.message());
-            }
+                Logger.error("Failed to apply discoveries: " ~ applyResult.unwrapErr().message());
         }
         
         return discoveredNodes;
@@ -163,18 +151,10 @@ struct DiscoveryCoordinator
         BuildGraph graph
     ) @system
     {
-        BuildNode[] readyNodes;
+        import std.algorithm : filter;
+        import std.array : array;
         
-        foreach (node; discoveredNodes)
-        {
-            // Check if node is immediately ready (no pending deps)
-            if (node.pendingDeps == 0)
-            {
-                readyNodes ~= node;
-            }
-        }
-        
-        return readyNodes;
+        return discoveredNodes.filter!(n => n.pendingDeps == 0).array;
     }
 }
 

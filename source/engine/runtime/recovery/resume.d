@@ -39,19 +39,16 @@ struct ResumeConfig
     {
         import std.process : environment;
         
-        ResumeConfig config;
+        static immutable ResumeStrategy[string] strategyMap = [
+            "retry": ResumeStrategy.RetryFailed,
+            "skip": ResumeStrategy.SkipFailed,
+            "rebuild": ResumeStrategy.RebuildAll,
+            "smart": ResumeStrategy.Smart
+        ];
         
+        ResumeConfig config;
         if (auto strategy = environment.get("BUILDER_RESUME_STRATEGY"))
-        {
-            switch (strategy)
-            {
-                case "retry": config.strategy = ResumeStrategy.RetryFailed; break;
-                case "skip": config.strategy = ResumeStrategy.SkipFailed; break;
-                case "rebuild": config.strategy = ResumeStrategy.RebuildAll; break;
-                case "smart": config.strategy = ResumeStrategy.Smart; break;
-                default: break;
-            }
-        }
+            config.strategy = strategyMap.get(strategy, ResumeStrategy.Smart);
         
         return config;
     }
@@ -142,19 +139,10 @@ final class ResumePlanner
         ref ResumePlan plan
     ) @system
     {
-        // Restore successful builds
         checkpoint.mergeWith(graph);
         
-        // Skip failed targets entirely
-        foreach (targetId; checkpoint.failedTargetIds)
-        {
-            if (targetId in graph.nodes)
-                plan.targetsToSkip ~= targetId;
-        }
-        
-        plan.targetsToSkip ~= checkpoint.nodeStates.keys
-            .filter!(id => checkpoint.nodeStates[id] == BuildStatus.Success)
-            .array;
+        plan.targetsToSkip = checkpoint.failedTargetIds.filter!(id => id in graph.nodes).array ~
+                             checkpoint.nodeStates.keys.filter!(id => checkpoint.nodeStates[id] == BuildStatus.Success).array;
     }
     
     private void planRebuildAll(BuildGraph graph, ref ResumePlan plan) @system
@@ -342,10 +330,7 @@ struct ResumePlan
     float estimatedSavings() const pure nothrow @nogc @system
     {
         immutable total = targetsToRetry.length + targetsToSkip.length;
-        if (total == 0)
-            return 0.0;
-        
-        return (cast(float)targetsToSkip.length / cast(float)total) * 100.0;
+        return total == 0 ? 0.0 : (cast(float)targetsToSkip.length / cast(float)total) * 100.0;
     }
 }
 

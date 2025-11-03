@@ -68,12 +68,10 @@ struct EngineExecutor
         
         try
         {
-            string[string] fields;
-            fields["target.language"] = node.target.language.to!string;
-            fields["target.type"] = node.target.type.to!string;
-            observability.logInfo("Building target", fields);
-            
-            // Publish target started event
+            observability.logInfo("Building target", [
+                "target.language": node.target.language.to!string,
+                "target.type": node.target.type.to!string
+            ]);
             publishTargetStarted(node, nodeTimer.peek());
             
             auto target = node.target;

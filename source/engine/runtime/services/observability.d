@@ -92,35 +92,20 @@ final class ObservabilityService : IObservabilityService
     
     void logInfo(string message, string[string] fields = null) @trusted
     {
-        if (fields !is null)
-            structuredLogger.info(message, fields);
-        else
-        {
-            string[string] empty;
-            structuredLogger.info(message, empty);
-        }
+        string[string] f = fields is null ? (string[string]).init : fields;
+        structuredLogger.info(message, f);
     }
     
     void logDebug(string message, string[string] fields = null) @trusted
     {
-        if (fields !is null)
-            structuredLogger.debug_(message, fields);
-        else
-        {
-            string[string] empty;
-            structuredLogger.debug_(message, empty);
-        }
+        string[string] f = fields is null ? (string[string]).init : fields;
+        structuredLogger.debug_(message, f);
     }
     
     void logError(string message, string[string] fields = null) @trusted
     {
-        if (fields !is null)
-            structuredLogger.error(message, fields);
-        else
-        {
-            string[string] empty;
-            structuredLogger.error(message, empty);
-        }
+        string[string] f = fields is null ? (string[string]).init : fields;
+        structuredLogger.error(message, f);
     }
     
     void logException(Exception e, string message = "") @trusted
@@ -150,10 +135,7 @@ final class ObservabilityService : IObservabilityService
     
     void addSpanEvent(Span span, string name, string[string] attributes = null) @trusted
     {
-        if (attributes !is null)
-            span.addEvent(name, attributes);
-        else
-            span.addEvent(name);
+        attributes is null ? span.addEvent(name) : span.addEvent(name, attributes);
     }
     
     void setSpanAttribute(Span span, string key, string value) @trusted
@@ -170,22 +152,23 @@ final class NullObservabilityService : IObservabilityService
     shared static this()
     {
         import infrastructure.telemetry.distributed.tracing : TraceId, SpanId;
-        // Create a null span that does nothing
         nullSpan = new Span(TraceId(), SpanId(), SpanId(), "null", SpanKind.Internal);
     }
     
-    void publishEvent(BuildEvent event) @trusted { }
-    Span startSpan(string name, SpanKind kind, Span parent = null) @trusted { return nullSpan; }
-    void finishSpan(Span span) @trusted { }
-    void logInfo(string message, string[string] fields = null) @trusted { }
-    void logDebug(string message, string[string] fields = null) @trusted { }
-    void logError(string message, string[string] fields = null) @trusted { }
-    void logException(Exception e, string message = "") @trusted { }
-    void flush() @trusted { }
-    void startTrace() @trusted { }
-    void setSpanStatus(Span span, SpanStatus status, string description = "") @trusted { }
-    void recordException(Span span, Exception e) @trusted { }
-    void addSpanEvent(Span span, string name, string[string] attributes = null) @trusted { }
-    void setSpanAttribute(Span span, string key, string value) @trusted { }
+    @trusted {
+        void publishEvent(BuildEvent event) { }
+        Span startSpan(string name, SpanKind kind, Span parent = null) { return nullSpan; }
+        void finishSpan(Span span) { }
+        void logInfo(string message, string[string] fields = null) { }
+        void logDebug(string message, string[string] fields = null) { }
+        void logError(string message, string[string] fields = null) { }
+        void logException(Exception e, string message = "") { }
+        void flush() { }
+        void startTrace() { }
+        void setSpanStatus(Span span, SpanStatus status, string description = "") { }
+        void recordException(Span span, Exception e) { }
+        void addSpanEvent(Span span, string name, string[string] attributes = null) { }
+        void setSpanAttribute(Span span, string key, string value) { }
+    }
 }
 

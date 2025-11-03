@@ -47,70 +47,36 @@ final class ShutdownCoordinator
         }
     }
     
-    /// Register a BuildCache for cleanup
+    /// Register caches for cleanup (overloaded for BuildCache and ActionCache)
     void registerCache(BuildCache cache) @trusted nothrow
     {
-        if (cache is null)
-            return;
-        
-        try
-        {
-            synchronized (mutex)
-            {
-                if (!isShutdown)
-                {
-                    buildCaches ~= cache;
-                }
-            }
-        }
-        catch (Exception)
-        {
-            // Best effort
-        }
+        registerResource(cache, buildCaches);
     }
     
-    /// Register an ActionCache for cleanup
     void registerCache(ActionCache cache) @trusted nothrow
     {
-        if (cache is null)
-            return;
+        registerResource(cache, actionCaches);
+    }
+    
+    /// Generic resource registration helper
+    private void registerResource(T)(T resource, ref T[] container) @trusted nothrow
+    {
+        if (resource is null) return;
         
         try
         {
             synchronized (mutex)
             {
-                if (!isShutdown)
-                {
-                    actionCaches ~= cache;
-                }
+                if (!isShutdown) container ~= resource;
             }
         }
-        catch (Exception)
-        {
-            // Best effort
-        }
+        catch (Exception) { /* Best effort */ }
     }
     
     /// Register a custom cleanup callback
     void registerCleanup(void delegate() callback) @trusted nothrow
     {
-        if (callback is null)
-            return;
-        
-        try
-        {
-            synchronized (mutex)
-            {
-                if (!isShutdown)
-                {
-                    cleanupCallbacks ~= callback;
-                }
-            }
-        }
-        catch (Exception)
-        {
-            // Best effort
-        }
+        registerResource(callback, cleanupCallbacks);
     }
     
     /// Explicit shutdown - flushes all registered caches
@@ -128,63 +94,15 @@ final class ShutdownCoordinator
                 
                 // Close all BuildCache instances
                 foreach (cache; buildCaches)
-                {
-                    if (cache !is null)
-                    {
-                        try
-                        {
-                            cache.close();
-                        }
-                        catch (Exception e)
-                        {
-                            try
-                            {
-                                writeln("Warning: Failed to close BuildCache: ", e.msg);
-                            }
-                            catch (Exception) {}
-                        }
-                    }
-                }
+                    closeResource(cache, "BuildCache");
                 
                 // Close all ActionCache instances
                 foreach (cache; actionCaches)
-                {
-                    if (cache !is null)
-                    {
-                        try
-                        {
-                            cache.close();
-                        }
-                        catch (Exception e)
-                        {
-                            try
-                            {
-                                writeln("Warning: Failed to close ActionCache: ", e.msg);
-                            }
-                            catch (Exception) {}
-                        }
-                    }
-                }
+                    closeResource(cache, "ActionCache");
                 
                 // Execute custom cleanup callbacks
                 foreach (callback; cleanupCallbacks)
-                {
-                    if (callback !is null)
-                    {
-                        try
-                        {
-                            callback();
-                        }
-                        catch (Exception e)
-                        {
-                            try
-                            {
-                                writeln("Warning: Cleanup callback failed: ", e.msg);
-                            }
-                            catch (Exception) {}
-                        }
-                    }
-                }
+                    executeCallback(callback);
                 
                 // Clear all registrations
                 buildCaches = [];
@@ -203,14 +121,34 @@ final class ShutdownCoordinator
     {
         try
         {
-            synchronized (mutex)
-            {
-                return isShutdown;
-            }
+            synchronized (mutex) { return isShutdown; }
         }
-        catch (Exception)
+        catch (Exception) { return true; }
+    }
+    
+    /// Helper to close a resource with error handling
+    private void closeResource(T)(T resource, string resourceType) @trusted nothrow
+    {
+        if (resource is null) return;
+        
+        try { resource.close(); }
+        catch (Exception e)
         {
-            return true; // Assume shut down if we can't check
+            try { writeln("Warning: Failed to close ", resourceType, ": ", e.msg); }
+            catch (Exception) {}
+        }
+    }
+    
+    /// Helper to execute callback with error handling
+    private void executeCallback(void delegate() callback) @trusted nothrow
+    {
+        if (callback is null) return;
+        
+        try { callback(); }
+        catch (Exception e)
+        {
+            try { writeln("Warning: Cleanup callback failed: ", e.msg); }
+            catch (Exception) {}
         }
     }
 }

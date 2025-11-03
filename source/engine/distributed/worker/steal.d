@@ -87,7 +87,7 @@ final class StealEngine
         auto victimId = victimResult.unwrap();
         
         // Try to steal from victim with retries
-        for (size_t attempt = 0; attempt < config.maxRetries; attempt++)
+        foreach (attempt; 0 .. config.maxRetries)
         {
             auto result = trySteal(victimId, transport);
             
@@ -101,25 +101,16 @@ final class StealEngine
                     return action;
                 }
             }
-            else
+            else if (cast(NetworkError)result.unwrapErr() !is null)
             {
-                auto err = result.unwrapErr();
-                
-                // Handle specific error types
-                if (cast(NetworkError)err !is null)
-                {
-                    atomicOp!"+="(metrics.networkErrors, 1);
-                    peers.markDead(victimId);
-                    break;  // Don't retry on network errors
-                }
+                atomicOp!"+="(metrics.networkErrors, 1);
+                peers.markDead(victimId);
+                break;  // Don't retry on network errors
             }
             
             // Backoff before retry
             if (attempt < config.maxRetries - 1)
-            {
-                immutable delay = config.retryBackoff * (1 << attempt);  // Exponential backoff
-                Thread.sleep(delay);
-            }
+                Thread.sleep(config.retryBackoff * (1 << attempt));
         }
         
         atomicOp!"+="(metrics.failures, 1);

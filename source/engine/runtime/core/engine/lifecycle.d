@@ -119,13 +119,15 @@ struct EngineLifecycle
     }
     
     /// Access to services
-    BuildGraph getGraph() @trusted { return graph; }
-    WorkspaceConfig getConfig() @trusted { return config; }
-    ISchedulingService getScheduling() @trusted { return scheduling; }
-    ICacheService getCache() @trusted { return cache; }
-    IObservabilityService getObservability() @trusted { return observability; }
-    IResilienceService getResilience() @trusted { return resilience; }
-    IHandlerRegistry getHandlers() @trusted { return handlers; }
-    SIMDCapabilities getSIMDCapabilities() @trusted { return simdCaps; }
+    @trusted {
+        BuildGraph getGraph() { return graph; }
+        WorkspaceConfig getConfig() { return config; }
+        ISchedulingService getScheduling() { return scheduling; }
+        ICacheService getCache() { return cache; }
+        IObservabilityService getObservability() { return observability; }
+        IResilienceService getResilience() { return resilience; }
+        IHandlerRegistry getHandlers() { return handlers; }
+        SIMDCapabilities getSIMDCapabilities() { return simdCaps; }
+    }
 }
 

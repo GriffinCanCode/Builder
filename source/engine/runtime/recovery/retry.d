@@ -20,34 +20,17 @@ struct RetryPolicy
     /// Create policy for specific error category
     static RetryPolicy forCategory(ErrorCategory category) pure @system
     {
-        final switch (category)
+        with (ErrorCategory) final switch (category)
         {
-            case ErrorCategory.System:
-                // Network, process issues - aggressive retry
+            case System:
                 return RetryPolicy(5, 200.msecs, 60.seconds, 2.0, 0.15, true);
-            
-            case ErrorCategory.Cache:
-                // Cache issues - moderate retry
+            case Cache:
                 return RetryPolicy(3, 100.msecs, 10.seconds, 1.5, 0.1, true);
-            
-            case ErrorCategory.IO:
-                // File system issues - quick retry
+            case IO:
                 return RetryPolicy(3, 50.msecs, 5.seconds, 2.0, 0.05, true);
-            
-            case ErrorCategory.Plugin:
-            case ErrorCategory.LSP:
-            case ErrorCategory.Watch:
-            case ErrorCategory.Config:
-                // Plugin/LSP/Watch/Config errors - minimal retry
+            case Plugin, LSP, Watch, Config:
                 return RetryPolicy(2, 100.msecs, 5.seconds, 1.5, 0.1, true);
-            
-            case ErrorCategory.Build:
-            case ErrorCategory.Parse:
-            case ErrorCategory.Analysis:
-            case ErrorCategory.Graph:
-            case ErrorCategory.Language:
-            case ErrorCategory.Internal:
-                // Syntax, logic errors - no retry
+            case Build, Parse, Analysis, Graph, Language, Internal:
                 return RetryPolicy(1, Duration.zero, Duration.zero, 1.0, 0.0, false);
         }
     }
@@ -67,23 +50,16 @@ struct RetryPolicy
         immutable capped = min(calculated, maxDelay.total!"msecs");
         
         // Add jitter: ±jitterFactor * delay
-        long withJitter;
         if (jitterFactor > 0.0)
         {
             // Use deterministic pseudo-random jitter based on attempt number
-            // This avoids needing RNG state while still providing variation
             immutable seed = attempt * 2654435761UL;  // Golden ratio hash
-            immutable pseudoRandom = (seed ^ (seed >> 16)) & 0xFFFF;
-            immutable normalizedRandom = cast(double)pseudoRandom / 0xFFFF;  // 0.0 to 1.0
-            immutable jitter = (normalizedRandom * 2.0 - 1.0) * jitterFactor;  // -jitterFactor to +jitterFactor
-            withJitter = cast(long)(capped * (1.0 + jitter));
-        }
-        else
-        {
-            withJitter = capped;
+            immutable normalizedRandom = cast(double)((seed ^ (seed >> 16)) & 0xFFFF) / 0xFFFF;
+            immutable jitter = (normalizedRandom * 2.0 - 1.0) * jitterFactor;
+            return max(cast(long)(capped * (1.0 + jitter)), 0).msecs;
         }
         
-        return max(withJitter, 0).msecs;
+        return capped.msecs;
     }
     
     /// Check if should retry based on attempt count
@@ -118,9 +94,7 @@ struct RetryStats
     /// Get success rate
     float successRate() const pure nothrow @nogc @system
     {
-        if (totalRetries == 0)
-            return 0.0;
-        return cast(float)successfulRetries / cast(float)totalRetries;
+        return totalRetries == 0 ? 0.0 : cast(float)successfulRetries / cast(float)totalRetries;
     }
 }
 
@@ -285,26 +259,15 @@ final class RetryOrchestrator
     
     private void registerTransientErrors() @system
     {
-        // Network/IO transient errors
-        registerPolicy(ErrorCode.ProcessTimeout, 
-            RetryPolicy(3, 200.msecs, 10.seconds, 2.0, 0.1, true));
-        
-        registerPolicy(ErrorCode.BuildTimeout,
-            RetryPolicy(2, 1.seconds, 30.seconds, 2.0, 0.15, true));
-        
-        // Cache transient errors
-        registerPolicy(ErrorCode.CacheLoadFailed,
-            RetryPolicy(3, 100.msecs, 5.seconds, 1.5, 0.1, true));
-        
-        registerPolicy(ErrorCode.CacheEvictionFailed,
-            RetryPolicy(2, 50.msecs, 2.seconds, 1.5, 0.05, true));
-        
-        // File system transient errors (NFS, network drives)
-        registerPolicy(ErrorCode.FileReadFailed,
-            RetryPolicy(3, 50.msecs, 2.seconds, 2.0, 0.1, true));
-        
-        registerPolicy(ErrorCode.FileWriteFailed,
-            RetryPolicy(3, 50.msecs, 2.seconds, 2.0, 0.1, true));
+        with (ErrorCode)
+        {
+            registerPolicy(ProcessTimeout, RetryPolicy(3, 200.msecs, 10.seconds, 2.0, 0.1, true));
+            registerPolicy(BuildTimeout, RetryPolicy(2, 1.seconds, 30.seconds, 2.0, 0.15, true));
+            registerPolicy(CacheLoadFailed, RetryPolicy(3, 100.msecs, 5.seconds, 1.5, 0.1, true));
+            registerPolicy(CacheEvictionFailed, RetryPolicy(2, 50.msecs, 2.seconds, 1.5, 0.05, true));
+            registerPolicy(FileReadFailed, RetryPolicy(3, 50.msecs, 2.seconds, 2.0, 0.1, true));
+            registerPolicy(FileWriteFailed, RetryPolicy(3, 50.msecs, 2.seconds, 2.0, 0.1, true));
+        }
     }
 }
 

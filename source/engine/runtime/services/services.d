@@ -67,11 +67,7 @@ final class BuildServices
         // Initialize cache (using coordinator for unified caching)
         import engine.runtime.services.cache : CacheService;
         auto cacheService = new CacheService(options.cacheDir, this._publisher);
-        // For backwards compatibility, extract the internal BuildCache
-        // Note: CacheService interface is now available for direct use
         this._cache = cacheService.getInternalCache();
-        
-        // Register cache with shutdown coordinator
         this._shutdownCoordinator.registerCache(this._cache);
         
         // Initialize analyzer
@@ -79,14 +75,9 @@ final class BuildServices
         
         // Enable incremental analysis for faster rebuilds
         auto incrementalResult = this._analyzer.enableIncremental();
-        if (incrementalResult.isErr)
-        {
-            Logger.debugLog("Incremental analysis not available, using full analysis");
-        }
-        else
-        {
-            Logger.debugLog("Incremental analysis enabled");
-        }
+        Logger.debugLog(incrementalResult.isErr ? 
+            "Incremental analysis not available, using full analysis" :
+            "Incremental analysis enabled");
         
         // Initialize remote execution service (if enabled)
         this._initializeRemoteExecution(config, options);
@@ -106,12 +97,10 @@ final class BuildServices
         
         // Log initialization (after _structuredLogger is initialized)
         if (this._structuredLogger !is null)
-        {
-            string[string] fields;
-            fields["cache_dir"] = options.cacheDir;
-            fields["telemetry_enabled"] = this._telemetryEnabled.to!string;
-            this._structuredLogger.info("Build services initialized", fields);
-        }
+            this._structuredLogger.info("Build services initialized", [
+                "cache_dir": options.cacheDir,
+                "telemetry_enabled": this._telemetryEnabled.to!string
+            ]);
     }
     
     /// Initialize SIMD capabilities (hardware detection and dispatch)
@@ -185,12 +174,11 @@ final class BuildServices
             
             this._tracer = new Tracer(exporter);
             setTracer(this._tracer);
-            
-            string[string] fields;
-            fields["exporter"] = exporterType;
-            fields["output"] = (exporterType == "console") ? "console" : outputFile;
-            fields["simd.level"] = this._simdCapabilities !is null ? this._simdCapabilities.implName : "unknown";
-            this._structuredLogger.debug_("Distributed tracing enabled (default)", fields);
+            this._structuredLogger.debug_("Distributed tracing enabled (default)", [
+                "exporter": exporterType,
+                "output": (exporterType == "console") ? "console" : outputFile,
+                "simd.level": this._simdCapabilities !is null ? this._simdCapabilities.implName : "unknown"
+            ]);
         }
         else
         {
