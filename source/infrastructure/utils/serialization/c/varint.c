@@ -3,7 +3,7 @@
  */
 
 #include "varint.h"
-#include "../simd/c/cpu_detect.h"
+#include "../../simd/c/cpu_detect.h"
 #include <string.h>
 
 /* AVX2 intrinsics */

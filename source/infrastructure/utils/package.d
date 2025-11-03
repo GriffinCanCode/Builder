@@ -50,7 +50,14 @@ module infrastructure.utils;
 ///   CPU.printInfo();              // Show CPU capabilities
 ///   SIMDOps.copy(dest, src);      // Fast SIMD memcpy
 ///   SIMDBench.compareAll();       // Benchmark SIMD implementations
+///   
+///   // Serialization (SIMD-accelerated)
+///   @Serializable(SchemaVersion(1, 0))
+///   struct MyData { @Field(1) int id; @Field(2) string name; }
+///   auto bytes = Codec.serialize(myData);
+///   auto result = Codec.deserialize!MyData(bytes);
 
+public import infrastructure.utils.serialization;
 public import infrastructure.utils.files.glob;
 public import infrastructure.utils.files.hash;
 public import infrastructure.utils.files.ignore;

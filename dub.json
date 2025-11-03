@@ -27,7 +27,9 @@
                 "bin/obj/blake3.o",
                 "bin/obj/blake3_dispatch.o",
                 "bin/obj/simd_ops.o",
-                "bin/obj/cpu_detect.o"
+                "bin/obj/cpu_detect.o",
+                "source/infrastructure/utils/serialization/c/varint.o",
+                "source/infrastructure/utils/serialization/c/memops.o"
             ]
         },
         {
@@ -42,7 +44,9 @@
                 "bin/obj/blake3.o",
                 "bin/obj/blake3_dispatch.o",
                 "bin/obj/simd_ops.o",
-                "bin/obj/cpu_detect.o"
+                "bin/obj/cpu_detect.o",
+                "source/infrastructure/utils/serialization/c/varint.o",
+                "source/infrastructure/utils/serialization/c/memops.o"
             ]
         }
     ],

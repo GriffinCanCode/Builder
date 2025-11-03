@@ -56,10 +56,10 @@ $(LIB_NAME): $(OBJECTS)
 	@echo "Built $@ successfully for $(UNAME_S) $(UNAME_M)"
 
 varint.o: varint.c varint.h
-	$(CC) $(CFLAGS) -I../simd/c -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 memops.o: memops.c memops.h
-	$(CC) $(CFLAGS) -I../simd/c -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Optimized build with -march=native
 optimized:

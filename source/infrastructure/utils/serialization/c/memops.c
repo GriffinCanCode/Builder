@@ -1,7 +1,7 @@
 /* Memory Operations Implementation */
 
 #include "memops.h"
-#include "../simd/c/cpu_detect.h"
+#include "../../simd/c/cpu_detect.h"
 
 #if defined(__AVX2__)
 #include <immintrin.h>

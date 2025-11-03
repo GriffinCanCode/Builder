@@ -9,7 +9,7 @@ build: build-c
 	@echo "Building Builder..."
 	@dub build --build=release
 
-# Build C libraries (SIMD and BLAKE3)
+# Build C libraries (SIMD, BLAKE3, and Serialization)
 build-c:
 	@echo "Building C libraries..."
 	@mkdir -p bin/obj
@@ -17,6 +17,7 @@ build-c:
 	@cp source/infrastructure/utils/simd/c/*.o bin/obj/ 2>/dev/null || true
 	@cd source/infrastructure/utils/crypto/c && $(MAKE) clean && $(MAKE)
 	@cp source/infrastructure/utils/crypto/c/*.o bin/obj/ 2>/dev/null || true
+	@cd source/infrastructure/utils/serialization/c && $(MAKE) clean && $(MAKE)
 	@echo "C libraries built"
 
 # Build LSP server
