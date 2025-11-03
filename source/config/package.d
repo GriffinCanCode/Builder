@@ -4,24 +4,26 @@ module config;
 /// Build configuration parsing and workspace management
 /// 
 /// Architecture:
-///   lexer.d     - Lexical analysis for DSL
-///   parser.d    - Builderfile parsing
-///   ast.d       - Abstract syntax tree
-///   dsl.d       - DSL interpretation
-///   schema.d    - Configuration schema definitions
-///   workspace.d - Workspace and project management
+///   parsing/    - Lexical analysis and unified DSL parsing
+///   workspace/  - AST definitions and workspace management
+///   schema/     - Target and configuration schemas
+///   analysis/   - Semantic analysis (AST → Targets)
+///   caching/    - Parse cache for performance
+///   scripting/  - Tier 1 programmability (let, fn, for, if)
+///   macros/     - Tier 2 programmability (D-based macros)
 ///
 /// Usage:
 ///   import config;
 ///   
-///   auto workspace = new Workspace("path/to/project");
-///   auto buildConfig = parseConfig("Builderfile");
-///   auto targets = buildConfig.getTargets();
+///   auto result = parseDSL(source, filePath, workspaceRoot);
+///   if (result.isOk) {
+///       auto targets = result.unwrap().targets;
+///   }
 
 public import config.parsing.lexer;
-public import config.parsing.parser;
+public import config.parsing.unified;
 public import config.workspace.ast;
-public import config.interpretation.dsl;
-public import config.schema.schema;
 public import config.workspace.workspace;
-
+public import config.analysis.semantic;
+public import config.schema.schema;
+public import config.caching.parse;

@@ -177,23 +177,11 @@ class WorkspaceManager
         // Clear previous diagnostics
         doc.diagnostics = [];
         
-        // Tokenize
-        auto lexer = Lexer(doc.text, uriToPath(doc.uri));
-        auto tokenResult = lexer.tokenize();
+        // Parse using unified parser
+        import config.parsing.unified : parse;
         
-        if (tokenResult.isErr)
-        {
-            // Lexer error
-            auto error = tokenResult.unwrapErr();
-            doc.diagnostics ~= buildErrorToDiagnostic(error);
-            return;
-        }
-        
-        doc.tokens = tokenResult.unwrap();
-        
-        // Parse
-        auto parser = DSLParser(doc.tokens, uriToPath(doc.uri));
-        auto parseResult = parser.parse();
+        string filePath = uriToPath(doc.uri);
+        auto parseResult = parse(doc.text, filePath, getRootPath(), null);
         
         if (parseResult.isErr)
         {

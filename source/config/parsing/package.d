@@ -4,10 +4,8 @@ module config.parsing;
 ///
 /// This package provides unified parsing for:
 /// - Lexical analysis (tokenization)
-/// - Expression parsing (Pratt parser)
-/// - Statement parsing (programmability features)
+/// - Complete DSL parsing (expressions, statements, targets)
+/// - Integrated Tier 1 scripting support
 
 public import config.parsing.lexer;
-public import config.parsing.exprparser;
-public import config.parsing.stmtparser;
-
+public import config.parsing.unified;
