@@ -66,7 +66,7 @@ mixin template ActionCacheIntegration(string handlerName)
 {
     import engine.caching.helpers.action : ActionCacheHelper;
     import engine.caching.actions.action : ActionId, ActionType;
-    import utils.files.hash : FastHash;
+    import infrastructure.utils.files.hash : FastHash;
     
     private ActionCacheHelper actionHelper;
     

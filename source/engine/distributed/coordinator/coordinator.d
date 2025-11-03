@@ -313,7 +313,7 @@ final class Coordinator
             if (parts.length != 2)
             {
                 return Result!DistributedError.err(
-                    new distributed.protocol.protocol.NetworkError("Invalid worker address format: " ~ workerInfo.address));
+                    new engine.distributed.protocol.protocol.NetworkError("Invalid worker address format: " ~ workerInfo.address));
             }
             
             immutable host = parts[0];
@@ -325,7 +325,7 @@ final class Coordinator
             catch (Exception)
             {
                 return Result!DistributedError.err(
-                    new distributed.protocol.protocol.NetworkError("Invalid port in worker address: " ~ parts[1]));
+                    new engine.distributed.protocol.protocol.NetworkError("Invalid port in worker address: " ~ parts[1]));
             }
             
             // Create HTTP transport to worker
@@ -334,7 +334,7 @@ final class Coordinator
             if (connectResult.isErr)
             {
                 return Result!DistributedError.err(
-                    new distributed.protocol.protocol.NetworkError("Failed to connect to worker: " ~ 
+                    new engine.distributed.protocol.protocol.NetworkError("Failed to connect to worker: " ~ 
                                    connectResult.unwrapErr().message()));
             }
             
@@ -347,7 +347,7 @@ final class Coordinator
             if (!transport.isConnected())
             {
                 return Result!DistributedError.err(
-                    new distributed.protocol.protocol.NetworkError("Transport not connected"));
+                    new engine.distributed.protocol.protocol.NetworkError("Transport not connected"));
             }
             
             try
@@ -367,7 +367,7 @@ final class Coordinator
             {
                 transport.close();
                 return Result!DistributedError.err(
-                    new distributed.protocol.protocol.NetworkError("Failed to send: " ~ e.msg));
+                    new engine.distributed.protocol.protocol.NetworkError("Failed to send: " ~ e.msg));
             }
             
             transport.close();
@@ -377,7 +377,7 @@ final class Coordinator
         catch (Exception e)
         {
             return Result!DistributedError.err(
-                new distributed.protocol.protocol.NetworkError("Exception sending action to worker: " ~ e.msg));
+                new engine.distributed.protocol.protocol.NetworkError("Exception sending action to worker: " ~ e.msg));
         }
     }
     

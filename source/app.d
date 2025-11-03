@@ -189,7 +189,7 @@ void buildCommand(in string target, in bool showGraph, in string modeStr, in boo
     if (configResult.isErr)
     {
         Logger.error("Failed to parse workspace configuration");
-        import errors.formatting.format : format;
+        import infrastructure.errors.formatting.format : format;
         Logger.error(format(configResult.unwrapErr()));
         import core.stdc.stdlib : exit;
         exit(1);
@@ -231,7 +231,7 @@ void buildCommand(in string target, in bool showGraph, in string modeStr, in boo
     if (graphResult.isErr)
     {
         Logger.error("Failed to analyze dependencies");
-        import errors.formatting.format : format;
+        import infrastructure.errors.formatting.format : format;
         Logger.error(format(graphResult.unwrapErr()));
         import core.stdc.stdlib : exit;
         exit(1);
@@ -312,7 +312,7 @@ void graphCommand(in string target) @system
         if (configResult.isErr)
         {
             Logger.error("Failed to parse workspace configuration");
-            import errors.formatting.format : format;
+            import infrastructure.errors.formatting.format : format;
             Logger.error(format(configResult.unwrapErr()));
             exit(1);
         }
@@ -367,8 +367,8 @@ void graphCommand(in string target) @system
 /// Resume command handler - continues build from checkpoint (refactored with DI)
 void resumeCommand(in string modeStr) @system
 {
-    import runtime.recovery.checkpoint : CheckpointManager;
-    import runtime.recovery.resume : ResumePlanner, ResumeConfig;
+    import engine.runtime.recovery.checkpoint : CheckpointManager;
+    import engine.runtime.recovery.resume : ResumePlanner, ResumeConfig;
     
     Logger.info("Checking for build checkpoint...");
     
@@ -409,7 +409,7 @@ void resumeCommand(in string modeStr) @system
     if (configResult.isErr)
     {
         Logger.error("Failed to parse workspace configuration");
-        import errors.formatting.format : format;
+        import infrastructure.errors.formatting.format : format;
         Logger.error(format(configResult.unwrapErr()));
         import core.stdc.stdlib : exit;
         exit(1);

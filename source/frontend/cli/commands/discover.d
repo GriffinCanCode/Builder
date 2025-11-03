@@ -49,7 +49,7 @@ void discoverCommand(string[] args)
     auto dynamicGraph = new DynamicBuildGraph(graph);
     
     // Mark discoverable targets
-    import runtime.core.engine.discovery;
+    import engine.runtime.core.engine.discovery;
     DiscoveryMarker.markCodeGenTargets(dynamicGraph);
     
     // Count discoverable targets

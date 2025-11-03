@@ -115,7 +115,7 @@ final class ShardEngine
         foreach (testId; testIds)
         {
             // Hash test ID to shard consistently
-            import utils.crypto.blake3 : Blake3;
+            import infrastructure.utils.crypto.blake3 : Blake3;
             immutable hash = Blake3.hashHex(testId);
             immutable shardId = hashToShardId(hash);
             
@@ -177,7 +177,7 @@ final class ShardEngine
             shard.shardId = minLoadShardId;
             shard.testId = test.testId;
             shard.estimatedMs = test.durationMs;
-            import utils.crypto.blake3 : Blake3;
+            import infrastructure.utils.crypto.blake3 : Blake3;
             shard.contentHash = Blake3.hashHex(test.testId);
             shards ~= shard;
             

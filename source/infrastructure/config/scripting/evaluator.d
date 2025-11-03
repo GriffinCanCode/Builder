@@ -31,27 +31,26 @@ class Evaluator
     }
     
     /// Evaluate expression value from AST
-    Result!(Value, BuildError) evaluate(ExpressionValue expr) @system
+    Result!(Value, BuildError) evaluate(Expr expr) @system
     {
-        final switch (expr.kind)
+        // TODO: Implement proper Expr evaluation with the new AST structure
+        // Placeholder implementation
+        if (auto lit = cast(LiteralExpr)expr)
         {
-            case ExpressionValue.Kind.String:
-                return Result!(Value, BuildError).ok(
-                    Value.makeString(evaluateStringInterpolation(expr.stringValue.value))
-                );
-            
-            case ExpressionValue.Kind.Number:
-                return Result!(Value, BuildError).ok(Value.makeNumber(expr.numberValue.value));
-            
-            case ExpressionValue.Kind.Identifier:
-                return evaluateIdentifier(expr.identifierValue.name);
-            
-            case ExpressionValue.Kind.Array:
-                return evaluateArray(expr.arrayValue.elements);
-            
-            case ExpressionValue.Kind.Map:
-                return evaluateMap(expr.mapValue.pairs);
+            // Handle literal values
+            if (lit.value.kind == LiteralKind.String)
+                return Result!(Value, BuildError).ok(Value.makeString(lit.value.asString()));
+            else if (lit.value.kind == LiteralKind.Number)
+                return Result!(Value, BuildError).ok(Value.makeNumber(cast(double)lit.value.asNumber()));
+            else if (lit.value.kind == LiteralKind.Bool)
+                return Result!(Value, BuildError).ok(Value.makeBool(lit.value.asBool()));
         }
+        else if (auto ident = cast(IdentExpr)expr)
+        {
+            return evaluateIdentifier(ident.name);
+        }
+        
+        return Result!(Value, BuildError).ok(Value.makeNull());
     }
     
     /// Evaluate string with interpolation ${expr}
@@ -97,7 +96,7 @@ class Evaluator
     }
     
     /// Evaluate array
-    private Result!(Value, BuildError) evaluateArray(ExpressionValue[] elements) @system
+    private Result!(Value, BuildError) evaluateArray(Expr[] elements) @system
     {
         Value[] result;
         result.reserve(elements.length);
@@ -114,7 +113,7 @@ class Evaluator
     }
     
     /// Evaluate map
-    private Result!(Value, BuildError) evaluateMap(ExpressionValue[string] map) @system
+    private Result!(Value, BuildError) evaluateMap(Expr[string] map) @system
     {
         Value[string] result;
         
@@ -370,48 +369,19 @@ class Evaluator
     }
     
     /// Get type information for expression (without evaluation)
-    Result!(ScriptTypeInfo, BuildError) inferType(ExpressionValue expr) @system
+    Result!(ScriptTypeInfo, BuildError) inferType(Expr expr) @system
     {
-        final switch (expr.kind)
+        // TODO: Implement proper type inference with the new AST structure
+        if (auto lit = cast(LiteralExpr)expr)
         {
-            case ExpressionValue.Kind.String:
+            if (lit.value.kind == LiteralKind.String)
                 return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.String));
-            
-            case ExpressionValue.Kind.Number:
+            else if (lit.value.kind == LiteralKind.Number)
                 return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Number));
-            
-            case ExpressionValue.Kind.Identifier:
-                auto name = expr.identifierValue.name;
-                if (name == "true" || name == "false")
-                    return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
-                if (name == "null")
-                    return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
-                
-                // Lookup type from scope
-                auto lookupResult = scope_.lookup(name);
-                if (lookupResult.isErr)
-                    return Result!(ScriptTypeInfo, BuildError).err(lookupResult.unwrapErr());
-                
-                auto value = lookupResult.unwrap();
-                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(value.type()));
-            
-            case ExpressionValue.Kind.Array:
-                // Infer element type from first element
-                if (expr.arrayValue.elements.empty)
-                    return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.array(ValueType.Null));
-                
-                auto firstType = inferType(expr.arrayValue.elements[0]);
-                if (firstType.isErr)
-                    return firstType;
-                
-                return Result!(ScriptTypeInfo, BuildError).ok(
-                    ScriptTypeInfo.array(firstType.unwrap().valueType)
-                );
-            
-            case ExpressionValue.Kind.Map:
-                // Maps are dynamically typed
-                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Map));
+            else if (lit.value.kind == LiteralKind.Bool)
+                return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Bool));
         }
+        return Result!(ScriptTypeInfo, BuildError).ok(ScriptTypeInfo.simple(ValueType.Null));
     }
     
     // Helper methods

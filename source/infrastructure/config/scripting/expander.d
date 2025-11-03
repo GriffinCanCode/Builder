@@ -46,13 +46,13 @@ class MacroExpander
     }
     
     /// Expand macro call
-    Result!(TargetDecl[], BuildError) expand(string name, Value[] args) @system
+    Result!(TargetDeclStmt[], BuildError) expand(string name, Value[] args) @system
     {
         if (name !in macros)
         {
             auto error = new ParseError("Undefined macro '" ~ name ~ "'", null);
             error.addSuggestion("Define macro with 'macro " ~ name ~ "(...) { ... }'");
-            return Result!(TargetDecl[], BuildError).err(error);
+            return Result!(TargetDeclStmt[], BuildError).err(error);
         }
         
         auto macro_ = macros[name];
@@ -65,7 +65,7 @@ class MacroExpander
                 " arguments, got " ~ args.length.to!string,
                 null
             );
-            return Result!(TargetDecl[], BuildError).err(error);
+            return Result!(TargetDeclStmt[], BuildError).err(error);
         }
         
         // Create new scope for macro expansion
@@ -77,30 +77,30 @@ class MacroExpander
         {
             auto defineResult = evaluator.defineVariable(param, args[i], true);
             if (defineResult.isErr)
-                return Result!(TargetDecl[], BuildError).err(defineResult.unwrapErr());
+                return Result!(TargetDeclStmt[], BuildError).err(defineResult.unwrapErr());
         }
         
         // Execute macro body and collect generated targets
-        TargetDecl[] targets;
+        TargetDeclStmt[] targets;
         
         foreach (stmt; macro_.body)
         {
             auto result = executeStatement(stmt);
             if (result.isErr)
-                return Result!(TargetDecl[], BuildError).err(result.unwrapErr());
+                return Result!(TargetDeclStmt[], BuildError).err(result.unwrapErr());
             
             targets ~= result.unwrap();
         }
         
-        return Result!(TargetDecl[], BuildError).ok(targets);
+        return Result!(TargetDeclStmt[], BuildError).ok(targets);
     }
     
     /// Execute statement and return generated targets
-    private Result!(TargetDecl[], BuildError) executeStatement(Statement stmt) @system
+    private Result!(TargetDeclStmt[], BuildError) executeStatement(Statement stmt) @system
     {
         // This would need to be implemented based on Statement AST node types
         // For now, return empty array as placeholder
-        return Result!(TargetDecl[], BuildError).ok([]);
+        return Result!(TargetDeclStmt[], BuildError).ok([]);
     }
 }
 
@@ -110,22 +110,22 @@ struct Statement
     StatementType type;
     
     // For target declarations
-    TargetDecl targetDecl;
+    TargetDeclStmt targetDecl;
     
     // For loops
     string loopVar;
-    ExpressionValue loopIterable;
+    Expr loopIterable;
     Statement[] loopBody;
     
     // For conditionals
-    ExpressionValue condition;
+    Expr condition;
     Statement[] thenBranch;
     Statement[] elseBranch;
 }
 
 enum StatementType
 {
-    TargetDecl,
+    TargetDeclStmt,
     ForLoop,
     IfStatement,
     LetDecl,

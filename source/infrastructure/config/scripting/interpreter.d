@@ -21,7 +21,7 @@ class Interpreter
 {
     private Evaluator evaluator;
     private MacroExpander expander;
-    private TargetDecl[] generatedTargets;
+    private TargetDeclStmt[] generatedTargets;
     
     this() @system
     {
@@ -31,26 +31,26 @@ class Interpreter
     }
     
     /// Execute program (list of statements) and return generated targets
-    Result!(TargetDecl[], BuildError) execute(Stmt[] statements) @system
+    Result!(TargetDeclStmt[], BuildError) execute(Stmt[] statements) @system
     {
         foreach (stmt; statements)
         {
             auto result = executeStatement(stmt);
             if (result.isErr)
-                return Result!(TargetDecl[], BuildError).err(result.unwrapErr());
+                return Result!(TargetDeclStmt[], BuildError).err(result.unwrapErr());
         }
         
-        return Result!(TargetDecl[], BuildError).ok(generatedTargets);
+        return Result!(TargetDeclStmt[], BuildError).ok(generatedTargets);
     }
     
     /// Execute single statement
     private Result!BuildError executeStatement(Stmt stmt) @system
     {
-        if (auto varDecl = cast(VarDecl)stmt)
+        if (auto varDecl = cast(VarDeclStmt)stmt)
             return executeVarDecl(varDecl);
-        else if (auto funcDecl = cast(FunctionDecl)stmt)
+        else if (auto funcDecl = cast(FunctionDeclStmt)stmt)
             return executeFunctionDecl(funcDecl);
-        else if (auto macroDecl = cast(MacroDecl)stmt)
+        else if (auto macroDecl = cast(MacroDeclStmt)stmt)
             return executeMacroDecl(macroDecl);
         else if (auto ifStmt = cast(IfStmt)stmt)
             return executeIfStmt(ifStmt);
@@ -60,7 +60,7 @@ class Interpreter
             return executeReturnStmt(returnStmt);
         else if (auto importStmt = cast(ImportStmt)stmt)
             return executeImportStmt(importStmt);
-        else if (auto targetStmt = cast(TargetStmt)stmt)
+        else if (auto targetStmt = cast(TargetDeclStmt)stmt)
             return executeTargetStmt(targetStmt);
         else if (auto exprStmt = cast(ExprStmt)stmt)
             return executeExprStmt(exprStmt);
@@ -71,7 +71,7 @@ class Interpreter
     }
     
     /// Execute variable declaration
-    private Result!BuildError executeVarDecl(VarDecl stmt) @system
+    private Result!BuildError executeVarDecl(VarDeclStmt stmt) @system
     {
         // Evaluate initializer
         auto valueResult = evaluateExpr(stmt.initializer);
@@ -83,7 +83,7 @@ class Interpreter
     }
     
     /// Execute function declaration
-    private Result!BuildError executeFunctionDecl(FunctionDecl stmt) @system
+    private Result!BuildError executeFunctionDecl(FunctionDeclStmt stmt) @system
     {
         // For now, store function definition (full implementation requires closure support)
         // This is a placeholder for Tier 1 MVP
@@ -91,7 +91,7 @@ class Interpreter
     }
     
     /// Execute macro declaration
-    private Result!BuildError executeMacroDecl(MacroDecl stmt) @system
+    private Result!BuildError executeMacroDecl(MacroDeclStmt stmt) @system
     {
         // Register macro with expander
         // Convert Stmt[] to Statement[] (old format)
@@ -192,7 +192,7 @@ class Interpreter
     }
     
     /// Execute target statement
-    private Result!BuildError executeTargetStmt(TargetStmt stmt) @system
+    private Result!BuildError executeTargetStmt(TargetDeclStmt stmt) @system
     {
         // Add target to generated targets list
         generatedTargets ~= stmt.target;

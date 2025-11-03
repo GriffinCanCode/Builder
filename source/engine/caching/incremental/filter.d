@@ -58,7 +58,7 @@ struct IncrementalFilter
                 actionId.type = operationType;
                 actionId.subId = file;
                 
-                import utils.files.hash;
+                import infrastructure.utils.files.hash;
                 actionId.inputHash = FastHash.hashFile(file);
                 
                 if (!actionCache.isCached(actionId, [file], metadata))

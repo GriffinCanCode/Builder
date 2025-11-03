@@ -106,7 +106,7 @@ final class NoSandboxEnv : SandboxEnv
         
         try
         {
-            import utils.security.executor : execute;
+            import infrastructure.utils.security.executor : execute;
             // Execute command directly (no sandboxing)
             auto result = execute(
                 ["sh", "-c", command],

@@ -47,7 +47,7 @@ struct LSPSemanticAnalyzer
     }
     
     /// Validate all dependencies are defined
-    private Diagnostic[] validateDependencies(string uri, const ref TargetDecl target)
+    private Diagnostic[] validateDependencies(string uri, const ref TargetDeclStmt target)
     {
         Diagnostic[] diagnostics;
         
@@ -106,7 +106,7 @@ struct LSPSemanticAnalyzer
     }
     
     /// Validate target type requirements
-    private Diagnostic[] validateTargetType(string uri, const ref TargetDecl target)
+    private Diagnostic[] validateTargetType(string uri, const ref TargetDeclStmt target)
     {
         Diagnostic[] diagnostics;
         
@@ -142,7 +142,7 @@ struct LSPSemanticAnalyzer
     }
     
     /// Validate sources (basic checks)
-    private Diagnostic[] validateSources(string uri, const ref TargetDecl target)
+    private Diagnostic[] validateSources(string uri, const ref TargetDeclStmt target)
     {
         Diagnostic[] diagnostics;
         
@@ -177,7 +177,7 @@ struct LSPSemanticAnalyzer
         
         // Build local dependency graph
         string[][string] graph;
-        const(TargetDecl)*[string] targetMap;
+        const(TargetDeclStmt)*[string] targetMap;
         
         foreach (ref target; ast.targets)
         {

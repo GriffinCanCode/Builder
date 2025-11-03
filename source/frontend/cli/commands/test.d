@@ -200,7 +200,7 @@ struct TestCommand
         if (configResult.isErr)
         {
             Logger.error("Failed to parse workspace configuration");
-            import errors.formatting.format : format;
+            import infrastructure.errors.formatting.format : format;
             Logger.error(format(configResult.unwrapErr()));
             return 1;
         }

@@ -81,7 +81,7 @@ final class WorkerRecovery
         atomicOp!"+="(totalFailures, 1);
         
         // Classify error
-        if (cast(distributed.protocol.protocol.NetworkError)error !is null)
+        if (cast(engine.distributed.protocol.protocol.NetworkError)error !is null)
         {
             atomicOp!"+="(networkFailures, 1);
             handleNetworkFailure(peer, error);

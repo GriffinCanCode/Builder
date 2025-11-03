@@ -169,7 +169,7 @@ final class NullObservabilityService : IObservabilityService
     
     shared static this()
     {
-        import telemetry.distributed.tracing : TraceId, SpanId;
+        import infrastructure.telemetry.distributed.tracing : TraceId, SpanId;
         // Create a null span that does nothing
         nullSpan = new Span(TraceId(), SpanId(), SpanId(), "null", SpanKind.Internal);
     }

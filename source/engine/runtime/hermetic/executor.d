@@ -279,7 +279,7 @@ struct HermeticExecutor
     /// Fallback execution (no sandboxing, validation only)
     private Result!(Output, BuildError) executeFallback(string[] command, string workingDir) @system
     {
-        import utils.security.validation : SecurityValidator;
+        import infrastructure.utils.security.validation : SecurityValidator;
         
         // Validate command
         foreach (arg; command)

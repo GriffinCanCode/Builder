@@ -395,7 +395,7 @@ struct EngineCoordinator
         buildStats.targetsPerSecond = total > 0 ? (total * 1000.0) / elapsed.total!"msecs" : 0.0;
         
         // Map to event cache stats
-        cli.events.events.CacheStats cliCacheStats;
+        frontend.cli.events.events.CacheStats cliCacheStats;
         cliCacheStats.hits = cacheStats.metadataHits;
         cliCacheStats.misses = cacheStats.contentHashes;
         cliCacheStats.totalEntries = cacheStats.totalEntries;

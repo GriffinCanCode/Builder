@@ -73,7 +73,7 @@ struct WatchCommand
         if (result.isErr)
         {
             Logger.error("Watch mode failed to start");
-            import errors.formatting.format : format;
+            import infrastructure.errors.formatting.format : format;
             Logger.error(format(result.unwrapErr()));
             
             import core.stdc.stdlib : exit;

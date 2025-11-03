@@ -391,7 +391,7 @@ final class TestExecutor
     /// Compute content hash for test
     private string computeTestContentHash(Target target) @trusted
     {
-        import utils.crypto.blake3 : Blake3;
+        import infrastructure.utils.crypto.blake3 : Blake3;
         import std.algorithm : joiner;
         
         // Hash test sources and dependencies
@@ -402,7 +402,7 @@ final class TestExecutor
     /// Compute environment hash
     private string computeTestEnvHash(WorkspaceConfig wsConfig) @trusted
     {
-        import utils.crypto.blake3 : Blake3;
+        import infrastructure.utils.crypto.blake3 : Blake3;
         
         // Simple environment hash (can be extended)
         return Blake3.hashHex(wsConfig.root);

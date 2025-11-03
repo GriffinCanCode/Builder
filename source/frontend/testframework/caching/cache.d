@@ -356,7 +356,7 @@ final class TestCache
         string config
     ) @trusted
     {
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         return FastHash.hashString(testCode ~ dependencies.join("") ~ config);
     }
     
@@ -370,7 +370,7 @@ final class TestCache
     {
         import std.algorithm : sort;
         import std.array : join;
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         
         // Sort env vars for deterministic hash
         auto keys = envVars.keys.sort().array;

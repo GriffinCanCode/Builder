@@ -290,7 +290,7 @@ struct InitCommand
     /// Generate .builderignore content based on detected languages
     private static string generateBuilderignore(ProjectMetadata metadata)
     {
-        import config.schema.schema : TargetLanguage;
+        import infrastructure.config.schema.schema : TargetLanguage;
         
         string content = "# Builder Ignore File\n";
         content ~= "# Patterns listed here will be ignored during source scanning and target detection\n";

@@ -9,8 +9,8 @@ import std.datetime;
 import frontend.lsp.protocol;
 import frontend.lsp.index;
 import frontend.lsp.analysis;
-import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, Token, ASTLocation = Location;
-import infrastructure.config.parsing.lexer;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
+import infrastructure.config.parsing.lexer : Token;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;
 
@@ -116,7 +116,7 @@ class WorkspaceManager
     }
     
     /// Find target at position
-    const(TargetDecl)* findTargetAtPosition(string uri, Position pos) const
+    const(TargetDeclStmt)* findTargetAtPosition(string uri, Position pos) const
     {
         auto doc = getDocument(uri);
         if (doc is null)
@@ -177,7 +177,7 @@ class WorkspaceManager
         doc.diagnostics = [];
         
         // Parse using unified parser
-        import config.parsing.unified : parse;
+        import infrastructure.config.parsing.unified : parse;
         
         string filePath = uriToPath(doc.uri);
         auto parseResult = parse(doc.text, filePath, getRootPath(), null);
@@ -248,7 +248,7 @@ class WorkspaceManager
         diag.source = "builder-lsp";
         
         // Try to get line information
-        import errors.types.types : ParseError;
+        import infrastructure.errors.types.types : ParseError;
         if (auto parseError = cast(ParseError)error)
         {
             if (parseError.line > 0)

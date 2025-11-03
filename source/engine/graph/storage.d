@@ -415,8 +415,8 @@ struct GraphStorage
         }
         catch (Exception e)
         {
-            import errors : CacheError;
-            import errors.handling.codes : ErrorCode;
+            import infrastructure.errors : CacheError;
+            import infrastructure.errors.handling.codes : ErrorCode;
             return Err!(Target, BuildError)(new CacheError("Failed to read target: " ~ e.msg, ErrorCode.CacheCorrupted));
         }
     }

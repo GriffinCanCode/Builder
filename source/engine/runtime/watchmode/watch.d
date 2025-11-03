@@ -195,7 +195,7 @@ final class WatchModeService
             if (configResult.isErr)
             {
                 Logger.error("Failed to parse workspace configuration");
-                import errors.formatting.format : format;
+                import infrastructure.errors.formatting.format : format;
                 Logger.error(format(configResult.unwrapErr()));
                 return;
             }
@@ -210,7 +210,7 @@ final class WatchModeService
             _services = new BuildServices(_config, _config.options);
             
             // Set render mode
-            import cli.display.render : parseRenderMode;
+            import frontend.cli.display.render : parseRenderMode;
             auto renderMode = parseRenderMode(_watchConfig.renderMode);
             _services.setRenderMode(renderMode);
             
@@ -219,7 +219,7 @@ final class WatchModeService
             if (graphResult.isErr)
             {
                 Logger.error("Failed to analyze dependencies");
-                import errors.formatting.format : format;
+                import infrastructure.errors.formatting.format : format;
                 Logger.error(format(graphResult.unwrapErr()));
                 return;
             }
@@ -339,7 +339,7 @@ final class ChangeDetector
     /// Recursively mark dependent targets as affected
     private void markDependents(string targetId, ref bool[string] affected) @system
     {
-        import config.schema.schema : TargetId;
+        import infrastructure.config.schema.schema : TargetId;
         auto node = _graph.getNode(TargetId(targetId));
         if (node is null)
             return;

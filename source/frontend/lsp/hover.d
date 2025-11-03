@@ -6,7 +6,7 @@ import std.string;
 import std.conv;
 import frontend.lsp.protocol;
 import frontend.lsp.workspace;
-import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ExpressionValue, ASTLocation = Location;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
 import languages.registry : getSupportedLanguageNames;
 
 /// Hover information provider
@@ -44,7 +44,7 @@ struct HoverProvider
         return null;
     }
     
-    private Hover* buildTargetHover(ref const TargetDecl target, Position pos)
+    private Hover* buildTargetHover(ref const TargetDeclStmt target, Position pos)
     {
         auto hover = new Hover;
         
@@ -65,47 +65,25 @@ struct HoverProvider
             md ~= "**Language:** " ~ getFieldValueString(langField.value) ~ "\n\n";
         }
         
+        // TODO: Implement array value inspection with the new AST structure
         // Add sources count
         auto sourcesField = target.getField("sources");
-        if (sourcesField !is null && sourcesField.value.kind == ExpressionValue.Kind.Array)
+        if (sourcesField !is null)
         {
-            auto arr = sourcesField.value.getArray();
-            if (arr !is null)
-            {
-                md ~= "**Sources:** " ~ arr.elements.length.to!string ~ " file(s)\n\n";
-            }
+            md ~= "**Sources:** (see field)\n\n";
         }
         
-        // Add dependencies count
+        // Add dependencies count  
         auto depsField = target.getField("deps");
-        if (depsField !is null && depsField.value.kind == ExpressionValue.Kind.Array)
+        if (depsField !is null)
         {
-            auto arr = depsField.value.getArray();
-            if (arr !is null)
-            {
-                md ~= "**Dependencies:** " ~ arr.elements.length.to!string ~ " target(s)\n\n";
-                
-                // List dependencies
-                if (arr.elements.length > 0)
-                {
-                    md ~= "Dependencies:\n";
-                    foreach (elem; arr.elements)
-                    {
-                        if (elem.kind == ExpressionValue.Kind.String)
-                        {
-                            auto str = elem.getString();
-                            if (str !is null)
-                                md ~= "- `" ~ str.value ~ "`\n";
-                        }
-                    }
-                }
-            }
+            md ~= "**Dependencies:** (see field)\n\n";
         }
         
         hover.contents = md;
         hover.range = Range(
-            Position(cast(uint)(target.line - 1), 0),
-            Position(cast(uint)(target.line - 1), 100)
+            Position(cast(uint)(target.loc.line - 1), 0),
+            Position(cast(uint)(target.loc.line - 1), 100)
         );
         
         return hover;
@@ -126,8 +104,8 @@ struct HoverProvider
         
         hover.contents = md;
         hover.range = Range(
-            Position(cast(uint)(field.line - 1), 0),
-            Position(cast(uint)(field.line - 1), 100)
+            Position(cast(uint)(field.loc.line - 1), 0),
+            Position(cast(uint)(field.loc.line - 1), 100)
         );
         
         return hover;
@@ -180,71 +158,32 @@ struct HoverProvider
         }
     }
     
-    private string formatFieldValue(ref const ExpressionValue value)
+    private string formatFieldValue(ref const Expr value)
     {
-        final switch (value.kind)
+        // TODO: Implement proper Expr formatting with the new AST structure
+        if (auto lit = cast(LiteralExpr)value)
         {
-            case ExpressionValue.Kind.String:
-                auto str = value.getString();
-                return str !is null ? "`\"" ~ str.value ~ "\"`" : "string";
-            
-            case ExpressionValue.Kind.Number:
-                auto num = value.getNumber();
-                return num !is null ? "`" ~ num.value.to!string ~ "`" : "number";
-            
-            case ExpressionValue.Kind.Identifier:
-                auto id = value.getIdentifier();
-                return id !is null ? "`" ~ id.name ~ "`" : "identifier";
-            
-            case ExpressionValue.Kind.Array:
-                auto arr = value.getArray();
-                if (arr !is null)
-                {
-                    if (arr.elements.length == 0)
-                        return "`[]`";
-                    if (arr.elements.length <= 3)
-                    {
-                        string[] items;
-                        foreach (elem; arr.elements)
-                        {
-                            items ~= getFieldValueString(elem);
-                        }
-                        return "`[" ~ items.join(", ") ~ "]`";
-                    }
-                    return "`[...]` (" ~ arr.elements.length.to!string ~ " items)";
-                }
-                return "array";
-            
-            case ExpressionValue.Kind.Map:
-                auto map = value.getMap();
-                if (map !is null)
-                {
-                    if (map.pairs.length == 0)
-                        return "`{}`";
-                    return "`{...}` (" ~ map.pairs.length.to!string ~ " entries)";
-                }
-                return "map";
+            return lit.value.toString();
         }
+        else if (auto ident = cast(IdentExpr)value)
+        {
+            return "`" ~ ident.name ~ "`";
+        }
+        return "value";
     }
     
-    private string getFieldValueString(ref const ExpressionValue value)
+    private string getFieldValueString(ref const Expr value)
     {
-        final switch (value.kind)
+        // TODO: Implement proper Expr value extraction with the new AST structure
+        if (auto lit = cast(LiteralExpr)value)
         {
-            case ExpressionValue.Kind.String:
-                auto str = value.getString();
-                return str !is null ? str.value : "";
-            case ExpressionValue.Kind.Number:
-                auto num = value.getNumber();
-                return num !is null ? num.value.to!string : "";
-            case ExpressionValue.Kind.Identifier:
-                auto id = value.getIdentifier();
-                return id !is null ? id.name : "";
-            case ExpressionValue.Kind.Array:
-                return "array";
-            case ExpressionValue.Kind.Map:
-                return "map";
+            return lit.value.toString();
         }
+        else if (auto ident = cast(IdentExpr)value)
+        {
+            return ident.name;
+        }
+        return "";
     }
 }
 

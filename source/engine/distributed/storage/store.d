@@ -194,7 +194,7 @@ final class LocalArtifactStore : ArtifactStore
     /// Compute artifact ID from content
     private ArtifactId computeArtifactId(const ubyte[] data) @trusted
     {
-        import utils.files.hash : FastHash;
+        import infrastructure.utils.files.hash : FastHash;
         auto hash = FastHash.compute(data);
         return ArtifactId(cast(ubyte[])hash);
     }

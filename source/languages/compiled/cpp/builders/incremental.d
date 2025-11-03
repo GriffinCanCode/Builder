@@ -25,7 +25,8 @@ import infrastructure.errors;
 /// Only recompiles files affected by header changes
 class IncrementalCppBuilder : BaseCppBuilder
 {
-    private CompilerInfo compilerInfo;
+    // TODO: Add compiler detection using toolchain system
+    // private CompilerInfo compilerInfo;
     private ActionCache actionCache;
     private DependencyCache depCache;
     private IncrementalEngine incEngine;
@@ -34,7 +35,8 @@ class IncrementalCppBuilder : BaseCppBuilder
     this(CppConfig config, ActionCache actionCache = null, DependencyCache depCache = null)
     {
         super(config);
-        compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
+        // TODO: Implement compiler detection
+        // compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
         
         // Initialize caches
         if (actionCache is null)

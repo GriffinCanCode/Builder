@@ -332,7 +332,7 @@ final class BuildServices
             
             if (appendResult.isErr)
             {
-                import utils.logging.logger;
+                import infrastructure.utils.logging.logger;
                 Logger.warning("Failed to persist telemetry: " ~ appendResult.unwrapErr().toString());
             }
         }

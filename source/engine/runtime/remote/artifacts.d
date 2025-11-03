@@ -229,7 +229,7 @@ final class ArtifactManager
     /// Uses Blake3 for consistency across the system
     private ArtifactId computeArtifactId(const ubyte[] data) @trusted
     {
-        import utils.crypto.blake3 : Blake3;
+        import infrastructure.utils.crypto.blake3 : Blake3;
         
         auto hasher = Blake3(0);
         hasher.put(cast(const(ubyte)[])data);

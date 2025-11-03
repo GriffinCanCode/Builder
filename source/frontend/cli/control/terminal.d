@@ -158,7 +158,7 @@ struct Capabilities
             catch (Exception e)
             {
                 // Invalid number format - will use default below
-                import utils.logging.logger : Logger;
+                import infrastructure.utils.logging.logger : Logger;
                 Logger.debugLog("Invalid COLUMNS environment variable: " ~ e.msg);
             }
         }
@@ -205,7 +205,7 @@ struct Capabilities
             catch (Exception e)
             {
                 // Invalid number format - will use default below
-                import utils.logging.logger : Logger;
+                import infrastructure.utils.logging.logger : Logger;
                 Logger.debugLog("Invalid LINES environment variable: " ~ e.msg);
             }
         }

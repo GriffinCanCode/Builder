@@ -50,7 +50,7 @@ struct QueryCommand
         if (configResult.isErr)
         {
             Logger.error("Failed to parse workspace configuration");
-            import errors.formatting.format : errorFormat = format;
+            import infrastructure.errors.formatting.format : errorFormat = format;
             Logger.error(errorFormat(configResult.unwrapErr()));
             return;
         }
@@ -62,7 +62,7 @@ struct QueryCommand
         auto graphResult = services.analyzer.analyze("");
         if (graphResult.isErr)
         {
-            import errors.formatting.format : errorFormat = format;
+            import infrastructure.errors.formatting.format : errorFormat = format;
             Logger.error("Failed to analyze dependencies: " ~ errorFormat(graphResult.unwrapErr()));
             return;
         }

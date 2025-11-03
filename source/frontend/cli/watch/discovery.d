@@ -121,7 +121,7 @@ class WatchModeWithDiscovery
         this.tracker = new WatchDiscoveryTracker(dynamicGraph);
         
         // Mark discoverable targets
-        import runtime.core.engine.discovery;
+        import engine.runtime.core.engine.discovery;
         DiscoveryMarker.markCodeGenTargets(dynamicGraph);
     }
     

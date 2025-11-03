@@ -310,7 +310,7 @@ final class CacheCoordinator
         try
         {
             import std.digest.sha : SHA256, toHexString;
-            import utils.files.hash : FastHash;
+            import infrastructure.utils.files.hash : FastHash;
             import std.file : exists;
             
             SHA256 hash;

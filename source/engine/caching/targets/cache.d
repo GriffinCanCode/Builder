@@ -141,7 +141,7 @@ final class BuildCache
         {
             try
             {
-                import utils.logging.logger;
+                import infrastructure.utils.logging.logger;
                 Logger.debugLog("Warning: Cache destroyed without explicit close() - flushing as fallback");
                 flush(false); // Don't evict during destruction
             }
@@ -284,7 +284,7 @@ final class BuildCache
         // Hash all source files with memoization to avoid duplicate hashing
         if (sources.length > 4) {
             // Use work-stealing parallel execution for better load balancing
-            import utils.concurrency.parallel;
+            import infrastructure.utils.concurrency.parallel;
             import std.typecons : Tuple, tuple;
             
             // Filter existing sources
@@ -529,7 +529,7 @@ final class BuildCache
                 entries.clear();
                 
                 // Use builder pattern with typed suggestions for corruption
-                import errors.types.context : ErrorSuggestion;
+                import infrastructure.errors.types.context : ErrorSuggestion;
                 
                 auto error = ErrorBuilder!CacheError.create("Cache signature verification failed - possible tampering or corruption detected", ErrorCode.CacheCorrupted)
                     .withContext("verifying cache integrity", cacheFilePath)

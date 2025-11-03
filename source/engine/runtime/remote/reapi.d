@@ -186,7 +186,7 @@ struct Action
     /// Compute action digest
     Digest digest() const @trusted
     {
-        import utils.crypto.blake3 : Blake3;
+        import infrastructure.utils.crypto.blake3 : Blake3;
         
         auto hasher = Blake3(0);
         hasher.put(cast(const(ubyte)[])commandDigest.hash);
@@ -239,14 +239,17 @@ struct ExecuteResponse
 /// REAPI action result
 struct ActionResult
 {
-    OutputFile[] outputFiles;               // Output files
-    OutputDirectory[] outputDirectories;    // Output directories
-    int exitCode;                           // Exit code
-    string stdoutRaw;                       // Stdout (if small)
-    string stderrRaw;                       // Stderr (if small)
-    Digest stdoutDigest;                    // Stdout digest (if large)
-    Digest stderrDigest;                    // Stderr digest (if large)
-    ExecutionMetadata executionMetadata;    // Execution metadata
+    /// Output node properties
+    static struct OutputNode
+    {
+        static struct Property
+        {
+            string name;
+            string value;
+        }
+        
+        Property[] properties;
+    }
     
     /// Output file
     static struct OutputFile
@@ -266,18 +269,6 @@ struct ActionResult
         OutputNode nodeProperties;
     }
     
-    /// Output node properties
-    static struct OutputNode
-    {
-        Property[] properties;
-        
-        static struct Property
-        {
-            string name;
-            string value;
-        }
-    }
-    
     /// Execution metadata
     static struct ExecutionMetadata
     {
@@ -293,9 +284,18 @@ struct ActionResult
         Duration outputUploadCompleteTime;  // Output upload complete
     }
     
+    OutputFile[] outputFiles;               // Output files
+    OutputDirectory[] outputDirectories;    // Output directories
+    int exitCode;                           // Exit code
+    string stdoutRaw;                       // Stdout (if small)
+    string stderrRaw;                       // Stderr (if small)
+    Digest stdoutDigest;                    // Stdout digest (if large)
+    Digest stderrDigest;                    // Stderr digest (if large)
+    ExecutionMetadata executionMetadata;    // Execution metadata
+    
     /// Convert from Builder ActionResult
     static ActionResult fromBuilderResult(
-        distributed.protocol.protocol.ActionResult builderResult,
+        engine.distributed.protocol.protocol.ActionResult builderResult,
         OutputFile[] outputFiles
     ) @safe
     {

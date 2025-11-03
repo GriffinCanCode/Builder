@@ -467,7 +467,7 @@ final class BuildGraph
         if (wouldCreateCycle(fromNode, toNode))
         {
             // Use builder pattern with typed suggestions for cycle errors
-            import errors.types.context : ErrorSuggestion;
+            import infrastructure.errors.types.context : ErrorSuggestion;
             
             auto error = ErrorBuilder!GraphError.create("Circular dependency detected: adding '" ~ from ~ "' -> '" ~ to ~ "' would create a cycle", ErrorCode.GraphCycle)
                 .withContext("adding dependency", "would create cycle")
@@ -702,8 +702,8 @@ final class BuildGraph
     /// Note: Not const because it calls topologicalSort() which may modify depth caches.
     void print()
     {
-        import utils.logging.logger;
-        import errors.formatting.format;
+        import infrastructure.utils.logging.logger;
+        import infrastructure.errors.formatting.format;
         
         writeln("\nBuild Graph:");
         writeln("============");

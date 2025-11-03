@@ -51,6 +51,8 @@ public import infrastructure.toolchain.registry;
 public import infrastructure.toolchain.providers;
 public import infrastructure.toolchain.constraints;
 
+import infrastructure.errors : Result, BuildError;
+
 /// Convenience function to get a toolchain by name with optional version constraint
 Result!(Toolchain, BuildError) getToolchainByName(string name, string versionConstraint = "") @system
 {
