@@ -526,6 +526,30 @@ struct SemanticAnalyzer
             target.includes = includesResult.unwrap();
         }
         
+        // Platform field (for cross-compilation)
+        if (decl.hasField("platform"))
+        {
+            auto platformField = decl.getField("platform");
+            auto platformResult = platformField.value.asString();
+            if (platformResult.isErr)
+            {
+                return error!(Target)(decl, "Field 'platform' must be a string");
+            }
+            target.platform = platformResult.unwrap();
+        }
+        
+        // Toolchain field (for specifying compiler/tools)
+        if (decl.hasField("toolchain"))
+        {
+            auto toolchainField = decl.getField("toolchain");
+            auto toolchainResult = toolchainField.value.asString();
+            if (toolchainResult.isErr)
+            {
+                return error!(Target)(decl, "Field 'toolchain' must be a string");
+            }
+            target.toolchain = toolchainResult.unwrap();
+        }
+        
         // Parse language-specific configuration
         if (decl.hasField("config"))
         {

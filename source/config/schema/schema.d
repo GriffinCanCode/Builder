@@ -256,6 +256,12 @@ struct Target
     string outputPath;
     string[] includes;
     
+    /// Target platform for cross-compilation (e.g., "linux-arm64", "x86_64-unknown-linux-gnu")
+    string platform;
+    
+    /// Toolchain reference (e.g., "@toolchains//arm:gcc-11", "clang-15")
+    string toolchain;
+    
     /// Language-specific configuration stored as JSON
     /// This allows each language handler to define its own config schema
     string[string] langConfig;

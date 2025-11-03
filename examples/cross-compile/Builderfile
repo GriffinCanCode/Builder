@@ -1,0 +1,72 @@
+// Cross-compilation example using toolchain system
+
+// Build for host platform (default)
+target("app-native") {
+    type: executable;
+    sources: ["src/main.c"];
+    output: "app-native";
+}
+
+// Cross-compile for ARM64 Linux
+target("app-arm64") {
+    type: executable;
+    platform: "aarch64-unknown-linux-gnu";
+    toolchain: "gcc";  // Auto-detect GCC for ARM64
+    sources: ["src/main.c"];
+    output: "app-arm64";
+}
+
+// Cross-compile for ARM64 Linux with specific toolchain
+target("app-arm64-clang") {
+    type: executable;
+    platform: "aarch64-unknown-linux-gnu";
+    toolchain: "@toolchains//llvm:clang-15";
+    sources: ["src/main.c"];
+    output: "app-arm64-clang";
+}
+
+// Cross-compile for ARM32
+target("app-arm32") {
+    type: executable;
+    platform: "arm-unknown-linux-gnueabihf";
+    toolchain: "gcc";
+    sources: ["src/main.c"];
+    output: "app-arm32";
+}
+
+// Cross-compile for RISC-V
+target("app-riscv64") {
+    type: executable;
+    platform: "riscv64-unknown-linux-gnu";
+    toolchain: "gcc";
+    sources: ["src/main.c"];
+    output: "app-riscv64";
+}
+
+// Cross-compile for WebAssembly
+target("app-wasm") {
+    type: executable;
+    platform: "wasm32-unknown-web";
+    toolchain: "@toolchains//emscripten:emcc";
+    sources: ["src/main.c"];
+    output: "app.wasm";
+}
+
+// Build for macOS from Linux
+target("app-macos") {
+    type: executable;
+    platform: "x86_64-apple-darwin";
+    toolchain: "@toolchains//osxcross:clang";
+    sources: ["src/main.c"];
+    output: "app-macos";
+}
+
+// Build for Windows from Linux (MinGW)
+target("app-windows") {
+    type: executable;
+    platform: "x86_64-w64-mingw32";
+    toolchain: "@toolchains//mingw:gcc";
+    sources: ["src/main.c"];
+    output: "app.exe";
+}
+
