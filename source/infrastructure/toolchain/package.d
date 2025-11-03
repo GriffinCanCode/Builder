@@ -55,7 +55,8 @@ public import infrastructure.toolchain.registry;
 // Provider system (Local, Repository-based providers)
 public import infrastructure.toolchain.providers;
 
-import infrastructure.errors : Result, BuildError;
+import infrastructure.errors : Result, BuildError, Ok, Err, SystemError, ErrorCode;
+import std.range : empty;
 
 /// Convenience function to get a toolchain by name with optional version constraint
 Result!(Toolchain, BuildError) getToolchainByName(string name, string versionConstraint = "") @system

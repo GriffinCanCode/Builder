@@ -54,7 +54,9 @@ class ClangTidy
     /// Check if clang-tidy is available
     static bool isAvailable()
     {
-        return Toolchain.isAvailable("clang-tidy");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("clang-tidy").empty;
     }
     
     /// Get version
@@ -162,7 +164,9 @@ class CppCheck
     /// Check if cppcheck is available
     static bool isAvailable()
     {
-        return Toolchain.isAvailable("cppcheck");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("cppcheck").empty;
     }
     
     /// Get version
@@ -248,7 +252,9 @@ class ClangFormat
     /// Check if clang-format is available
     static bool isAvailable()
     {
-        return Toolchain.isAvailable("clang-format");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("clang-format").empty;
     }
     
     /// Get version
@@ -440,13 +446,17 @@ class CoverageTool
     /// Check if gcov is available
     static bool isGcovAvailable()
     {
-        return Toolchain.isAvailable("gcov");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("gcov").empty;
     }
     
     /// Check if llvm-cov is available
     static bool isLlvmCovAvailable()
     {
-        return Toolchain.isAvailable("llvm-cov");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("llvm-cov").empty;
     }
     
     /// Generate coverage report
@@ -457,7 +467,9 @@ class CoverageTool
     )
     {
         // Try lcov first (if available)
-        if (Toolchain.isAvailable("lcov"))
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        if (!ExecutableDetector.findInPath("lcov").empty)
         {
             return generateLcovReport(gcdaFiles, outputDir);
         }
@@ -511,7 +523,9 @@ class CoverageTool
         }
         
         // Generate HTML report
-        if (Toolchain.isAvailable("genhtml"))
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        if (!ExecutableDetector.findInPath("genhtml").empty)
         {
             res = execute(["genhtml", infoFile, "--output-directory", htmlDir]);
             if (res.status != 0)

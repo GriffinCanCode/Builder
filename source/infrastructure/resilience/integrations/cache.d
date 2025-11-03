@@ -52,17 +52,21 @@ final class ResilientCacheTransport
     Result!BuildError put(string contentHash, const(ubyte)[] data) @trusted
     {
         // PUT operations are lower priority to not block reads
-        return resilience.execute!BuildError(
+        auto result = resilience.execute!bool(
             endpoint,
-            () {
+            () @trusted {
                 auto putResult = transport.put(contentHash, data);
                 if (putResult.isErr)
-                    return Err!BuildError(putResult.unwrapErr());
-                return Ok!BuildError();
+                    return Result!(bool, BuildError).err(putResult.unwrapErr());
+                return Result!(bool, BuildError).ok(true);
             },
             Priority.Low,
             60.seconds
         );
+        
+        if (result.isErr)
+            return Result!BuildError.err(result.unwrapErr());
+        return Result!BuildError.ok();
     }
     
     /// Execute HEAD request with resilience  
@@ -80,17 +84,21 @@ final class ResilientCacheTransport
     /// Execute DELETE request with resilience
     Result!BuildError remove(string contentHash) @trusted
     {
-        return resilience.execute!BuildError(
+        auto result = resilience.execute!bool(
             endpoint,
-            () {
+            () @trusted {
                 auto delResult = transport.remove(contentHash);
                 if (delResult.isErr)
-                    return Err!BuildError(delResult.unwrapErr());
-                return Ok!BuildError();
+                    return Result!(bool, BuildError).err(delResult.unwrapErr());
+                return Result!(bool, BuildError).ok(true);
             },
             Priority.Low,
             30.seconds
         );
+        
+        if (result.isErr)
+            return Result!BuildError.err(result.unwrapErr());
+        return Result!BuildError.ok();
     }
     
     /// Get circuit breaker state

@@ -7,6 +7,7 @@ import std.algorithm : sort, filter;
 import std.range : array;
 import core.sync.mutex : Mutex;
 import infrastructure.telemetry.collection.collector;
+import infrastructure.telemetry.collection.environment : BuildEnvironment;
 import infrastructure.telemetry.persistence.schema;
 import infrastructure.utils.serialization;
 import infrastructure.errors;

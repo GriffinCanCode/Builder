@@ -306,56 +306,56 @@ struct WorkspaceAnalyzer
         if (decl.hasField("cacheDir"))
         {
             auto field = decl.getField("cacheDir");
-            auto lit = field.getLiteral();
-            if (!lit || lit.kind != LiteralKind.String)
+            auto litExpr = cast(LiteralExpr)field.value;
+            if (!litExpr || litExpr.value.kind != LiteralKind.String)
                 return error("Field 'cacheDir' must be a string");
-            config.options.cacheDir = lit.asString();
+            config.options.cacheDir = litExpr.value.asString();
         }
         
         if (decl.hasField("outputDir"))
         {
             auto field = decl.getField("outputDir");
-            auto result = field.value.asString();
-            if (result.isErr)
+            auto litExpr = cast(LiteralExpr)field.value;
+            if (!litExpr || litExpr.value.kind != LiteralKind.String)
             {
                 return error("Field 'outputDir' must be a string");
             }
-            config.options.outputDir = result.unwrap();
+            config.options.outputDir = litExpr.value.asString();
         }
         
         if (decl.hasField("parallel"))
         {
             auto field = decl.getField("parallel");
-            auto result = field.value.asString();
-            if (result.isErr)
+            auto litExpr = cast(LiteralExpr)field.value;
+            if (!litExpr || litExpr.value.kind != LiteralKind.String)
             {
                 return error("Field 'parallel' must be a boolean (true/false)");
             }
-            string val = result.unwrap().toLower;
+            string val = litExpr.value.asString().toLower;
             config.options.parallel = (val == "true" || val == "1");
         }
         
         if (decl.hasField("incremental"))
         {
             auto field = decl.getField("incremental");
-            auto result = field.value.asString();
-            if (result.isErr)
+            auto litExpr = cast(LiteralExpr)field.value;
+            if (!litExpr || litExpr.value.kind != LiteralKind.String)
             {
                 return error("Field 'incremental' must be a boolean (true/false)");
             }
-            string val = result.unwrap().toLower;
+            string val = litExpr.value.asString().toLower;
             config.options.incremental = (val == "true" || val == "1");
         }
         
         if (decl.hasField("verbose"))
         {
             auto field = decl.getField("verbose");
-            auto result = field.value.asString();
-            if (result.isErr)
+            auto litExpr = cast(LiteralExpr)field.value;
+            if (!litExpr || litExpr.value.kind != LiteralKind.String)
             {
                 return error("Field 'verbose' must be a boolean (true/false)");
             }
-            string val = result.unwrap().toLower;
+            string val = litExpr.value.asString().toLower;
             config.options.verbose = (val == "true" || val == "1");
         }
         
@@ -364,18 +364,23 @@ struct WorkspaceAnalyzer
             auto field = decl.getField("maxJobs");
             try
             {
-                if (field.value.kind == ExpressionValue.Kind.Number)
+                auto litExpr = cast(LiteralExpr)field.value;
+                if (!litExpr)
                 {
-                    config.options.maxJobs = cast(size_t) field.value.numberValue.value;
+                    return error("Field 'maxJobs' must be a number");
+                }
+                
+                if (litExpr.value.kind == LiteralKind.Number)
+                {
+                    config.options.maxJobs = cast(size_t)litExpr.value.asNumber();
+                }
+                else if (litExpr.value.kind == LiteralKind.String)
+                {
+                    config.options.maxJobs = litExpr.value.asString().to!size_t;
                 }
                 else
                 {
-                    auto result = field.value.asString();
-                    if (result.isErr)
-                    {
-                        return error("Field 'maxJobs' must be a number");
-                    }
-                    config.options.maxJobs = result.unwrap().to!size_t;
+                    return error("Field 'maxJobs' must be a number");
                 }
             }
             catch (Exception e)
@@ -388,7 +393,12 @@ struct WorkspaceAnalyzer
         if (decl.hasField("env"))
         {
             auto field = decl.getField("env");
-            auto result = field.value.asMap();
+            auto litExpr = cast(LiteralExpr)field.value;
+            if (!litExpr || litExpr.value.kind != LiteralKind.Map)
+            {
+                return error("Field 'env' must be a map of strings");
+            }
+            auto result = litExpr.value.toStringMap();
             if (result.isErr)
             {
                 return error("Field 'env' must be a map of strings");

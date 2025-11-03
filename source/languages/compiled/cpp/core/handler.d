@@ -441,12 +441,9 @@ class CppHandler : BaseLanguageHandler
         // Auto-detect build system
         if (config.buildSystem == BuildSystem.Auto)
         {
-            auto detected = BuildSystemDetector.detect(sourceDir);
-            if (detected != BuildSystem.None)
-            {
-                Logger.debugLog("Detected build system: " ~ detected.to!string);
-                config.buildSystem = detected;
-            }
+            // TODO: Implement build system detection
+            // For now, default to standard compilation
+            config.buildSystem = BuildSystem.None;
         }
         
         // Auto-detect entry point

@@ -5,6 +5,7 @@ import engine.distributed.protocol.transport;
 import engine.distributed.protocol.protocol;
 import infrastructure.resilience;
 import infrastructure.errors;
+import infrastructure.resilience.core.limiter : RateLimiterPriority = Priority;
 
 /// Resilient distributed protocol transport wrapper
 /// Wraps protocol Transport with circuit breaker and rate limiting
@@ -37,15 +38,15 @@ final class ResilientProtocolTransport : Transport
     Result!DistributedError sendHeartBeat(WorkerId recipient, HeartBeat message) @trusted
     {
         // Heartbeats are critical - high priority
-        auto result = resilience.execute!DistributedError(
+        auto result = resilience.execute!bool(
             endpoint,
-            () {
+            () @trusted {
                 auto sendResult = inner.sendHeartBeat(recipient, message);
                 if (sendResult.isErr)
-                    return Err!DistributedError(sendResult.unwrapErr());
-                return Ok!DistributedError();
+                    return Result!(bool, BuildError).err(cast(BuildError)sendResult.unwrapErr());
+                return Result!(bool, BuildError).ok(true);
             },
-            Priority.High,
+            RateLimiterPriority.High,
             5.seconds
         );
         
@@ -53,63 +54,63 @@ final class ResilientProtocolTransport : Transport
         {
             // Convert BuildError back to DistributedError
             return Result!DistributedError.err(
-                new NetworkError("HeartBeat failed: " ~ result.unwrapErr().message())
+                new engine.distributed.protocol.protocol.NetworkError("HeartBeat failed: " ~ result.unwrapErr().message())
             );
         }
         
-        return Ok!DistributedError();
+        return Result!DistributedError.ok();
     }
     
     /// Send StealRequest with resilience
     Result!DistributedError sendStealRequest(WorkerId recipient, StealRequest message) @trusted
     {
         // Work stealing is normal priority
-        auto result = resilience.execute!DistributedError(
+        auto result = resilience.execute!bool(
             endpoint,
-            () {
+            () @trusted {
                 auto sendResult = inner.sendStealRequest(recipient, message);
                 if (sendResult.isErr)
-                    return Err!DistributedError(sendResult.unwrapErr());
-                return Ok!DistributedError();
+                    return Result!(bool, BuildError).err(cast(BuildError)sendResult.unwrapErr());
+                return Result!(bool, BuildError).ok(true);
             },
-            Priority.Normal,
+            RateLimiterPriority.Normal,
             10.seconds
         );
         
         if (result.isErr)
         {
             return Result!DistributedError.err(
-                new NetworkError("StealRequest failed: " ~ result.unwrapErr().message())
+                new engine.distributed.protocol.protocol.NetworkError("StealRequest failed: " ~ result.unwrapErr().message())
             );
         }
         
-        return Ok!DistributedError();
+        return Result!DistributedError.ok();
     }
     
     /// Send StealResponse with resilience
     Result!DistributedError sendStealResponse(WorkerId recipient, StealResponse message) @trusted
     {
         // Response to steal - high priority to unblock requester
-        auto result = resilience.execute!DistributedError(
+        auto result = resilience.execute!bool(
             endpoint,
-            () {
+            () @trusted {
                 auto sendResult = inner.sendStealResponse(recipient, message);
                 if (sendResult.isErr)
-                    return Err!DistributedError(sendResult.unwrapErr());
-                return Ok!DistributedError();
+                    return Result!(bool, BuildError).err(cast(BuildError)sendResult.unwrapErr());
+                return Result!(bool, BuildError).ok(true);
             },
-            Priority.High,
+            RateLimiterPriority.High,
             5.seconds
         );
         
         if (result.isErr)
         {
             return Result!DistributedError.err(
-                new NetworkError("StealResponse failed: " ~ result.unwrapErr().message())
+                new engine.distributed.protocol.protocol.NetworkError("StealResponse failed: " ~ result.unwrapErr().message())
             );
         }
         
-        return Ok!DistributedError();
+        return Result!DistributedError.ok();
     }
     
     /// Receive StealResponse with resilience
@@ -119,22 +120,22 @@ final class ResilientProtocolTransport : Transport
         // But still use circuit breaker
         auto result = resilience.executeWithBreaker!(Envelope!StealResponse)(
             endpoint,
-            () {
+            () @trusted {
                 auto recvResult = inner.receiveStealResponse(timeout);
                 if (recvResult.isErr)
-                    return Err!(Envelope!StealResponse)(recvResult.unwrapErr());
-                return Ok!(Envelope!StealResponse)(recvResult.unwrap());
+                    return Result!(Envelope!StealResponse, BuildError).err(cast(BuildError)recvResult.unwrapErr());
+                return Result!(Envelope!StealResponse, BuildError).ok(recvResult.unwrap());
             }
         );
         
         if (result.isErr)
         {
             return Result!(Envelope!StealResponse, DistributedError).err(
-                new NetworkError("receiveStealResponse failed: " ~ result.unwrapErr().message())
+                new engine.distributed.protocol.protocol.NetworkError("receiveStealResponse failed: " ~ result.unwrapErr().message())
             );
         }
         
-        return Ok!(Envelope!StealResponse, DistributedError)(result.unwrap());
+        return Result!(Envelope!StealResponse, DistributedError).ok(result.unwrap());
     }
     
     /// Check if connected

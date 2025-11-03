@@ -102,7 +102,9 @@ class CMakeBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return Toolchain.isAvailable("cmake");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("cmake").empty;
     }
     
     override string name() const

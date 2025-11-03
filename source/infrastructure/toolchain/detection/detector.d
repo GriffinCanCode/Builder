@@ -78,7 +78,7 @@ class ExecutableDetector : ToolchainDetector
     }
     
     /// Find executable in PATH
-    protected static string findInPath(string executable) @system
+    public static string findInPath(string executable) @system
     {
         version(Windows)
         {
@@ -113,7 +113,7 @@ class ExecutableDetector : ToolchainDetector
     }
     
     /// Detect version from version command output
-    protected static Version detectVersion(string executablePath, string versionCmd) @system
+    public static Version detectVersion(string executablePath, string versionCmd) @system
     {
         try
         {

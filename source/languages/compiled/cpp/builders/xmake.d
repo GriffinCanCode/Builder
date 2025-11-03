@@ -88,7 +88,9 @@ class XmakeBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return Toolchain.isAvailable("xmake");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("xmake").empty;
     }
     
     override string name() const

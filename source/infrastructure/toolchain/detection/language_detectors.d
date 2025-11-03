@@ -5,6 +5,7 @@ import infrastructure.toolchain.core.platform;
 import infrastructure.toolchain.detection.detector;
 import infrastructure.utils.logging.logger;
 import std.conv : to;
+import std.range : empty;
 
 /// Additional language-specific toolchain detectors
 

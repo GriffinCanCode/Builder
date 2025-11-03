@@ -301,11 +301,11 @@ string formatTree(const BuildError[] errors, FormatOptions opts = FormatOptions.
     import std.array : appender;
     auto result = appender!string;
     
-    if (opts.colors) result.put(Color.Bold ~ Color.Red);
+    if (opts.colors) result.put(cast(string)(Color.Bold ~ Color.Red));
     result.put("Build failed with ");
     result.put(errors.length.to!string);
     result.put(" error(s):\n\n");
-    if (opts.colors) result.put(Color.Reset);
+    if (opts.colors) result.put(cast(string)Color.Reset);
     
     foreach (i, error; errors)
     {

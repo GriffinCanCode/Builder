@@ -140,8 +140,8 @@ class RepositoryToolchainProvider : ToolchainProvider
         this.rule = rule;
         
         // Initialize resolver with cache
-        import infrastructure.repository.cache : RepositoryCache;
-        import infrastructure.repository.fetcher : RepositoryFetcher;
+        import infrastructure.repository.storage.cache : RepositoryCache;
+        import infrastructure.repository.acquisition.fetcher : RepositoryFetcher;
         
         string cacheDir = ".builder-cache/repositories";
         string workspaceRoot = ".";

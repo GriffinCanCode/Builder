@@ -89,7 +89,10 @@ class MesonBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return Toolchain.isAvailable("meson") && Toolchain.isAvailable("ninja");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("meson").empty && 
+               !ExecutableDetector.findInPath("ninja").empty;
     }
     
     override string name() const

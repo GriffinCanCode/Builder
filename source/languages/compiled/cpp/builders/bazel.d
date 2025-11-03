@@ -95,7 +95,9 @@ class BazelBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return Toolchain.isAvailable("bazel");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("bazel").empty;
     }
     
     override string name() const

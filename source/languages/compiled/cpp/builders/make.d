@@ -79,7 +79,9 @@ class MakeBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return Toolchain.isAvailable("make");
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        return !ExecutableDetector.findInPath("make").empty;
     }
     
     override string name() const

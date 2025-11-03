@@ -37,7 +37,7 @@ abstract class BaseMigrator : IMigrator
     /// Helper to read and validate input file
     protected Result!(string, BuildError) readInputFile(string filePath) @system
     {
-        import errors : fileReadError;
+        import infrastructure.errors : fileReadError;
         
         if (!exists(filePath))
         {
@@ -63,7 +63,7 @@ abstract class BaseMigrator : IMigrator
     /// Helper to create migration error
     protected BuildError migrationError(string message, string filePath, string context = "") @system
     {
-        import errors : ParseError, ErrorCode;
+        import infrastructure.errors : ParseError, ErrorCode;
         
         auto error = new ParseError(filePath, message, ErrorCode.MigrationFailed);
         if (context.length > 0)

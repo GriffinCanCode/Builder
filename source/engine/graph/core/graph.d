@@ -181,15 +181,15 @@ final class BuildNode
     }
     
     /// Set retry attempts (for deserialization)
-    /// Package-level access for cache restoration
-    package void setRetryAttempts(size_t count) nothrow @system @nogc
+    /// Public access for cache restoration
+    void setRetryAttempts(size_t count) nothrow @system @nogc
     {
         atomicStore(this._retryAttempts, count);
     }
     
     /// Set pending deps (for deserialization)
-    /// Package-level access for cache restoration
-    package void setPendingDeps(size_t count) nothrow @system @nogc
+    /// Public access for cache restoration
+    void setPendingDeps(size_t count) nothrow @system @nogc
     {
         atomicStore(this._pendingDeps, count);
     }
@@ -365,15 +365,15 @@ final class BuildGraph
     }
     
     /// Set validation mode (for deserialization)
-    /// Package-level access for cache restoration
-    @property package void validationMode(ValidationMode mode) @system pure nothrow @nogc
+    /// Public access for cache restoration
+    @property void validationMode(ValidationMode mode) @system pure nothrow @nogc
     {
         _validationMode = mode;
     }
     
     /// Set validated state (for deserialization)
-    /// Package-level access for cache restoration
-    @property package void validated(bool v) @system pure nothrow @nogc
+    /// Public access for cache restoration
+    @property void validated(bool v) @system pure nothrow @nogc
     {
         _validated = v;
     }

@@ -375,16 +375,19 @@ class DHandler : BaseLanguageHandler
     
     private DCompiler detectBestCompiler()
     {
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        
         // Prefer LDC for production builds (best optimization)
-        if (DCompilerTools.isCompilerAvailable("ldc2"))
+        if (!ExecutableDetector.findInPath("ldc2").empty)
             return DCompiler.LDC;
         
         // Fall back to DMD (fastest compilation)
-        if (DCompilerTools.isCompilerAvailable("dmd"))
+        if (!ExecutableDetector.findInPath("dmd").empty)
             return DCompiler.DMD;
         
         // Last resort: GDC
-        if (DCompilerTools.isCompilerAvailable("gdc"))
+        if (!ExecutableDetector.findInPath("gdc").empty)
             return DCompiler.GDC;
         
         return DCompiler.LDC; // Default, will fail later if not available
@@ -392,9 +395,13 @@ class DHandler : BaseLanguageHandler
     
     private bool isCompilerAvailable(DCompiler compiler, string customPath)
     {
+        import infrastructure.toolchain.detection.detector : ExecutableDetector;
+        import std.range : empty;
+        
         if (compiler == DCompiler.Custom)
         {
-            return DCompilerTools.isCompilerAvailable(customPath);
+            import std.file : exists;
+            return !customPath.empty && exists(customPath);
         }
         
         final switch (compiler)
@@ -402,13 +409,14 @@ class DHandler : BaseLanguageHandler
             case DCompiler.Auto:
                 return true; // Will be resolved
             case DCompiler.LDC:
-                return DCompilerTools.isCompilerAvailable("ldc2");
+                return !ExecutableDetector.findInPath("ldc2").empty;
             case DCompiler.DMD:
-                return DCompilerTools.isCompilerAvailable("dmd");
+                return !ExecutableDetector.findInPath("dmd").empty;
             case DCompiler.GDC:
-                return DCompilerTools.isCompilerAvailable("gdc");
+                return !ExecutableDetector.findInPath("gdc").empty;
             case DCompiler.Custom:
-                return DCompilerTools.isCompilerAvailable(customPath);
+                import std.file : exists;
+                return !customPath.empty && exists(customPath);
         }
     }
     
