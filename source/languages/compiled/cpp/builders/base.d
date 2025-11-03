@@ -109,7 +109,8 @@ class CppBuilderFactory
     /// Detect build system from current directory
     private static BuildSystem detectBuildSystem()
     {
-        import languages.compiled.cpp.tooling.toolchain;
+        // import toolchain; // Replaced by unified toolchain system
+import toolchain.spec;
         import std.file;
         import std.path;
         
@@ -156,7 +157,8 @@ abstract class BaseCppBuilder : CppBuilder
     protected string getCompilerCommand(string source, CppConfig config)
     {
         import std.path : extension;
-        import languages.compiled.cpp.tooling.toolchain;
+        // import toolchain; // Replaced by unified toolchain system
+import toolchain.spec;
         
         auto compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
         

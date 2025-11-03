@@ -11,7 +11,7 @@ import std.conv;
 import languages.base.base;
 import languages.base.mixins;
 import languages.compiled.cpp.core.config;
-import languages.compiled.cpp.tooling.toolchain;
+import toolchain;
 import languages.compiled.cpp.analysis.analysis;
 import languages.compiled.cpp.tooling.tools;
 import languages.compiled.cpp.builders;

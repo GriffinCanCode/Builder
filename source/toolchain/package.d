@@ -46,5 +46,46 @@ module toolchain;
 public import toolchain.platform;
 public import toolchain.spec;
 public import toolchain.detector;
+public import toolchain.detectors;
 public import toolchain.registry;
+public import toolchain.providers;
+public import toolchain.constraints;
+
+/// Convenience function to get a toolchain by name with optional version constraint
+Result!(Toolchain, BuildError) getToolchainByName(string name, string versionConstraint = "") @system
+{
+    auto registry = ToolchainRegistry.instance();
+    registry.initialize();
+    
+    if (versionConstraint.empty)
+    {
+        auto toolchains = registry.getByName(name);
+        if (toolchains.empty)
+        {
+            return Err!(Toolchain, BuildError)(
+                new SystemError("Toolchain not found: " ~ name, ErrorCode.ToolNotFound));
+        }
+        // Return latest version
+        return Ok!(Toolchain, BuildError)(toolchains[$ - 1]);
+    }
+    
+    // Use constraint matching
+    auto constraintResult = ToolchainConstraint.parse(name ~ "@" ~ versionConstraint);
+    if (constraintResult.isErr)
+        return Err!(Toolchain, BuildError)(constraintResult.unwrapErr());
+    
+    return registry.findMatching(constraintResult.unwrap());
+}
+
+/// Get compiler tool path for a toolchain by name
+string getCompilerPath(string toolchainName) @system
+{
+    auto result = getToolchainByName(toolchainName);
+    if (result.isErr)
+        return "";
+    
+    auto tc = result.unwrap();
+    auto compiler = tc.compiler();
+    return compiler ? compiler.path : "";
+}
 

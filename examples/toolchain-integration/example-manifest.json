@@ -1,0 +1,44 @@
+{
+  "toolchains": [
+    {
+      "name": "custom-gcc",
+      "id": "custom-gcc-11.3.0",
+      "version": "11.3.0",
+      "host": "x86_64-unknown-linux-gnu",
+      "target": "x86_64-unknown-linux-gnu",
+      "tools": [
+        {
+          "name": "gcc",
+          "path": "bin/gcc",
+          "type": "compiler",
+          "capabilities": ["lto", "optimization", "debugging", "sanitizers"]
+        },
+        {
+          "name": "g++",
+          "path": "bin/g++",
+          "type": "compiler",
+          "capabilities": ["lto", "optimization", "debugging", "sanitizers"]
+        },
+        {
+          "name": "ld",
+          "path": "bin/ld",
+          "type": "linker",
+          "capabilities": ["lto"]
+        },
+        {
+          "name": "ar",
+          "path": "bin/ar",
+          "type": "archiver",
+          "capabilities": []
+        }
+      ],
+      "env": {
+        "CC": "gcc",
+        "CXX": "g++",
+        "LD": "ld"
+      },
+      "sysroot": "sysroot"
+    }
+  ]
+}
+

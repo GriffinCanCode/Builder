@@ -8,7 +8,8 @@ import std.path;
 import std.process;
 import std.string;
 import languages.compiled.cpp.core.config;
-import languages.compiled.cpp.tooling.toolchain;
+// import toolchain; // Replaced by unified toolchain system
+import toolchain.spec;
 import languages.compiled.cpp.builders.base;
 import languages.compiled.cpp.analysis.incremental;
 import config.schema.schema;

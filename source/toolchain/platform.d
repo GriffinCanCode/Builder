@@ -2,6 +2,7 @@ module toolchain.platform;
 
 import std.string : toLower, startsWith;
 import std.algorithm : canFind;
+import std.array : empty;
 import std.conv : to;
 import errors;
 
@@ -68,7 +69,7 @@ struct Platform
     }
     
     /// Parse from target triple (e.g., "x86_64-unknown-linux-gnu")
-    static Result!(Platform, BuildError) parse(string triple) @safe
+    static Result!(Platform, BuildError) parse(string triple) @system
     {
         import std.array : split;
         
@@ -216,7 +217,7 @@ struct Platform
 }
 
 /// Parse architecture from string
-private Arch parseArch(string str) @safe nothrow
+private Arch parseArch(string str) @safe
 {
     str = str.toLower();
     
@@ -245,7 +246,7 @@ private Arch parseArch(string str) @safe nothrow
 }
 
 /// Parse OS from string
-private OS parseOS(string str) @safe nothrow
+private OS parseOS(string str) @safe
 {
     str = str.toLower();
     
@@ -274,7 +275,7 @@ private OS parseOS(string str) @safe nothrow
 }
 
 /// Parse ABI from string
-private ABI parseABI(string str) @safe nothrow
+private ABI parseABI(string str) @safe
 {
     str = str.toLower();
     

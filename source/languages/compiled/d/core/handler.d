@@ -13,7 +13,7 @@ import languages.base.base;
 import languages.base.mixins;
 import languages.compiled.d.core.config;
 import languages.compiled.d.analysis.manifest;
-import languages.compiled.d.managers.toolchain;
+import toolchain;
 import languages.compiled.d.tooling.tools;
 import languages.compiled.d.builders;
 import config.schema.schema;
@@ -28,6 +28,47 @@ class DHandler : BaseLanguageHandler
 {
     mixin CachingHandlerMixin!"d";
     
+    /// Detect best D compiler using unified toolchain
+    private DCompiler detectBestDCompiler() @system
+    {
+        auto registry = ToolchainRegistry.instance();
+        registry.initialize();
+        
+        // Priority: LDC > DMD > GDC
+        if (!registry.getByName("ldc").empty)
+            return DCompiler.LDC;
+        if (!registry.getByName("dmd").empty)
+            return DCompiler.DMD;
+        if (!registry.getByName("gdc").empty)
+            return DCompiler.GDC;
+        
+        return DCompiler.Auto;
+    }
+    
+    /// Check if D compiler is available
+    private bool isDCompilerAvailable(DCompiler compiler, string customCompiler) @system
+    {
+        import std.file : exists;
+        
+        auto registry = ToolchainRegistry.instance();
+        registry.initialize();
+        
+        final switch (compiler)
+        {
+            case DCompiler.Auto:
+                auto result = registry.findFor(Platform.host(), ToolchainType.Compiler);
+                return result.isOk;
+            case DCompiler.DMD:
+                return !registry.getByName("dmd").empty;
+            case DCompiler.LDC:
+                return !registry.getByName("ldc").empty;
+            case DCompiler.GDC:
+                return !registry.getByName("gdc").empty;
+            case DCompiler.Custom:
+                return !customCompiler.empty && exists(customCompiler);
+        }
+    }
+    
     protected override LanguageBuildResult buildImpl(in Target target, in WorkspaceConfig config)
     {
         LanguageBuildResult result;
@@ -37,15 +78,15 @@ class DHandler : BaseLanguageHandler
         // Parse D configuration
         DConfig dConfig = parseDConfig(target);
         
-        // Auto-detect and validate compiler
+        // Auto-detect and validate compiler using unified toolchain system
         if (dConfig.compiler == DCompiler.Auto)
         {
-            dConfig.compiler = detectBestCompiler();
+            dConfig.compiler = detectBestDCompiler();
             Logger.debugLog("Auto-detected compiler: " ~ compilerToString(dConfig.compiler));
         }
         
         // Check compiler availability
-        if (!isCompilerAvailable(dConfig.compiler, dConfig.customCompiler))
+        if (!isDCompilerAvailable(dConfig.compiler, dConfig.customCompiler))
         {
             result.error = "D compiler not available: " ~ compilerToString(dConfig.compiler);
             return result;

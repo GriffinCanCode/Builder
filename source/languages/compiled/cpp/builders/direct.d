@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
-import languages.compiled.cpp.tooling.toolchain;
+import toolchain;
 import languages.compiled.cpp.builders.base;
 import config.schema.schema;
 import analysis.targets.types;
@@ -20,13 +20,36 @@ import caching.actions.action : ActionCache, ActionCacheConfig, ActionId, Action
 /// Direct compiler builder - compiles without external build system with action-level caching
 class DirectBuilder : BaseCppBuilder
 {
-    private CompilerInfo compilerInfo;
+    private Toolchain toolchain;
     private ActionCache actionCache;
     
     this(CppConfig config, ActionCache cache = null)
     {
         super(config);
-        compilerInfo = Toolchain.detect(config.compiler, config.customCompiler);
+        // Get toolchain from registry
+        auto registry = ToolchainRegistry.instance();
+        registry.initialize();
+        
+        if (config.compiler == Compiler.Custom && !config.customCompiler.empty)
+        {
+            // Handle custom compiler path
+            toolchain = createCustomToolchain(config.customCompiler);
+        }
+        else if (config.compiler != Compiler.Auto)
+        {
+            // Get specific compiler
+            auto tcName = compilerToToolchainName(config.compiler);
+            auto result = getToolchainByName(tcName);
+            if (result.isOk)
+                toolchain = result.unwrap();
+        }
+        else
+        {
+            // Auto-detect best available
+            auto result = registry.findFor(Platform.host(), ToolchainType.Compiler);
+            if (result.isOk)
+                toolchain = result.unwrap();
+        }
         if (cache is null)
         {
             auto cacheConfig = ActionCacheConfig.fromEnvironment();
@@ -47,13 +70,20 @@ class DirectBuilder : BaseCppBuilder
     {
         CppCompileResult result;
         
-        if (!compilerInfo.isAvailable)
+        if (toolchain.tools.empty)
         {
             result.error = "Compiler not available: " ~ config.compiler.to!string;
             return result;
         }
         
-        Logger.debugLog("Direct compilation with " ~ compilerInfo.name);
+        auto compiler = toolchain.compiler();
+        if (compiler is null)
+        {
+            result.error = "No compiler found in toolchain";
+            return result;
+        }
+        
+        Logger.debugLog("Direct compilation with " ~ toolchain.name ~ " v" ~ compiler.version_.toString());
         
         // Separate C and C++ files
         string[] cppFiles;
@@ -148,17 +178,36 @@ class DirectBuilder : BaseCppBuilder
     
     override bool isAvailable()
     {
-        return compilerInfo.isAvailable;
+        return !toolchain.tools.empty && toolchain.isComplete();
     }
     
     override string name() const
     {
-        return "DirectBuilder (" ~ compilerInfo.name ~ ")";
+        return "DirectBuilder (" ~ toolchain.name ~ ")";
     }
     
     override string getVersion()
     {
-        return compilerInfo.version_;
+        auto compiler = toolchain.compiler();
+        return compiler ? compiler.version_.toString() : "unknown";
+    }
+    
+    private Toolchain createCustomToolchain(string compilerPath)
+    {
+        Toolchain tc;
+        tc.name = "custom";
+        tc.id = "custom-compiler";
+        tc.host = Platform.host();
+        tc.target = Platform.host();
+        
+        Tool tool;
+        tool.name = "custom";
+        tool.path = compilerPath;
+        tool.type = ToolchainType.Compiler;
+        tool.version_ = Version(0, 0, 0);
+        tc.tools ~= tool;
+        
+        return tc;
     }
     
     override bool supportsFeature(string feature)
@@ -189,9 +238,18 @@ class DirectBuilder : BaseCppBuilder
         CppCompileResult result;
         result.success = true;
         
-        string compiler = isCpp ? 
-            Toolchain.getCppCompiler(compilerInfo) :
-            Toolchain.getCCompiler(compilerInfo);
+        // Get compiler path
+        auto comp = toolchain.compiler();
+        if (comp is null)
+            return CompileFilesResult();
+        
+        string compiler = comp.path;
+        // For C++, try to find g++ or clang++ variant
+        if (isCpp && (comp.name == "gcc" || comp.name == "clang"))
+        {
+            import std.string : replace;
+            compiler = comp.path.replace("gcc", "g++").replace("clang", "clang++");
+        }
         
         auto flags = buildCompilerFlags(config, isCpp);
         
@@ -286,9 +344,18 @@ class DirectBuilder : BaseCppBuilder
         CppCompileResult result;
         
         // Use C++ compiler for linking if any C++ code
-        string linker = isCpp ?
-            Toolchain.getCppCompiler(compilerInfo) :
-            Toolchain.getCCompiler(compilerInfo);
+        // Get compiler/linker path
+        auto comp = toolchain.compiler();
+        if (comp is null)
+            return LinkResult();
+        
+        string linker = comp.path;
+        // For C++, use g++ or clang++ for linking
+        if (isCpp && (comp.name == "gcc" || comp.name == "clang"))
+        {
+            import std.string : replace;
+            linker = comp.path.replace("gcc", "g++").replace("clang", "clang++");
+        }
         
         // Build linker flags
         auto linkerFlags = buildLinkerFlags(config);

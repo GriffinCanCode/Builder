@@ -1,6 +1,8 @@
 module toolchain.spec;
 
 import std.conv : to;
+import std.string : indexOf;
+import std.array : empty;
 import toolchain.platform;
 import errors;
 
@@ -48,9 +50,9 @@ struct Version
     string prerelease;
     
     /// Parse from string (e.g., "1.2.3", "4.5.6-beta")
-    static Result!(Version, BuildError) parse(string str) @safe
+    static Result!(Version, BuildError) parse(string str) @system
     {
-        import std.array : split;
+        import std.array : split, empty;
         import std.string : strip;
         import std.conv : to;
         
@@ -182,7 +184,7 @@ struct Toolchain
     string sysroot;        // System root for headers/libraries
     
     /// Get tool by type
-    const(Tool)* getTool(ToolchainType type) const @safe
+    const(Tool)* getTool(ToolchainType type) const @system
     {
         foreach (ref tool; tools)
         {
@@ -193,7 +195,7 @@ struct Toolchain
     }
     
     /// Get tool by name
-    const(Tool)* getToolByName(string name) const @safe
+    const(Tool)* getToolByName(string name) const @system
     {
         foreach (ref tool; tools)
         {
@@ -204,7 +206,7 @@ struct Toolchain
     }
     
     /// Check if toolchain supports cross-compilation
-    bool isCross() const pure nothrow @safe
+    bool isCross() const nothrow @safe
     {
         return target.isCross();
     }
@@ -221,13 +223,13 @@ struct Toolchain
     }
     
     /// Get compiler tool (convenience)
-    const(Tool)* compiler() const @safe
+    const(Tool)* compiler() const @system
     {
         return getTool(ToolchainType.Compiler);
     }
     
     /// Get linker tool (convenience)
-    const(Tool)* linker() const @safe
+    const(Tool)* linker() const @system
     {
         return getTool(ToolchainType.Linker);
     }
@@ -242,7 +244,7 @@ struct ToolchainRef
     bool isExternal;   // External reference (@toolchains//)
     
     /// Parse toolchain reference
-    static Result!(ToolchainRef, BuildError) parse(string str) @safe
+    static Result!(ToolchainRef, BuildError) parse(string str) @system
     {
         import std.string : startsWith, indexOf, strip;
         

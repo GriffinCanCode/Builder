@@ -1,10 +1,13 @@
 module toolchain.registry;
 
 import std.algorithm : canFind, filter;
-import std.array : array;
+import std.array : array, empty;
+import std.conv : to;
 import toolchain.spec;
 import toolchain.platform;
 import toolchain.detector;
+import toolchain.providers;
+import toolchain.constraints;
 import utils.logging.logger;
 import errors;
 
@@ -76,7 +79,7 @@ class ToolchainRegistry
         if (tc is null)
         {
             return Err!(Toolchain, BuildError)(
-                new SystemError("Toolchain not found: " ~ id, ErrorCode.NotFound));
+                new SystemError("Toolchain not found: " ~ id, ErrorCode.ToolNotFound));
         }
         
         return Ok!(Toolchain, BuildError)(*tc);
@@ -125,7 +128,7 @@ class ToolchainRegistry
         return Err!(Toolchain, BuildError)(
             new SystemError(
                 "No toolchain found for platform: " ~ platform.toTriple(), 
-                ErrorCode.NotFound));
+                ErrorCode.ToolNotFound));
     }
     
     /// Resolve toolchain reference
@@ -148,7 +151,7 @@ class ToolchainRegistry
             if (tcs.empty)
             {
                 return Err!(Toolchain, BuildError)(
-                    new SystemError("Toolchain not found: " ~ ref_.name, ErrorCode.NotFound));
+                    new SystemError("Toolchain not found: " ~ ref_.name, ErrorCode.ToolNotFound));
             }
             
             // Return latest version
@@ -192,6 +195,77 @@ class ToolchainRegistry
     {
         this.detector.register(detector);
         initialized = false; // Force re-detection
+    }
+    
+    /// Add toolchain provider (for fetching remote toolchains)
+    void addProvider(ToolchainProvider provider) @system
+    {
+        providers ~= provider;
+        initialized = false; // Force re-provision
+    }
+    
+    /// Provision toolchains from providers (fetch if needed)
+    void provision() @system
+    {
+        Logger.info("Provisioning toolchains from providers...");
+        
+        foreach (provider; providers)
+        {
+            if (!provider.available())
+                continue;
+            
+            try
+            {
+                auto result = provider.provide();
+                if (result.isErr)
+                {
+                    Logger.warning("Provider " ~ provider.name() ~ " failed: " ~ 
+                                 result.unwrapErr().message());
+                    continue;
+                }
+                
+                auto tcs = result.unwrap();
+                foreach (tc; tcs)
+                {
+                    register(tc);
+                }
+                
+                Logger.info("Provisioned " ~ tcs.length.to!string ~ 
+                          " toolchain(s) from " ~ provider.name());
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Provider " ~ provider.name() ~ " threw: " ~ e.msg);
+            }
+        }
+    }
+    
+    /// Find toolchain matching constraint
+    Result!(Toolchain, BuildError) findMatching(ToolchainConstraint constraint) @system
+    {
+        if (!initialized)
+            initialize();
+        
+        import toolchain.constraints : ConstraintSolver;
+        
+        auto result = ConstraintSolver.solve(toolchains, constraint);
+        if (result.isErr)
+            return Err!(Toolchain, BuildError)(result.unwrapErr());
+        
+        return Ok!(Toolchain, BuildError)(*result.unwrap());
+    }
+    
+    /// Find all toolchains matching constraint
+    Toolchain[] findAllMatching(ToolchainConstraint constraint) @system
+    {
+        if (!initialized)
+            initialize();
+        
+        import toolchain.constraints : ConstraintSolver;
+        import std.algorithm : map;
+        
+        auto matches = ConstraintSolver.findAll(toolchains, constraint);
+        return matches.map!(m => *m).array;
     }
 }
 

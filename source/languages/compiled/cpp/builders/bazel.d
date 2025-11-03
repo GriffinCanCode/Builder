@@ -9,7 +9,7 @@ import std.array;
 import std.string;
 import std.conv;
 import languages.compiled.cpp.core.config;
-import languages.compiled.cpp.tooling.toolchain;
+import toolchain.spec;
 import languages.compiled.cpp.builders.base;
 import config.schema.schema;
 import analysis.targets.types;

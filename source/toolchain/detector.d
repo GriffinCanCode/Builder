@@ -5,8 +5,9 @@ import std.file : exists;
 import std.path : buildPath;
 import std.string : strip, split, startsWith, indexOf;
 import std.algorithm : map, filter;
-import std.array : array;
+import std.array : array, empty;
 import std.regex : matchFirst, regex;
+import std.conv : to;
 import toolchain.spec;
 import toolchain.platform;
 import utils.logging.logger;
@@ -409,10 +410,14 @@ class AutoDetector
     {
         // Register common detectors
         detectors = [
-            new GCCDetector(),
-            new ClangDetector(),
-            new RustDetector()
+            cast(ToolchainDetector)new GCCDetector(),
+            cast(ToolchainDetector)new ClangDetector(),
+            cast(ToolchainDetector)new RustDetector()
         ];
+        
+        // Register additional detectors
+        import toolchain.detectors : registerAllDetectors;
+        registerAllDetectors(this);
     }
     
     /// Add custom detector

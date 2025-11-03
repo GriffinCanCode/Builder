@@ -7,6 +7,6 @@ module languages.compiled.d.managers;
 /// - Version management
 /// - Capability detection
 
-public import languages.compiled.d.managers.toolchain;
+public import toolchain;
 
 
