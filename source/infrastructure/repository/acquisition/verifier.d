@@ -1,10 +1,10 @@
-module infrastructure.repository.verifier;
+module infrastructure.repository.acquisition.verifier;
 
 import std.file : read, exists;
 import std.algorithm : equal;
 import std.range : chunks;
 import infrastructure.utils.crypto.blake3;
-import infrastructure.repository.types;
+import infrastructure.repository.core.types;
 import infrastructure.errors;
 
 /// Integrity verifier for repository artifacts

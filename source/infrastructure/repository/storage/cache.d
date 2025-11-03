@@ -1,4 +1,4 @@
-module infrastructure.repository.cache;
+module infrastructure.repository.storage.cache;
 
 import std.file : exists, mkdirRecurse, read, write, dirEntries, SpanMode, remove, isDir;
 import std.path : buildPath;
@@ -6,7 +6,7 @@ import std.datetime : Clock, SysTime;
 import std.algorithm : map, filter;
 import std.array : array;
 import std.conv : to;
-import infrastructure.repository.types;
+import infrastructure.repository.core.types;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 

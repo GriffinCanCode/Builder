@@ -1,12 +1,12 @@
-module infrastructure.repository.fetcher;
+module infrastructure.repository.acquisition.fetcher;
 
 import std.file : write, mkdirRecurse, exists, remove, tempDir;
 import std.path : buildPath, dirName, baseName;
 import std.process : execute, Config;
 import std.string : endsWith, startsWith, format;
 import std.datetime : Clock;
-import infrastructure.repository.types;
-import infrastructure.repository.verifier;
+import infrastructure.repository.core.types;
+import infrastructure.repository.acquisition.verifier;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 

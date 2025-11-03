@@ -1,4 +1,4 @@
-module infrastructure.repository.types;
+module infrastructure.repository.core.types;
 
 import std.datetime : SysTime;
 import infrastructure.errors;

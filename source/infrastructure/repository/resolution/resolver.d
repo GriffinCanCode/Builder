@@ -1,11 +1,11 @@
-module infrastructure.repository.resolver;
+module infrastructure.repository.resolution.resolver;
 
 import std.string : startsWith, split, format;
 import std.algorithm : canFind;
 import std.path : buildPath, absolutePath;
-import infrastructure.repository.types;
-import infrastructure.repository.cache;
-import infrastructure.repository.fetcher;
+import infrastructure.repository.core.types;
+import infrastructure.repository.storage.cache;
+import infrastructure.repository.acquisition.fetcher;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 

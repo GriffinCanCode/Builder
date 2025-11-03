@@ -27,16 +27,21 @@ module infrastructure.repository;
 /// }
 /// ```
 /// 
-/// Architecture:
-/// - types.d: Core data structures (RepositoryRule, CachedRepository, etc.)
-/// - fetcher.d: Downloads and extracts repositories
-/// - cache.d: Manages local cache of fetched repositories
-/// - resolver.d: Resolves @repo// references to filesystem paths
-/// - verifier.d: Integrity verification using BLAKE3/SHA256
+/// Module Structure:
+/// - core: Core data structures, enums, and error types
+/// - acquisition: Repository fetching and integrity verification
+/// - storage: Local cache management
+/// - resolution: @repo// reference resolution
 
-public import infrastructure.repository.types;
-public import infrastructure.repository.fetcher;
-public import infrastructure.repository.cache;
-public import infrastructure.repository.resolver;
-public import infrastructure.repository.verifier;
+// Core types and data structures
+public import infrastructure.repository.core;
+
+// Acquisition (fetching and verification)
+public import infrastructure.repository.acquisition;
+
+// Storage (caching)
+public import infrastructure.repository.storage;
+
+// Resolution (@repo// references)
+public import infrastructure.repository.resolution;
 
