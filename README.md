@@ -237,6 +237,52 @@ builder query 'deps(//...) & kind(library)'  # Set operations
 
 **Implementation:** Algebraic query language with visitor pattern AST, optimized graph algorithms (BFS/DFS), multiple output formats (pretty, JSON, DOT).
 
+## Build System Migration
+
+Comprehensive migration tools support moving from any major build system to Builder:
+
+**Supported Systems:**
+- **Bazel** (BUILD, BUILD.bazel) - Rules, dependencies, compiler flags
+- **CMake** (CMakeLists.txt) - Executables, libraries, target properties
+- **Maven** (pom.xml) - Java projects, dependencies, plugins
+- **Gradle** (build.gradle, build.gradle.kts) - Java/Kotlin/Groovy projects
+- **Make** (Makefile) - Variables, targets, dependencies
+- **Cargo** (Cargo.toml) - Rust projects, dependencies
+- **npm** (package.json) - JavaScript/TypeScript projects
+- **Go Modules** (go.mod) - Go projects, module dependencies
+- **DUB** (dub.json) - D projects, configurations
+- **SBT** (build.sbt) - Scala projects
+- **Meson** (meson.build) - C/C++ projects
+
+**Features:**
+- Intelligent auto-detection from file name and content
+- Preserves target structure and dependencies
+- Language-specific configuration translation
+- Detailed warnings for unsupported features
+- Dry-run mode for safe preview
+
+**Usage:**
+```bash
+# Auto-detect and migrate
+builder migrate --auto BUILD
+
+# Specify source system
+builder migrate --from=cmake --input=CMakeLists.txt
+
+# Preview without writing
+builder migrate --auto pom.xml --dry-run
+
+# List all supported systems
+builder migrate list
+
+# Get system-specific info
+builder migrate info bazel
+```
+
+**Architecture:** Composable parser architecture with unified intermediate representation. Each migrator implements `IMigrator` interface, registered via central `MigratorRegistry` (follows `LanguageRegistry` pattern). Clean separation: parse → transform → emit.
+
+**Design:** Parse-once strategy extracts targets to system-agnostic IR, then emits idiomatic Builderfile DSL. Warnings categorized by severity (info/warning/error). Metadata preservation for manual review of complex features.
+
 ## Observability
 
 **Distributed Tracing:** OpenTelemetry-compatible with W3C Trace Context. Span tracking, context propagation, multiple exporters (Jaeger, Zipkin, Console).
@@ -282,6 +328,10 @@ builder init
 
 # Use interactive wizard
 builder wizard
+
+# Migrate from other build systems
+builder migrate --from=bazel --input=BUILD --output=Builderfile
+builder migrate --auto CMakeLists.txt  # Auto-detect build system
 
 # Build all targets
 builder build
@@ -384,6 +434,76 @@ The codebase follows clean architectural principles with modular separation:
 - **User Guides:** [docs/user-guides/](docs/user-guides/)
 - **Features:** [docs/features/](docs/features/)
 - **Examples:** [examples/](examples/)
+
+## Roadmap & Feature Checklist
+
+### Core Build System
+- [x] Dynamic build graphs with runtime discovery
+- [x] Process-based plugin architecture
+- [x] Lock-free work-stealing scheduler
+- [x] Three-tier programmability (DSL, macros, plugins)
+- [x] SIMD-accelerated BLAKE3 hashing
+- [x] Multi-level caching (5 tiers)
+- [x] Incremental everything (analysis, compilation, tests)
+- [x] 26+ language support with unified architecture
+- [x] Set-theoretic hermetic builds
+- [x] Complete LSP implementation
+- [x] Distributed execution with native sandboxing
+- [x] Enterprise-grade test framework
+- [x] Bazel-compatible query language
+- [x] OpenTelemetry observability
+- [x] Event-driven CLI rendering
+
+### Advanced Features
+- [x] Content-defined chunking with Rabin fingerprinting
+- [x] Bayesian flaky test detection
+- [x] Adaptive test sharding
+- [x] Remote caching with CDN integration
+- [x] JUnit XML for CI/CD
+- [x] Watch mode with native file watching
+- [x] **Repository Rules System** ✨
+  - [x] HTTP archive fetching with integrity verification
+  - [x] Git repository support with commit/tag pinning
+  - [x] Local filesystem repositories
+  - [x] Content-addressable caching
+  - [x] BLAKE3 cryptographic verification
+  - [x] Lazy fetching (on-demand download)
+  - [x] `@repo//path:target` syntax
+  - [x] Integration with dependency resolver
+  - [x] LSP autocomplete support
+- [x] **Build System Migration** ✨
+  - [x] Bazel BUILD file migration
+  - [x] CMake CMakeLists.txt migration
+  - [x] Maven pom.xml migration
+  - [x] Gradle build.gradle migration
+  - [x] Make Makefile migration
+  - [x] Cargo Cargo.toml migration
+  - [x] npm package.json migration
+  - [x] Go modules go.mod migration
+  - [x] DUB dub.json migration
+  - [x] SBT build.sbt migration
+  - [x] Meson meson.build migration
+  - [x] Auto-detection from file name/content
+  - [x] Dry-run preview mode
+  - [x] Rich warnings with suggestions
+  - [x] Unified IR-based architecture
+  - [x] Comprehensive unit tests
+
+### Future Enhancements
+- [ ] Patch support for repositories
+- [ ] Repository mirrors for reliability
+- [ ] Optional package registry (like crates.io)
+- [ ] Semantic versioning and constraints
+- [ ] Workspace overlays for repositories
+- [ ] Compressed repository caching
+- [ ] Auto-generation of build files for external deps
+- [ ] Build-time code generation plugins
+- [ ] Custom action types
+- [ ] Remote execution autoscaling
+- [ ] Multi-platform cross-compilation
+- [ ] Docker/container integration
+- [ ] Kubernetes deployment plugin
+- [ ] Advanced dependency visualization
 
 ## Contributing
 

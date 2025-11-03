@@ -18,4 +18,5 @@ public import cli.commands.plugin;
 public import cli.commands.coordinator;
 public import cli.commands.worker;
 public import cli.commands.test;
+public import cli.commands.migrate;
 

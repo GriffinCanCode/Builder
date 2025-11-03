@@ -105,6 +105,10 @@ void main(string[] args)
             case "wizard":
                 WizardCommand.execute();
                 break;
+            case "migrate":
+                import core.stdc.stdlib : exit;
+                exit(MigrateCommand.execute(args));
+                break;
             case "resume":
                 resumeCommand(mode);
                 break;
