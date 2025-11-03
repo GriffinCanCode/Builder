@@ -2,7 +2,7 @@ module engine.caching.storage.cas;
 
 import std.file : exists, read, write, remove, mkdirRecurse, dirEntries, SpanMode;
 import std.path : buildPath, dirName;
-import std.algorithm : map, filter;
+import std.algorithm : map, filter, sum;
 import std.array : array;
 import std.conv : to;
 import core.sync.mutex : Mutex;
@@ -32,7 +32,6 @@ final class ContentAddressableStorage
     {
         try
         {
-            // Compute content hash
             immutable hash = FastHash.hashBytes(data);
             immutable blobPath = getBlobPath(hash);
             
@@ -41,19 +40,13 @@ final class ContentAddressableStorage
                 // Check if blob already exists (deduplication)
                 if (exists(blobPath))
                 {
-                    // Increment reference count
-                    if (hash in refCounts)
-                        refCounts[hash]++;
-                    else
-                        refCounts[hash] = 2;  // Existing + new reference
-                    
+                    refCounts[hash] = refCounts.get(hash, 1) + 1;
                     return Ok!(string, BuildError)(hash);
                 }
                 
                 // Store new blob
                 immutable dir = dirName(blobPath);
-                if (!exists(dir))
-                    mkdirRecurse(dir);
+                if (!exists(dir)) mkdirRecurse(dir);
                 
                 write(blobPath, data);
                 refCounts[hash] = 1;
@@ -63,11 +56,8 @@ final class ContentAddressableStorage
         }
         catch (Exception e)
         {
-            auto error = new CacheError(
-                "Failed to store blob: " ~ e.msg,
-                ErrorCode.CacheWriteFailed
-            );
-            return Err!(string, BuildError)(error);
+            return Err!(string, BuildError)(new CacheError(
+                "Failed to store blob: " ~ e.msg, ErrorCode.CacheWriteFailed));
         }
     }
     
@@ -81,25 +71,16 @@ final class ContentAddressableStorage
             synchronized (storageMutex)
             {
                 if (!exists(blobPath))
-                {
-                    auto error = new CacheError(
-                        "Blob not found: " ~ hash,
-                        ErrorCode.CacheNotFound
-                    );
-                    return Err!(ubyte[], BuildError)(error);
-                }
+                    return Err!(ubyte[], BuildError)(new CacheError(
+                        "Blob not found: " ~ hash, ErrorCode.CacheNotFound));
                 
-                auto data = cast(ubyte[])read(blobPath);
-                return Ok!(ubyte[], BuildError)(data);
+                return Ok!(ubyte[], BuildError)(cast(ubyte[])read(blobPath));
             }
         }
         catch (Exception e)
         {
-            auto error = new CacheError(
-                "Failed to read blob: " ~ e.msg,
-                ErrorCode.CacheLoadFailed
-            );
-            return Err!(ubyte[], BuildError)(error);
+            return Err!(ubyte[], BuildError)(new CacheError(
+                "Failed to read blob: " ~ e.msg, ErrorCode.CacheLoadFailed));
         }
     }
     
@@ -117,10 +98,7 @@ final class ContentAddressableStorage
     {
         synchronized (storageMutex)
         {
-            if (hash in refCounts)
-                refCounts[hash]++;
-            else
-                refCounts[hash] = 1;
+            refCounts[hash] = refCounts.get(hash, 0) + 1;
         }
     }
     
@@ -130,18 +108,14 @@ final class ContentAddressableStorage
     {
         synchronized (storageMutex)
         {
-            if (hash !in refCounts)
-                return true;
-            
-            refCounts[hash]--;
-            
-            if (refCounts[hash] <= 0)
+            if (auto countPtr = hash in refCounts)
             {
-                refCounts.remove(hash);
-                return true;
+                if (--(*countPtr) <= 0)
+                    refCounts.remove(hash);
+                else
+                    return false;
             }
-            
-            return false;
+            return true;
         }
     }
     
@@ -153,14 +127,9 @@ final class ContentAddressableStorage
             synchronized (storageMutex)
             {
                 // Check reference count
-                if (hash in refCounts && refCounts[hash] > 0)
-                {
-                    auto error = new CacheError(
-                        "Cannot delete blob with active references",
-                        ErrorCode.CacheInUse
-                    );
-                    return Result!BuildError.err(error);
-                }
+                if (refCounts.get(hash, 0) > 0)
+                    return Result!BuildError.err(new CacheError(
+                        "Cannot delete blob with active references", ErrorCode.CacheInUse));
                 
                 immutable blobPath = getBlobPath(hash);
                 if (exists(blobPath))
@@ -173,11 +142,8 @@ final class ContentAddressableStorage
         }
         catch (Exception e)
         {
-            auto error = new CacheError(
-                "Failed to delete blob: " ~ e.msg,
-                ErrorCode.CacheDeleteFailed
-            );
-            return Result!BuildError.err(error);
+            return Result!BuildError.err(new CacheError(
+                "Failed to delete blob: " ~ e.msg, ErrorCode.CacheDeleteFailed));
         }
     }
     
@@ -217,21 +183,19 @@ final class ContentAddressableStorage
             StorageStats stats;
             stats.uniqueBlobs = refCounts.length;
             
-            foreach (hash, count; refCounts)
+            foreach (count; refCounts.byValue)
             {
                 stats.totalBlobs += count;
-                if (count > 1)
-                    stats.duplicateRefs += (count - 1);
+                stats.duplicateRefs += count > 1 ? count - 1 : 0;
             }
             
             // Calculate total size
             try
             {
-                foreach (entry; dirEntries(storageDir, SpanMode.depth))
-                {
-                    if (entry.isFile)
-                        stats.totalSize += entry.size;
-                }
+                stats.totalSize = dirEntries(storageDir, SpanMode.depth)
+                    .filter!(e => e.isFile)
+                    .map!(e => e.size)
+                    .sum;
             }
             catch (Exception) {}
             

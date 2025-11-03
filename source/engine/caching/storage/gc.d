@@ -38,13 +38,7 @@ final class CacheGarbageCollector
         try
         {
             // Emit GC started event
-            if (publisher !is null)
-            {
-                auto startEvent = new CacheGCEvent(
-                    CacheEventType.GCStarted, 0, 0, 0, dur!"msecs"(0)
-                );
-                publisher.publish(startEvent);
-            }
+            emitEvent(CacheEventType.GCStarted, 0, 0, 0, dur!"msecs"(0));
             
             // Mark phase: collect all referenced hashes
             auto referencedHashes = collectReferences(targetCache, actionCache);
@@ -52,21 +46,11 @@ final class CacheGarbageCollector
             // Sweep phase: remove unreferenced blobs
             auto sweepResult = sweepUnreferenced(referencedHashes);
             
-            timer.stop();
             immutable gcTime = timer.peek();
             
             // Emit GC completed event
-            if (publisher !is null)
-            {
-                auto completeEvent = new CacheGCEvent(
-                    CacheEventType.GCCompleted,
-                    sweepResult.blobsCollected,
-                    sweepResult.bytesFreed,
-                    sweepResult.orphansFound,
-                    gcTime
-                );
-                publisher.publish(completeEvent);
-            }
+            emitEvent(CacheEventType.GCCompleted, sweepResult.blobsCollected, 
+                     sweepResult.bytesFreed, sweepResult.orphansFound, gcTime);
             
             Logger.debugLog("GC collected " ~ sweepResult.blobsCollected.to!string ~ 
                           " blobs, freed " ~ formatBytes(sweepResult.bytesFreed));
@@ -75,11 +59,8 @@ final class CacheGarbageCollector
         }
         catch (Exception e)
         {
-            auto error = new CacheError(
-                "Garbage collection failed: " ~ e.msg,
-                ErrorCode.CacheGCFailed
-            );
-            return Err!(GCResult, BuildError)(error);
+            return Err!(GCResult, BuildError)(new CacheError(
+                "Garbage collection failed: " ~ e.msg, ErrorCode.CacheGCFailed));
         }
     }
     
@@ -108,25 +89,15 @@ final class CacheGarbageCollector
     {
         GCResult result;
         
-        // Get all blobs in storage
-        auto allBlobs = cas.listBlobs();
-        
-        foreach (hash; allBlobs)
+        foreach (hash; cas.listBlobs().filter!(h => h !in referenced))
         {
-            // Skip if referenced
-            if (hash in referenced)
-                continue;
-            
             // Get blob size before deletion
             auto getBlobResult = cas.getBlob(hash);
             if (getBlobResult.isOk)
-            {
                 result.bytesFreed += getBlobResult.unwrap().length;
-            }
             
             // Attempt deletion
-            auto deleteResult = cas.deleteBlob(hash);
-            if (deleteResult.isOk)
+            if (cas.deleteBlob(hash).isOk)
             {
                 result.blobsCollected++;
                 result.orphansFound++;
@@ -136,18 +107,22 @@ final class CacheGarbageCollector
         return result;
     }
     
+    /// Emit GC event helper
+    private void emitEvent(T...)(T args) nothrow
+    {
+        if (publisher is null) return;
+        try { publisher.publish(new CacheGCEvent(args)); } catch (Exception) {}
+    }
+    
     private static string formatBytes(size_t bytes) pure @system
     {
         import std.format : format;
+        enum MB = 1024 * 1024, GB = MB * 1024;
         
-        if (bytes < 1024)
-            return format("%d B", bytes);
-        else if (bytes < 1024 * 1024)
-            return format("%.1f KB", bytes / 1024.0);
-        else if (bytes < 1024 * 1024 * 1024)
-            return format("%.1f MB", bytes / (1024.0 * 1024.0));
-        else
-            return format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        return bytes < 1024 ? format("%d B", bytes)
+             : bytes < MB ? format("%.1f KB", bytes / 1024.0)
+             : bytes < GB ? format("%.1f MB", bytes / cast(double)MB)
+             : format("%.2f GB", bytes / cast(double)GB);
     }
 }
 

@@ -147,26 +147,16 @@ final class BuildCache
                 
                 const hashResult = FastHash.hashFileTwoTier(source, entryPtr.sourceMetadata.get(source, ""));
                 
-                if (hashResult.contentHashed)
-                {
-                    contentHashCount++;
-                    if (!SIMDHash.equals(hashResult.contentHash, entryPtr.sourceHashes.get(source, "")))
-                        return false;
-                }
-                else
-                {
-                    metadataHitCount++;
-                }
-            }
-            
-            // Check if any dependencies changed
-            foreach (dep; deps)
-            {
-                if (dep !in entries || !SIMDHash.equals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")))
+                hashResult.contentHashed ? contentHashCount++ : metadataHitCount++;
+                
+                if (hashResult.contentHashed && 
+                    !SIMDHash.equals(hashResult.contentHash, entryPtr.sourceHashes.get(source, "")))
                     return false;
             }
             
-            return true;
+            // Check if any dependencies changed
+            return !deps.any!(dep => dep !in entries || 
+                !SIMDHash.equals(entries[dep].buildHash, entryPtr.depHashes.get(dep, "")));
         }
     }
     
@@ -205,62 +195,47 @@ final class BuildCache
             entry.buildHash = outputHash;
         
         // Hash all source files with memoization to avoid duplicate hashing
+        auto existingSources = sources.filter!exists;
+        
         if (sources.length > 4) {
             // Use work-stealing parallel execution for better load balancing
             import infrastructure.utils.concurrency.parallel;
             import std.typecons : Tuple, tuple;
             
-            // Filter existing sources
-            string[] existingSources;
-            existingSources.reserve(sources.length);
-            foreach (source; sources)
-                if (exists(source))
-                    existingSources ~= source;
-            
-            if (existingSources.length > 0) {
-                // Parallel hash with work-stealing and memoization
-                alias HashResult = Tuple!(string, string, string);
-                auto hashes = ParallelExecutor.mapWorkStealing(
-                    existingSources,
-                    (string source) {
-                        // Check hash cache first to avoid duplicate computation
-                        auto cached = hashCache.get(source);
-                        if (cached.found) {
-                            return tuple(source, cached.contentHash, cached.metadataHash);
-                        }
-                        
-                        // Compute and cache for future use
-                        auto contentHash = FastHash.hashFile(source);
-                        auto metadataHash = FastHash.hashMetadata(source);
-                        hashCache.put(source, contentHash, metadataHash);
-                        return tuple(source, contentHash, metadataHash);
-                    }
-                );
-                
-                foreach (result; hashes) {
-                    entry.sourceHashes[result[0]] = result[1];
-                    entry.sourceMetadata[result[0]] = result[2];
+            alias HashResult = Tuple!(string, string, string);
+            auto hashes = ParallelExecutor.mapWorkStealing(
+                cast(string[])existingSources.array,
+                (string source) {
+                    auto cached = hashCache.get(source);
+                    if (cached.found)
+                        return tuple(source, cached.contentHash, cached.metadataHash);
+                    
+                    auto contentHash = FastHash.hashFile(source);
+                    auto metadataHash = FastHash.hashMetadata(source);
+                    hashCache.put(source, contentHash, metadataHash);
+                    return tuple(source, contentHash, metadataHash);
                 }
+            );
+            
+            foreach (r; hashes)
+            {
+                entry.sourceHashes[r[0]] = r[1];
+                entry.sourceMetadata[r[0]] = r[2];
             }
         } else {
             // Sequential for small number of files (avoid overhead)
-            foreach (source; sources)
+            foreach (source; existingSources)
             {
-                if (exists(source))
-                {
-                    // Check hash cache first
-                    auto cached = hashCache.get(source);
-                    if (cached.found) {
-                        entry.sourceHashes[source] = cached.contentHash;
-                        entry.sourceMetadata[source] = cached.metadataHash;
-                    } else {
-                        // Compute and cache
-                        auto contentHash = FastHash.hashFile(source);
-                        auto metadataHash = FastHash.hashMetadata(source);
-                        hashCache.put(source, contentHash, metadataHash);
-                        entry.sourceHashes[source] = contentHash;
-                        entry.sourceMetadata[source] = metadataHash;
-                    }
+                auto cached = hashCache.get(source);
+                if (cached.found) {
+                    entry.sourceHashes[source] = cached.contentHash;
+                    entry.sourceMetadata[source] = cached.metadataHash;
+                } else {
+                    auto contentHash = FastHash.hashFile(source);
+                    auto metadataHash = FastHash.hashMetadata(source);
+                    hashCache.put(source, contentHash, metadataHash);
+                    entry.sourceHashes[source] = contentHash;
+                    entry.sourceMetadata[source] = metadataHash;
                 }
             }
         }
@@ -280,15 +255,12 @@ final class BuildCache
     /// Invalidate cache for a target
     void invalidate(in string targetId) @system nothrow
     {
-        try
+        try synchronized (cacheMutex)
         {
-            synchronized (cacheMutex)
-            {
-                entries.remove(targetId);
-                dirty = true;
-            }
+            entries.remove(targetId);
+            dirty = true;
         }
-        catch (Exception e) {}
+        catch (Exception) {}
     }
     
     /// Clear entire cache
@@ -320,13 +292,12 @@ final class BuildCache
                 try
                 {
                     auto toEvict = eviction.selectEvictions(entries, eviction.calculateTotalSize(entries));
-                    foreach (key; toEvict)
-                        entries.remove(key);
+                    toEvict.each!(key => entries.remove(key));
                     
                     if (toEvict.length > 0)
                         writeln("Cache evicted ", toEvict.length, " entries");
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     writeln("Warning: Cache eviction failed, saving without eviction");
                 }
@@ -510,27 +481,23 @@ final class BuildCache
     {
         import std.json;
         
-        auto content = readText(cacheFile);
-        auto json = parseJSON(content);
+        auto json = parseJSON(readText(cacheFile));
         
         foreach (targetId, entryJson; json.object)
         {
             CacheEntry entry;
             entry.targetId = targetId;
             entry.buildHash = entryJson["buildHash"].str;
-            entry.timestamp = SysTime.fromISOExtString(entryJson["timestamp"].str);
-            entry.lastAccess = entry.timestamp; // Initialize with timestamp
+            entry.timestamp = entry.lastAccess = SysTime.fromISOExtString(entryJson["timestamp"].str);
             
             foreach (source, hash; entryJson["sourceHashes"].object)
             {
                 entry.sourceHashes[source] = hash.str;
-                // Compute metadata for migrated entries
                 if (exists(source))
                     entry.sourceMetadata[source] = FastHash.hashMetadata(source);
             }
             
-            foreach (dep, hash; entryJson["depHashes"].object)
-                entry.depHashes[dep] = hash.str;
+            entryJson["depHashes"].object.byKeyValue.each!(kv => entry.depHashes[kv.key] = kv.value.str);
             
             entries[targetId] = entry;
         }

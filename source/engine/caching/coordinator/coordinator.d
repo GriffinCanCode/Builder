@@ -81,20 +81,28 @@ final class CacheCoordinator
         
         // Check local target cache first (fastest)
         if (targetCache.isCached(targetId, sources, deps))
-            return emitEvent!CacheHitEvent(targetId, 0, timer.peek(), false), true;
+        {
+            emitEvent!CacheHitEvent(targetId, 0, timer.peek(), false);
+            return true;
+        }
         
         // Check remote cache if available
         if (remoteCache !is null)
         {
             auto contentHash = computeContentHash(targetId, sources, deps);
-            if (contentHash.length > 0 && remoteCache.has(contentHash).match!(
-                ok => ok,
-                err => false
+            auto hasResult = remoteCache.has(contentHash);
+            if (contentHash.length > 0 && hasResult.match(
+                (bool ok) => ok,
+                (BuildError err) => false
             ))
-                return emitEvent!CacheHitEvent(targetId, 0, timer.peek(), true), true;
+            {
+                emitEvent!CacheHitEvent(targetId, 0, timer.peek(), true);
+                return true;
+            }
         }
         
-        return emitEvent!CacheMissEvent(targetId, timer.peek()), false;
+        emitEvent!CacheMissEvent(targetId, timer.peek());
+        return false;
     }
     
     /// Update cache after successful build
@@ -110,13 +118,13 @@ final class CacheCoordinator
         synchronized (coordinatorMutex)
         {
             targetCache.update(targetId, sources, deps, outputHash);
-            emitUpdateEvent(targetId, 0, timer.peek());
+            emitEvent!CacheUpdateEvent(targetId, 0, timer.peek());
             
             // Push to remote cache asynchronously if configured
             if (remoteCache !is null && config.enableRemotePush)
             {
                 import core.thread : Thread;
-                new Thread(() => pushToRemote(targetId, sources, deps, outputHash)).start();
+                (new Thread(() => pushToRemote(targetId, sources, deps, outputHash))).start();
             }
         }
     }
@@ -131,10 +139,9 @@ final class CacheCoordinator
         auto timer = StopWatch(AutoStart.yes);
         immutable cached = actionCache.isCached(actionId, inputs, metadata);
         immutable actionIdStr = actionId.toString();
+        immutable eventType = cached ? CacheEventType.ActionHit : CacheEventType.ActionMiss;
         
-        cached ? emitActionHitEvent(actionIdStr, actionId.targetId, timer.peek())
-               : emitActionMissEvent(actionIdStr, actionId.targetId, timer.peek());
-        
+        emitEvent!ActionCacheEvent(eventType, actionIdStr, actionId.targetId, timer.peek());
         return cached;
     }
     
@@ -165,8 +172,8 @@ final class CacheCoordinator
     {
         synchronized (coordinatorMutex)
         {
-            if (targetCache !is null) targetCache.close();
-            if (actionCache !is null) actionCache.close();
+            if (targetCache) targetCache.close();
+            if (actionCache) actionCache.close();
         }
     }
     
@@ -256,8 +263,8 @@ final class CacheCoordinator
             auto metadata = serializeCacheMetadata(targetId, sources, deps, outputHash);
             auto pushResult = remoteCache.put(contentHash, metadata);
             
-            timer.stop();
-            emitRemotePushEvent(targetId, metadata.length, timer.peek(), pushResult.isOk);
+            emitEvent!RemoteCacheEvent(CacheEventType.RemotePush, targetId, 
+                                       metadata.length, timer.peek(), pushResult.isOk);
             
             if (pushResult.isErr)
                 Logger.debugLog("Remote push failed: " ~ pushResult.unwrapErr().message);
@@ -361,41 +368,11 @@ final class CacheCoordinator
         }
     }
     
-    // Event emission helpers
+    // Event emission helper
     private void emitEvent(T, Args...)(Args args) nothrow
     {
         if (publisher is null) return;
         try { publisher.publish(new T(args)); } catch (Exception) {}
-    }
-    
-    private void emitHitEvent(string targetId, size_t size, Duration latency, bool wasRemote) nothrow
-    {
-        emitEvent!CacheHitEvent(targetId, size, latency, wasRemote);
-    }
-    
-    private void emitMissEvent(string targetId, Duration latency) nothrow
-    {
-        emitEvent!CacheMissEvent(targetId, latency);
-    }
-    
-    private void emitUpdateEvent(string targetId, size_t size, Duration latency) nothrow
-    {
-        emitEvent!CacheUpdateEvent(targetId, size, latency);
-    }
-    
-    private void emitRemotePushEvent(string targetId, size_t size, Duration latency, bool success) nothrow
-    {
-        emitEvent!RemoteCacheEvent(CacheEventType.RemotePush, targetId, size, latency, success);
-    }
-    
-    private void emitActionHitEvent(string actionId, string targetId, Duration latency) nothrow
-    {
-        emitEvent!ActionCacheEvent(CacheEventType.ActionHit, actionId, targetId, latency);
-    }
-    
-    private void emitActionMissEvent(string actionId, string targetId, Duration latency) nothrow
-    {
-        emitEvent!ActionCacheEvent(CacheEventType.ActionMiss, actionId, targetId, latency);
     }
     
     /// Get action cache

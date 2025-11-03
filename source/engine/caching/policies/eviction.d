@@ -22,46 +22,39 @@ struct EvictionPolicy
     /// Uses hybrid strategy: LRU + age-based + size-based
     string[] selectEvictions(T)(T[string] entries, size_t currentSize)
     {
-        string[] toEvict;
         auto now = Clock.currTime();
         
-        // 1. Remove entries older than maxAge
-        if (maxAge > 0)
-        {
-            foreach (key, entry; entries)
-            {
-                if ((now - entry.timestamp).total!"days" > maxAge)
-                    toEvict ~= key;
-            }
-        }
+        // 1. Collect expired entries
+        auto toEvict = (maxAge > 0) 
+            ? entries.byKeyValue
+                .filter!(kv => (now - kv.value.timestamp).total!"days" > maxAge)
+                .map!(kv => kv.key)
+                .array
+            : [];
         
         // Sort once for LRU operations
         auto sorted = entries.byKeyValue.array.sort!((a, b) => a.value.lastAccess < b.value.lastAccess);
         
-        // 2. Remove entries if count exceeds limit (LRU)
+        // 2. Add entries if count exceeds limit (LRU)
         if (entries.length > maxEntries)
         {
-            auto excess = entries.length - maxEntries;
-            foreach (i; 0 .. excess)
-            {
-                if (!toEvict.canFind(sorted[i].key))
-                    toEvict ~= sorted[i].key;
-            }
+            toEvict ~= sorted[0 .. entries.length - maxEntries]
+                .filter!(kv => !toEvict.canFind(kv.key))
+                .map!(kv => kv.key)
+                .array;
         }
         
-        // 3. Remove entries if size exceeds limit (LRU)
+        // 3. Add entries if size exceeds limit (LRU)
         if (currentSize > maxSize)
         {
             size_t removed = 0;
             foreach (kv; sorted)
             {
                 if (currentSize - removed <= maxSize) break;
+                if (toEvict.canFind(kv.key)) continue;
                 
-                if (!toEvict.canFind(kv.key))
-                {
-                    toEvict ~= kv.key;
-                    removed += estimateEntrySize(kv.value);
-                }
+                toEvict ~= kv.key;
+                removed += estimateEntrySize(kv.value);
             }
         }
         
@@ -133,14 +126,9 @@ struct EvictionPolicy
     }
     
     /// Calculate total cache size
-    size_t calculateTotalSize(T)(const T[string] entries) const pure @nogc
+    size_t calculateTotalSize(T)(const T[string] entries) const pure
     {
-        size_t total = 0;
-        foreach (entry; entries.byValue)
-        {
-            total += estimateEntrySize(entry);
-        }
-        return total;
+        return entries.byValue.map!(e => estimateEntrySize(e)).sum;
     }
     
     /// Get eviction statistics
@@ -158,22 +146,14 @@ struct EvictionPolicy
         EvictionStats stats;
         stats.totalEntries = entries.length;
         stats.totalSize = currentSize;
-        
-        if (entries.length > maxEntries)
-            stats.entriesAboveLimit = entries.length - maxEntries;
-        
-        if (currentSize > maxSize)
-            stats.sizeAboveLimit = currentSize - maxSize;
+        stats.entriesAboveLimit = entries.length > maxEntries ? entries.length - maxEntries : 0;
+        stats.sizeAboveLimit = currentSize > maxSize ? currentSize - maxSize : 0;
         
         if (maxAge > 0)
         {
             auto now = Clock.currTime();
-            foreach (entry; entries.values)
-            {
-                auto age = now - entry.timestamp;
-                if (age.total!"days" > maxAge)
-                    stats.expiredEntries++;
-            }
+            stats.expiredEntries = entries.values
+                .count!(e => (now - e.timestamp).total!"days" > maxAge);
         }
         
         return stats;

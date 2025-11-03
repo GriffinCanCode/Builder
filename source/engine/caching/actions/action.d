@@ -182,8 +182,7 @@ final class ActionCache
         {
             if (!closed)
             {
-                if (dirty)
-                    flush(false);
+                if (dirty) flush(false);
                 closed = true;
             }
         }
@@ -191,113 +190,64 @@ final class ActionCache
     
     ~this()
     {
-        if (closed)
-            return;
+        if (closed) return;
         
         import core.memory : GC;
         if (dirty && !GC.inFinalizer())
         {
-            try
-            {
-                flush(false);
-            }
-            catch (Exception) {}
+            try { flush(false); } catch (Exception) {}
         }
     }
     
     /// Check if an action is cached and up-to-date
-    /// 
-    /// Validates:
-    /// 1. Action entry exists
-    /// 2. All input files unchanged (via hash)
-    /// 3. All output files exist
-    /// 4. No execution context changes (flags, env, etc)
+    /// Validates: entry exists, inputs unchanged, outputs exist, metadata unchanged
     bool isCached(ActionId actionId, scope const(string)[] inputs, scope const(string[string]) metadata) @system
     {
         synchronized (cacheMutex)
         {
-            auto key = actionId.toString();
-            auto entryPtr = key in entries;
-            if (entryPtr is null)
-            {
-                actionMisses++;
-                return false;
-            }
+            auto entryPtr = actionId.toString() in entries;
+            if (entryPtr is null || !entryPtr.success)
+                return recordMiss();
             
-            // Update access time for LRU
             entryPtr.lastAccess = Clock.currTime();
             dirty = true;
-            
-            // Check if action succeeded previously
-            if (!entryPtr.success)
-            {
-                actionMisses++;
-                return false;
-            }
             
             // Validate input files haven't changed
             foreach (input; inputs)
             {
                 if (!exists(input))
-                {
-                    actionMisses++;
-                    return false;
-                }
+                    return recordMiss();
                 
-                // Use hash cache for efficiency
                 auto cached = hashCache.get(input);
-                string currentHash;
-                if (cached.found)
-                {
-                    currentHash = cached.contentHash;
-                }
-                else
-                {
-                    currentHash = FastHash.hashFile(input);
-                    auto metaHash = FastHash.hashMetadata(input);
-                    hashCache.put(input, currentHash, metaHash);
-                }
+                string currentHash = cached.found ? cached.contentHash : FastHash.hashFile(input);
                 
-                immutable oldHash = entryPtr.inputHashes.get(input, "");
-                if (!SIMDHash.equals(currentHash, oldHash))
-                {
-                    actionMisses++;
-                    return false;
-                }
+                if (!cached.found)
+                    hashCache.put(input, currentHash, FastHash.hashMetadata(input));
+                
+                if (!SIMDHash.equals(currentHash, entryPtr.inputHashes.get(input, "")))
+                    return recordMiss();
             }
             
-            // Validate all output files exist
-            foreach (output; entryPtr.outputs)
-            {
-                if (!exists(output))
-                {
-                    actionMisses++;
-                    return false;
-                }
-            }
+            // Validate all output files exist and metadata unchanged
+            if (entryPtr.outputs.any!(o => !exists(o)))
+                return recordMiss();
             
-            // Validate execution context (metadata) unchanged
-            foreach (metaKey, metaValue; metadata)
-            {
-                if (entryPtr.metadata.get(metaKey, "") != metaValue)
-                {
-                    actionMisses++;
-                    return false;
-                }
-            }
+            if (metadata.byKeyValue.any!(kv => entryPtr.metadata.get(kv.key, "") != kv.value))
+                return recordMiss();
             
             actionHits++;
             return true;
         }
     }
     
+    private bool recordMiss() @safe nothrow
+    {
+        actionMisses++;
+        return false;
+    }
+    
     /// Update action cache entry
-    /// 
-    /// Records:
-    /// - Input files and their hashes
-    /// - Output files and their hashes
-    /// - Execution metadata (flags, env, etc)
-    /// - Success status
+    /// Records inputs, outputs, metadata, and success status
     void update(
         ActionId actionId,
         scope const(string)[] inputs,
@@ -308,10 +258,11 @@ final class ActionCache
     {
         synchronized (cacheMutex)
         {
+            immutable now = Clock.currTime();
             ActionEntry entry;
             entry.actionId = actionId;
-            entry.timestamp = Clock.currTime();
-            entry.lastAccess = Clock.currTime();
+            entry.timestamp = now;
+            entry.lastAccess = now;
             entry.success = success;
             entry.inputs = inputs.dup;
             entry.outputs = outputs.dup;
@@ -319,39 +270,29 @@ final class ActionCache
             // Hash all input files
             foreach (input; inputs)
             {
-                if (exists(input))
+                if (!exists(input))
+                    continue;
+                
+                auto cached = hashCache.get(input);
+                if (cached.found)
                 {
-                    auto cached = hashCache.get(input);
-                    if (cached.found)
-                    {
-                        entry.inputHashes[input] = cached.contentHash;
-                    }
-                    else
-                    {
-                        auto hash = FastHash.hashFile(input);
-                        auto metaHash = FastHash.hashMetadata(input);
-                        hashCache.put(input, hash, metaHash);
-                        entry.inputHashes[input] = hash;
-                    }
+                    entry.inputHashes[input] = cached.contentHash;
+                }
+                else
+                {
+                    hashCache.put(input, FastHash.hashFile(input), FastHash.hashMetadata(input));
+                    entry.inputHashes[input] = hashCache.get(input).contentHash;
                 }
             }
             
             // Hash all output files
-            foreach (output; outputs)
-            {
-                if (exists(output))
-                {
-                    entry.outputHashes[output] = FastHash.hashFile(output);
-                }
-            }
+            foreach (output; outputs.filter!exists)
+                entry.outputHashes[output] = FastHash.hashFile(output);
             
             // Copy metadata
-            foreach (key, value; metadata)
-                entry.metadata[key] = value;
+            entry.metadata = cast(string[string])metadata.dup;
             
-            // Compute execution hash from metadata
             entry.executionHash = computeExecutionHash(metadata);
-            
             entries[actionId.toString()] = entry;
             dirty = true;
         }
@@ -360,13 +301,10 @@ final class ActionCache
     /// Invalidate action cache entry
     void invalidate(ActionId actionId) @system nothrow
     {
-        try
+        try synchronized (cacheMutex)
         {
-            synchronized (cacheMutex)
-            {
-                entries.remove(actionId.toString());
-                dirty = true;
-            }
+            entries.remove(actionId.toString());
+            dirty = true;
         }
         catch (Exception) {}
     }
@@ -390,19 +328,15 @@ final class ActionCache
     {
         synchronized (cacheMutex)
         {
-            if (!dirty)
-                return;
+            if (!dirty) return;
             
             // Run eviction policy
             if (runEviction)
             {
                 try
                 {
-                    immutable currentSize = eviction.calculateTotalSize(entries);
-                    auto toEvict = eviction.selectEvictions(entries, currentSize);
-                    
-                    foreach (key; toEvict)
-                        entries.remove(key);
+                    auto toEvict = eviction.selectEvictions(entries, eviction.calculateTotalSize(entries));
+                    toEvict.each!(key => entries.remove(key));
                     
                     if (toEvict.length > 0)
                         writeln("Action cache evicted ", toEvict.length, " entries");
@@ -463,37 +397,27 @@ final class ActionCache
     {
         synchronized (cast(Mutex)cacheMutex)
         {
-            ActionEntry[] result;
-            foreach (entry; entries.byValue)
-            {
-                if (entry.actionId.targetId == targetId)
-                {
-                    // Create a mutable copy of the entry
-                    ActionEntry copy;
-                    copy.actionId = entry.actionId;
-                    copy.inputs = entry.inputs.dup;
-                    
-                    // Manually copy associative arrays to handle const properly
-                    foreach (k, v; entry.inputHashes)
-                        copy.inputHashes[k] = v;
-                    
-                    copy.outputs = entry.outputs.dup;
-                    
-                    foreach (k, v; entry.outputHashes)
-                        copy.outputHashes[k] = v;
-                    
-                    foreach (k, v; entry.metadata)
-                        copy.metadata[k] = v;
-                    
-                    copy.timestamp = entry.timestamp;
-                    copy.lastAccess = entry.lastAccess;
-                    copy.executionHash = entry.executionHash;
-                    copy.success = entry.success;
-                    result ~= copy;
-                }
-            }
-            return result;
+            return entries.byValue
+                .filter!(e => e.actionId.targetId == targetId)
+                .map!(e => duplicateEntry(e))
+                .array;
         }
+    }
+    
+    private static ActionEntry duplicateEntry(const ref ActionEntry entry) @system
+    {
+        ActionEntry copy;
+        copy.actionId = entry.actionId;
+        copy.inputs = entry.inputs.dup;
+        copy.outputs = entry.outputs.dup;
+        copy.inputHashes = cast(string[string])entry.inputHashes.dup;
+        copy.outputHashes = cast(string[string])entry.outputHashes.dup;
+        copy.metadata = cast(string[string])entry.metadata.dup;
+        copy.timestamp = entry.timestamp;
+        copy.lastAccess = entry.lastAccess;
+        copy.executionHash = entry.executionHash;
+        copy.success = entry.success;
+        return copy;
     }
     
     private void loadCache() @system
@@ -551,12 +475,10 @@ final class ActionCache
     {
         import std.digest.sha : SHA256, toHexString;
         
-        // Sort keys for deterministic hashing
-        auto keys = metadata.keys.array.sort().array;
-        
         SHA256 hash;
         hash.start();
-        foreach (key; keys)
+        // Sort keys for deterministic hashing
+        foreach (key; metadata.keys.array.sort())
         {
             hash.put(cast(ubyte[])key);
             hash.put(cast(ubyte[])metadata[key]);
