@@ -172,9 +172,9 @@ struct SemanticAnalyzer
     // FIELD EXTRACTION
     // ========================================================================
     
-    private Result!(string, BuildError) extractString(Expr expr) @system
+    private Result!(string, BuildError) extractString(const Expr expr) @system
     {
-        if (auto litExpr = cast(LiteralExpr)expr)
+        if (auto litExpr = cast(const LiteralExpr)expr)
         {
             if (litExpr.value.kind == LiteralKind.String)
                 return Ok!(string, BuildError)(litExpr.value.asString());
@@ -182,7 +182,7 @@ struct SemanticAnalyzer
                 new ParseError("Expected string", null));
         }
         
-        if (auto identExpr = cast(IdentExpr)expr)
+        if (auto identExpr = cast(const IdentExpr)expr)
         {
             // Variable reference - would need evaluator
             return Ok!(string, BuildError)(identExpr.name);
@@ -192,9 +192,9 @@ struct SemanticAnalyzer
             new ParseError("Expected string literal", null));
     }
     
-    private Result!(string[], BuildError) extractStringArray(Expr expr) @system
+    private Result!(string[], BuildError) extractStringArray(const Expr expr) @system
     {
-        if (auto litExpr = cast(LiteralExpr)expr)
+        if (auto litExpr = cast(const LiteralExpr)expr)
         {
             return litExpr.value.toStringArray();
         }
@@ -203,9 +203,9 @@ struct SemanticAnalyzer
             new ParseError("Expected array of strings", null));
     }
     
-    private Result!(string[string], BuildError) extractStringMap(Expr expr) @system
+    private Result!(string[string], BuildError) extractStringMap(const Expr expr) @system
     {
-        if (auto litExpr = cast(LiteralExpr)expr)
+        if (auto litExpr = cast(const LiteralExpr)expr)
         {
             return litExpr.value.toStringMap();
         }
@@ -214,7 +214,7 @@ struct SemanticAnalyzer
             new ParseError("Expected map of strings", null));
     }
     
-    private Result!(TargetType, BuildError) extractType(Expr expr) @system
+    private Result!(TargetType, BuildError) extractType(const Expr expr) @system
     {
         auto strResult = extractString(expr);
         if (strResult.isErr)
@@ -233,7 +233,7 @@ struct SemanticAnalyzer
         }
     }
     
-    private Result!(TargetLanguage, BuildError) extractLanguage(Expr expr) @system
+    private Result!(TargetLanguage, BuildError) extractLanguage(const Expr expr) @system
     {
         auto strResult = extractString(expr);
         if (strResult.isErr)
@@ -327,9 +327,9 @@ Result!(ParseResult, BuildError) parseDSL(
                     if (litExpr.value.kind == LiteralKind.String)
                     {
                         string kindStr = litExpr.value.asString().toLower;
-                        if (kindStr == "archive") rule.kind = RepositoryKind.Archive;
+                        if (kindStr == "archive" || kindStr == "http") rule.kind = RepositoryKind.Http;
                         else if (kindStr == "git") rule.kind = RepositoryKind.Git;
-                        else if (kindStr == "http") rule.kind = RepositoryKind.Http;
+                        else if (kindStr == "local") rule.kind = RepositoryKind.Local;
                     }
                 }
             }

@@ -204,6 +204,7 @@ final class TelemetryStorage
 /// Telemetry configuration
 struct TelemetryConfig
 {
+    bool enabled = true;                // Enable telemetry collection
     size_t maxSessions = 100;           // Maximum sessions to keep
     Duration maxAge = dur!"days"(30);   // Maximum age of sessions
     bool autoCleanup = true;            // Automatically clean old sessions
@@ -215,6 +216,10 @@ struct TelemetryConfig
         import std.conv : to;
         
         TelemetryConfig config;
+        
+        // Optional: Enable/disable telemetry
+        immutable enabledStr = environment.get("BUILDER_TELEMETRY_ENABLED", "1");
+        config.enabled = enabledStr != "false" && enabledStr != "0";
         
         // Optional: Max sessions
         immutable maxSessionsStr = environment.get("BUILDER_TELEMETRY_MAX_SESSIONS");

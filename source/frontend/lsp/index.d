@@ -4,7 +4,7 @@ import std.algorithm;
 import std.array;
 import std.string;
 import frontend.lsp.protocol;
-import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, IdentExpr, LiteralExpr, LiteralKind, ASTLocation = Location;
 
 /// Symbol information for quick lookups
 struct Symbol
@@ -61,8 +61,6 @@ struct Index
             );
             
             // Extract detail info
-            import infrastructure.config.workspace.ast : IdentExpr, LiteralExpr, Literal, LiteralKind;
-            
             auto typeField = target.getField("type");
             if (typeField !is null)
             {
@@ -86,7 +84,7 @@ struct Index
                             if (elem.kind == LiteralKind.String)
                             {
                                 auto str = elem.asString();
-                                if (str !is null && str.length > 0)
+                                if (str.length > 0)
                                     sym.deps ~= str;
                             }
                         }
@@ -130,7 +128,7 @@ struct Index
                     continue;
                 
                 auto str = elem.asString();
-                if (str is null || str.length == 0)
+                if (str.length == 0)
                     continue;
                 
                 string depName = str;

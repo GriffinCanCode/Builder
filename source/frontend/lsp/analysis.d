@@ -5,7 +5,7 @@ import std.array;
 import std.string;
 import frontend.lsp.protocol;
 import frontend.lsp.index;
-import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, ASTLocation = Location;
+import infrastructure.config.workspace.ast : BuildFile, TargetDeclStmt, Field, Expr, LiteralExpr, LiteralKind, ASTLocation = Location;
 import infrastructure.config.schema.schema;
 
 /// LSP semantic analyzer for Builderfiles
@@ -49,8 +49,6 @@ struct LSPSemanticAnalyzer
     /// Validate all dependencies are defined
     private Diagnostic[] validateDependencies(string uri, const ref TargetDeclStmt target)
     {
-        import infrastructure.config.workspace.ast : LiteralExpr, Literal, LiteralKind;
-        
         Diagnostic[] diagnostics;
         
         auto depsField = target.getField("deps");
@@ -72,10 +70,8 @@ struct LSPSemanticAnalyzer
                 continue;
             
             auto str = elem.asString();
-            if (str is null)
-                continue;
             
-            string depName = str.value;
+            string depName = str;
             
             // Normalize dependency name
             if (depName.startsWith(":"))
@@ -96,7 +92,7 @@ struct LSPSemanticAnalyzer
             {
                 Diagnostic diag;
                 diag.severity = DiagnosticSeverity.Error;
-                diag.message = "Undefined target reference: " ~ str.value;
+                diag.message = "Undefined target reference: " ~ str;
                 diag.range = Range(
                     Position(cast(uint)(depsField.loc.line - 1), 0),
                     Position(cast(uint)(depsField.loc.line - 1), 100)
@@ -147,8 +143,6 @@ struct LSPSemanticAnalyzer
     /// Validate sources (basic checks)
     private Diagnostic[] validateSources(string uri, const ref TargetDeclStmt target)
     {
-        import infrastructure.config.workspace.ast : LiteralExpr, Literal, LiteralKind;
-        
         Diagnostic[] diagnostics;
         
         auto sourcesField = target.getField("sources");
@@ -183,11 +177,11 @@ struct LSPSemanticAnalyzer
         
         // Build local dependency graph
         string[][string] graph;
-        const(TargetDeclStmt)*[string] targetMap;
+        TargetDeclStmt[string] targetMap;
         
-        foreach (ref target; ast.targets)
+        foreach (target; ast.targets)
         {
-            targetMap[target.name] = &target;
+            targetMap[target.name] = target;
             
             auto depsField = target.getField("deps");
             if (depsField is null)
@@ -244,7 +238,7 @@ struct LSPSemanticAnalyzer
             {
                 foreach (dep; graph[node])
                 {
-                    if ((dep in targetMap) !is null && hasCycle(dep, path))
+                    if (dep in targetMap && hasCycle(dep, path))
                         return true;
                 }
             }
@@ -265,8 +259,8 @@ struct LSPSemanticAnalyzer
                     diag.severity = DiagnosticSeverity.Error;
                     diag.message = "Cyclic dependency detected: " ~ path.join(" -> ");
                     diag.range = Range(
-                        Position(cast(uint)(target.line - 1), 0),
-                        Position(cast(uint)(target.line - 1), 50)
+                        Position(cast(uint)(target.loc.line - 1), 0),
+                        Position(cast(uint)(target.loc.line - 1), 50)
                     );
                     diag.source = "builder-lsp";
                     diagnostics ~= diag;

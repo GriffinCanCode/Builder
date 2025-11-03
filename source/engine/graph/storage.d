@@ -92,11 +92,10 @@ struct GraphStorage
             node.hash = serialNode.hash;
             node.lastError = serialNode.lastError;
             
-            // Set atomic fields
-            import core.atomic : atomicStore;
-            atomicStore(node._status, cast(BuildStatus)serialNode.status);
-            atomicStore(node._retryAttempts, cast(size_t)serialNode.retryAttempts);
-            atomicStore(node._pendingDeps, cast(size_t)serialNode.pendingDeps);
+            // Set atomic fields using public setters
+            node.status = cast(BuildStatus)serialNode.status;
+            node.setRetryAttempts(cast(size_t)serialNode.retryAttempts);
+            node.setPendingDeps(cast(size_t)serialNode.pendingDeps);
             
             // Store for edge reconstruction
             nodeMap[serialNode.targetId] = node;

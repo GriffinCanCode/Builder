@@ -81,7 +81,7 @@ class DependencyResolver
     /// Resolve a dependency reference to a TargetId (type-safe version)
     Result!(TargetId, BuildError) resolveToId(string dep, TargetId fromTarget)
     {
-        import errors : ParseError;
+        import infrastructure.errors : ParseError;
         
         // External repository reference: @repo//path:target
         if (dep.startsWith("@"))

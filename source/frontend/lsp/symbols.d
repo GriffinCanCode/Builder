@@ -34,8 +34,8 @@ struct SymbolsProvider
             sym.name = target.name;
             sym.kind = DocumentSymbolKind.Class; // Use Class for targets
             sym.range = Range(
-                Position(cast(uint)(target.line - 1), 0),
-                Position(cast(uint)(target.line + target.fields.length), 0)
+                Position(cast(uint)(target.loc.line - 1), 0),
+                Position(cast(uint)(target.loc.line + target.fields.length), 0)
             );
             sym.selectionRange = Range(
                 Position(cast(uint)(target.loc.line - 1), 0),
@@ -60,8 +60,8 @@ struct SymbolsProvider
                 fieldSym.name = field.name;
                 fieldSym.kind = DocumentSymbolKind.Property;
                 fieldSym.range = Range(
-                    Position(cast(uint)(field.line - 1), 0),
-                    Position(cast(uint)(field.line - 1), 100)
+                    Position(cast(uint)(field.loc.line - 1), 0),
+                    Position(cast(uint)(field.loc.line - 1), 100)
                 );
                 fieldSym.selectionRange = fieldSym.range;
                 
@@ -80,32 +80,48 @@ struct SymbolsProvider
     /// Get summary of field value for display
     private string getFieldValueSummary(const ref Field field)
     {
-        final switch (field.value.kind)
+        import infrastructure.config.workspace.ast : LiteralExpr, IdentExpr, LiteralKind;
+        
+        // Try LiteralExpr
+        if (auto litExpr = cast(const LiteralExpr)field.value)
         {
-            case ExpressionValue.Kind.String:
-                auto str = field.value.getString();
-                return str !is null ? "\"" ~ str.value ~ "\"" : "";
-            
-            case ExpressionValue.Kind.Number:
-                auto num = field.value.getNumber();
-                return num !is null ? num.value.to!string : "";
-            
-            case ExpressionValue.Kind.Identifier:
-                auto ident = field.value.getIdentifier();
-                return ident !is null ? ident.name : "";
-            
-            case ExpressionValue.Kind.Array:
-                auto arr = field.value.getArray();
-                if (arr is null || arr.elements.empty)
-                    return "[]";
-                return "[" ~ arr.elements.length.to!string ~ " items]";
-            
-            case ExpressionValue.Kind.Map:
-                auto map = field.value.getMap();
-                if (map is null || map.pairs.length == 0)
-                    return "{}";
-                return "{" ~ map.pairs.length.to!string ~ " entries}";
+            final switch (litExpr.value.kind)
+            {
+                case LiteralKind.Null:
+                    return "null";
+                
+                case LiteralKind.Bool:
+                    return litExpr.value.asBool() ? "true" : "false";
+                
+                case LiteralKind.Number:
+                    return litExpr.value.asNumber().to!string;
+                
+                case LiteralKind.String:
+                    auto str = litExpr.value.asString();
+                    return "\"" ~ str ~ "\"";
+                
+                case LiteralKind.Array:
+                    auto arr = litExpr.value.asArray();
+                    if (arr.length == 0)
+                        return "[]";
+                    return "[" ~ arr.length.to!string ~ " items]";
+                
+                case LiteralKind.Map:
+                    auto map = litExpr.value.asMap();
+                    if (map.length == 0)
+                        return "{}";
+                    return "{" ~ map.length.to!string ~ " entries}";
+            }
         }
+        
+        // Try IdentExpr
+        if (auto identExpr = cast(const IdentExpr)field.value)
+        {
+            return identExpr.name;
+        }
+        
+        // Default for other expression types
+        return "<expression>";
     }
 }
 

@@ -33,7 +33,7 @@ struct HoverProvider
         if (target !is null)
         {
             // Hovering over a target
-            return buildTargetHover(*target, pos);
+            return buildTargetHover(target, pos);
         }
         
         auto field = workspace.findFieldAtPosition(uri, pos);

@@ -137,28 +137,28 @@ SerializableLiteral toSerializableLiteral(T)(auto ref const T literal) @trusted
     // Handle different literal types
     switch (literal.kind)
     {
-        case 0: // Null
+        case LiteralKind.Null:
             break;
-        case 1: // Bool
+        case LiteralKind.Bool:
             static if (hasMember!(T, "asBool"))
                 serializable.boolValue = literal.asBool();
             break;
-        case 2: // Number
+        case LiteralKind.Number:
             static if (hasMember!(T, "asNumber"))
                 serializable.numberValue = literal.asNumber();
             break;
-        case 3: // String
+        case LiteralKind.String:
             static if (hasMember!(T, "asString"))
                 serializable.stringValue = literal.asString();
             break;
-        case 4: // Array
+        case LiteralKind.Array:
             static if (hasMember!(T, "asArray"))
             {
                 foreach (elem; literal.asArray())
                     serializable.arrayValue ~= toSerializableLiteral(elem);
             }
             break;
-        case 5: // Map
+        case LiteralKind.Map:
             static if (hasMember!(T, "asMap"))
             {
                 foreach (k, v; literal.asMap())
@@ -196,14 +196,17 @@ SerializableExpr toSerializableExpr(Expr expr) @trusted
     {
         serializable.exprType = ExprType.Binary;
         serializable.binaryOp = bin.op;
-        serializable.left = new SerializableExpr(toSerializableExpr(bin.left));
-        serializable.right = new SerializableExpr(toSerializableExpr(bin.right));
+        serializable.left = new SerializableExpr;
+        *serializable.left = toSerializableExpr(bin.left);
+        serializable.right = new SerializableExpr;
+        *serializable.right = toSerializableExpr(bin.right);
     }
     else if (auto unary = cast(UnaryExpr)expr)
     {
         serializable.exprType = ExprType.Unary;
         serializable.unaryOp = unary.op;
-        serializable.operand = new SerializableExpr(toSerializableExpr(unary.operand));
+        serializable.operand = new SerializableExpr;
+        *serializable.operand = toSerializableExpr(unary.operand);
     }
     else if (auto call = cast(CallExpr)expr)
     {
@@ -215,36 +218,48 @@ SerializableExpr toSerializableExpr(Expr expr) @trusted
     else if (auto index = cast(IndexExpr)expr)
     {
         serializable.exprType = ExprType.Index;
-        serializable.object = new SerializableExpr(toSerializableExpr(index.object));
-        serializable.index = new SerializableExpr(toSerializableExpr(index.index));
+        serializable.object = new SerializableExpr;
+        *serializable.object = toSerializableExpr(index.object);
+        serializable.index = new SerializableExpr;
+        *serializable.index = toSerializableExpr(index.index);
     }
     else if (auto slice = cast(SliceExpr)expr)
     {
         serializable.exprType = ExprType.Slice;
-        serializable.object = new SerializableExpr(toSerializableExpr(slice.object));
-        if (slice.start)
-            serializable.sliceStart = new SerializableExpr(toSerializableExpr(slice.start));
-        if (slice.end)
-            serializable.sliceEnd = new SerializableExpr(toSerializableExpr(slice.end));
+        serializable.object = new SerializableExpr;
+        *serializable.object = toSerializableExpr(slice.object);
+        if (slice.start) {
+            serializable.sliceStart = new SerializableExpr;
+            *serializable.sliceStart = toSerializableExpr(slice.start);
+        }
+        if (slice.end) {
+            serializable.sliceEnd = new SerializableExpr;
+            *serializable.sliceEnd = toSerializableExpr(slice.end);
+        }
     }
     else if (auto member = cast(MemberExpr)expr)
     {
         serializable.exprType = ExprType.Member;
-        serializable.object = new SerializableExpr(toSerializableExpr(member.object));
+        serializable.object = new SerializableExpr;
+        *serializable.object = toSerializableExpr(member.object);
         serializable.member = member.member;
     }
     else if (auto ternary = cast(TernaryExpr)expr)
     {
         serializable.exprType = ExprType.Ternary;
-        serializable.condition = new SerializableExpr(toSerializableExpr(ternary.condition));
-        serializable.trueExpr = new SerializableExpr(toSerializableExpr(ternary.trueExpr));
-        serializable.falseExpr = new SerializableExpr(toSerializableExpr(ternary.falseExpr));
+        serializable.condition = new SerializableExpr;
+        *serializable.condition = toSerializableExpr(ternary.condition);
+        serializable.trueExpr = new SerializableExpr;
+        *serializable.trueExpr = toSerializableExpr(ternary.trueExpr);
+        serializable.falseExpr = new SerializableExpr;
+        *serializable.falseExpr = toSerializableExpr(ternary.falseExpr);
     }
     else if (auto lambda = cast(LambdaExpr)expr)
     {
         serializable.exprType = ExprType.Lambda;
         serializable.lambdaParams = lambda.params.dup;
-        serializable.lambdaBody = new SerializableExpr(toSerializableExpr(lambda.body));
+        serializable.lambdaBody = new SerializableExpr;
+        *serializable.lambdaBody = toSerializableExpr(lambda.body);
     }
     
     return serializable;
@@ -256,19 +271,21 @@ SerializableField toSerializableField(T)(auto ref const T field) @trusted
     SerializableField serializable;
     serializable.name = field.name;
     serializable.loc = toSerializableLocation(field.loc);
-    serializable.value = toSerializableExpr(field.value);
+    serializable.value = toSerializableExpr(cast(Expr)field.value);
     return serializable;
 }
 
 /// Convert from runtime TargetDeclStmt to serializable format
 SerializableTarget toSerializableTarget(T)(T target) @trusted
 {
+    import infrastructure.config.workspace.ast : Field;
+    
     SerializableTarget serializable;
     serializable.name = target.name;
     serializable.loc = toSerializableLocation(target.loc);
     
     foreach (field; target.fields)
-        serializable.fields ~= toSerializableField(field);
+        serializable.fields ~= toSerializableField(cast(Field)field);
     
     return serializable;
 }
@@ -276,11 +293,13 @@ SerializableTarget toSerializableTarget(T)(T target) @trusted
 /// Convert from runtime BuildFile to serializable format
 SerializableBuildFile toSerializable(T)(auto ref const T buildFile) @trusted
 {
+    import infrastructure.config.workspace.ast : TargetDeclStmt;
+    
     SerializableBuildFile serializable;
     serializable.filePath = buildFile.filePath;
     
     foreach (target; buildFile.targets)
-        serializable.targets ~= toSerializableTarget(target);
+        serializable.targets ~= toSerializableTarget(cast(TargetDeclStmt)target);
     
     return serializable;
 }

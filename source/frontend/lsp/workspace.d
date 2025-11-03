@@ -116,20 +116,20 @@ class WorkspaceManager
     }
     
     /// Find target at position
-    const(TargetDeclStmt)* findTargetAtPosition(string uri, Position pos) const
+    TargetDeclStmt findTargetAtPosition(string uri, Position pos) const
     {
         auto doc = getDocument(uri);
         if (doc is null)
             return null;
         
         // Find target that contains this position
-        foreach (ref target; doc.ast.targets)
+        foreach (target; doc.ast.targets)
         {
-            if (target.line <= pos.line + 1)
+            if (target.loc.line <= pos.line + 1)
             {
                 // Check if position is within target body
                 // (simplified - would need better range tracking)
-                return &target;
+                return target;
             }
         }
         
@@ -146,7 +146,7 @@ class WorkspaceManager
         // Find field at this line
         foreach (ref field; target.fields)
         {
-            if (field.line == pos.line + 1)
+            if (field.loc.line == pos.line + 1)
                 return &field;
         }
         
@@ -180,7 +180,8 @@ class WorkspaceManager
         import infrastructure.config.parsing.unified : parse;
         
         string filePath = uriToPath(doc.uri);
-        auto parseResult = parse(doc.text, filePath, getRootPath(), null);
+        string rootPath = uriToPath(rootUri);
+        auto parseResult = parse(doc.text, filePath, rootPath, null);
         
         if (parseResult.isErr)
         {
@@ -216,8 +217,8 @@ class WorkspaceManager
                 diag.severity = DiagnosticSeverity.Error;
                 diag.message = "Duplicate target name: " ~ target.name;
                 diag.range = Range(
-                    Position(cast(uint)(target.line - 1), 0),
-                    Position(cast(uint)(target.line - 1), 100)
+                    Position(cast(uint)(target.loc.line - 1), 0),
+                    Position(cast(uint)(target.loc.line - 1), 100)
                 );
                 diag.source = "builder-lsp";
                 doc.diagnostics ~= diag;
@@ -225,14 +226,14 @@ class WorkspaceManager
             targetNames[target.name] = true;
             
             // Validate required fields
-            if (!target.hasField("type"))
+            if (target.getField("type") is null)
             {
                 Diagnostic diag;
                 diag.severity = DiagnosticSeverity.Error;
                 diag.message = "Missing required field 'type'";
                 diag.range = Range(
-                    Position(cast(uint)(target.line - 1), 0),
-                    Position(cast(uint)(target.line - 1), 100)
+                    Position(cast(uint)(target.loc.line - 1), 0),
+                    Position(cast(uint)(target.loc.line - 1), 100)
                 );
                 diag.source = "builder-lsp";
                 doc.diagnostics ~= diag;

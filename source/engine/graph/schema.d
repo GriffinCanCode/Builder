@@ -142,7 +142,7 @@ SerializableBuildNode fromSerializablePartial(ref const SerializableBuildNode se
     // Return a mutable copy since full reconstruction requires graph context
     SerializableBuildNode result;
     result.targetId = serializable.targetId;
-    result.target = serializable.target;
+    result.target = cast(SerializableTarget)serializable.target;
     result.dependencyIds = serializable.dependencyIds.dup;
     result.dependentIds = serializable.dependentIds.dup;
     result.status = serializable.status;

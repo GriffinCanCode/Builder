@@ -33,7 +33,8 @@ struct ASTStorage
         auto serializable = toSerializable(ast);
         
         // Serialize with high-performance codec
-        return Codec.serialize(serializable);
+        // Cast to mutable to avoid const pointer issues in recursive structures
+        return Codec.serialize(*cast(SerializableBuildFile*)&serializable);
     }
     
     /// Deserialize BuildFile AST from binary format
