@@ -9,8 +9,13 @@ module graph;
 /// - GraphStorage: Binary serialization for graphs
 /// - BuildStatus: Build status enumeration
 /// - ValidationMode: Graph validation strategy
+/// - DynamicBuildGraph: Runtime graph extension support
+/// - DiscoveryMetadata: Discovery protocol for dynamic dependencies
+/// - GraphExtension: Thread-safe graph mutation
 
 public import graph.graph;
 public import graph.cache;
 public import graph.storage;
+public import graph.discovery;
+public import graph.dynamic;
 

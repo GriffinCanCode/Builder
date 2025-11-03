@@ -8,6 +8,7 @@ import std.datetime.stopwatch;
 import core.atomic;
 import core.memory : GC;
 import graph.graph;
+import graph.dynamic;
 import config.schema.schema;
 import languages.base.base;
 import runtime.services;
@@ -21,6 +22,7 @@ import errors;
 public import runtime.core.engine.lifecycle;
 public import runtime.core.engine.executor;
 public import runtime.core.engine.coordinator;
+public import runtime.core.engine.discovery;
 
 /// Thin orchestration layer for build execution
 /// Composes specialized services to execute build graph
@@ -31,11 +33,14 @@ public import runtime.core.engine.coordinator;
 /// - ObservabilityService: events, tracing, logging
 /// - ResilienceService: retry and checkpoint logic
 /// - HandlerRegistry: language handler dispatch
+/// - DynamicGraph: optional runtime dependency discovery
 final class ExecutionEngine
 {
     private EngineLifecycle lifecycle;
     private EngineExecutor executor;
     private EngineCoordinator coordinator;
+    private DynamicBuildGraph dynamicGraph;
+    private bool useDynamicGraph;
     
     this(
         BuildGraph graph,
@@ -45,9 +50,19 @@ final class ExecutionEngine
         IObservabilityService observability,
         IResilienceService resilience,
         IHandlerRegistry handlers,
-        SIMDCapabilities simdCaps = null
+        SIMDCapabilities simdCaps = null,
+        bool enableDynamicGraph = true  // Enable by default
     ) @trusted
     {
+        this.useDynamicGraph = enableDynamicGraph;
+        
+        // Create dynamic graph wrapper if enabled
+        if (enableDynamicGraph)
+        {
+            this.dynamicGraph = new DynamicBuildGraph(graph);
+            Logger.info("Dynamic graph support enabled");
+        }
+        
         // Initialize lifecycle
         lifecycle.initialize(
             graph, config, scheduling, cache, 
@@ -62,6 +77,12 @@ final class ExecutionEngine
         
         // Initialize coordinator
         coordinator.initialize(&lifecycle, &executor);
+        
+        // Enable dynamic graph in coordinator if available
+        if (enableDynamicGraph)
+        {
+            coordinator.enableDynamicGraph(dynamicGraph, handlers);
+        }
     }
     
     ~this()
@@ -78,6 +99,32 @@ final class ExecutionEngine
     /// Execute the build
     bool execute() @trusted
     {
-        return coordinator.execute();
+        auto success = coordinator.execute();
+        
+        // Report discovery statistics if using dynamic graphs
+        if (useDynamicGraph && dynamicGraph !is null)
+        {
+            auto stats = dynamicGraph.getDiscoveryStats();
+            if (stats.targetsDiscovered > 0)
+            {
+                Logger.info("Dynamic Discovery Summary:");
+                Logger.info("  Targets discovered: " ~ stats.targetsDiscovered.to!string);
+                Logger.info("  Total discoveries: " ~ stats.totalDiscoveries.to!string);
+            }
+        }
+        
+        return success;
+    }
+    
+    /// Get dynamic graph (if enabled)
+    @property DynamicBuildGraph getDynamicGraph() @trusted
+    {
+        return dynamicGraph;
+    }
+    
+    /// Check if dynamic graph is enabled
+    @property bool isDynamicGraphEnabled() const pure nothrow @nogc
+    {
+        return useDynamicGraph;
     }
 }

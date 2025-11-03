@@ -1,0 +1,16 @@
+{
+  "targets": [
+    {
+      "name": "example-protos",
+      "type": "library",
+      "language": "protobuf",
+      "sources": ["*.proto"],
+      "protobuf": {
+        "outputLanguage": "cpp",
+        "outputDir": "generated",
+        "lint": true
+      }
+    }
+  ]
+}
+

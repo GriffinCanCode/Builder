@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package example;
+
+message UserMessage {
+    int32 id = 1;
+    string name = 2;
+    string email = 3;
+    repeated string tags = 4;
+}
+
+message GetUserRequest {
+    int32 user_id = 1;
+}
+
+message GetUserResponse {
+    UserMessage user = 1;
+    bool found = 2;
+}
+
+service UserService {
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+

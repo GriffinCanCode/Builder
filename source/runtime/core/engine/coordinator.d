@@ -9,6 +9,7 @@ import std.format : format;
 import core.atomic;
 import core.memory : GC;
 import graph.graph;
+import graph.dynamic;
 import config.schema.schema;
 import languages.base.base;
 import runtime.services : ISchedulingService, ICacheService, IObservabilityService, IResilienceService, IHandlerRegistry;
@@ -20,6 +21,7 @@ import utils.simd.capabilities;
 import errors;
 import runtime.core.engine.lifecycle;
 import runtime.core.engine.executor;
+import runtime.core.engine.discovery;
 
 /// Engine coordinator - orchestrates build execution
 struct EngineCoordinator
@@ -31,12 +33,29 @@ struct EngineCoordinator
     
     private EngineLifecycle* lifecycle;
     private EngineExecutor* executor;
+    private DynamicBuildGraph dynamicGraph;  // Optional: null if not using dynamic graphs
+    private DiscoveryExecutor discoveryExec;
     
     /// Initialize coordinator with lifecycle and executor
     void initialize(EngineLifecycle* lifecycle, EngineExecutor* executor) @trusted
     {
         this.lifecycle = lifecycle;
         this.executor = executor;
+    }
+    
+    /// Enable dynamic graph support (optional)
+    void enableDynamicGraph(DynamicBuildGraph dynamicGraph, IHandlerRegistry handlers) @trusted
+    {
+        this.dynamicGraph = dynamicGraph;
+        
+        // Initialize discovery executor
+        auto config = lifecycle.getConfig();
+        discoveryExec.initialize(dynamicGraph, handlers, config);
+        
+        // Mark discoverable targets
+        DiscoveryMarker.markCodeGenTargets(dynamicGraph);
+        
+        Logger.info("Dynamic graph support enabled");
     }
     
     /// Execute the build
@@ -139,12 +158,51 @@ struct EngineCoordinator
         // Main execution loop
         while (lifecycle.getFailedTasks() == 0)
         {
+            // Discovery phase: execute discovery actions first if using dynamic graphs
+            if (dynamicGraph !is null && discoveryExec.hasPendingDiscoveries())
+            {
+                // Apply pending discoveries and get new nodes
+                auto discoveredNodes = DiscoveryCoordinator.executeDiscoveryPhase(
+                    [],
+                    discoveryExec,
+                    observability
+                );
+                
+                // Integrate discovered nodes into execution
+                auto readyDiscovered = DiscoveryCoordinator.integrateDiscoveredNodes(
+                    discoveredNodes,
+                    graph
+                );
+                
+                // Submit ready discovered nodes
+                foreach (node; readyDiscovered)
+                    scheduling.submit(node);
+            }
+            
             // Dequeue batch of ready nodes
             auto batch = scheduling.dequeueReady(scheduling.workerCount());
             
-            // If no ready nodes and no active tasks, we're done
+            // If no ready nodes and no active tasks, check for final discoveries
             if (batch.length == 0 && lifecycle.getActiveTasks() == 0)
+            {
+                // Try applying any remaining discoveries
+                if (dynamicGraph !is null && dynamicGraph.hasPendingDiscoveries())
+                {
+                    auto finalDiscoveries = dynamicGraph.applyDiscoveries();
+                    if (finalDiscoveries.isOk && !finalDiscoveries.unwrap().empty)
+                    {
+                        // More nodes discovered, continue
+                        foreach (node; finalDiscoveries.unwrap())
+                        {
+                            if (node.pendingDeps == 0)
+                                scheduling.submit(node);
+                        }
+                        continue;
+                    }
+                }
+                // No more work
                 break;
+            }
             
             // Wait briefly if no ready nodes but tasks are active
             if (batch.length == 0)
@@ -156,6 +214,27 @@ struct EngineCoordinator
             }
             
             Logger.debugLog("Building batch: " ~ batch.map!(n => n.idString).join(", "));
+            
+            // Execute discovery for batch if using dynamic graphs
+            if (dynamicGraph !is null)
+            {
+                auto discoveredInBatch = DiscoveryCoordinator.executeDiscoveryPhase(
+                    batch,
+                    discoveryExec,
+                    observability
+                );
+                
+                // Don't wait for discovered nodes, they'll be picked up in next iteration
+                if (!discoveredInBatch.empty)
+                {
+                    auto readyDiscovered = DiscoveryCoordinator.integrateDiscoveredNodes(
+                        discoveredInBatch,
+                        graph
+                    );
+                    foreach (node; readyDiscovered)
+                        scheduling.submit(node);
+                }
+            }
             
             lifecycle.incrementActiveTasks(batch.length);
             
