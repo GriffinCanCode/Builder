@@ -51,7 +51,7 @@ void main(string[] args)
     
     if (showVersion)
     {
-        writeln("Builder version 1.0.5");
+        writeln("Builder version 1.0.6");
         writeln("High-performance build system for mixed-language monorepos");
         return;
     }
@@ -158,7 +158,7 @@ void main(string[] args)
                 HelpCommand.execute(helpCommand);
                 break;
             case "version":
-                writeln("Builder version 1.0.5");
+                writeln("Builder version 1.0.6");
                 writeln("High-performance build system for mixed-language monorepos");
                 break;
             default:

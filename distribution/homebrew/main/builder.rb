@@ -1,8 +1,8 @@
 class Builder < Formula
   desc "High-performance build system for mixed-language monorepos"
   homepage "https://github.com/GriffinCanCode/Builder"
-  url "https://github.com/GriffinCanCode/Builder/archive/refs/tags/v1.0.5.tar.gz"
-  sha256 "62980085313140f37b94563c43146e470359d1af796c54bb718c22d58769c4fb"
+  url "https://github.com/GriffinCanCode/Builder/archive/refs/tags/v1.0.6.tar.gz"
+  sha256 "PLACEHOLDER_SHA256"
   license "MIT"
   head "https://github.com/GriffinCanCode/Builder.git", branch: "master"
 
@@ -22,7 +22,7 @@ class Builder < Formula
 
   test do
     # Test that the binary runs and shows correct version
-    assert_match "Builder version 1.0.5", shell_output("#{bin}/builder --version")
+    assert_match "Builder version 1.0.6", shell_output("#{bin}/builder --version")
     
     # Test help command
     system "#{bin}/builder", "--help"
