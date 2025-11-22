@@ -101,10 +101,9 @@ class SpecBasedHandler : BaseLanguageHandler
                 foreach (match; matchAll(content, regex))
                 {
                     Import imp;
-                    imp.path = match[1].to!string;
-                    imp.line = 0; // Line tracking would require more complex parsing
-                    imp.isStd = false;
-                    imp.importType = ImportType.Direct;
+                    imp.moduleName = match[1].to!string;
+                    imp.kind = ImportKind.External;  // Default to external
+                    imp.location = SourceLocation(source, 0, 0);
                     allImports ~= imp;
                 }
             }

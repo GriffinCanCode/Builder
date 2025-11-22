@@ -205,7 +205,7 @@ class ConfigParser
         catch (Exception e)
         {
             auto error = parseErrorWithContext(path, 
-                "Failed to parse Builderfile: " ~ e.msg, 0, "parsing Builderfile file");
+                "Failed to parse Builderfile: " ~ e.msg, 0, 0, "parsing Builderfile file");
             return Err!(ParseResult, BuildError)(error);
         }
     }
@@ -228,7 +228,7 @@ class ConfigParser
         catch (Exception e)
         {
             auto error = parseErrorWithContext(path, 
-                "Failed to parse Builderspace file: " ~ e.msg, 0, "parsing Builderspace file");
+                "Failed to parse Builderspace file: " ~ e.msg, 0, 0, "parsing Builderspace file");
             return Result!BuildError.err(error);
         }
     }

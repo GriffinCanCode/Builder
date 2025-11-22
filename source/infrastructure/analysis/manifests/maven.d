@@ -84,11 +84,11 @@ final class MavenManifestParser : IManifestParser
             else
                 info.sources = ["src/main/java/**/*.java"];  // Maven default
             
-            // Set output directory
+            // Set output directory in metadata
             if (project.outputDirectory.length > 0)
-                info.buildDir = project.outputDirectory;
+                info.metadata["buildDir"] = project.outputDirectory;
             else
-                info.buildDir = "target";  // Maven default
+                info.metadata["buildDir"] = "target";  // Maven default
             
             Logger.info("Parsed Maven project: " ~ info.name ~ " v" ~ info.version_);
             

@@ -26,8 +26,7 @@ auto manifestNotFoundError(string manifestPath, string manifestType, string file
     );
     
     // Override with more specific suggestions based on manifest type
-    // Note: Suggestions are set below, clearing default ones first
-    while (error.suggestions.length > 0) { error.suggestions.popBack(); }
+    // Note: Clear default suggestions and set manifest-specific ones
     
     if (manifestType == "npm" || fileName == "package.json")
     {

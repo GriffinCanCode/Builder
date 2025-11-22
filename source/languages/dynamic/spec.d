@@ -74,8 +74,8 @@ struct LanguageSpec
             {
                 auto lang = json["language"];
                 spec.metadata.name = lang["name"].str;
-                spec.metadata.display = lang.get("display", json["language"]["name"]).str;
-                spec.metadata.category = lang.get("category", JSONValue("scripting")).str;
+                spec.metadata.display = ("display" in lang) ? lang["display"].str : spec.metadata.name;
+                spec.metadata.category = ("category" in lang) ? lang["category"].str : "scripting";
                 
                 if ("extensions" in lang)
                 {
@@ -112,14 +112,14 @@ struct LanguageSpec
             if ("build" in json)
             {
                 auto bld = json["build"];
-                spec.build.compiler = bld.get("compiler", JSONValue("")).str;
-                spec.build.compileCmd = bld.get("compile_cmd", JSONValue("")).str;
-                spec.build.testCmd = bld.get("test_cmd", JSONValue("")).str;
-                spec.build.formatCmd = bld.get("format_cmd", JSONValue("")).str;
-                spec.build.lintCmd = bld.get("lint_cmd", JSONValue("")).str;
-                spec.build.checkCmd = bld.get("check_cmd", JSONValue("")).str;
-                spec.build.incremental = bld.get("incremental", JSONValue(false)).boolean;
-                spec.build.caching = bld.get("caching", JSONValue(true)).boolean;
+                spec.build.compiler = ("compiler" in bld) ? bld["compiler"].str : "";
+                spec.build.compileCmd = ("compile_cmd" in bld) ? bld["compile_cmd"].str : "";
+                spec.build.testCmd = ("test_cmd" in bld) ? bld["test_cmd"].str : "";
+                spec.build.formatCmd = ("format_cmd" in bld) ? bld["format_cmd"].str : "";
+                spec.build.lintCmd = ("lint_cmd" in bld) ? bld["lint_cmd"].str : "";
+                spec.build.checkCmd = ("check_cmd" in bld) ? bld["check_cmd"].str : "";
+                spec.build.incremental = ("incremental" in bld) ? bld["incremental"].boolean : false;
+                spec.build.caching = ("caching" in bld) ? bld["caching"].boolean : true;
                 
                 if ("env" in bld)
                 {
@@ -132,10 +132,10 @@ struct LanguageSpec
             if ("dependencies" in json)
             {
                 auto dep = json["dependencies"];
-                spec.deps.pattern = dep.get("pattern", JSONValue("")).str;
-                spec.deps.resolver = dep.get("resolver", JSONValue("module_path")).str;
-                spec.deps.manifest = dep.get("manifest", JSONValue("")).str;
-                spec.deps.installCmd = dep.get("install_cmd", JSONValue("")).str;
+                spec.deps.pattern = ("pattern" in dep) ? dep["pattern"].str : "";
+                spec.deps.resolver = ("resolver" in dep) ? dep["resolver"].str : "module_path";
+                spec.deps.manifest = ("manifest" in dep) ? dep["manifest"].str : "";
+                spec.deps.installCmd = ("install_cmd" in dep) ? dep["install_cmd"].str : "";
             }
             
             return Ok!(LanguageSpec, BuildError)(spec);
@@ -213,7 +213,7 @@ final class SpecRegistry
         }
         catch (Exception e)
         {
-            auto error = new BuildFailureError("spec-registry", "Failed to load specs: " ~ e.msg, ErrorCode.SystemError);
+            auto error = new BuildFailureError("spec-registry", "Failed to load specs: " ~ e.msg, ErrorCode.InternalError);
             return Err!(size_t, BuildError)(error);
         }
         

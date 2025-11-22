@@ -258,7 +258,7 @@ struct SemanticAnalyzer
             {
                 import infrastructure.errors.types.types : unknownFieldError;
                 const string[] validTypes = ["executable", "library", "test", "custom"];
-                auto err = unknownFieldError(currentFile, typeStr, validTypes);
+                auto err = unknownFieldError(filePath, typeStr, validTypes);
                 return Err!(TargetType, BuildError)(err);
             }
         }

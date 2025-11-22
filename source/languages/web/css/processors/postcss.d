@@ -5,6 +5,7 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
+import std.string : strip;
 import languages.web.css.core.config;
 import languages.web.css.processors.base;
 import infrastructure.config.schema.schema;

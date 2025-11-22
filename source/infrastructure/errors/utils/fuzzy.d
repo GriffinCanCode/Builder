@@ -53,17 +53,27 @@ size_t levenshteinDistance(string s1, string s2) pure nothrow @safe
 }
 
 /// Calculate similarity score (0.0 to 1.0)
-double similarityScore(string s1, string s2) pure nothrow @safe
+double similarityScore(string s1, string s2) nothrow @safe
 {
     if (s1.empty && s2.empty)
         return 1.0;
     if (s1.empty || s2.empty)
         return 0.0;
     
-    auto distance = levenshteinDistance(s1.toLower(), s2.toLower());
-    auto maxLen = max(s1.length, s2.length);
-    
-    return 1.0 - (cast(double)distance / cast(double)maxLen);
+    try
+    {
+        auto distance = levenshteinDistance(s1.toLower(), s2.toLower());
+        auto maxLen = max(s1.length, s2.length);
+        
+        return 1.0 - (cast(double)distance / cast(double)maxLen);
+    }
+    catch (Exception e)
+    {
+        // Fallback: case-sensitive comparison if toLower fails
+        auto distance = levenshteinDistance(s1, s2);
+        auto maxLen = max(s1.length, s2.length);
+        return 1.0 - (cast(double)distance / cast(double)maxLen);
+    }
 }
 
 /// Find similar strings from candidates
