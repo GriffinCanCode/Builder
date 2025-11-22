@@ -10,6 +10,7 @@ import std.string;
 import languages.base.base;
 import languages.base.mixins;
 import languages.dotnet.csharp.core.config;
+import languages.dotnet.csharp.config.test : CSharpTestFramework;
 import languages.dotnet.csharp.managers;
 import languages.dotnet.csharp.tooling.detection;
 import languages.dotnet.csharp.tooling.info;

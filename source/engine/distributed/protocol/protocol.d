@@ -1,6 +1,6 @@
 module engine.distributed.protocol.protocol;
 
-import std.datetime : Duration, SysTime, Clock, seconds, dur;
+import std.datetime : Duration, SysTime, Clock, seconds, dur, msecs;
 import std.conv : to;
 import std.digest : toHexString;
 import std.bitmanip : write, read;

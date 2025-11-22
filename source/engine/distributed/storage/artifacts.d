@@ -37,7 +37,7 @@ final class ArtifactStore
     private ArtifactStoreConfig config;
     private size_t currentCacheSize;
     
-    this(ArtifactStoreConfig config) @safe
+    this(ArtifactStoreConfig config) @trusted
     {
         this.config = config;
         
@@ -130,7 +130,7 @@ final class ArtifactStore
             auto error = new GenericError(
                 "Artifact hash mismatch: expected " ~ id.toString() ~ 
                 " but got " ~ toHexString(actualHash[0 .. 32]).toLower(),
-                ErrorCode.CacheInvalidData
+                ErrorCode.CacheCorrupted
             );
             return Result!BuildError.err(error);
         }

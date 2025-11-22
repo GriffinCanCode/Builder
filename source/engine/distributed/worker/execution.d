@@ -4,6 +4,7 @@ import std.datetime : Duration, Clock, seconds, msecs;
 import core.time : MonoTime;
 import std.conv : to;
 import std.file : read, exists;
+import std.path : buildPath;
 import core.thread : Thread;
 import core.atomic;
 import engine.distributed.protocol.protocol;
@@ -91,7 +92,7 @@ struct WorkerExecutor
             ArtifactId[] outputIds;
             foreach (outputSpec; request.outputs)
             {
-                immutable outputPath = sandboxEnv.resolveOutputPath(outputSpec.path);
+                immutable outputPath = buildPath(sandboxEnv.getWorkDir(), outputSpec.path);
                 if (!exists(outputPath))
                 {
                     if (!outputSpec.optional)

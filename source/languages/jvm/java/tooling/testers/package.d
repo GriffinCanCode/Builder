@@ -1,4 +1,4 @@
-module languages.jvm.java.tooling.testers.package;
+module languages.jvm.java.tooling.testers;
 
 /// Java Testing Module
 /// 

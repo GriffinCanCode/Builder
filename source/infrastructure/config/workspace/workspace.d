@@ -621,8 +621,11 @@ struct WorkspaceAnalyzer
                     return error("Field 'checkpointing' must be boolean or map");
                 auto map = litExpr.value.asMap();
                 if (auto enabled = "enabled" in map)
-                    if (auto res = extractBoolFromLiteral(*enabled); res.isOk)
+                {
+                    auto res = extractBoolFromLiteral(*enabled);
+                    if (res.isOk)
                         config.checkpointing.enabled = res.unwrap();
+                }
                 if (auto interval = "interval" in map)
                     if (interval.kind == LiteralKind.Number)
                         config.checkpointing.interval = cast(size_t)interval.asNumber();
@@ -647,8 +650,11 @@ struct WorkspaceAnalyzer
                     return error("Field 'retry' must be boolean or map");
                 auto map = litExpr.value.asMap();
                 if (auto enabled = "enabled" in map)
-                    if (auto res = extractBoolFromLiteral(*enabled); res.isOk)
+                {
+                    auto res = extractBoolFromLiteral(*enabled);
+                    if (res.isOk)
                         config.retry.enabled = res.unwrap();
+                }
                 if (auto maxAttempts = "maxAttempts" in map)
                     if (maxAttempts.kind == LiteralKind.Number)
                         config.retry.maxAttempts = cast(size_t)maxAttempts.asNumber();
@@ -656,8 +662,11 @@ struct WorkspaceAnalyzer
                     if (backoffMs.kind == LiteralKind.Number)
                         config.retry.backoffMs = cast(size_t)backoffMs.asNumber();
                 if (auto exponential = "exponential" in map)
-                    if (auto res = extractBoolFromLiteral(*exponential); res.isOk)
+                {
+                    auto res = extractBoolFromLiteral(*exponential);
+                    if (res.isOk)
                         config.retry.exponentialBackoff = res.unwrap();
+                }
             }
             else return error("Field 'retry' must be boolean or map");
         }
@@ -685,7 +694,7 @@ struct WorkspaceAnalyzer
     }
     
     /// Extract boolean from expression (handles bool literals and strings)
-    private Result!(bool, BuildError) extractBool(Expr expr)
+    private Result!(bool, BuildError) extractBool(const Expr expr)
     {
         return expr ? extractBoolFromLiteral((cast(LiteralExpr)expr).value) :
             Err!(bool, BuildError)(new ParseError("Expected boolean literal", null));
@@ -707,7 +716,7 @@ struct WorkspaceAnalyzer
     }
     
     /// Extract number from expression
-    private Result!(long, BuildError) extractNumber(Expr expr)
+    private Result!(long, BuildError) extractNumber(const Expr expr)
     {
         auto litExpr = cast(LiteralExpr)expr;
         if (!litExpr) return Err!(long, BuildError)(new ParseError("Expected number literal", null));
@@ -735,7 +744,8 @@ Result!BuildError parseWorkspaceDSL(string source, string filePath, ref Workspac
     auto parseResult = parser.parse();
     if (parseResult.isErr) return Result!BuildError.err(parseResult.unwrapErr());
     
-    return WorkspaceAnalyzer(filePath).analyze(parseResult.unwrap(), config);
+    auto ast = parseResult.unwrap();
+    return WorkspaceAnalyzer(filePath).analyze(ast, config);
 }
 
 /// High-level Workspace class for convenient workspace management

@@ -8,6 +8,7 @@ import std.conv : to;
 import std.algorithm : map;
 import std.array : array;
 import engine.distributed.protocol.protocol;
+import engine.distributed.storage.artifacts : InputArtifact;
 import infrastructure.errors;
 
 // Import base classes (includes ExecutionOutput and ISandboxEnv)
@@ -279,9 +280,21 @@ Sandbox createSandbox(bool hermetic = true) @trusted
     auto caps = getCapabilities();
     if (!caps.canRunHermetic()) return new NoSandbox();
     
-    version(linux) return caps.namespacesAvailable ? new LinuxSandbox() : new NoSandbox();
-    else version(OSX) return caps.sandboxExecAvailable ? new MacOSSandbox() : new NoSandbox();
-    else version(Windows) return caps.jobObjectsAvailable ? new WindowsSandbox() : new NoSandbox();
+    version(linux)
+    {
+        if (caps.namespacesAvailable) return new LinuxSandbox();
+        else return new NoSandbox();
+    }
+    else version(OSX)
+    {
+        if (caps.sandboxExecAvailable) return new MacOSSandbox();
+        else return new NoSandbox();
+    }
+    else version(Windows)
+    {
+        if (caps.jobObjectsAvailable) return new WindowsSandbox();
+        else return new NoSandbox();
+    }
     else return new NoSandbox();
 }
 

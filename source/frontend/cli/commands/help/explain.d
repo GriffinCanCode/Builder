@@ -71,7 +71,7 @@ struct ExplainCommand
     private static void showUsage() @system
     {
         writeln();
-        Formatter.printHeader("Builder Explain - AI-Optimized Documentation");
+        writeln("=== Builder Explain - AI-Optimized Documentation ===");
         writeln();
         writeln("USAGE:");
         writeln("  builder explain <topic>              Show topic definition");
@@ -111,18 +111,18 @@ struct ExplainCommand
             auto index = parseYAMLIndex(indexPath);
             
             writeln();
-            Formatter.printHeader("Available Topics");
+            writeln("=== Available Topics ===");
             writeln();
             
-            if ("concepts" in index && index["concepts"].type == JSON_TYPE.OBJECT)
+            if ("concepts" in index && index["concepts"].type == JSONType.object)
             {
-                writeln(Formatter.bold("CONCEPTS:"));
+                writeln("\x1b[1mCONCEPTS:\x1b[0m");
                 foreach (topic, data; index["concepts"].object)
                 {
-                    if (data.type == JSON_TYPE.OBJECT && "summary" in data)
+                    if (data.type == JSONType.object && "summary" in data)
                     {
-                        writefln("  %-20s %s", 
-                                Formatter.colorize(topic, Color.Cyan),
+                        writefln("  \x1b[36m%-20s\x1b[0m %s", 
+                                topic,
                                 data["summary"].str);
                     }
                 }
@@ -152,18 +152,18 @@ struct ExplainCommand
             auto queryLower = query.toLower();
             JSONValue[] matches;
             
-            if ("concepts" in index && index["concepts"].type == JSON_TYPE.OBJECT)
+            if ("concepts" in index && index["concepts"].type == JSONType.object)
             {
                 foreach (topic, data; index["concepts"].object)
                 {
-                    if (data.type != JSON_TYPE.OBJECT) continue;
+                    if (data.type != JSONType.object) continue;
                     
                     bool match = topic.toLower().canFind(queryLower);
                     
                     if (!match && "summary" in data)
                         match = data["summary"].str.toLower().canFind(queryLower);
                     
-                    if (!match && "keywords" in data && data["keywords"].type == JSON_TYPE.ARRAY)
+                    if (!match && "keywords" in data && data["keywords"].type == JSONType.array)
                     {
                         foreach (keyword; data["keywords"].array)
                             if (keyword.str.toLower().canFind(queryLower))
@@ -190,11 +190,11 @@ struct ExplainCommand
             }
             else
             {
-                Formatter.printHeader("Search Results for: " ~ query);
+                writeln("=== Search Results for: " ~ query ~ " ===");
                 writeln();
                 foreach (match; matches)
                 {
-                    writefln("  %s", Formatter.colorize(match["topic"].str, Color.Cyan));
+                    writefln("  \x1b[36m%s\x1b[0m", match["topic"].str);
                     writefln("    %s", match["summary"].str);
                     writeln();
                 }
@@ -275,40 +275,40 @@ struct ExplainCommand
         
         if ("topic" in doc)
         {
-            Formatter.printHeader(doc["topic"].str.toUpper());
+            writeln("=== " ~ doc["topic"].str.toUpper() ~ " ===");
             writeln();
         }
         
         if ("summary" in doc)
         {
-            writeln(Formatter.bold("SUMMARY:"));
+            writeln("\x1b[1mSUMMARY:\x1b[0m");
             writeln("  " ~ doc["summary"].str);
             writeln();
         }
         
         if ("definition" in doc)
         {
-            writeln(Formatter.bold("DEFINITION:"));
+            writeln("\x1b[1mDEFINITION:\x1b[0m");
             foreach (line; doc["definition"].str.split("\n"))
                 if (line.strip().length > 0)
                     writeln("  " ~ line.strip());
             writeln();
         }
         
-        if ("key_points" in doc && doc["key_points"].type == JSON_TYPE.ARRAY)
+        if ("key_points" in doc && doc["key_points"].type == JSONType.array)
         {
-            writeln(Formatter.bold("KEY POINTS:"));
+            writeln("\x1b[1mKEY POINTS:\x1b[0m");
             foreach (point; doc["key_points"].array)
                 writeln("  • " ~ point.str);
             writeln();
         }
         
-        if ("usage_examples" in doc && doc["usage_examples"].type == JSON_TYPE.ARRAY)
+        if ("usage_examples" in doc && doc["usage_examples"].type == JSONType.array)
         {
-            writeln(Formatter.bold("USAGE:"));
+            writeln("\x1b[1mUSAGE:\x1b[0m");
             foreach (example; doc["usage_examples"].array)
             {
-                if (example.type == JSON_TYPE.OBJECT)
+                if (example.type == JSONType.object)
                 {
                     if ("description" in example)
                         writeln("  " ~ example["description"].str ~ ":");
@@ -323,9 +323,9 @@ struct ExplainCommand
             }
         }
         
-        if ("related" in doc && doc["related"].type == JSON_TYPE.ARRAY)
+        if ("related" in doc && doc["related"].type == JSONType.array)
         {
-            writeln(Formatter.bold("RELATED:"));
+            writeln("\x1b[1mRELATED:\x1b[0m");
             auto related = doc["related"].array.map!(r => r.str).array;
             writeln("  " ~ related.join(", "));
             writeln();
@@ -333,7 +333,7 @@ struct ExplainCommand
         
         if ("next_steps" in doc)
         {
-            writeln(Formatter.bold("NEXT STEPS:"));
+            writeln("\x1b[1mNEXT STEPS:\x1b[0m");
             foreach (line; doc["next_steps"].str.split("\n"))
                 if (line.strip().length > 0)
                     writeln("  " ~ line.strip());
@@ -348,21 +348,21 @@ struct ExplainCommand
         
         if ("topic" in doc)
         {
-            Formatter.printHeader("Examples: " ~ doc["topic"].str);
+            writeln("=== Examples: " ~ doc["topic"].str ~ " ===");
             writeln();
         }
         
-        if ("usage_examples" in doc && doc["usage_examples"].type == JSON_TYPE.ARRAY)
+        if ("usage_examples" in doc && doc["usage_examples"].type == JSONType.array)
         {
             foreach (i, example; doc["usage_examples"].array)
             {
-                if (example.type == JSON_TYPE.OBJECT)
+                if (example.type == JSONType.object)
                 {
-                    writefln(Formatter.bold("EXAMPLE %d:"), i + 1);
+                    writefln("\x1b[1mEXAMPLE %d:\x1b[0m", i + 1);
                     if ("description" in example)
                         writeln("  " ~ example["description"].str);
                     if ("command" in example)
-                        writeln("  Command: " ~ Formatter.colorize(example["command"].str, Color.Green));
+                        writeln("  Command: \x1b[32m" ~ example["command"].str ~ "\x1b[0m");
                     if ("code" in example)
                     {
                         writeln("  Code:");
@@ -392,7 +392,7 @@ struct ExplainCommand
         {
             auto index = parseYAMLIndex(indexPath);
             
-            if ("aliases" in index && index["aliases"].type == JSON_TYPE.OBJECT)
+            if ("aliases" in index && index["aliases"].type == JSONType.object)
             {
                 if (topic in index["aliases"].object)
                     return index["aliases"][topic].str;
@@ -477,7 +477,7 @@ struct ExplainCommand
                 (*currentSection)[key].object = null;
                 
                 sectionStack ~= key;
-                indentStack ~= indent;
+                indentStack ~= cast(int)indent;
                 currentSection = &(*currentSection)[key];
             }
             else if (stripped.startsWith("- "))
@@ -488,7 +488,7 @@ struct ExplainCommand
                 if (value.startsWith("\"") && value.endsWith("\""))
                     value = value[1 .. $ - 1];
                 
-                if ((*currentSection).type != JSON_TYPE.ARRAY)
+                if ((*currentSection).type != JSONType.array)
                     (*currentSection).array = null;
                 
                 (*currentSection).array ~= JSONValue(value);

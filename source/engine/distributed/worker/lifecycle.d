@@ -146,8 +146,13 @@ struct WorkerLifecycle
         immutable queueLoad = queueSize > 0 ? cast(float)queueSize / config.localQueueSize : 0.0f;
         immutable actionLoad = activeActions > 0 ? cast(float)activeActions / config.maxConcurrentActions : 0.0f;
         
-        return SystemMetrics(queueSize, activeActions, stats.usedSize > 0 ? cast(float)stats.usedSize / stats.usedSize : 0.0f,
-            queueLoad * 0.5 + actionLoad * 0.5, getDiskUsage());
+        return SystemMetrics(
+            queueLoad * 0.5f + actionLoad * 0.5f,  // cpuUsage
+            stats.usedSize > 0 ? cast(float)stats.usedSize / stats.usedSize : 0.0f,  // memoryUsage
+            getDiskUsage(),  // diskUsage
+            queueSize,  // queueDepth
+            activeActions  // activeActions
+        );
     }
     
     /// Get disk usage for current working directory (platform-specific)

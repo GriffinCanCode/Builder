@@ -6,18 +6,10 @@ import std.path : buildPath;
 import std.conv : to;
 import std.uuid : randomUUID;
 import engine.distributed.protocol.protocol;
+import engine.distributed.storage.artifacts : InputArtifact;
 import engine.runtime.hermetic.monitoring;
 import engine.runtime.hermetic.core.spec : ResourceLimits, SandboxSpec, SandboxSpecBuilder;
 import infrastructure.errors;
-
-/// Input artifact (for sandbox mounting)
-struct InputArtifact
-{
-    ArtifactId id;
-    ubyte[] data;
-    string path;
-    bool executable;
-}
 
 /// Execution output
 struct ExecutionOutput
@@ -32,6 +24,7 @@ interface ISandboxEnv
 {
     ResourceUsage resourceUsage();
     ResourceMonitor monitor();
+    string getWorkDir();
     void cleanup();
 }
 
@@ -75,6 +68,12 @@ abstract class SandboxEnvBase : ISandboxEnv
     final ResourceMonitor monitor() @safe
     {
         return _monitor;
+    }
+    
+    /// Get work directory
+    final string getWorkDir() @safe
+    {
+        return this.workDir;
     }
     
     /// Cleanup sandbox (final to ensure consistent cleanup pattern)

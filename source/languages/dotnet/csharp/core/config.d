@@ -7,6 +7,7 @@ import std.array;
 import std.conv;
 import infrastructure.analysis.targets.types;
 import infrastructure.config.schema.schema;
+import languages.dotnet.csharp.config.test : CSharpTestFramework;
 
 /// C# build modes
 enum CSharpBuildMode
@@ -135,20 +136,6 @@ enum RuntimeIdentifier
     Custom
 }
 
-/// Testing framework selection
-enum CSharpTestFramework
-{
-    /// Auto-detect from dependencies
-    Auto,
-    /// xUnit
-    XUnit,
-    /// NUnit
-    NUnit,
-    /// MSTest
-    MSTest,
-    /// None - skip testing
-    None
-}
 
 /// Static analyzer selection
 enum CSharpAnalyzer

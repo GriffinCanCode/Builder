@@ -1,4 +1,4 @@
-module languages.dotnet.csharp.tooling.testers.package;
+module languages.dotnet.csharp.tooling.testers;
 
 public import languages.dotnet.csharp.tooling.testers.base;
 public import languages.dotnet.csharp.tooling.testers.xunit;

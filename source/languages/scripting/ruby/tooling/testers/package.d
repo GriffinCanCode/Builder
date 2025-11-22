@@ -1,4 +1,4 @@
-module languages.scripting.ruby.tooling.testers.package;
+module languages.scripting.ruby.tooling.testers;
 
 /// Ruby Testing Module
 /// 

@@ -29,7 +29,8 @@ struct WorkerCommunication
                 if (auto http = cast(HttpTransport)coordinatorTransport)
                 {
                     http.close();
-                    if (auto reconnectResult = http.connect(); reconnectResult.isErr)
+                    auto reconnectResult = http.connect();
+                    if (reconnectResult.isErr)
                         Logger.error("Failed to reconnect to coordinator");
                 }
             }
@@ -93,7 +94,7 @@ struct WorkerCommunication
             socket.send(reqData);
             
             // Receive response with timeout
-            import std.socket : Socket;
+            import std.socket : Socket, SocketOptionLevel, SocketOption;
             import std.datetime : seconds;
             socket.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, 10.seconds);
             
@@ -170,7 +171,8 @@ struct WorkerCommunication
             if (socket is null || !socket.isAlive)
             {
                 Logger.error("Socket not available or disconnected");
-                if (auto reconnectResult = http.connect(); reconnectResult.isErr)
+                auto reconnectResult = http.connect();
+                if (reconnectResult.isErr)
                 { Logger.error("Failed to reconnect: " ~ reconnectResult.unwrapErr().message()); return; }
                 socket = http.getSocket();
                 if (socket is null) { Logger.error("Socket still not available after reconnect"); return; }
@@ -252,16 +254,16 @@ struct WorkerCommunication
 /// Serialize work request message
 ubyte[] serializeWorkRequest(WorkRequest req) @trusted
 {
-    import std.bitmanip : write;
+    import std.bitmanip : nativeToLittleEndian;
     
     ubyte[] buffer;
     buffer.reserve(256);
     
     // Worker ID
-    buffer.write!ulong(req.worker.value, buffer.length);
+    buffer ~= nativeToLittleEndian(req.worker.value);
     
     // Desired batch size
-    buffer.write!uint(req.desiredBatchSize, buffer.length);
+    buffer ~= nativeToLittleEndian(req.desiredBatchSize);
     
     return buffer;
 }

@@ -5,6 +5,7 @@ import std.file;
 import std.path;
 import std.algorithm;
 import std.array;
+import std.string : toLower;
 import languages.dotnet.csharp.config.test;
 import infrastructure.utils.logging.logger;
 
@@ -59,7 +60,7 @@ string[] findTestAssemblies(string dir)
     
     try {
         return dirEntries(dir, "*.dll", SpanMode.depth)
-            .filter!(e => e.name.baseName.toLower.canFind("test"))
+            .filter!(e => e.name.baseName.toLower().canFind("test"))
             .map!(e => e.name)
             .array;
     } catch (Exception e) {

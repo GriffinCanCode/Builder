@@ -175,7 +175,8 @@ final class RemoteExecutionService : IRemoteExecutionService
         // REAPI adapter (if enabled)
         if (config.enableReapi)
         {
-            this.reapiAdapter = new ReapiAdapter();
+            immutable remoteUrl = "http://" ~ config.coordinatorHost ~ ":" ~ config.coordinatorPort.to!string;
+            this.reapiAdapter = new ReapiAdapter(remoteUrl);
         }
         
         // Initialize dedicated monitoring components

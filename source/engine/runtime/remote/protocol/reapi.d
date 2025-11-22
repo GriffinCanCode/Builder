@@ -3,7 +3,7 @@ module engine.runtime.remote.protocol.reapi;
 import std.datetime : Duration, seconds;
 import std.conv : to;
 import std.digest : toHexString;
-import std.string : toLower;
+import std.string : toLower, format;
 import std.algorithm : map;
 import std.array : array;
 import engine.distributed.protocol.protocol;
@@ -388,7 +388,7 @@ final class ReapiAdapter
             {
                 auto error = new GenericError(
                     "Operation failed: " ~ response.status.message,
-                    ErrorCode.ExecutionError
+                    ErrorCode.BuildFailed
                 );
                 return Err!(ExecuteResponse, BuildError)(error);
             }
@@ -398,7 +398,7 @@ final class ReapiAdapter
         }
         
         // Timeout reached
-        auto error = new GenericError("Operation timeout", ErrorCode.Timeout);
+        auto error = new GenericError("Operation timeout", ErrorCode.BuildTimeout);
         return Err!(ExecuteResponse, BuildError)(error);
     }
     
@@ -559,16 +559,17 @@ final class ReapiAdapter
             immutable headersEnd = responseStr.indexOf("\r\n\r\n");
             if (headersEnd < 0)
             {
-                auto error = new NetworkError("Invalid HTTP response", ErrorCode.NetworkError);
+                auto error = new GenericError("Invalid HTTP response", ErrorCode.NetworkError);
                 return Err!(ubyte[], BuildError)(error);
             }
             
             // Extract status code
+            import std.array : split;
             immutable firstLine = responseStr[0 .. responseStr.indexOf('\r')];
             auto parts = firstLine.split(' ');
             if (parts.length < 2)
             {
-                auto error = new NetworkError("Invalid HTTP status line", ErrorCode.NetworkError);
+                auto error = new GenericError("Invalid HTTP status line", ErrorCode.NetworkError);
                 return Err!(ubyte[], BuildError)(error);
             }
             
@@ -580,7 +581,7 @@ final class ReapiAdapter
             }
             else if (statusCode >= 400)
             {
-                auto error = new NetworkError(
+                auto error = new GenericError(
                     "HTTP error: " ~ statusCode.to!string,
                     ErrorCode.NetworkError
                 );
@@ -593,7 +594,7 @@ final class ReapiAdapter
         }
         catch (Exception e)
         {
-            auto error = new NetworkError("HTTP request failed: " ~ e.msg, ErrorCode.NetworkError);
+            auto error = new GenericError("HTTP request failed: " ~ e.msg, ErrorCode.NetworkError);
             return Err!(ubyte[], BuildError)(error);
         }
     }
@@ -659,7 +660,7 @@ final class ReapiAdapter
             // Parse output files
             for (uint i = 0; i < filesCount; i++)
             {
-                OutputFile outFile;
+                ActionResult.OutputFile outFile;
                 
                 // Parse path length and content
                 if (offset + 4 > data.length)

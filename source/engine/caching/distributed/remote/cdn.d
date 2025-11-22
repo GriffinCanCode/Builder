@@ -9,7 +9,7 @@ import std.datetime : Clock, SysTime, Duration, hours;
 import std.datetime.date : DateTime;
 import std.base64 : Base64URL;
 import std.uri : encode;
-import std.json : JSONValue;
+import std.json : JSONValue, JSONType;
 import std.uuid : randomUUID;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;
@@ -221,7 +221,7 @@ final class CdnManager
         import std.digest.sha : sha256Of;
         import std.digest.hmac : hmac, HMAC;
         import std.base64 : Base64;
-        import std.datetime.systime : SysTime, Clock, UTC;
+        import std.datetime.timezone : UTC;
         
         if (config.distributionId.length == 0 || config.apiKey.length == 0)
         {
@@ -490,8 +490,9 @@ final class CdnManager
     {
         import std.digest.sha : sha256Of, SHA256;
         import std.digest.hmac : hmac;
-        import std.datetime.systime : Clock, UTC;
+        import std.datetime.timezone : UTC;
         import std.string : toLower;
+        import std.array : replace;
         
         // AWS Signature Version 4 signing
         immutable timestamp = Clock.currTime(UTC()).toISOExtString()[0 .. 16].replace(":", "").replace("-", "");
@@ -644,7 +645,7 @@ final class CdnManager
         string body_;
     }
     
-    private HttpResponse parseHttpResponse(const ubyte[] data) pure @safe
+    private HttpResponse parseHttpResponse(const ubyte[] data) pure @trusted
     {
         import std.string : indexOf, lineSplitter;
         import std.algorithm : splitter;
