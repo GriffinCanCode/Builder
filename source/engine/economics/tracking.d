@@ -24,28 +24,12 @@ final class CostTracker
     }
     
     /// Track build execution
-    void trackExecution(
-        string targetId,
-        Duration duration,
-        ResourceUsageEstimate usage,
-        float actualCost,
-        bool cacheHit
-    ) @trusted
+    void trackExecution(string targetId, Duration duration, ResourceUsageEstimate usage,
+                       float actualCost, bool cacheHit) @trusted
     {
-        // Record in history
         history.record(targetId, duration, usage, cacheHit);
-        
-        // Track cost
-        costs ~= ActualCost(
-            targetId,
-            Clock.currTime,
-            duration,
-            actualCost,
-            cacheHit
-        );
-        
-        Logger.debugLog("Tracked execution: " ~ targetId ~ 
-                       " (" ~ formatDuration(duration) ~ 
+        costs ~= ActualCost(targetId, Clock.currTime, duration, actualCost, cacheHit);
+        Logger.debugLog("Tracked execution: " ~ targetId ~ " (" ~ formatDuration(duration) ~ 
                        ", " ~ formatCost(actualCost) ~ ")");
     }
     
@@ -53,17 +37,13 @@ final class CostTracker
     CostSummary getSummary() const pure @safe nothrow @nogc
     {
         CostSummary summary;
-        
         foreach (cost; costs)
         {
             summary.totalCost += cost.cost;
             summary.totalTime += cost.duration;
             summary.executionCount++;
-            
-            if (cost.cacheHit)
-                summary.cacheHits++;
+            if (cost.cacheHit) summary.cacheHits++;
         }
-        
         return summary;
     }
     
@@ -124,17 +104,12 @@ struct CostSummary
     size_t cacheHits = 0;
     
     /// Cache hit rate
-    float cacheHitRate() const pure @safe nothrow @nogc
-    {
-        return executionCount > 0 ? 
-            (cast(float)cacheHits / cast(float)executionCount) : 0.0f;
-    }
+    float cacheHitRate() const pure @safe nothrow @nogc =>
+        executionCount > 0 ? cast(float)cacheHits / executionCount : 0.0f;
     
     /// Average cost per execution
-    float avgCost() const pure @safe nothrow @nogc
-    {
-        return executionCount > 0 ? (totalCost / cast(float)executionCount) : 0.0f;
-    }
+    float avgCost() const pure @safe nothrow @nogc =>
+        executionCount > 0 ? totalCost / executionCount : 0.0f;
     
     /// Format for display
     string format() const @safe
@@ -172,14 +147,8 @@ private struct ActualCost
 private string formatDuration(Duration d) pure @safe
 {
     immutable totalSeconds = d.total!"seconds";
-    
-    if (totalSeconds < 60)
-        return totalSeconds.to!string ~ "s";
-    else if (totalSeconds < 3600)
-        return (totalSeconds / 60).to!string ~ "m " ~ 
-               (totalSeconds % 60).to!string ~ "s";
-    else
-        return (totalSeconds / 3600).to!string ~ "h " ~ 
-               ((totalSeconds % 3600) / 60).to!string ~ "m";
+    if (totalSeconds < 60) return totalSeconds.to!string ~ "s";
+    if (totalSeconds < 3600) return (totalSeconds / 60).to!string ~ "m " ~ (totalSeconds % 60).to!string ~ "s";
+    return (totalSeconds / 3600).to!string ~ "h " ~ ((totalSeconds % 3600) / 60).to!string ~ "m";
 }
 

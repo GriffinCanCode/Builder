@@ -41,63 +41,39 @@ struct BuildPlan
     float cacheHitProbability = 0.0f;
     
     /// Get expected cost (considering cache hits)
-    float expectedCost() const pure @safe nothrow @nogc
-    {
-        return estimatedCost * (1.0f - cacheHitProbability);
-    }
+    float expectedCost() const pure @safe nothrow @nogc =>
+        estimatedCost * (1.0f - cacheHitProbability);
     
     /// Get expected time (considering cache hits)
-    Duration expectedTime() const pure @safe nothrow @nogc
-    {
-        immutable cacheFactor = cacheHitProbability > 0.9f ? 0.1f : (1.0f - cacheHitProbability);
-        immutable msecs = cast(long)(estimatedTime.total!"msecs" * cacheFactor);
-        return dur!"msecs"(msecs);
-    }
+    Duration expectedTime() const pure @safe nothrow @nogc =>
+        dur!"msecs"(cast(long)(estimatedTime.total!"msecs" * 
+            (cacheHitProbability > 0.9f ? 0.1f : 1.0f - cacheHitProbability)));
     
     /// Check if this plan dominates another (Pareto dominance)
-    bool dominates(const BuildPlan other) const pure @safe nothrow @nogc
-    {
-        immutable costDominates = expectedCost() <= other.expectedCost();
-        immutable timeDominates = expectedTime() <= other.expectedTime();
-        immutable strictlyBetter = expectedCost() < other.expectedCost() || 
-                                   expectedTime() < other.expectedTime();
-        return costDominates && timeDominates && strictlyBetter;
-    }
+    bool dominates(const BuildPlan other) const pure @safe nothrow @nogc =>
+        expectedCost() <= other.expectedCost() && expectedTime() <= other.expectedTime() &&
+        (expectedCost() < other.expectedCost() || expectedTime() < other.expectedTime());
     
     /// Compute combined objective (weighted cost-time)
-    float objective(float alpha = 0.5f) const pure @safe nothrow @nogc
-    {
-        immutable normalizedCost = expectedCost() / 100.0f;  // Normalize to ~0-1 range
-        immutable normalizedTime = expectedTime().total!"seconds" / 600.0f; // ~10min baseline
-        return alpha * normalizedCost + (1.0f - alpha) * normalizedTime;
-    }
+    float objective(float alpha = 0.5f) const pure @safe nothrow @nogc =>
+        alpha * (expectedCost() / 100.0f) + (1.0f - alpha) * (expectedTime().total!"seconds" / 600.0f);
 }
 
 /// Strategy enumerator - generates candidate execution plans
 final class StrategyEnumerator
 {
     /// Enumerate candidate strategies for given baseline
-    BuildPlan[] enumerate(
-        Duration baselineDuration,
-        ResourceUsageEstimate baselineUsage,
-        float cacheHitProb,
-        ResourcePricing pricing
-    ) @trusted
+    BuildPlan[] enumerate(Duration baselineDuration, ResourceUsageEstimate baselineUsage,
+                         float cacheHitProb, ResourcePricing pricing) @trusted
     {
-        BuildPlan[] candidates;
+        BuildPlan[] candidates = [createLocalPlan(baselineDuration, baselineUsage, cacheHitProb)];
         
-        // Strategy 1: Local (free, baseline time)
-        candidates ~= createLocalPlan(baselineDuration, baselineUsage, cacheHitProb);
-        
-        // Strategy 2: Cached (if high cache probability)
         if (cacheHitProb > 0.1f)
             candidates ~= createCachedPlan(baselineDuration, baselineUsage, cacheHitProb);
         
-        // Strategy 3-5: Distributed with different worker counts
         foreach (workers; [4, 8, 16])
             candidates ~= createDistributedPlan(baselineDuration, baselineUsage, cacheHitProb, pricing, workers);
         
-        // Strategy 6-7: Premium instances
         foreach (workers; [4, 8])
             candidates ~= createPremiumPlan(baselineDuration, baselineUsage, cacheHitProb, pricing, workers);
         
@@ -106,101 +82,42 @@ final class StrategyEnumerator
     
 private:
     
-    BuildPlan createLocalPlan(
-        Duration baselineDuration,
-        ResourceUsageEstimate baselineUsage,
-        float cacheHitProb
-    ) pure @safe
-    {
-        BuildPlan plan;
-        plan.strategy = StrategyConfig(ExecutionStrategy.Local, 1, 4);
-        plan.estimatedTime = baselineDuration;
-        plan.estimatedCost = 0.0f; // Local is free
-        plan.usage = baselineUsage;
-        plan.cacheHitProbability = cacheHitProb;
-        return plan;
-    }
+    BuildPlan createLocalPlan(Duration baselineDuration, ResourceUsageEstimate baselineUsage, float cacheHitProb) pure @safe =>
+        BuildPlan(StrategyConfig(ExecutionStrategy.Local, 1, 4), baselineDuration, 0.0f, baselineUsage, cacheHitProb);
     
-    BuildPlan createCachedPlan(
-        Duration baselineDuration,
-        ResourceUsageEstimate baselineUsage,
-        float cacheHitProb
-    ) pure @safe
-    {
-        BuildPlan plan;
-        plan.strategy = StrategyConfig(ExecutionStrategy.Cached, 0, 0);
-        plan.estimatedTime = seconds(cast(long)(baselineDuration.total!"seconds" * 0.05f)); // 5% of baseline
-        plan.estimatedCost = 0.01f; // Minimal cache lookup cost
-        plan.usage = baselineUsage;
-        plan.cacheHitProbability = cacheHitProb;
-        return plan;
-    }
+    BuildPlan createCachedPlan(Duration baselineDuration, ResourceUsageEstimate baselineUsage, float cacheHitProb) pure @safe =>
+        BuildPlan(StrategyConfig(ExecutionStrategy.Cached, 0, 0),
+                 seconds(cast(long)(baselineDuration.total!"seconds" * 0.05f)), 0.01f, baselineUsage, cacheHitProb);
     
-    BuildPlan createDistributedPlan(
-        Duration baselineDuration,
-        ResourceUsageEstimate baselineUsage,
-        float cacheHitProb,
-        ResourcePricing pricing,
-        size_t workers
-    ) @trusted
+    BuildPlan createDistributedPlan(Duration baselineDuration, ResourceUsageEstimate baselineUsage,
+                                   float cacheHitProb, ResourcePricing pricing, size_t workers) @trusted
     {
-        BuildPlan plan;
-        plan.strategy = StrategyConfig(ExecutionStrategy.Distributed, workers, 4);
-        
-        // Estimate speedup (with diminishing returns)
         immutable speedup = estimateSpeedup(workers);
-        plan.estimatedTime = seconds(cast(long)(baselineDuration.total!"seconds" / speedup));
+        immutable estimatedTime = seconds(cast(long)(baselineDuration.total!"seconds" / speedup));
         
-        // Estimate cost
-        ResourceUsageEstimate distributedUsage = baselineUsage;
-        distributedUsage.cores = workers * 4;
-        distributedUsage.duration = plan.estimatedTime;
-        distributedUsage.networkBytes = baselineUsage.diskIOBytes / 2; // Transfer overhead
+        auto distributedUsage = ResourceUsageEstimate(workers * 4, baselineUsage.memoryBytes, 
+            baselineUsage.diskIOBytes / 2, baselineUsage.diskIOBytes, estimatedTime);
         
-        plan.estimatedCost = pricing.totalCost(distributedUsage);
-        plan.usage = distributedUsage;
-        plan.cacheHitProbability = cacheHitProb;
-        
-        return plan;
+        return BuildPlan(StrategyConfig(ExecutionStrategy.Distributed, workers, 4),
+                        estimatedTime, pricing.totalCost(distributedUsage), distributedUsage, cacheHitProb);
     }
     
-    BuildPlan createPremiumPlan(
-        Duration baselineDuration,
-        ResourceUsageEstimate baselineUsage,
-        float cacheHitProb,
-        ResourcePricing pricing,
-        size_t workers
-    ) @trusted
+    BuildPlan createPremiumPlan(Duration baselineDuration, ResourceUsageEstimate baselineUsage,
+                               float cacheHitProb, ResourcePricing pricing, size_t workers) @trusted
     {
-        BuildPlan plan;
-        plan.strategy = StrategyConfig(ExecutionStrategy.Premium, workers, 8);
-        
-        // Premium has better speedup (1.5x performance)
         immutable speedup = estimateSpeedup(workers) * 1.5f;
-        plan.estimatedTime = seconds(cast(long)(baselineDuration.total!"seconds" / speedup));
+        immutable estimatedTime = seconds(cast(long)(baselineDuration.total!"seconds" / speedup));
         
-        // Premium costs 2x
-        ResourceUsageEstimate premiumUsage = baselineUsage;
-        premiumUsage.cores = workers * 8;
-        premiumUsage.duration = plan.estimatedTime;
-        premiumUsage.networkBytes = baselineUsage.diskIOBytes / 2;
+        auto premiumUsage = ResourceUsageEstimate(workers * 8, baselineUsage.memoryBytes,
+            baselineUsage.diskIOBytes / 2, baselineUsage.diskIOBytes, estimatedTime);
         
-        auto premiumPricing = PricingProfile.premium.adjust(pricing);
-        plan.estimatedCost = premiumPricing.totalCost(premiumUsage);
-        plan.usage = premiumUsage;
-        plan.cacheHitProbability = cacheHitProb;
-        
-        return plan;
+        return BuildPlan(StrategyConfig(ExecutionStrategy.Premium, workers, 8), estimatedTime,
+                        PricingProfile.premium.adjust(pricing).totalCost(premiumUsage), premiumUsage, cacheHitProb);
     }
     
     /// Estimate speedup from parallelization (Amdahl's law approximation)
-    float estimateSpeedup(size_t workers) const pure @safe nothrow @nogc
-    {
-        // Assume 80% of work is parallelizable
-        immutable parallelFraction = 0.8f;
-        immutable serialFraction = 1.0f - parallelFraction;
-        return 1.0f / (serialFraction + parallelFraction / workers);
-    }
+    float estimateSpeedup(size_t workers) const pure @safe nothrow @nogc =>
+        1.0f / (0.2f + 0.8f / workers);
 }
 
 /// Pareto frontier - set of non-dominated plans
@@ -244,97 +161,45 @@ struct ParetoFrontier
     /// Find plan that optimizes for cost
     BuildPlan optimizeForCost() const pure @safe
     {
+        import std.algorithm : minElement;
         assert(plans.length > 0, "Empty Pareto frontier");
-        
-        BuildPlan best = plans[0];
-        foreach (plan; plans[1..$])
-        {
-            if (plan.expectedCost() < best.expectedCost())
-                best = plan;
-        }
-        return best;
+        return plans.minElement!(p => p.expectedCost());
     }
     
     /// Find plan that optimizes for time
     BuildPlan optimizeForTime() const pure @safe
     {
+        import std.algorithm : minElement;
         assert(plans.length > 0, "Empty Pareto frontier");
-        
-        BuildPlan best = plans[0];
-        foreach (plan; plans[1..$])
-        {
-            if (plan.expectedTime() < best.expectedTime())
-                best = plan;
-        }
-        return best;
+        return plans.minElement!(p => p.expectedTime());
     }
     
     /// Find balanced plan (minimize combined objective)
     BuildPlan optimizeBalanced(float alpha = 0.5f) const pure @safe
     {
+        import std.algorithm : minElement;
         assert(plans.length > 0, "Empty Pareto frontier");
-        
-        BuildPlan best = plans[0];
-        float bestObjective = best.objective(alpha);
-        
-        foreach (plan; plans[1..$])
-        {
-            immutable obj = plan.objective(alpha);
-            if (obj < bestObjective)
-            {
-                best = plan;
-                bestObjective = obj;
-            }
-        }
-        return best;
+        return plans.minElement!(p => p.objective(alpha));
     }
     
     /// Find fastest plan within budget
     BuildPlan findWithinBudget(float budgetUSD) const pure @safe
     {
+        import std.algorithm : minElement;
         assert(plans.length > 0, "Empty Pareto frontier");
         
-        // Filter plans within budget
         auto affordable = plans.filter!(p => p.expectedCost() <= budgetUSD).array;
-        
-        if (affordable.length == 0)
-        {
-            // No affordable plan, return cheapest
-            return optimizeForCost();
-        }
-        
-        // Return fastest among affordable
-        BuildPlan best = affordable[0];
-        foreach (plan; affordable[1..$])
-        {
-            if (plan.expectedTime() < best.expectedTime())
-                best = plan;
-        }
-        return best;
+        return affordable.length > 0 ? affordable.minElement!(p => p.expectedTime()) : optimizeForCost();
     }
     
     /// Find cheapest plan within time limit
     BuildPlan findWithinTime(Duration timeLimit) const pure @safe
     {
+        import std.algorithm : minElement;
         assert(plans.length > 0, "Empty Pareto frontier");
         
-        // Filter plans within time limit
         auto fast = plans.filter!(p => p.expectedTime() <= timeLimit).array;
-        
-        if (fast.length == 0)
-        {
-            // No fast enough plan, return fastest
-            return optimizeForTime();
-        }
-        
-        // Return cheapest among fast enough
-        BuildPlan best = fast[0];
-        foreach (plan; fast[1..$])
-        {
-            if (plan.expectedCost() < best.expectedCost())
-                best = plan;
-        }
-        return best;
+        return fast.length > 0 ? fast.minElement!(p => p.expectedCost()) : optimizeForTime();
     }
 }
 
@@ -384,13 +249,7 @@ string formatPlan(const BuildPlan plan) @safe
 private string formatDuration(Duration d) pure @safe
 {
     immutable totalSeconds = d.total!"seconds";
-    
-    if (totalSeconds < 60)
-        return totalSeconds.to!string ~ "s";
-    else if (totalSeconds < 3600)
-        return (totalSeconds / 60).to!string ~ "m " ~ 
-               (totalSeconds % 60).to!string ~ "s";
-    else
-        return (totalSeconds / 3600).to!string ~ "h " ~ 
-               ((totalSeconds % 3600) / 60).to!string ~ "m";
+    if (totalSeconds < 60) return totalSeconds.to!string ~ "s";
+    if (totalSeconds < 3600) return (totalSeconds / 60).to!string ~ "m " ~ (totalSeconds % 60).to!string ~ "s";
+    return (totalSeconds / 3600).to!string ~ "h " ~ ((totalSeconds % 3600) / 60).to!string ~ "m";
 }

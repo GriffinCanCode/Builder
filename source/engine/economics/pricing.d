@@ -16,42 +16,25 @@ struct ResourcePricing
     float costPerDiskIOGB = 0.001f;     // $0.001/GB disk I/O
     
     /// Compute cost for CPU time
-    float cpuCost(size_t cores, Duration duration) const pure @safe nothrow @nogc
-    {
-        immutable hours = duration.total!"msecs" / 3_600_000.0f;
-        return cores * hours * costPerCoreHour;
-    }
+    float cpuCost(size_t cores, Duration duration) const pure @safe nothrow @nogc =>
+        cores * (duration.total!"msecs" / 3_600_000.0f) * costPerCoreHour;
     
     /// Compute cost for memory usage
-    float memoryCost(size_t memoryBytes, Duration duration) const pure @safe nothrow @nogc
-    {
-        immutable gb = memoryBytes / (1024.0f * 1024.0f * 1024.0f);
-        immutable hours = duration.total!"msecs" / 3_600_000.0f;
-        return gb * hours * costPerGBHour;
-    }
+    float memoryCost(size_t memoryBytes, Duration duration) const pure @safe nothrow @nogc =>
+        (memoryBytes / (1024.0f * 1024.0f * 1024.0f)) * (duration.total!"msecs" / 3_600_000.0f) * costPerGBHour;
     
     /// Compute cost for network transfer
-    float networkCost(size_t transferBytes) const pure @safe nothrow @nogc
-    {
-        immutable gb = transferBytes / (1024.0f * 1024.0f * 1024.0f);
-        return gb * costPerNetworkGB;
-    }
+    float networkCost(size_t transferBytes) const pure @safe nothrow @nogc =>
+        (transferBytes / (1024.0f * 1024.0f * 1024.0f)) * costPerNetworkGB;
     
     /// Compute cost for disk I/O
-    float diskCost(size_t ioBytes) const pure @safe nothrow @nogc
-    {
-        immutable gb = ioBytes / (1024.0f * 1024.0f * 1024.0f);
-        return gb * costPerDiskIOGB;
-    }
+    float diskCost(size_t ioBytes) const pure @safe nothrow @nogc =>
+        (ioBytes / (1024.0f * 1024.0f * 1024.0f)) * costPerDiskIOGB;
     
     /// Total cost for resource usage
-    float totalCost(ResourceUsageEstimate usage) const pure @safe nothrow @nogc
-    {
-        return cpuCost(usage.cores, usage.duration) +
-               memoryCost(usage.memoryBytes, usage.duration) +
-               networkCost(usage.networkBytes) +
-               diskCost(usage.diskIOBytes);
-    }
+    float totalCost(ResourceUsageEstimate usage) const pure @safe nothrow @nogc =>
+        cpuCost(usage.cores, usage.duration) + memoryCost(usage.memoryBytes, usage.duration) +
+        networkCost(usage.networkBytes) + diskCost(usage.diskIOBytes);
 }
 
 /// Resource usage estimate for cost calculation
@@ -239,13 +222,7 @@ struct PricingConfig
 string formatCost(float cost) pure @safe
 {
     import std.format : format;
-    
-    if (cost < 0.01f)
-        return "$0.00";
-    else if (cost < 1.0f)
-        return format("$%.2f", cost);
-    else
-        return format("$%.2f", cost);
+    return cost < 0.01f ? "$0.00" : format("$%.2f", cost);
 }
 
 /// Format cost estimate with breakdown
@@ -278,14 +255,9 @@ string formatCostBreakdown(ResourceUsageEstimate usage, ResourcePricing pricing)
 private string formatDuration(Duration d) pure @safe
 {
     import std.format : format;
-    
     immutable totalSeconds = d.total!"seconds";
-    
-    if (totalSeconds < 60)
-        return format("%ds", totalSeconds);
-    else if (totalSeconds < 3600)
-        return format("%dm %ds", totalSeconds / 60, totalSeconds % 60);
-    else
-        return format("%dh %dm", totalSeconds / 3600, (totalSeconds % 3600) / 60);
+    if (totalSeconds < 60) return format("%ds", totalSeconds);
+    if (totalSeconds < 3600) return format("%dm %ds", totalSeconds / 60, totalSeconds % 60);
+    return format("%dh %dm", totalSeconds / 3600, (totalSeconds % 3600) / 60);
 }
 

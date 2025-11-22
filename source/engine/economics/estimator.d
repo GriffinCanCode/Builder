@@ -33,10 +33,7 @@ final class CostEstimator
         {
             // Sum estimates for all nodes (conservative: assume sequential)
             Duration totalTime;
-            size_t totalCores;
-            size_t totalMemory;
-            size_t totalNetwork;
-            size_t totalDiskIO;
+            size_t totalCores, totalMemory, totalNetwork, totalDiskIO;
             
             foreach (node; graph.nodes.values)
             {
@@ -53,27 +50,16 @@ final class CostEstimator
                 totalDiskIO += nodeEstimate.usage.diskIOBytes;
             }
             
-            // Average cores across all nodes
-            immutable avgCores = graph.nodes.length > 0 ? 
-                (totalCores / graph.nodes.length) : 4;
+            immutable avgCores = graph.nodes.length > 0 ? (totalCores / graph.nodes.length) : 4;
             
-            BuildEstimate estimate;
-            estimate.duration = totalTime;
-            estimate.usage = ResourceUsageEstimate(
-                avgCores,
-                totalMemory,
-                totalNetwork,
-                totalDiskIO,
-                totalTime
-            );
-            
-            return Ok!(BuildEstimate, BuildError)(estimate);
+            return Ok!(BuildEstimate, BuildError)(BuildEstimate(
+                totalTime,
+                ResourceUsageEstimate(avgCores, totalMemory, totalNetwork, totalDiskIO, totalTime)
+            ));
         }
         catch (Exception e)
         {
-            return Err!(BuildEstimate, BuildError)(
-                new EconomicsError("Failed to estimate graph: " ~ e.msg)
-            );
+            return Err!(BuildEstimate, BuildError)(new EconomicsError("Failed to estimate graph: " ~ e.msg));
         }
     }
     
@@ -91,81 +77,30 @@ final class CostEstimator
                 return Ok!(BuildEstimate, BuildError)(historicalData.estimate);
             }
             
-            // Fallback to heuristics based on target type
-            BuildEstimate estimate;
-            
             // Base estimates by language/type (heuristics)
             immutable language = node.target.language.to!string;
+            immutable GB = 1024 * 1024 * 1024;
+            immutable MB = 1024 * 1024;
+            
+            BuildEstimate estimate;
             
             if (canFind(["C", "C++", "Cpp"], language))
-            {
-                // C/C++ compilation is typically slow
-                estimate.duration = seconds(30);
-                estimate.usage = ResourceUsageEstimate(
-                    4,                          // 4 cores
-                    2 * 1024 * 1024 * 1024,    // 2GB
-                    10 * 1024 * 1024,          // 10MB network
-                    100 * 1024 * 1024,         // 100MB disk I/O
-                    estimate.duration
-                );
-            }
+                estimate = BuildEstimate(seconds(30), ResourceUsageEstimate(4, 2*GB, 10*MB, 100*MB, seconds(30)));
             else if (canFind(["Rust", "Go"], language))
-            {
-                // Rust/Go are moderately fast
-                estimate.duration = seconds(15);
-                estimate.usage = ResourceUsageEstimate(
-                    4,
-                    1 * 1024 * 1024 * 1024,    // 1GB
-                    5 * 1024 * 1024,
-                    50 * 1024 * 1024,
-                    estimate.duration
-                );
-            }
+                estimate = BuildEstimate(seconds(15), ResourceUsageEstimate(4, GB, 5*MB, 50*MB, seconds(15)));
             else if (canFind(["Python", "JavaScript", "TypeScript"], language))
-            {
-                // Interpreted/transpiled languages are fast
-                estimate.duration = seconds(5);
-                estimate.usage = ResourceUsageEstimate(
-                    2,
-                    512 * 1024 * 1024,         // 512MB
-                    2 * 1024 * 1024,
-                    20 * 1024 * 1024,
-                    estimate.duration
-                );
-            }
+                estimate = BuildEstimate(seconds(5), ResourceUsageEstimate(2, 512*MB, 2*MB, 20*MB, seconds(5)));
             else if (language == "D")
-            {
-                // D compilation is fast
-                estimate.duration = seconds(10);
-                estimate.usage = ResourceUsageEstimate(
-                    4,
-                    1 * 1024 * 1024 * 1024,
-                    5 * 1024 * 1024,
-                    50 * 1024 * 1024,
-                    estimate.duration
-                );
-            }
+                estimate = BuildEstimate(seconds(10), ResourceUsageEstimate(4, GB, 5*MB, 50*MB, seconds(10)));
             else
-            {
-                // Generic fallback
-                estimate.duration = seconds(10);
-                estimate.usage = ResourceUsageEstimate(
-                    2,
-                    1 * 1024 * 1024 * 1024,
-                    5 * 1024 * 1024,
-                    50 * 1024 * 1024,
-                    estimate.duration
-                );
-            }
+                estimate = BuildEstimate(seconds(10), ResourceUsageEstimate(2, GB, 5*MB, 50*MB, seconds(10)));
             
             // Adjust based on source count
             immutable sourceCount = node.target.sources.length;
             if (sourceCount > 10)
             {
-                // Scale duration linearly with source count
                 immutable scaleFactor = 1.0f + (sourceCount - 10) * 0.1f;
-                immutable scaledMs = cast(long)(estimate.duration.total!"msecs" * scaleFactor);
-                estimate.duration = msecs(scaledMs);
+                estimate.duration = msecs(cast(long)(estimate.duration.total!"msecs" * scaleFactor));
                 estimate.usage.duration = estimate.duration;
             }
             
@@ -173,56 +108,30 @@ final class CostEstimator
         }
         catch (Exception e)
         {
-            return Err!(BuildEstimate, BuildError)(
-                new EconomicsError("Failed to estimate node: " ~ e.msg)
-            );
+            return Err!(BuildEstimate, BuildError)(new EconomicsError("Failed to estimate node: " ~ e.msg));
         }
     }
     
     /// Estimate cache hit probability for graph
     float estimateCacheHitProbability(BuildGraph graph) @trusted
     {
-        if (graph.nodes.length == 0)
-            return 0.0f;
+        if (graph.nodes.length == 0) return 0.0f;
         
-        size_t cacheableNodes = 0;
         float totalProb = 0.0f;
-        
         foreach (node; graph.nodes.values)
-        {
-            immutable prob = estimateCacheHitProbabilityForNode(node);
-            totalProb += prob;
-            if (prob > 0.0f)
-                cacheableNodes++;
-        }
+            totalProb += estimateCacheHitProbabilityForNode(node);
         
-        return cacheableNodes > 0 ? (totalProb / graph.nodes.length) : 0.0f;
+        return totalProb / graph.nodes.length;
     }
     
     /// Estimate cache hit probability for single node
     float estimateCacheHitProbabilityForNode(BuildNode node) @trusted
     {
-        // Check if node was previously cached
         if (auto hist = history.lookup(node.id.toString()))
-        {
-            // Historical cache hit rate
             return hist.cacheHitRate;
-        }
         
-        // Heuristic: stable dependencies have high cache hit rate
-        // Frequently changing code has low cache hit rate
-        
-        // For now, use conservative estimate
-        if (node.dependencyIds.length == 0)
-        {
-            // Leaf nodes (source files) change frequently
-            return 0.1f;  // 10% cache hit rate
-        }
-        else
-        {
-            // Dependent nodes benefit from stable dependencies
-            return 0.3f;  // 30% cache hit rate
-        }
+        // Heuristic: stable dependencies have high cache hit rate, frequently changing code has low cache hit rate
+        return node.dependencyIds.length == 0 ? 0.1f : 0.3f;
     }
 }
 
@@ -232,23 +141,12 @@ final class ExecutionHistory
     private HistoryEntry[string] entries;
     
     /// Record execution
-    void record(
-        string targetId,
-        Duration duration,
-        ResourceUsageEstimate usage,
-        bool cacheHit
-    ) @trusted
+    void record(string targetId, Duration duration, ResourceUsageEstimate usage, bool cacheHit) @trusted
     {
         if (auto entry = targetId in entries)
-        {
-            // Update exponential moving average
             entry.update(duration, usage, cacheHit);
-        }
         else
-        {
-            // New entry
             entries[targetId] = HistoryEntry(duration, usage, cacheHit);
-        }
     }
     
     /// Lookup historical estimate
@@ -365,31 +263,16 @@ private struct HistoryEntry
     /// Update with new execution data (exponential moving average)
     void update(Duration duration, ResourceUsageEstimate usage, bool cacheHit) @safe nothrow @nogc
     {
-        // Update duration (EMA)
-        immutable oldMs = estimate.duration.total!"msecs";
-        immutable newMs = duration.total!"msecs";
-        immutable avgMs = cast(long)(oldMs * (1.0f - ALPHA) + newMs * ALPHA);
-        estimate.duration = msecs(avgMs);
+        immutable BETA = 1.0f - ALPHA;
         
-        // Update resource usage (EMA)
-        estimate.usage.cores = cast(size_t)(
-            estimate.usage.cores * (1.0f - ALPHA) + usage.cores * ALPHA
-        );
-        estimate.usage.memoryBytes = cast(size_t)(
-            estimate.usage.memoryBytes * (1.0f - ALPHA) + usage.memoryBytes * ALPHA
-        );
-        estimate.usage.networkBytes = cast(size_t)(
-            estimate.usage.networkBytes * (1.0f - ALPHA) + usage.networkBytes * ALPHA
-        );
-        estimate.usage.diskIOBytes = cast(size_t)(
-            estimate.usage.diskIOBytes * (1.0f - ALPHA) + usage.diskIOBytes * ALPHA
-        );
+        estimate.duration = msecs(cast(long)(estimate.duration.total!"msecs" * BETA + duration.total!"msecs" * ALPHA));
+        estimate.usage.cores = cast(size_t)(estimate.usage.cores * BETA + usage.cores * ALPHA);
+        estimate.usage.memoryBytes = cast(size_t)(estimate.usage.memoryBytes * BETA + usage.memoryBytes * ALPHA);
+        estimate.usage.networkBytes = cast(size_t)(estimate.usage.networkBytes * BETA + usage.networkBytes * ALPHA);
+        estimate.usage.diskIOBytes = cast(size_t)(estimate.usage.diskIOBytes * BETA + usage.diskIOBytes * ALPHA);
         estimate.usage.duration = estimate.duration;
         
-        // Update cache hit rate (EMA)
-        immutable hitValue = cacheHit ? 1.0f : 0.0f;
-        cacheHitRate = cacheHitRate * (1.0f - ALPHA) + hitValue * ALPHA;
-        
+        cacheHitRate = cacheHitRate * BETA + (cacheHit ? 1.0f : 0.0f) * ALPHA;
         executionCount++;
     }
 }

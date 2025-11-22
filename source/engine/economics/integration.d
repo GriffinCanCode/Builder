@@ -25,66 +25,40 @@ final class EconomicsIntegration
     this(EconomicsConfig config, string cacheDir) @trusted
     {
         this.enabled = config.enabled;
+        if (!enabled) return;
         
-        if (!enabled)
-            return;
-        
-        // Initialize pricing configuration
         this.pricingConfig = PricingConfig();
         this.pricingConfig.enabled = true;
         
         // Set cloud provider
-        switch (config.provider.toLower)
-        {
-            case "aws":
-                this.pricingConfig.provider = CloudProvider.aws();
-                break;
-            case "gcp":
-                this.pricingConfig.provider = CloudProvider.gcp();
-                break;
-            case "azure":
-                this.pricingConfig.provider = CloudProvider.azure();
-                break;
-            case "local":
-                this.pricingConfig.provider = CloudProvider.local();
-                break;
-            default:
-                this.pricingConfig.provider = CloudProvider.aws();
-        }
+        this.pricingConfig.provider = ({
+            switch (config.provider.toLower) {
+                case "aws": return CloudProvider.aws();
+                case "gcp": return CloudProvider.gcp();
+                case "azure": return CloudProvider.azure();
+                case "local": return CloudProvider.local();
+                default: return CloudProvider.aws();
+            }
+        })();
         
         // Set pricing tier
-        switch (config.pricingTier.toLower)
-        {
-            case "spot":
-                this.pricingConfig.profile = PricingProfile.spot;
-                break;
-            case "ondemand":
-            case "on-demand":
-                this.pricingConfig.profile = PricingProfile.onDemand;
-                break;
-            case "reserved":
-                this.pricingConfig.profile = PricingProfile.reserved;
-                break;
-            case "premium":
-                this.pricingConfig.profile = PricingProfile.premium;
-                break;
-            default:
-                this.pricingConfig.profile = PricingProfile.onDemand;
-        }
+        this.pricingConfig.profile = ({
+            switch (config.pricingTier.toLower) {
+                case "spot": return PricingProfile.spot;
+                case "ondemand", "on-demand": return PricingProfile.onDemand;
+                case "reserved": return PricingProfile.reserved;
+                case "premium": return PricingProfile.premium;
+                default: return PricingProfile.onDemand;
+            }
+        })();
         
-        // Initialize history and tracker
         auto history = new ExecutionHistory();
         this.tracker = new CostTracker(history, cacheDir);
         
-        // Try to load historical data
         auto loadResult = tracker.load();
         if (loadResult.isErr)
-        {
-            Logger.warning("Could not load execution history: " ~ 
-                          loadResult.unwrapErr().message());
-        }
+            Logger.warning("Could not load execution history: " ~ loadResult.unwrapErr().message());
         
-        // Initialize estimator and optimizer
         auto estimator = new CostEstimator(history);
         this.optimizer = new CostOptimizer(estimator, pricingConfig);
         
@@ -97,58 +71,32 @@ final class EconomicsIntegration
     bool isEnabled() const pure @safe nothrow @nogc => enabled;
     
     /// Compute optimal build plan for graph
-    Result!(BuildPlan, BuildError) computePlan(
-        BuildGraph graph,
-        EconomicsConfig config
-    ) @trusted
+    Result!(BuildPlan, BuildError) computePlan(BuildGraph graph, EconomicsConfig config) @trusted
     {
         if (!enabled)
-        {
-            // Return default local plan
-            BuildPlan defaultPlan;
-            defaultPlan.strategy = StrategyConfig(ExecutionStrategy.Local, 1, 4);
-            defaultPlan.estimatedTime = seconds(0);
-            defaultPlan.estimatedCost = 0.0f;
-            return Ok!(BuildPlan, BuildError)(defaultPlan);
-        }
+            return Ok!(BuildPlan, BuildError)(BuildPlan(StrategyConfig(ExecutionStrategy.Local, 1, 4), seconds(0), 0.0f));
         
-        // Build constraints from config
         OptimizationConstraints constraints;
         
-        // Parse optimization mode
-        switch (config.optimize.toLower)
-        {
-            case "cost":
-                constraints.objective = OptimizationObjective.MinimizeCost;
-                break;
-            case "time":
-                constraints.objective = OptimizationObjective.MinimizeTime;
-                break;
-            case "balanced":
-                constraints.objective = OptimizationObjective.Balanced;
-                break;
-            default:
-                constraints.objective = OptimizationObjective.Balanced;
-        }
+        constraints.objective = ({
+            switch (config.optimize.toLower) {
+                case "cost": return OptimizationObjective.MinimizeCost;
+                case "time": return OptimizationObjective.MinimizeTime;
+                case "balanced": return OptimizationObjective.Balanced;
+                default: return OptimizationObjective.Balanced;
+            }
+        })();
         
-        // Apply constraints
         constraints.budgetUSD = config.budgetUSD;
         if (config.timeLimit != float.infinity)
-        {
             constraints.timeLimit = seconds(cast(long)config.timeLimit);
-        }
         
         // If budget or time limit specified, override objective
         if (config.budgetUSD != float.infinity)
-        {
             constraints.objective = OptimizationObjective.Budget;
-        }
         else if (config.timeLimit != float.infinity)
-        {
             constraints.objective = OptimizationObjective.TimeLimit;
-        }
         
-        // Optimize
         return optimizer.optimize(graph, constraints);
     }
     
@@ -173,15 +121,8 @@ final class EconomicsIntegration
     /// Save execution history on shutdown
     Result!BuildError shutdown() @trusted
     {
-        if (!enabled)
-            return Ok!BuildError();
-        
-        // Display cost summary
-        immutable summary = tracker.getSummary();
-        
-        Logger.info("\n" ~ summary.format());
-        
-        // Save history
+        if (!enabled) return Ok!BuildError();
+        Logger.info("\n" ~ tracker.getSummary().format());
         return tracker.save();
     }
 }
