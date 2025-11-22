@@ -69,11 +69,25 @@ mixin template ActionCacheIntegration(string handlerName)
     import infrastructure.utils.files.hash : FastHash;
     
     private ActionCacheHelper actionHelper;
+    private string[][ActionId] trackedOutputs;  // Track outputs per action
     
     /// Initialize action cache helper
     protected void initActionCache(ActionCacheHelper helper) @system
     {
         this.actionHelper = helper;
+    }
+    
+    /// Track output file for current action
+    protected void trackOutput(ActionId actionId, string outputPath) @system
+    {
+        trackedOutputs[actionId] ~= outputPath;
+    }
+    
+    /// Track multiple output files for current action
+    protected void trackOutputs(ActionId actionId, scope const(string)[] outputPaths) @system
+    {
+        foreach (path; outputPaths)
+            trackedOutputs[actionId] ~= path;
     }
     
     /// Check and execute action with caching
@@ -112,14 +126,92 @@ mixin template ActionCacheIntegration(string handlerName)
             return Ok!(string, BuildError)("cached");
         }
         
+        // Clear any previously tracked outputs for this action
+        trackedOutputs.remove(actionId);
+        
         // Execute action
         auto result = action();
         
-        // Record result
-        string[] outputs;  // Would need to be passed or inferred
+        // Retrieve tracked outputs
+        string[] outputs;
+        if (auto outputsPtr = actionId in trackedOutputs)
+            outputs = *outputsPtr;
+        
+        // Record result with tracked outputs
         actionHelper.record(actionId, inputs, outputs, metadata, result.isOk);
         
+        // Clean up tracked outputs
+        trackedOutputs.remove(actionId);
+        
         return result;
+    }
+    
+    /// Enhanced version with explicit output specification
+    protected Result!(string[], BuildError) withActionCacheAndOutputs(
+        string targetName,
+        ActionType actionType,
+        string subId,
+        scope const(string)[] inputs,
+        scope const(string[string]) metadata,
+        Result!(string[], BuildError) delegate() @system action
+    ) @system
+    {
+        import std.file : exists;
+        
+        // Compute input hash
+        string inputHash;
+        try
+        {
+            if (inputs.length > 0 && exists(inputs[0]))
+                inputHash = FastHash.hashFile(inputs[0]);
+            else
+                inputHash = "empty";
+        }
+        catch (Exception)
+        {
+            inputHash = "error";
+        }
+        
+        // Create action ID
+        auto actionId = ActionId(targetName, actionType, inputHash, subId);
+        
+        // Check cache
+        if (actionHelper.isCached(actionId, inputs, metadata))
+        {
+            // Retrieve cached outputs
+            if (auto outputsPtr = actionId in trackedOutputs)
+                return Ok!(string[], BuildError)(*outputsPtr);
+            return Ok!(string[], BuildError)([]);
+        }
+        
+        // Execute action
+        auto result = action();
+        
+        if (result.isOk)
+        {
+            // Record result with explicit outputs
+            auto outputs = result.unwrap();
+            actionHelper.record(actionId, inputs, outputs, metadata, true);
+        }
+        else
+        {
+            // Record failure
+            actionHelper.record(actionId, inputs, [], metadata, false);
+        }
+        
+        return result;
+    }
+}
+
+/// Result container for actions with output tracking
+struct ActionResult(T)
+{
+    T value;
+    string[] outputs;
+    
+    static ActionResult!T ok(T value, string[] outputs = []) @safe pure nothrow
+    {
+        return ActionResult!T(value, outputs);
     }
 }
 

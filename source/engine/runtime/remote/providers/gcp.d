@@ -179,46 +179,95 @@ final class GcpComputeProvider : CloudProvider
             return Err!(WorkerStatus, BuildError)(error);
         }
         
-        // Parse JSON output (simplified - real implementation would use JSON parser)
+        // Parse JSON output
         WorkerStatus status;
-        auto output = result.output;
         
-        // Extract status (PROVISIONING, STAGING, RUNNING, STOPPING, TERMINATED)
-        if (output.indexOf("\"status\":\"PROVISIONING\"") != -1 || 
-            output.indexOf("\"status\":\"STAGING\"") != -1)
-            status.state = WorkerStatus.State.Pending;
-        else if (output.indexOf("\"status\":\"RUNNING\"") != -1)
-            status.state = WorkerStatus.State.Running;
-        else if (output.indexOf("\"status\":\"STOPPING\"") != -1 || 
-                 output.indexOf("\"status\":\"SUSPENDING\"") != -1)
-            status.state = WorkerStatus.State.Stopping;
-        else if (output.indexOf("\"status\":\"TERMINATED\"") != -1 || 
-                 output.indexOf("\"status\":\"SUSPENDED\"") != -1)
-            status.state = WorkerStatus.State.Stopped;
-        else
+        try
+        {
+            import std.json : parseJSON, JSONException, JSONType;
+            import std.datetime : SysTime;
+            
+            auto json = parseJSON(result.output);
+            
+            if (json.type != JSONType.object)
+            {
+                auto error = new SystemError(
+                    "Invalid JSON response from GCP",
+                    ErrorCode.NetworkError
+                );
+                return Err!(WorkerStatus, BuildError)(error);
+            }
+            
+            // Extract status
+            if ("status" in json)
+            {
+                immutable statusName = json["status"].str;
+                switch (statusName)
+                {
+                    case "PROVISIONING":
+                    case "STAGING":
+                        status.state = WorkerStatus.State.Pending;
+                        break;
+                    case "RUNNING":
+                        status.state = WorkerStatus.State.Running;
+                        break;
+                    case "STOPPING":
+                    case "SUSPENDING":
+                        status.state = WorkerStatus.State.Stopping;
+                        break;
+                    case "TERMINATED":
+                    case "SUSPENDED":
+                        status.state = WorkerStatus.State.Stopped;
+                        break;
+                    default:
+                        status.state = WorkerStatus.State.Failed;
+                }
+            }
+            
+            // Extract external IP (from networkInterfaces[0].accessConfigs[0].natIP)
+            if ("networkInterfaces" in json && 
+                json["networkInterfaces"].type == JSONType.array &&
+                json["networkInterfaces"].array.length > 0)
+            {
+                auto netInterface = json["networkInterfaces"].array[0];
+                
+                // Get internal IP
+                if ("networkIP" in netInterface)
+                    status.privateIp = netInterface["networkIP"].str;
+                
+                // Get external IP
+                if ("accessConfigs" in netInterface &&
+                    netInterface["accessConfigs"].type == JSONType.array &&
+                    netInterface["accessConfigs"].array.length > 0)
+                {
+                    auto accessConfig = netInterface["accessConfigs"].array[0];
+                    if ("natIP" in accessConfig)
+                        status.publicIp = accessConfig["natIP"].str;
+                }
+            }
+            
+            // Extract creation timestamp
+            if ("creationTimestamp" in json)
+            {
+                try
+                {
+                    status.launchTime = SysTime.fromISOExtString(json["creationTimestamp"].str);
+                }
+                catch (Exception)
+                {
+                    status.launchTime = Clock.currTime;
+                }
+            }
+            else
+            {
+                status.launchTime = Clock.currTime;
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to parse GCP status JSON: " ~ e.msg);
             status.state = WorkerStatus.State.Failed;
-        
-        // Extract external IP
-        auto extIpIdx = output.indexOf("\"natIP\":\"");
-        if (extIpIdx != -1)
-        {
-            auto ipStart = extIpIdx + 9; // Length of "\"natIP\":\""
-            auto ipEnd = output.indexOf("\"", ipStart);
-            if (ipEnd != -1)
-                status.publicIp = output[ipStart..ipEnd];
         }
-        
-        // Extract internal IP
-        auto intIpIdx = output.indexOf("\"networkIP\":\"");
-        if (intIpIdx != -1)
-        {
-            auto ipStart = intIpIdx + 13; // Length of "\"networkIP\":\""
-            auto ipEnd = output.indexOf("\"", ipStart);
-            if (ipEnd != -1)
-                status.privateIp = output[ipStart..ipEnd];
-        }
-        
-        status.launchTime = Clock.currTime; // Would extract from creationTimestamp
         
         return Ok!(WorkerStatus, BuildError)(status);
     }

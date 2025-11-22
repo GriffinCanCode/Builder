@@ -151,19 +151,60 @@ struct TlsSession
     TlsVersion version_;
     SysTime createdAt;
     
-    /// Derive encryption keys from master secret
+    /// Derive encryption keys from master secret using HMAC-based PRF
     void deriveKeys(out ubyte[16] clientKey, out ubyte[16] serverKey) const pure @safe
     {
         import std.digest : toHexString;
+        import std.digest.hmac : HMAC;
+        import std.digest.sha : SHA256;
         
-        // PRF (Pseudo-Random Function) for key derivation
-        // In real TLS: PRF(master_secret, "key expansion", server_random + client_random)
-        ubyte[] seed = serverRandom.dup ~ clientRandom.dup;
+        // TLS PRF: PRF(secret, label, seed) = P_hash(secret, label + seed)
+        // P_hash uses HMAC iteratively to generate arbitrary amounts of data
+        // For TLS 1.2: PRF = P_SHA256
         
-        // Simplified key derivation (real impl uses HMAC-based PRF)
-        auto hash = sha256Of(masterSecret ~ seed);
-        clientKey[0..16] = hash[0..16];
-        serverKey[0..16] = hash[16..32];
+        immutable label = "key expansion";
+        ubyte[] seed = (cast(const(ubyte)[])label).dup ~ serverRandom ~ clientRandom;
+        
+        // Generate key material using HMAC-based PRF
+        // We need 32 bytes total (16 for client, 16 for server)
+        ubyte[32] keyMaterial = tlsPrf!(SHA256, 32)(masterSecret, seed);
+        
+        clientKey[0..16] = keyMaterial[0..16];
+        serverKey[0..16] = keyMaterial[16..32];
+    }
+    
+    /// TLS PRF (Pseudo-Random Function) using HMAC
+    /// Implements P_hash from RFC 5246 Section 5
+    private static ubyte[N] tlsPrf(Hash, size_t N)(scope const(ubyte)[] secret, scope const(ubyte)[] seed) @safe
+    {
+        import std.digest.hmac : hmac, HMAC;
+        
+        ubyte[N] output;
+        size_t offset = 0;
+        
+        // A(0) = seed
+        // A(i) = HMAC_hash(secret, A(i-1))
+        // P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
+        //                        HMAC_hash(secret, A(2) + seed) + ...
+        
+        ubyte[] A = seed.dup;  // A(0) = seed
+        
+        while (offset < N)
+        {
+            // A(i) = HMAC_hash(secret, A(i-1))
+            A = hmac!Hash(secret, A);
+            
+            // HMAC_hash(secret, A(i) + seed)
+            auto combined = A ~ seed;
+            auto chunk = hmac!Hash(secret, combined);
+            
+            // Copy chunk to output
+            immutable toCopy = (N - offset < chunk.length) ? (N - offset) : chunk.length;
+            output[offset..offset + toCopy] = chunk[0..toCopy];
+            offset += toCopy;
+        }
+        
+        return output;
     }
 }
 

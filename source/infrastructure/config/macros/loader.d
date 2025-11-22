@@ -1,6 +1,6 @@
 module infrastructure.config.macros.loader;
 
-import std.array;
+import std.array : join;
 import std.algorithm;
 import infrastructure.config.macros.api;
 import infrastructure.config.schema.schema : Target;
@@ -93,10 +93,11 @@ struct MacroLoader
     /// Load macros from a D source file
     static Result!(bool, BuildError) loadFromFile(string filename) @system
     {
-        import std.file : exists, readText;
+        import std.file : exists, readText, tempDir, write;
         import std.process : execute, ProcessException;
-        import std.path : buildPath, absolutePath, dirName;
+        import std.path : buildPath, absolutePath, dirName, baseName, stripExtension;
         import std.string : strip;
+        import std.uuid : randomUUID;
         
         if (!exists(filename))
         {
@@ -108,17 +109,167 @@ struct MacroLoader
             ));
         }
         
-        // For now, just log that we would load the file
-        // Full implementation would compile and load the D module
-        Logger.info("Loading macros from: " ~ filename);
+        Logger.info("Loading and compiling macros from: " ~ filename);
         
-        // Future enhancement: Dynamic compilation and loading of D macros (Tier 2)
-        // This requires:
-        // 1. Compile the D file to a shared library
-        // 2. Load the shared library dynamically
-        // 3. Extract and register macro functions
+        // 1. Generate unique shared library name
+        immutable libName = "macro_" ~ stripExtension(baseName(filename)) ~ "_" ~ randomUUID().toString()[0..8];
+        immutable sharedLibPath = buildPath(tempDir(), "builder_macros", libName ~ ".so");
         
+        // 2. Create output directory
+        try
+        {
+            import std.file : mkdirRecurse;
+            mkdirRecurse(dirName(sharedLibPath));
+        }
+        catch (Exception e)
+        {
+            import infrastructure.errors.types.types : IOError;
+            return typeof(return).err(new IOError(
+                dirName(sharedLibPath),
+                "Failed to create macro library directory: " ~ e.msg,
+                ErrorCode.FileWriteFailed
+            ));
+        }
+        
+        // 3. Compile D source to shared library
+        auto compileResult = compileMacroLibrary(filename, sharedLibPath);
+        if (compileResult.isErr)
+            return typeof(return).err(compileResult.unwrapErr());
+        
+        // 4. Load shared library dynamically
+        auto loadResult = loadMacroLibrary(sharedLibPath);
+        if (loadResult.isErr)
+            return typeof(return).err(loadResult.unwrapErr());
+        
+        Logger.info("Successfully loaded macros from: " ~ filename);
         return typeof(return).ok(true);
+    }
+    
+    /// Compile D source file to shared library
+    private static Result!BuildError compileMacroLibrary(string sourceFile, string outputLib) @system
+    {
+        import std.process : execute;
+        import std.format : format;
+        
+        // Build D compiler command (use dmd or ldc2)
+        string compiler = findDCompiler();
+        if (compiler.length == 0)
+        {
+            import infrastructure.errors.types.types : SystemError;
+            return Result!BuildError.err(new SystemError(
+                "No D compiler found (dmd or ldc2 required for macro compilation)",
+                ErrorCode.CompilationFailed
+            ));
+        }
+        
+        string[] compilerArgs = [
+            compiler,
+            "-shared",                    // Build shared library
+            "-fPIC",                      // Position-independent code
+            "-of=" ~ outputLib,           // Output file
+            "-I=source",                  // Include source directory
+            "-version=MacroCompilation",  // Signal this is a macro build
+            sourceFile
+        ];
+        
+        Logger.debugLog("Compiling macro: " ~ compilerArgs.join(" "));
+        
+        auto result = execute(compilerArgs);
+        if (result.status != 0)
+        {
+            import infrastructure.errors.types.types : compilationError;
+            return Result!BuildError.err(compilationError(
+                sourceFile,
+                "Macro compilation failed",
+                format("Compiler output:\n%s", result.output)
+            ));
+        }
+        
+        return Ok!BuildError();
+    }
+    
+    /// Find available D compiler
+    private static string findDCompiler() @system
+    {
+        import std.process : execute;
+        import std.string : strip;
+        
+        // Try ldc2 first (better optimization)
+        auto ldcResult = execute(["which", "ldc2"]);
+        if (ldcResult.status == 0 && ldcResult.output.strip().length > 0)
+            return "ldc2";
+        
+        // Fall back to dmd
+        auto dmdResult = execute(["which", "dmd"]);
+        if (dmdResult.status == 0 && dmdResult.output.strip().length > 0)
+            return "dmd";
+        
+        return "";
+    }
+    
+    /// Load shared library and register macros
+    private static Result!BuildError loadMacroLibrary(string libPath) @system
+    {
+        import std.file : exists;
+        import core.sys.posix.dlfcn : dlopen, dlsym, dlclose, dlerror, RTLD_LAZY, RTLD_LOCAL;
+        import std.string : toStringz, fromStringz;
+        
+        if (!exists(libPath))
+        {
+            import infrastructure.errors.types.types : IOError;
+            return Result!BuildError.err(new IOError(
+                libPath,
+                "Compiled macro library not found",
+                ErrorCode.FileNotFound
+            ));
+        }
+        
+        // Load shared library
+        void* handle = dlopen(toStringz(libPath), RTLD_LAZY | RTLD_LOCAL);
+        if (handle is null)
+        {
+            import infrastructure.errors.types.types : SystemError;
+            import std.format : format;
+            auto errorMsg = fromStringz(dlerror());
+            return Result!BuildError.err(new SystemError(
+                format("Failed to load macro library: %s", errorMsg),
+                ErrorCode.MacroLoadFailed
+            ));
+        }
+        
+        // Look for registration function: extern(C) void registerMacros(MacroRegistry)
+        alias RegisterFunc = extern(C) void function(MacroRegistry);
+        auto registerFunc = cast(RegisterFunc)dlsym(handle, "registerMacros");
+        
+        if (registerFunc is null)
+        {
+            import infrastructure.errors.types.types : SystemError;
+            dlclose(handle);
+            return Result!BuildError.err(new SystemError(
+                "Macro library missing 'registerMacros' function",
+                ErrorCode.MacroExpansionFailed
+            ));
+        }
+        
+        // Call registration function to register all macros
+        try
+        {
+            registerFunc(MacroRegistry.instance());
+        }
+        catch (Exception e)
+        {
+            import infrastructure.errors.types.types : SystemError;
+            import std.format : format;
+            dlclose(handle);
+            return Result!BuildError.err(new SystemError(
+                format("Macro registration failed: %s", e.msg),
+                ErrorCode.MacroLoadFailed
+            ));
+        }
+        
+        // Keep library loaded (store handle for cleanup if needed)
+        Logger.debugLog("Loaded macro library: " ~ libPath);
+        return Ok!BuildError();
     }
     
     /// Load macros from a directory

@@ -74,21 +74,53 @@ final class AwsEc2Provider : CloudProvider
             return Err!(WorkerId, BuildError)(error);
         }
         
-        // Parse instance ID from JSON output (simplified)
-        auto output = result.output;
-        auto instanceIdIdx = output.indexOf("\"InstanceId\":\"");
-        if (instanceIdIdx == -1)
+        // Parse instance ID from JSON output
+        string instanceId;
+        try
+        {
+            import std.json : parseJSON, JSONException, JSONType;
+            auto json = parseJSON(result.output);
+            
+            // Navigate: {"Instances": [{"InstanceId": "i-xxx"}]}
+            if (json.type != JSONType.object || "Instances" !in json)
+            {
+                auto error = new SystemError(
+                    "Invalid JSON response from AWS: missing 'Instances' field",
+                    ErrorCode.NetworkError
+                );
+                return Err!(WorkerId, BuildError)(error);
+            }
+            
+            auto instances = json["Instances"];
+            if (instances.type != JSONType.array || instances.array.length == 0)
+            {
+                auto error = new SystemError(
+                    "Invalid JSON response from AWS: empty or invalid 'Instances' array",
+                    ErrorCode.NetworkError
+                );
+                return Err!(WorkerId, BuildError)(error);
+            }
+            
+            auto firstInstance = instances.array[0];
+            if (firstInstance.type != JSONType.object || "InstanceId" !in firstInstance)
+            {
+                auto error = new SystemError(
+                    "Invalid JSON response from AWS: missing 'InstanceId' field",
+                    ErrorCode.NetworkError
+                );
+                return Err!(WorkerId, BuildError)(error);
+            }
+            
+            instanceId = firstInstance["InstanceId"].str;
+        }
+        catch (Exception e)
         {
             auto error = new SystemError(
-                "Failed to parse instance ID from AWS response",
+                format("Failed to parse AWS JSON response: %s", e.msg),
                 ErrorCode.NetworkError
             );
             return Err!(WorkerId, BuildError)(error);
         }
-        
-        auto idStart = instanceIdIdx + 14; // Length of "\"InstanceId\":\""
-        auto idEnd = output.indexOf("\"", idStart);
-        immutable instanceId = output[idStart..idEnd];
         
         // Convert string instance ID to WorkerId by hashing
         import std.digest.murmurhash : MurmurHash3;
@@ -191,44 +223,96 @@ final class AwsEc2Provider : CloudProvider
             return Err!(WorkerStatus, BuildError)(error);
         }
         
-        // Parse JSON output (simplified - real implementation would use JSON parser)
+        // Parse JSON output
         WorkerStatus status;
-        auto output = result.output;
         
-        // Extract state (pending, running, stopping, stopped, terminated)
-        if (output.indexOf("\"Name\":\"pending\"") != -1)
-            status.state = WorkerStatus.State.Pending;
-        else if (output.indexOf("\"Name\":\"running\"") != -1)
-            status.state = WorkerStatus.State.Running;
-        else if (output.indexOf("\"Name\":\"stopping\"") != -1)
-            status.state = WorkerStatus.State.Stopping;
-        else if (output.indexOf("\"Name\":\"stopped\"") != -1 || 
-                 output.indexOf("\"Name\":\"terminated\"") != -1)
-            status.state = WorkerStatus.State.Stopped;
-        else
+        try
+        {
+            import std.json : parseJSON, JSONException, JSONType;
+            import std.datetime : SysTime, parseRFC822DateTime;
+            
+            auto json = parseJSON(result.output);
+            
+            // Navigate: {"Reservations": [{"Instances": [{"State": {...}, ...}]}]}
+            if (json.type != JSONType.object || "Reservations" !in json)
+            {
+                auto error = new SystemError(
+                    "Invalid JSON response from AWS: missing 'Reservations'",
+                    ErrorCode.NetworkError
+                );
+                return Err!(WorkerStatus, BuildError)(error);
+            }
+            
+            auto reservations = json["Reservations"];
+            if (reservations.type != JSONType.array || reservations.array.length == 0)
+            {
+                status.state = WorkerStatus.State.Failed;
+                return Ok!(WorkerStatus, BuildError)(status);
+            }
+            
+            auto reservation = reservations.array[0];
+            if ("Instances" !in reservation || reservation["Instances"].array.length == 0)
+            {
+                status.state = WorkerStatus.State.Failed;
+                return Ok!(WorkerStatus, BuildError)(status);
+            }
+            
+            auto instance = reservation["Instances"].array[0];
+            
+            // Extract state
+            if ("State" in instance && "Name" in instance["State"])
+            {
+                immutable stateName = instance["State"]["Name"].str;
+                switch (stateName)
+                {
+                    case "pending":
+                        status.state = WorkerStatus.State.Pending;
+                        break;
+                    case "running":
+                        status.state = WorkerStatus.State.Running;
+                        break;
+                    case "stopping":
+                        status.state = WorkerStatus.State.Stopping;
+                        break;
+                    case "stopped":
+                    case "terminated":
+                        status.state = WorkerStatus.State.Stopped;
+                        break;
+                    default:
+                        status.state = WorkerStatus.State.Failed;
+                }
+            }
+            
+            // Extract public IP
+            if ("PublicIpAddress" in instance)
+                status.publicIp = instance["PublicIpAddress"].str;
+            
+            // Extract private IP
+            if ("PrivateIpAddress" in instance)
+                status.privateIp = instance["PrivateIpAddress"].str;
+            
+            // Extract launch time
+            if ("LaunchTime" in instance)
+            {
+                try
+                {
+                    status.launchTime = SysTime.fromISOExtString(instance["LaunchTime"].str);
+                }
+                catch (Exception)
+                {
+                    status.launchTime = Clock.currTime;
+                }
+            }
+            else
+            {
+                status.launchTime = Clock.currTime;
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to parse AWS status JSON: " ~ e.msg);
             status.state = WorkerStatus.State.Failed;
-        
-        // Extract public IP
-        auto publicIpIdx = output.indexOf("\"PublicIpAddress\":\"");
-        if (publicIpIdx != -1)
-        {
-            auto ipStart = publicIpIdx + 19; // Length of "\"PublicIpAddress\":\""
-            auto ipEnd = output.indexOf("\"", ipStart);
-            if (ipEnd != -1)
-                status.publicIp = output[ipStart..ipEnd];
         }
-        
-        // Extract private IP
-        auto privateIpIdx = output.indexOf("\"PrivateIpAddress\":\"");
-        if (privateIpIdx != -1)
-        {
-            auto ipStart = privateIpIdx + 20; // Length of "\"PrivateIpAddress\":\""
-            auto ipEnd = output.indexOf("\"", ipStart);
-            if (ipEnd != -1)
-                status.privateIp = output[ipStart..ipEnd];
-        }
-        
-        status.launchTime = Clock.currTime; // Would extract from LaunchTime field
         
         return Ok!(WorkerStatus, BuildError)(status);
     }

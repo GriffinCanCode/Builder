@@ -8,7 +8,7 @@ import engine.distributed.protocol.protocol : ResourceUsage;
 import std.datetime : Duration, msecs;
 import std.file : exists, readText, writeText, remove;
 import std.path : buildPath, dirName;
-import std.string : strip, lineSplitter, splitter, toStringz;
+import std.string : strip, lineSplitter, splitter, toStringz, startsWith, split;
 import std.conv : to;
 import std.algorithm : canFind;
 import std.array : array;
@@ -940,8 +940,82 @@ char _license[] SEC("license") = "GPL";
     /// Read network stats from BPF map
     void readFromBpfMap(ref NetworkStats stats) @trusted
     {
-        // This would use bpf_map_lookup_elem() syscall to read from the map
-        // For now, we rely on the /proc/net/dev fallback
+        import std.file : exists;
+        import std.process : execute;
+        import core.sys.posix.unistd : getpid;
+        import std.conv : parse;
+        import std.string : lineSplitter, strip;
+        
+        // Read from BPF map using bpftool
+        try
+        {
+            immutable mapPath = "/sys/fs/bpf/builder_netmap";
+            if (!exists(mapPath))
+                return;
+            
+            immutable pid = getpid();
+            
+            // Try to read our PID's entry from the map
+            auto result = execute(["bpftool", "map", "lookup", "pinned", mapPath, "key", pid.to!string]);
+            
+            if (result.status == 0)
+            {
+                // Parse output format:
+                // key: <pid>  value: <bytes_sent> <bytes_received> <packets_sent> <packets_received>
+                foreach (line; result.output.lineSplitter())
+                {
+                    if (line.strip().startsWith("value:"))
+                    {
+                        auto parts = line.strip()["value:".length..$].strip().split();
+                        if (parts.length >= 4)
+                        {
+                            try
+                            {
+                                stats.bytesSent = parts[0].to!ulong;
+                                stats.bytesReceived = parts[1].to!ulong;
+                                stats.packetsSent = parts[2].to!ulong;
+                                stats.packetsReceived = parts[3].to!ulong;
+                                return;
+                            }
+                            catch (Exception) {}
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // BPF map read failed, rely on /proc fallback
+        }
+    }
+    
+    /// Cleanup BPF programs on shutdown
+    ~this() @trusted
+    {
+        try
+        {
+            import std.file : exists, remove;
+            import std.process : execute;
+            
+            // Cleanup pinned BPF programs
+            if (exists("/sys/fs/bpf/builder_netmon_egress"))
+            {
+                execute(["bpftool", "prog", "detach", "pinned", "/sys/fs/bpf/builder_netmon_egress"]);
+                remove("/sys/fs/bpf/builder_netmon_egress");
+            }
+            
+            if (exists("/sys/fs/bpf/builder_netmon_ingress"))
+            {
+                execute(["bpftool", "prog", "detach", "pinned", "/sys/fs/bpf/builder_netmon_ingress"]);
+                remove("/sys/fs/bpf/builder_netmon_ingress");
+            }
+            
+            if (exists("/sys/fs/bpf/builder_netmap"))
+            {
+                remove("/sys/fs/bpf/builder_netmap");
+            }
+        }
+        catch (Exception) {}
     }
 }
 

@@ -37,9 +37,10 @@ struct HermeticExecutor
     private SandboxSpec spec;
     private string workDir;
     private bool initialized;
+    private HermeticAuditLogger* auditLogger;
     
     /// Create hermetic executor from spec
-    static Result!(HermeticExecutor, BuildError) create(SandboxSpec spec, string workDir = "") @system
+    static Result!(HermeticExecutor, BuildError) create(SandboxSpec spec, string workDir = "", HermeticAuditLogger* logger = null) @system
     {
         // Validate spec
         auto validateResult = spec.validate();
@@ -49,6 +50,7 @@ struct HermeticExecutor
         
         HermeticExecutor executor;
         executor.spec = spec;
+        executor.auditLogger = logger;
         
         // Setup work directory
         if (workDir.empty)
@@ -95,12 +97,31 @@ struct HermeticExecutor
         // Ensure working directory is in allowed paths
         if (!spec.canRead(execDir) && !spec.canWrite(execDir))
         {
-            // Note: Optional audit logging disabled (auditLogger not passed to function)
-            // TODO: Pass audit logger parameter if needed
+            // Log security violation via audit logger
+            if (auditLogger !is null)
+            {
+                auditLogger.logFilesystemAccess(
+                    execDir,
+                    "access",
+                    command[0],
+                    false  // Not allowed
+                );
+            }
             
             return Result!(Output, BuildError).err(
                 new SystemError("Working directory not in allowed paths: " ~ execDir, 
                               ErrorCode.PermissionDenied));
+        }
+        
+        // Log execution start
+        if (auditLogger !is null)
+        {
+            auditLogger.logProcessCreation(
+                command[0],
+                command[1..$],
+                command[0],
+                true  // Allowed (passed security check)
+            );
         }
         
         // Select platform-specific backend
