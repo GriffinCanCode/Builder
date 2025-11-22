@@ -98,7 +98,7 @@ class PostCSSProcessor : CSSProcessor
     }
 }
 
-/// Less CSS processor (stub)
+/// Less CSS processor
 class LessProcessor : CSSProcessor
 {
     CSSCompileResult compile(
@@ -109,16 +109,88 @@ class LessProcessor : CSSProcessor
     )
     {
         CSSCompileResult result;
-        result.error = "Less processor not yet implemented";
+        
+        // Determine output path
+        string outputPath;
+        if (!config.output.empty)
+        {
+            outputPath = buildPath(workspace.options.outputDir, config.output);
+        }
+        else if (!target.outputPath.empty)
+        {
+            outputPath = buildPath(workspace.options.outputDir, target.outputPath);
+        }
+        else
+        {
+            auto name = target.name.split(":")[$ - 1];
+            outputPath = buildPath(workspace.options.outputDir, name ~ ".css");
+        }
+        
+        mkdirRecurse(dirName(outputPath));
+        
+        // Build lessc command
+        string[] cmd = ["lessc"];
+        
+        // Entry point
+        string entry = config.entry.empty ? sources[0] : config.entry;
+        cmd ~= [entry];
+        
+        // Output
+        cmd ~= [outputPath];
+        
+        // Compression/minification
+        if (config.minify)
+            cmd ~= ["--clean-css"];
+        
+        // Source maps
+        if (config.sourcemap)
+            cmd ~= ["--source-map"];
+        
+        // Strict math (recommended)
+        cmd ~= ["--math=parens-division"];
+        
+        Logger.debugLog("Running: " ~ cmd.join(" "));
+        
+        auto res = execute(cmd);
+        
+        if (res.status != 0)
+        {
+            result.error = "Less compilation failed: " ~ res.output;
+            return result;
+        }
+        
+        result.success = true;
+        result.outputs = [outputPath];
+        if (config.sourcemap && exists(outputPath ~ ".map"))
+        {
+            result.outputs ~= outputPath ~ ".map";
+        }
+        result.outputHash = FastHash.hashFiles(result.outputs);
+        
         return result;
     }
     
-    bool isAvailable() { return false; }
-    string name() const { return "less"; }
-    string getVersion() { return "unknown"; }
+    bool isAvailable()
+    {
+        auto res = execute(["lessc", "--version"]);
+        return res.status == 0;
+    }
+    
+    string name() const
+    {
+        return "less";
+    }
+    
+    string getVersion()
+    {
+        auto res = execute(["lessc", "--version"]);
+        if (res.status == 0)
+            return res.output.strip();
+        return "unknown";
+    }
 }
 
-/// Stylus processor (stub)
+/// Stylus processor
 class StylusProcessor : CSSProcessor
 {
     CSSCompileResult compile(
@@ -129,12 +201,84 @@ class StylusProcessor : CSSProcessor
     )
     {
         CSSCompileResult result;
-        result.error = "Stylus processor not yet implemented";
+        
+        // Determine output path
+        string outputPath;
+        if (!config.output.empty)
+        {
+            outputPath = buildPath(workspace.options.outputDir, config.output);
+        }
+        else if (!target.outputPath.empty)
+        {
+            outputPath = buildPath(workspace.options.outputDir, target.outputPath);
+        }
+        else
+        {
+            auto name = target.name.split(":")[$ - 1];
+            outputPath = buildPath(workspace.options.outputDir, name ~ ".css");
+        }
+        
+        mkdirRecurse(dirName(outputPath));
+        
+        // Build stylus command
+        string[] cmd = ["stylus"];
+        
+        // Entry point
+        string entry = config.entry.empty ? sources[0] : config.entry;
+        cmd ~= [entry];
+        
+        // Output
+        cmd ~= ["--out", outputPath];
+        
+        // Compression
+        if (config.minify)
+            cmd ~= ["--compress"];
+        
+        // Source maps
+        if (config.sourcemap)
+            cmd ~= ["--sourcemap"];
+        
+        // Include CSS (allow importing .css files)
+        cmd ~= ["--include-css"];
+        
+        Logger.debugLog("Running: " ~ cmd.join(" "));
+        
+        auto res = execute(cmd);
+        
+        if (res.status != 0)
+        {
+            result.error = "Stylus compilation failed: " ~ res.output;
+            return result;
+        }
+        
+        result.success = true;
+        result.outputs = [outputPath];
+        if (config.sourcemap && exists(outputPath ~ ".map"))
+        {
+            result.outputs ~= outputPath ~ ".map";
+        }
+        result.outputHash = FastHash.hashFiles(result.outputs);
+        
         return result;
     }
     
-    bool isAvailable() { return false; }
-    string name() const { return "stylus"; }
-    string getVersion() { return "unknown"; }
+    bool isAvailable()
+    {
+        auto res = execute(["stylus", "--version"]);
+        return res.status == 0;
+    }
+    
+    string name() const
+    {
+        return "stylus";
+    }
+    
+    string getVersion()
+    {
+        auto res = execute(["stylus", "--version"]);
+        if (res.status == 0)
+            return res.output.strip();
+        return "unknown";
+    }
 }
 

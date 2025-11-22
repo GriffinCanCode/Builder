@@ -20,6 +20,7 @@ import engine.runtime.remote.providers.base : CloudProvider;
 import engine.runtime.remote.providers.mock : MockCloudProvider;
 import engine.runtime.remote.providers.aws : AwsEc2Provider;
 import engine.runtime.remote.providers.gcp : GcpComputeProvider;
+import engine.runtime.remote.providers.azure : AzureVmProvider;
 import engine.runtime.remote.providers.kubernetes : KubernetesProvider;
 import engine.runtime.remote.monitoring.health : RemoteServiceHealthMonitor;
 import engine.runtime.remote.monitoring.metrics : RemoteServiceMetricsCollector, ServiceMetrics;
@@ -34,7 +35,7 @@ enum ProviderType
     AWS,         // AWS EC2
     GCP,         // Google Cloud Platform Compute Engine
     Kubernetes,  // Kubernetes Pods
-    Azure        // Azure VMs (future)
+    Azure        // Azure VMs
 }
 
 /// Provider-specific configuration
@@ -51,6 +52,14 @@ struct ProviderConfig
     string gcpProject = "";
     string gcpZone = "us-central1-a";
     string gcpServiceAccountKey = "";
+    
+    // Azure configuration
+    string azureSubscriptionId = "";
+    string azureResourceGroup = "builder";
+    string azureLocation = "eastus";
+    string azureTenantId = "";
+    string azureClientId = "";
+    string azureClientSecret = "";
     
     // Kubernetes configuration
     string k8sNamespace = "builder";
@@ -222,8 +231,15 @@ final class RemoteExecutionService : IRemoteExecutionService
                 );
             
             case ProviderType.Azure:
-                Logger.warning("Azure provider not yet implemented, falling back to Mock");
-                return new MockCloudProvider();
+                Logger.info("Using Azure VM provider (subscription: " ~ providerConfig.azureSubscriptionId ~ ")");
+                return new AzureVmProvider(
+                    providerConfig.azureSubscriptionId,
+                    providerConfig.azureResourceGroup,
+                    providerConfig.azureLocation,
+                    providerConfig.azureTenantId,
+                    providerConfig.azureClientId,
+                    providerConfig.azureClientSecret
+                );
         }
     }
     

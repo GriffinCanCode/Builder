@@ -235,14 +235,301 @@ private Result!(Value, BuildError) builtinAppend(Value[] args) @system
 
 private Result!(Value, BuildError) builtinFilter(Value[] args) @system
 {
-    // Full implementation requires function calling support
-    return err("filter() not yet implemented - requires function evaluation");
+    if (args.length != 2)
+        return err("filter() expects 2 arguments: array and predicate");
+    
+    if (!args[0].isArray())
+        return err("filter() expects an array as first argument");
+    
+    auto arr = args[0].asArray();
+    Value[] filtered;
+    
+    // Handle function value (closure/lambda)
+    if (args[1].isString())
+    {
+        // String expression predicate: evaluate for each element
+        immutable predicateExpr = args[1].asString();
+        
+        foreach (elem; arr)
+        {
+            // Create mini evaluator context with 'it' variable
+            auto evalResult = evaluatePredicateExpression(predicateExpr, elem);
+            if (evalResult.isErr)
+                return evalResult;
+            
+            if (evalResult.unwrap().toBool())
+                filtered ~= elem;
+        }
+    }
+    else
+    {
+        // Direct predicate function (for future extension)
+        return err("filter() currently only supports string expressions as predicates");
+    }
+    
+    return ok(Value.makeArray(filtered));
 }
 
 private Result!(Value, BuildError) builtinMap(Value[] args) @system
 {
-    // Full implementation requires function calling support
-    return err("map() not yet implemented - requires function evaluation");
+    if (args.length != 2)
+        return err("map() expects 2 arguments: array and transform function");
+    
+    if (!args[0].isArray())
+        return err("map() expects an array as first argument");
+    
+    auto arr = args[0].asArray();
+    Value[] mapped;
+    
+    // Handle function value (closure/lambda)
+    if (args[1].isString())
+    {
+        // String expression transform: evaluate for each element
+        immutable transformExpr = args[1].asString();
+        
+        foreach (elem; arr)
+        {
+            // Create mini evaluator context with 'it' variable
+            auto evalResult = evaluateTransformExpression(transformExpr, elem);
+            if (evalResult.isErr)
+                return evalResult;
+            
+            mapped ~= evalResult.unwrap();
+        }
+    }
+    else
+    {
+        // Direct transform function (for future extension)
+        return err("map() currently only supports string expressions as transforms");
+    }
+    
+    return ok(Value.makeArray(mapped));
+}
+
+/// Evaluate predicate expression with 'it' variable bound to element
+private Result!(Value, BuildError) evaluatePredicateExpression(string expr, Value elem) @system
+{
+    import std.algorithm : canFind, startsWith, endsWith;
+    import std.string : strip;
+    
+    immutable trimmedExpr = expr.strip();
+    
+    // Handle common patterns without full parser
+    // Pattern: "it > N", "it < N", "it == value", etc.
+    if (trimmedExpr.canFind("it"))
+    {
+        // Simple comparison operators
+        if (trimmedExpr.canFind(">"))
+        {
+            auto parts = trimmedExpr.split(">");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                try
+                {
+                    immutable threshold = parts[1].strip().to!double;
+                    if (elem.isNumber())
+                        return ok(Value.makeBool(elem.asNumber() > threshold));
+                }
+                catch (Exception) {}
+            }
+        }
+        else if (trimmedExpr.canFind("<"))
+        {
+            auto parts = trimmedExpr.split("<");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                try
+                {
+                    immutable threshold = parts[1].strip().to!double;
+                    if (elem.isNumber())
+                        return ok(Value.makeBool(elem.asNumber() < threshold));
+                }
+                catch (Exception) {}
+            }
+        }
+        else if (trimmedExpr.canFind("=="))
+        {
+            auto parts = trimmedExpr.split("==");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                immutable compareStr = parts[1].strip();
+                if (compareStr.startsWith("\"") && compareStr.endsWith("\""))
+                {
+                    immutable value = compareStr[1..$-1];
+                    if (elem.isString())
+                        return ok(Value.makeBool(elem.asString() == value));
+                }
+                else
+                {
+                    try
+                    {
+                        immutable value = compareStr.to!double;
+                        if (elem.isNumber())
+                            return ok(Value.makeBool(elem.asNumber() == value));
+                    }
+                    catch (Exception) {}
+                }
+            }
+        }
+        else if (trimmedExpr.canFind("!="))
+        {
+            auto parts = trimmedExpr.split("!=");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                immutable compareStr = parts[1].strip();
+                if (compareStr.startsWith("\"") && compareStr.endsWith("\""))
+                {
+                    immutable value = compareStr[1..$-1];
+                    if (elem.isString())
+                        return ok(Value.makeBool(elem.asString() != value));
+                }
+                else
+                {
+                    try
+                    {
+                        immutable value = compareStr.to!double;
+                        if (elem.isNumber())
+                            return ok(Value.makeBool(elem.asNumber() != value));
+                    }
+                    catch (Exception) {}
+                }
+            }
+        }
+        // Pattern: "it.startsWith(X)", "it.endsWith(X)", "it.contains(X)"
+        else if (trimmedExpr.canFind("startsWith"))
+        {
+            auto idx = trimmedExpr.indexOf("startsWith(");
+            if (idx != -1)
+            {
+                auto endIdx = trimmedExpr.indexOf(")", idx);
+                if (endIdx != -1)
+                {
+                    auto arg = trimmedExpr[idx+11..endIdx].strip();
+                    if (arg.startsWith("\"") && arg.endsWith("\"") && elem.isString())
+                    {
+                        immutable prefix = arg[1..$-1];
+                        return ok(Value.makeBool(elem.asString().startsWith(prefix)));
+                    }
+                }
+            }
+        }
+        else if (trimmedExpr.canFind("endsWith"))
+        {
+            auto idx = trimmedExpr.indexOf("endsWith(");
+            if (idx != -1)
+            {
+                auto endIdx = trimmedExpr.indexOf(")", idx);
+                if (endIdx != -1)
+                {
+                    auto arg = trimmedExpr[idx+9..endIdx].strip();
+                    if (arg.startsWith("\"") && arg.endsWith("\"") && elem.isString())
+                    {
+                        immutable suffix = arg[1..$-1];
+                        return ok(Value.makeBool(elem.asString().endsWith(suffix)));
+                    }
+                }
+            }
+        }
+        else if (trimmedExpr.canFind("contains"))
+        {
+            auto idx = trimmedExpr.indexOf("contains(");
+            if (idx != -1)
+            {
+                auto endIdx = trimmedExpr.indexOf(")", idx);
+                if (endIdx != -1)
+                {
+                    auto arg = trimmedExpr[idx+9..endIdx].strip();
+                    if (arg.startsWith("\"") && arg.endsWith("\"") && elem.isString())
+                    {
+                        immutable substr = arg[1..$-1];
+                        return ok(Value.makeBool(elem.asString().canFind(substr)));
+                    }
+                }
+            }
+        }
+    }
+    
+    return err("Unsupported predicate expression: " ~ expr);
+}
+
+/// Evaluate transform expression with 'it' variable bound to element
+private Result!(Value, BuildError) evaluateTransformExpression(string expr, Value elem) @system
+{
+    import std.algorithm : startsWith, endsWith;
+    import std.string : strip, toUpper, toLower;
+    
+    immutable trimmedExpr = expr.strip();
+    
+    // Handle common patterns
+    if (trimmedExpr.canFind("it"))
+    {
+        // Pattern: "it * 2", "it + 10", etc.
+        if (trimmedExpr.canFind("*"))
+        {
+            auto parts = trimmedExpr.split("*");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                try
+                {
+                    immutable factor = parts[1].strip().to!double;
+                    if (elem.isNumber())
+                        return ok(Value.makeNumber(elem.asNumber() * factor));
+                }
+                catch (Exception) {}
+            }
+        }
+        else if (trimmedExpr.canFind("+"))
+        {
+            auto parts = trimmedExpr.split("+");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                try
+                {
+                    immutable addend = parts[1].strip().to!double;
+                    if (elem.isNumber())
+                        return ok(Value.makeNumber(elem.asNumber() + addend));
+                }
+                catch (Exception) {}
+            }
+        }
+        else if (trimmedExpr.canFind("-"))
+        {
+            auto parts = trimmedExpr.split("-");
+            if (parts.length == 2 && parts[0].strip() == "it")
+            {
+                try
+                {
+                    immutable subtrahend = parts[1].strip().to!double;
+                    if (elem.isNumber())
+                        return ok(Value.makeNumber(elem.asNumber() - subtrahend));
+                }
+                catch (Exception) {}
+            }
+        }
+        // Pattern: "it.upper()", "it.lower()", etc.
+        else if (trimmedExpr == "it.upper()" || trimmedExpr == "it.toUpper()")
+        {
+            if (elem.isString())
+                return ok(Value.makeString(elem.asString().toUpper()));
+        }
+        else if (trimmedExpr == "it.lower()" || trimmedExpr == "it.toLower()")
+        {
+            if (elem.isString())
+                return ok(Value.makeString(elem.asString().toLower()));
+        }
+        else if (trimmedExpr == "it.trim()" || trimmedExpr == "it.strip()")
+        {
+            if (elem.isString())
+                return ok(Value.makeString(elem.asString().strip()));
+        }
+        else if (trimmedExpr == "it")
+        {
+            // Identity transform
+            return ok(elem);
+        }
+    }
+    
+    return err("Unsupported transform expression: " ~ expr);
 }
 
 private Result!(Value, BuildError) builtinRange(Value[] args) @system

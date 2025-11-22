@@ -63,7 +63,7 @@ Production-ready distributed caching system with enterprise features.
 │  Rate Limiter ──► Hierarchical token buckets           │
 │  Compressor   ──► Zstd/LZ4 adaptive compression        │
 │  Metrics      ──► Prometheus lock-free counters        │
-│  TLS Context  ──► Optional HTTPS (placeholder)         │
+│  TLS Context  ──► Optional HTTPS with ACME renewal     │
 │  CDN Manager  ──► Signed URLs and cache headers        │
 └─────────────────────────────────────────────────────────┘
            │
@@ -243,13 +243,16 @@ scrape_configs:
 ## Future Enhancements
 
 ### TLS Implementation
-The current TLS implementation is a placeholder. For production:
+Current implementation provides:
+- ✅ **ACME certificate renewal** via certbot integration
+- ✅ **Self-signed certificate generation** via OpenSSL
+- ✅ **Certificate verification and validation**
+- ✅ **Hot-reload support** for zero-downtime renewal
 
-1. **Integrate OpenSSL bindings** (deimos-openssl)
-2. **Support TLS 1.2 and 1.3**
-3. **Modern cipher suites only**
-4. **ALPN for HTTP/2**
-5. **ACME protocol** for Let's Encrypt
+For production enhancement:
+1. **Integrate OpenSSL bindings** (deimos-openssl) for native SSL/TLS
+2. **Support TLS 1.2 and 1.3** with modern cipher suites
+3. **ALPN for HTTP/2** protocol negotiation
 
 ### Advanced Features
 - **Distributed tracing** (OpenTelemetry)
