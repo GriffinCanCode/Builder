@@ -295,7 +295,7 @@ class WatchModeWithDiscovery
         foreach (node; originalNodes)
         {
             // Reset node status to pending for rebuild
-            node.setStatus(BuildStatus.Pending);
+            node.status = BuildStatus.Pending;
             rebuiltCount++;
         }
         
