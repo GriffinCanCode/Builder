@@ -9,6 +9,7 @@ import engine.runtime.services;
 import engine.runtime.shutdown.shutdown;
 import infrastructure.telemetry;
 import infrastructure.config.parsing.parser;
+import infrastructure.config.schema.schema : EconomicsConfig;
 import infrastructure.analysis.inference.analyzer;
 import infrastructure.utils.logging.logger;
 import infrastructure.utils.simd;
@@ -37,6 +38,11 @@ void main(string[] args)
     long debounceMs = 300;
     bool remoteExecution = false;
     
+    // Economic optimization flags
+    float budget = float.infinity;
+    float timeLimit = float.infinity;
+    string optimize = "";
+    
     auto helpInfo = getopt(
         args,
         "verbose|v", "Enable verbose output", &verbose,
@@ -46,7 +52,10 @@ void main(string[] args)
         "watch|w", "Watch mode - rebuild on file changes", &watch,
         "clear", "Clear screen between builds in watch mode", &clearScreen,
         "debounce", "Debounce delay in milliseconds for watch mode", &debounceMs,
-        "remote", "Enable remote execution on worker pool", &remoteExecution
+        "remote", "Enable remote execution on worker pool", &remoteExecution,
+        "budget", "Maximum budget in USD (e.g., --budget=5.00)", &budget,
+        "time-limit", "Maximum time limit in seconds (e.g., --time-limit=120)", &timeLimit,
+        "optimize", "Optimization mode: cost, time, balanced", &optimize
     );
     
     if (showVersion)
@@ -79,7 +88,28 @@ void main(string[] args)
                 }
                 else
                 {
-                    buildCommand(target, showGraph, mode, remoteExecution);
+                    // Configure economics if specified
+                    import infrastructure.config.schema.schema : EconomicsConfig;
+                    EconomicsConfig econConfig;
+                    
+                    if (budget != float.infinity || timeLimit != float.infinity || optimize.length > 0)
+                    {
+                        econConfig.enabled = true;
+                        econConfig.budgetUSD = budget;
+                        econConfig.timeLimit = timeLimit;
+                        if (optimize.length > 0)
+                            econConfig.optimize = optimize;
+                        
+                        Logger.info("Cost optimization enabled");
+                        if (budget != float.infinity)
+                            Logger.info("  Budget constraint: $" ~ budget.to!string);
+                        if (timeLimit != float.infinity)
+                            Logger.info("  Time limit: " ~ timeLimit.to!string ~ "s");
+                        if (optimize.length > 0)
+                            Logger.info("  Optimization mode: " ~ optimize);
+                    }
+                    
+                    buildCommand(target, showGraph, mode, remoteExecution, econConfig);
                 }
                 break;
             case "test":
@@ -175,8 +205,15 @@ void main(string[] args)
 }
 
 /// Build command handler (refactored to use dependency injection)
-void buildCommand(in string target, in bool showGraph, in string modeStr, in bool remoteExecution = false) @system
+void buildCommand(
+    in string target,
+    in bool showGraph,
+    in string modeStr,
+    in bool remoteExecution = false,
+    EconomicsConfig econConfig = EconomicsConfig.init
+) @system
 {
+    
     Logger.info("Starting build...");
     
     if (remoteExecution)
@@ -197,6 +234,12 @@ void buildCommand(in string target, in bool showGraph, in string modeStr, in boo
     
     auto config = configResult.unwrap();
     Logger.info("Found " ~ config.targets.length.to!string ~ " targets");
+    
+    // Configure economics if provided
+    if (econConfig.enabled)
+    {
+        config.options.economics = econConfig;
+    }
     
     // Configure remote execution if enabled
     if (remoteExecution)
@@ -244,13 +287,82 @@ void buildCommand(in string target, in bool showGraph, in string modeStr, in boo
         graph.print();
     }
     
+    // Compute optimal build plan if economics enabled
+    size_t maxParallelism = 0;  // Default: auto-detect
+    bool useWorkStealing = false;
+    bool useRemoteExecution = false;
+    
+    if (econConfig.enabled && services.economics !is null)
+    {
+        auto planResult = services.economics.computePlan(graph, econConfig);
+        if (planResult.isErr)
+        {
+            Logger.warning("Failed to compute optimal plan: " ~ 
+                         planResult.unwrapErr().message());
+            Logger.info("Falling back to default strategy");
+        }
+        else
+        {
+            import engine.economics.strategies : ExecutionStrategy;
+            
+            auto plan = planResult.unwrap();
+            services.economics.displayPlan(plan);
+            
+            // Apply plan to execution strategy
+            final switch (plan.strategy.strategy)
+            {
+                case ExecutionStrategy.Local:
+                    maxParallelism = plan.strategy.cores;
+                    Logger.info("Using local execution with " ~ maxParallelism.to!string ~ " cores");
+                    break;
+                    
+                case ExecutionStrategy.Cached:
+                    // Cache-optimized: minimal parallel overhead
+                    maxParallelism = 4;
+                    Logger.info("Using cache-optimized execution");
+                    break;
+                    
+                case ExecutionStrategy.Distributed:
+                    maxParallelism = plan.strategy.workers * plan.strategy.cores;
+                    useWorkStealing = true;  // Better for distributed workloads
+                    useRemoteExecution = true;
+                    Logger.info("Using distributed execution: " ~ 
+                              plan.strategy.workers.to!string ~ " workers × " ~
+                              plan.strategy.cores.to!string ~ " cores = " ~
+                              maxParallelism.to!string ~ " total cores");
+                    break;
+                    
+                case ExecutionStrategy.Premium:
+                    maxParallelism = plan.strategy.workers * plan.strategy.cores;
+                    useWorkStealing = true;
+                    useRemoteExecution = true;
+                    Logger.info("Using premium execution: " ~ 
+                              plan.strategy.workers.to!string ~ " premium workers × " ~
+                              plan.strategy.cores.to!string ~ " cores = " ~
+                              maxParallelism.to!string ~ " total cores");
+                    break;
+            }
+        }
+    }
+    
     // Execute build with modern service-based architecture
-    auto engine = services.createEngine(graph);
+    auto engine = services.createEngine(graph, maxParallelism, true, true, useWorkStealing);
     bool success = engine.execute();
     engine.shutdown();
     
     // Cleanup and persist telemetry
     services.shutdown();
+    
+    // Shutdown economics and display cost summary
+    if (econConfig.enabled && services.economics !is null)
+    {
+        auto shutdownResult = services.economics.shutdown();
+        if (shutdownResult.isErr)
+        {
+            Logger.warning("Failed to save cost history: " ~
+                         shutdownResult.unwrapErr().message());
+        }
+    }
     
     // Report final status
     if (success)
