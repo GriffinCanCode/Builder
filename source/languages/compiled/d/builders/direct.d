@@ -384,14 +384,10 @@ class DirectCompilerBuilder : DBuilder
             cmd ~= "-o-";
         }
         
-        // Color
-        if (config.compilerConfig.color)
+        // Color (only supported by DMD)
+        if (compilerCmd == "dmd")
         {
-            cmd ~= "-color=on";
-        }
-        else
-        {
-            cmd ~= "-color=off";
+            cmd ~= config.compilerConfig.color ? "-color=on" : "-color=off";
         }
         
         // Warning flags

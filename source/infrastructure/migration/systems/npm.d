@@ -8,6 +8,7 @@ import infrastructure.migration.core.base;
 import infrastructure.migration.core.common;
 import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 import infrastructure.errors;
+import infrastructure.analysis.manifests : DependencyType;
 
 /// Migrator for npm package.json files
 final class NpmMigrator : BaseMigrator
@@ -52,91 +53,59 @@ final class NpmMigrator : BaseMigrator
     
     override Result!(MigrationResult, BuildError) migrate(string inputPath) @system
     {
-        auto contentResult = readInputFile(inputPath);
-        if (contentResult.isErr)
-            return Result!(MigrationResult, BuildError).err(contentResult.unwrapErr());
+        // Use the new manifest parser
+        import infrastructure.analysis.manifests : NpmManifestParser;
         
-        auto content = contentResult.unwrap();
+        auto parser = new NpmManifestParser();
+        auto parseResult = parser.parse(inputPath);
+        
+        if (parseResult.isErr)
+            return Result!(MigrationResult, BuildError).err(parseResult.unwrapErr());
+        
+        auto manifest = parseResult.unwrap();
         MigrationTarget[] targets;
         MigrationWarning[] warnings;
         
-        try
+        // Create main build target from manifest
+        MigrationTarget buildTarget;
+        buildTarget.name = manifest.name;
+        buildTarget.type = manifest.suggestedType;
+        buildTarget.language = manifest.language;
+        buildTarget.sources = manifest.entryPoints.length > 0 ? manifest.entryPoints : manifest.sources;
+        buildTarget.output = "dist/" ~ manifest.name;
+        
+        targets ~= buildTarget;
+        
+        // Create test target if test scripts exist
+        if ("test" in manifest.scripts)
         {
-            JSONValue pkg = parseJSON(content);
-            
-            // Determine if TypeScript or JavaScript
-            bool isTypeScript = false;
-            if ("devDependencies" in pkg)
+            MigrationTarget testTarget;
+            testTarget.name = manifest.name ~ "-test";
+            testTarget.type = TargetType.Test;
+            testTarget.language = manifest.language;
+            testTarget.sources = manifest.tests;
+            testTarget.dependencies = [buildTarget.name];
+            targets ~= testTarget;
+        }
+        
+        // Add warnings about scripts
+        foreach (scriptName, script; manifest.scripts)
+        {
+            if (scriptName != "build" && scriptName != "test" && scriptName != "start")
             {
-                auto devDeps = pkg["devDependencies"].object;
-                isTypeScript = ("typescript" in devDeps) !is null;
-            }
-            if ("dependencies" in pkg)
-            {
-                auto deps = pkg["dependencies"].object;
-                if (("typescript" in deps) !is null)
-                    isTypeScript = true;
-            }
-            
-            string pkgName = "name" in pkg ? pkg["name"].str : "app";
-            string main = "main" in pkg ? pkg["main"].str : 
-                         isTypeScript ? "src/index.ts" : "src/index.js";
-            
-            // Create main build target
-            MigrationTarget buildTarget;
-            buildTarget.name = pkgName;
-            buildTarget.type = TargetType.Executable;
-            buildTarget.language = isTypeScript ? TargetLanguage.TypeScript : TargetLanguage.JavaScript;
-            buildTarget.sources = [main];
-            buildTarget.output = "dist/" ~ pkgName ~ (isTypeScript ? ".js" : ".bundle.js");
-            
-            targets ~= buildTarget;
-            
-            // Parse scripts section for additional targets
-            if ("scripts" in pkg)
-            {
-                auto scripts = pkg["scripts"].object;
-                
-                if ("test" in scripts)
-                {
-                    MigrationTarget testTarget;
-                    testTarget.name = pkgName ~ "-test";
-                    testTarget.type = TargetType.Test;
-                    testTarget.language = buildTarget.language;
-                    testTarget.sources = ["**/*.test." ~ (isTypeScript ? "ts" : "js")];
-                    testTarget.dependencies = [buildTarget.name];
-                    
-                    targets ~= testTarget;
-                }
-                
-                // Add warning about other scripts
-                foreach (scriptName, scriptValue; scripts)
-                {
-                    if (scriptName != "build" && scriptName != "test" && scriptName != "start")
-                    {
-                        warnings ~= MigrationWarning(WarningLevel.Info,
-                            "Script '" ~ scriptName ~ "' found: " ~ scriptValue.str,
-                            "Consider creating a custom target if needed");
-                    }
-                }
-            }
-            
-            // Note dependencies
-            if ("dependencies" in pkg)
-            {
-                auto deps = pkg["dependencies"].object;
-                if (deps.length > 0)
-                {
-                    warnings ~= MigrationWarning(WarningLevel.Info,
-                        "NPM dependencies: " ~ deps.keys.join(", "),
-                        "Run 'npm install' before building");
-                }
+                warnings ~= MigrationWarning(WarningLevel.Info,
+                    "Script '" ~ scriptName ~ "' found: " ~ script.command,
+                    "Consider creating a custom target if needed");
             }
         }
-        catch (JSONException e)
+        
+        // Note dependencies
+        auto runtimeDeps = manifest.dependencies.filter!(d => d.type == DependencyType.Runtime).array;
+        if (!runtimeDeps.empty)
         {
-            return Result!(MigrationResult, BuildError).err(
-                migrationError("Invalid JSON in package.json: " ~ e.msg, inputPath));
+            warnings ~= MigrationWarning(WarningLevel.Info,
+                "NPM dependencies: " ~ runtimeDeps.map!(d => d.name).join(", "),
+                "Run 'npm install' before building");
         }
         
         MigrationResult result;

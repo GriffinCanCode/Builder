@@ -155,9 +155,9 @@ struct Codec
                 // Skip unknown fields (for forward compatibility)
                 if (!found)
                 {
-                    // Skip field by reading as generic bytes
-                    // This requires type information - for now, fail
-                    return Err!(bool, string)("Unknown field ID: " ~ fieldId.stringof);
+                    // Cannot skip without type information - treat as version mismatch
+                    import std.conv : to;
+                    return Err!(bool, string)("Unknown field ID " ~ fieldId.to!string ~ " - schema version mismatch");
                 }
             }
             
@@ -195,24 +195,21 @@ struct Codec
         }
         else static if (is(T == short) || is(T == ushort))
         {
-            static if (isPackedField!value)
-                writer.writeVarI32(value);
-            else
-                writer.writeU16(cast(ushort)value);
+            writer.writeVarI32(cast(int)value);
         }
         else static if (is(T == int) || is(T == uint))
         {
-            static if (isPackedField!value)
-                writer.writeVarI32(cast(int)value);
+            static if (is(T == int))
+                writer.writeVarI32(value);
             else
-                writer.writeU32(cast(uint)value);
+                writer.writeVarU32(value);
         }
         else static if (is(T == long) || is(T == ulong))
         {
-            static if (isPackedField!value)
-                writer.writeVarI64(cast(long)value);
+            static if (is(T == long))
+                writer.writeVarI64(value);
             else
-                writer.writeU64(cast(ulong)value);
+                writer.writeVarU64(value);
         }
         else static if (is(T == float))
         {

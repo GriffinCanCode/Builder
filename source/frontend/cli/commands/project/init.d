@@ -8,6 +8,8 @@ import std.array : replicate;
 import std.range : empty;
 import infrastructure.analysis.detection.detector;
 import infrastructure.analysis.detection.templates;
+import infrastructure.analysis.detection.enhanced;
+import infrastructure.analysis.detection.generator;
 import infrastructure.utils.logging.logger;
 import frontend.cli.control.terminal;
 import frontend.cli.display.format;
@@ -71,15 +73,16 @@ struct InitCommand
             return;
         }
         
-        // Detect project structure
+        // Detect project structure with enhanced manifest parsing
         terminal.writeColored("🔍 ", Color.BrightCyan);
         terminal.writeColored("Scanning project directory", Color.Cyan);
         terminal.write("...");
         terminal.writeln();
         terminal.flush();
         
-        auto detector = new ProjectDetector(projectDir);
-        auto metadata = detector.detect();
+        auto enhancedDetector = new EnhancedProjectDetector(projectDir);
+        auto enhanced = enhancedDetector.detectEnhanced();
+        auto metadata = enhanced.base;
         
         terminal.writeln();
         
@@ -128,8 +131,8 @@ struct InitCommand
             terminal.writeln();
         }
         
-        // Generate templates
-        auto generator = new TemplateGenerator(metadata);
+        // Generate templates (enhanced with manifest data)
+        auto generator = new EnhancedTemplateGenerator(metadata, enhanced.manifestInfo);
         
         // Create Builderfile
         if (!builderfileExists)

@@ -11,8 +11,12 @@ module infrastructure.analysis.detection;
 ///   detector.d   - Core detection engine
 ///   templates.d  - Template generation for config files
 ///   inference.d  - Zero-config target inference
+///   enhanced.d   - Enhanced detection with manifest parsing
+///   generator.d  - Enhanced template generation with manifest data
 
 public import infrastructure.analysis.detection.detector;
 public import infrastructure.analysis.detection.templates;
 public import infrastructure.analysis.detection.inference;
+public import infrastructure.analysis.detection.enhanced;
+public import infrastructure.analysis.detection.generator;
 

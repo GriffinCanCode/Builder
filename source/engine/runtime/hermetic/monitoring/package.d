@@ -66,6 +66,12 @@ abstract class BaseMonitor : ResourceMonitor
     protected bool started = false;
     protected bool stopped = false;
     
+    // Tracking state for delta calculations
+    protected ulong initialDiskRead;
+    protected ulong initialDiskWrite;
+    protected ulong initialNetworkRx;
+    protected ulong initialNetworkTx;
+    
     this(ResourceLimits limits) @safe
     {
         this.limits = limits;
@@ -77,12 +83,18 @@ abstract class BaseMonitor : ResourceMonitor
         started = true;
         stopped = false;
         _violations = [];
+        
+        // Record initial I/O counters for delta calculation
+        recordInitialCounters();
     }
     
     void stop() @safe
     {
         stopTime = MonoTime.currTime;
         stopped = true;
+        
+        // Check limits on stop
+        checkAllLimits();
     }
     
     bool isViolated() @safe
@@ -123,6 +135,134 @@ abstract class BaseMonitor : ResourceMonitor
         immutable end = stopped ? stopTime : MonoTime.currTime;
         immutable diff = end - startTime;
         return msecs(diff.total!"msecs");
+    }
+    
+    /// Record initial I/O counters (override in platform implementations)
+    protected void recordInitialCounters() @safe
+    {
+        // Default: no-op, override in platform-specific implementations
+        initialDiskRead = 0;
+        initialDiskWrite = 0;
+        initialNetworkRx = 0;
+        initialNetworkTx = 0;
+    }
+    
+    /// Check all resource limits (common pattern across platforms)
+    protected void checkAllLimits() @safe
+    {
+        auto usage = snapshot();
+        
+        checkMemoryLimit(usage);
+        checkCpuTimeLimit(usage);
+        checkDiskIOLimit(usage);
+        checkNetworkIOLimit(usage);
+    }
+    
+    /// Check memory limit
+    protected void checkMemoryLimit(ResourceUsage usage) @safe
+    {
+        if (limits.maxMemoryBytes > 0 && usage.peakMemory > limits.maxMemoryBytes)
+        {
+            recordViolation(
+                ViolationType.Memory,
+                usage.peakMemory,
+                limits.maxMemoryBytes,
+                formatViolation("Memory", usage.peakMemory, limits.maxMemoryBytes)
+            );
+        }
+    }
+    
+    /// Check CPU time limit
+    protected void checkCpuTimeLimit(ResourceUsage usage) @safe
+    {
+        if (limits.maxCpuTimeMs > 0)
+        {
+            immutable cpuTimeMs = usage.cpuTime.total!"msecs";
+            if (cpuTimeMs > limits.maxCpuTimeMs)
+            {
+                recordViolation(
+                    ViolationType.CpuTime,
+                    cpuTimeMs,
+                    limits.maxCpuTimeMs,
+                    formatViolation("CPU time", cpuTimeMs, limits.maxCpuTimeMs, "ms")
+                );
+            }
+        }
+    }
+    
+    /// Check disk I/O limit
+    protected void checkDiskIOLimit(ResourceUsage usage) @safe
+    {
+        if (limits.maxDiskIO > 0)
+        {
+            immutable totalIO = usage.diskRead + usage.diskWrite;
+            if (totalIO > limits.maxDiskIO)
+            {
+                recordViolation(
+                    ViolationType.DiskIO,
+                    totalIO,
+                    limits.maxDiskIO,
+                    formatViolation("Disk I/O", totalIO, limits.maxDiskIO, "bytes")
+                );
+            }
+        }
+    }
+    
+    /// Check network I/O limit
+    protected void checkNetworkIOLimit(ResourceUsage usage) @safe
+    {
+        if (limits.maxNetworkIO > 0)
+        {
+            immutable totalIO = usage.networkRx + usage.networkTx;
+            if (totalIO > limits.maxNetworkIO)
+            {
+                recordViolation(
+                    ViolationType.NetworkIO,
+                    totalIO,
+                    limits.maxNetworkIO,
+                    formatViolation("Network I/O", totalIO, limits.maxNetworkIO, "bytes")
+                );
+            }
+        }
+    }
+    
+    /// Format violation message
+    protected static string formatViolation(
+        string resource,
+        ulong actual,
+        ulong limit,
+        string unit = "bytes"
+    ) @safe
+    {
+        import std.format : format;
+        return format!"%s exceeded: %s %s (limit: %s %s)"(
+            resource,
+            formatSize(actual),
+            unit,
+            formatSize(limit),
+            unit
+        );
+    }
+    
+    /// Format size with units
+    protected static string formatSize(ulong bytes) @safe
+    {
+        import std.format : format;
+        
+        if (bytes < 1024)
+            return format!"%d"(bytes);
+        else if (bytes < 1024 * 1024)
+            return format!"%.1f KB"(bytes / 1024.0);
+        else if (bytes < 1024 * 1024 * 1024)
+            return format!"%.1f MB"(bytes / (1024.0 * 1024.0));
+        else
+            return format!"%.1f GB"(bytes / (1024.0 * 1024.0 * 1024.0));
+    }
+    
+    /// Calculate delta from initial value
+    protected static ulong calculateDelta(ulong current, ulong initial) @safe pure nothrow @nogc
+    {
+        return current > initial ? current - initial : 0;
     }
 }
 

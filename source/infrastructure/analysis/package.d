@@ -11,6 +11,7 @@ module infrastructure.analysis;
 ///   spec.d      - Build specification handling
 ///   metagen.d   - Metadata generation
 ///   detection/  - Project detection and init templates
+///   manifests/  - Package manifest parsing (npm, cargo, etc.)
 ///
 /// Usage:
 ///   import analysis;
@@ -28,4 +29,5 @@ public import infrastructure.analysis.inference.analyzer;
 public import infrastructure.analysis.targets.spec;
 public import infrastructure.analysis.metadata.metagen;
 public import infrastructure.analysis.detection;
+public import infrastructure.analysis.manifests;
 

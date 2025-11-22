@@ -318,14 +318,14 @@ final class HealthMonitor
             auto recent = checkpoints[$-1];
             auto previous = checkpoints[$-2];
             
+            // Check failure trend first (most critical)
+            if (recent.failedTasks > previous.failedTasks)
+                return HealthTrend.Degrading;
+            
             // Check velocity trend
             if (recent.tasksPerSecond > previous.tasksPerSecond * 1.1)
                 return HealthTrend.Improving;
             if (recent.tasksPerSecond < previous.tasksPerSecond * 0.9)
-                return HealthTrend.Degrading;
-            
-            // Check failure trend
-            if (recent.failedTasks > previous.failedTasks)
                 return HealthTrend.Degrading;
             
             // Check memory trend

@@ -9,6 +9,7 @@ import infrastructure.migration.core.base;
 import infrastructure.migration.core.common;
 import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 import infrastructure.errors;
+import infrastructure.analysis.manifests : DependencyType;
 
 /// Migrator for Rust Cargo.toml files
 final class CargoMigrator : BaseMigrator
@@ -54,71 +55,35 @@ final class CargoMigrator : BaseMigrator
     
     override Result!(MigrationResult, BuildError) migrate(string inputPath) @system
     {
-        auto contentResult = readInputFile(inputPath);
-        if (contentResult.isErr)
-            return Result!(MigrationResult, BuildError).err(contentResult.unwrapErr());
+        // Use the new manifest parser
+        import infrastructure.analysis.manifests : CargoManifestParser;
         
-        auto content = contentResult.unwrap();
+        auto parser = new CargoManifestParser();
+        auto parseResult = parser.parse(inputPath);
+        
+        if (parseResult.isErr)
+            return Result!(MigrationResult, BuildError).err(parseResult.unwrapErr());
+        
+        auto manifest = parseResult.unwrap();
         MigrationTarget[] targets;
         MigrationWarning[] warnings;
         
-        try
-        {
-            // Parse TOML using simple pattern matching (full TOML parser would be better)
-            
-            // Check for [lib] section
-            if (content.indexOf("[lib]") >= 0)
-            {
-                MigrationTarget target;
-                target.name = extractPackageName(content) ~ "-lib";
-                target.type = TargetType.Library;
-                target.language = TargetLanguage.Rust;
-                target.sources = ["src/lib.rs"];
-                targets ~= target;
-            }
-            
-            // Check for [[bin]] sections or default src/main.rs
-            if (content.indexOf("[[bin]]") >= 0 || content.indexOf("src/main.rs") >= 0)
-            {
-                MigrationTarget target;
-                target.name = extractPackageName(content);
-                target.type = TargetType.Executable;
-                target.language = TargetLanguage.Rust;
-                target.sources = ["src/main.rs"];
-                
-                // Parse dependencies
-                target.dependencies = parseCargoDependencies(content);
-                
-                targets ~= target;
-            }
-            
-            // Add info about dev-dependencies
-            auto devDeps = parseCargoSection(content, "[dev-dependencies]");
-            if (devDeps.length > 0)
-            {
-                warnings ~= MigrationWarning(WarningLevel.Info,
-                    "Dev dependencies found: " ~ devDeps.join(", "),
-                    "Add these to test target dependencies if needed");
-            }
-        }
-        catch (Exception e)
-        {
-            return Result!(MigrationResult, BuildError).err(
-                migrationError("Failed to parse Cargo.toml: " ~ e.msg, inputPath));
-        }
+        // Create main target from manifest
+        MigrationTarget target;
+        target.name = manifest.name;
+        target.type = manifest.suggestedType;
+        target.language = manifest.language;
+        target.sources = manifest.entryPoints.length > 0 ? manifest.entryPoints : manifest.sources;
         
-        if (targets.length == 0)
+        targets ~= target;
+        
+        // Add info about dev-dependencies
+        auto devDeps = manifest.dependencies.filter!(d => d.type == DependencyType.Development).array;
+        if (!devDeps.empty)
         {
-            // Create default binary target
-            MigrationTarget target;
-            target.name = "app";
-            target.type = TargetType.Executable;
-            target.language = TargetLanguage.Rust;
-            target.sources = ["src/main.rs"];
-            targets ~= target;
-            
             warnings ~= MigrationWarning(WarningLevel.Info,
-                "Created default binary target", "Review and adjust as needed");
+                "Dev dependencies found: " ~ devDeps.map!(d => d.name).join(", "),
+                "Add these to test target dependencies if needed");
         }
         
         MigrationResult result;

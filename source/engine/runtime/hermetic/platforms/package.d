@@ -10,6 +10,9 @@ module engine.runtime.hermetic.platforms;
 /// Each platform provides the strongest isolation guarantees
 /// available on that operating system.
 
+// Platform capability detection (available on all platforms)
+public import engine.runtime.hermetic.platforms.capabilities;
+
 version(linux)
 {
     public import engine.runtime.hermetic.platforms.linux;

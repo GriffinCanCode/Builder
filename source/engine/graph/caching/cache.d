@@ -168,8 +168,22 @@ final class GraphCache
             }
             catch (Exception e)
             {
-                // Cache corrupted or read error
+                // Cache corrupted or read error - delete invalid cache
                 writeln("Warning: Failed to load graph cache: ", e.msg);
+                writeln("Info: Clearing invalid cache file...");
+                try
+                {
+                    if (exists(cacheFilePath))
+                        remove(cacheFilePath);
+                    
+                    auto metadataPath = buildPath(cacheDir, "metadata.bin");
+                    if (exists(metadataPath))
+                        remove(metadataPath);
+                }
+                catch (Exception removeError)
+                {
+                    // Ignore errors during cleanup
+                }
                 missCount++;
                 return null;
             }

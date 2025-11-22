@@ -252,6 +252,8 @@ struct ResourceLimits
     uint maxProcesses = 256;      // Process limit
     ulong maxFileSize = 1024 * 1024 * 1024;  // 1GB per file
     uint cpuShares = 1024;        // CPU weight (Linux)
+    ulong maxDiskIO = 0;          // 0 = unlimited (bytes)
+    ulong maxNetworkIO = 0;       // 0 = unlimited (bytes)
     
     /// Create default limits
     static ResourceLimits defaults() @safe pure nothrow
@@ -266,6 +268,8 @@ struct ResourceLimits
         limits.maxMemoryBytes = 4UL * 1024 * 1024 * 1024;  // 4GB
         limits.maxCpuTimeMs = 60 * 60 * 1000;  // 1 hour
         limits.maxProcesses = 128;
+        limits.maxDiskIO = 10UL * 1024 * 1024 * 1024;  // 10GB
+        limits.maxNetworkIO = 1UL * 1024 * 1024 * 1024;  // 1GB
         return limits;
     }
 }

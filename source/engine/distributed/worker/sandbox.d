@@ -9,15 +9,12 @@ import std.algorithm : map;
 import std.array : array;
 import engine.distributed.protocol.protocol;
 import engine.runtime.hermetic;
+import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.platforms.capabilities;
 import infrastructure.errors;
 
-/// Execution output
-struct ExecutionOutput
-{
-    string stdout;      // Captured stdout
-    string stderr;      // Captured stderr
-    int exitCode;       // Process exit code
-}
+// Import base classes
+public import engine.distributed.worker.sandbox_base;
 
 /// Sandbox environment interface
 interface SandboxEnv
@@ -49,15 +46,6 @@ interface Sandbox
     );
 }
 
-/// Input artifact (for sandbox mounting)
-struct InputArtifact
-{
-    ArtifactId id;
-    ubyte[] data;
-    string path;
-    bool executable;
-}
-
 /// No-op sandbox (for development/testing)
 final class NoSandbox : Sandbox
 {
@@ -72,27 +60,13 @@ final class NoSandbox : Sandbox
     }
 }
 
-    /// No-op sandbox environment
-final class NoSandboxEnv : SandboxEnv
+/// No-op sandbox environment
+final class NoSandboxEnv : SandboxEnvBase, SandboxEnv
 {
-    private ActionRequest request;
-    private InputArtifact[] inputs;
-    private string workDir;
-    private ResourceMonitor _monitor;
-    
     this(ActionRequest request, InputArtifact[] inputs) @trusted
     {
-        this.request = request;
-        this.inputs = inputs;
-        
-        // Create temporary work directory
-        import std.random : uniform;
-        this.workDir = buildPath(tempDir(), "builder-sandbox-" ~ uniform!ulong().to!string);
-        mkdirRecurse(workDir);
-        
-        // Create no-op monitor
         import engine.runtime.hermetic.monitoring : NoOpMonitor;
-        _monitor = new NoOpMonitor();
+        super(request, inputs, new NoOpMonitor());
     }
     
     Result!(ExecutionOutput, DistributedError) execute(
@@ -101,99 +75,56 @@ final class NoSandboxEnv : SandboxEnv
         Duration timeout
     ) @trusted
     {
-        _monitor.start();
-        scope(exit) _monitor.stop();
-        
-        try
-        {
-            import infrastructure.utils.security.executor : execute;
-            // Execute command directly (no sandboxing)
-            auto result = execute(
-                ["sh", "-c", command],
-                env,
-                Config.none,
-                size_t.max,
-                workDir
-            );
-            
-            ExecutionOutput output;
-            output.stdout = result.output;
-            output.exitCode = result.status;
-            
-            return Ok!(ExecutionOutput, DistributedError)(output);
-        }
-        catch (Exception e)
-        {
-            return Err!(ExecutionOutput, DistributedError)(
-                new ExecutionError(e.msg));
-        }
-    }
-    
-    ResourceUsage resourceUsage() @safe
-    {
-        return _monitor.snapshot();
-    }
-    
-    ResourceMonitor monitor() @safe
-    {
-        return _monitor;
-    }
-    
-    void cleanup() @trusted
-    {
-        if (exists(workDir))
-        {
+        return executeWithMonitoring({
             try
             {
-                rmdirRecurse(workDir);
+                import infrastructure.utils.security.executor : execute;
+                // Execute command directly (no sandboxing)
+                auto result = execute(
+                    ["sh", "-c", command],
+                    env,
+                    Config.none,
+                    size_t.max,
+                    workDir
+                );
+                
+                ExecutionOutput output;
+                output.stdout = result.output;
+                output.exitCode = result.status;
+                
+                return Ok!(ExecutionOutput, DistributedError)(output);
             }
-            catch (Exception) {}
-        }
+            catch (Exception e)
+            {
+                return Err!(ExecutionOutput, DistributedError)(
+                    new ExecutionError(e.msg));
+            }
+        });
     }
 }
 
 version(linux)
 {
     /// Linux sandbox using namespaces
-    final class LinuxSandbox : Sandbox
+    final class LinuxSandbox : SandboxBase, Sandbox
     {
+        protected override void addStandardPaths(ref SandboxSpecBuilder builder) @safe
+        {
+            builder.input("/usr/lib");
+            builder.input("/usr/include");
+            builder.input("/lib");
+            builder.input("/lib64");
+        }
+        
         Result!(SandboxEnv, DistributedError) prepare(
             ActionRequest request,
             InputArtifact[] inputs
         ) @trusted
         {
-            // Build hermetic spec from action request
-            auto specBuilder = SandboxSpecBuilder.create();
-            
-            // Add input artifacts as inputs
-            foreach (input; inputs)
-            {
-                if (input.path.length > 0)
-                    specBuilder.input(input.path);
-            }
-            
-            // Create work directory
-            import std.random : uniform;
-            import std.uuid : randomUUID;
-            immutable workDir = buildPath(tempDir(), "builder-sandbox-" ~ randomUUID().toString());
-            mkdirRecurse(workDir);
-            
-            // Add work directory as temp
-            specBuilder.temp(workDir);
-            
-            // Add standard system paths
-            specBuilder.input("/usr/lib");
-            specBuilder.input("/usr/include");
-            specBuilder.input("/lib");
-            specBuilder.input("/lib64");
-            
-            // Build spec
-            auto specResult = specBuilder.build();
+            string workDir;
+            auto specResult = buildSpec(request, inputs, workDir);
             if (specResult.isErr)
-            {
-                return Err!(SandboxEnv, DistributedError)(
-                    new DistributedError("Failed to build spec: " ~ specResult.unwrapErr()));
-            }
+                return Err!(SandboxEnv, DistributedError)(specResult.unwrapErr());
             
             return Ok!(SandboxEnv, DistributedError)(
                 cast(SandboxEnv)(new LinuxSandboxEnv(request, inputs, specResult.unwrap(), workDir))
@@ -202,24 +133,16 @@ version(linux)
     }
     
     /// Linux sandbox environment using hermetic execution
-    final class LinuxSandboxEnv : SandboxEnv
+    final class LinuxSandboxEnv : SandboxEnvBase, SandboxEnv
     {
-        private ActionRequest request;
-        private InputArtifact[] inputs;
         private SandboxSpec spec;
-        private string workDir;
-        private ResourceMonitor _monitor;
         
         this(ActionRequest request, InputArtifact[] inputs, SandboxSpec spec, string workDir) @trusted
         {
-            this.request = request;
-            this.inputs = inputs;
-            this.spec = spec;
-            this.workDir = workDir;
-            
-            // Create Linux resource monitor
             import engine.runtime.hermetic.monitoring : createMonitor;
-            _monitor = createMonitor(spec.resources);
+            this.spec = spec;
+            super(request, inputs, createMonitor(spec.resources));
+            this.workDir = workDir; // Override with passed workDir
         }
         
         Result!(ExecutionOutput, DistributedError) execute(
@@ -228,80 +151,56 @@ version(linux)
             Duration timeout
         ) @trusted
         {
-            // Start monitoring
-            _monitor.start();
-            scope(exit) _monitor.stop();
-            
-            // Create hermetic executor
-            auto executorResult = HermeticExecutor.create(spec, workDir);
-            if (executorResult.isErr)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(executorResult.unwrapErr().message()));
-            }
-            
-            auto executor = executorResult.unwrap();
-            
-            // Parse command with proper shell quoting support
-            auto cmdArray = parseCommand(command);
-            
-            // Execute hermetically with timeout
-            import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
-            auto timeoutEnforcer = createTimeoutEnforcer();
-            if (timeout > Duration.zero)
-            {
-                timeoutEnforcer.start(timeout);
-            }
-            scope(exit)
-            {
-                if (timeout > Duration.zero)
-                    timeoutEnforcer.stop();
-            }
-            
-            auto result = executor.execute(cmdArray, workDir);
-            
-            if (result.isErr)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(result.unwrapErr().message()));
-            }
-            
-            // Check for timeout
-            if (timeoutEnforcer.isTimedOut())
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError("Execution timed out"));
-            }
-            
-            auto output = result.unwrap();
-            ExecutionOutput execOutput;
-            execOutput.stdout = output.stdout;
-            execOutput.stderr = output.stderr;
-            execOutput.exitCode = output.exitCode;
-            
-            return Ok!(ExecutionOutput, DistributedError)(execOutput);
-        }
-        
-        ResourceUsage resourceUsage() @safe
-        {
-            return _monitor.snapshot();
-        }
-        
-        ResourceMonitor monitor() @safe
-        {
-            return _monitor;
-        }
-        
-        void cleanup() @trusted
-        {
-            if (exists(workDir))
-            {
-                try
+            return executeWithMonitoring({
+                // Create hermetic executor
+                auto executorResult = HermeticExecutor.create(spec, workDir);
+                if (executorResult.isErr)
                 {
-                    rmdirRecurse(workDir);
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError(executorResult.unwrapErr().message()));
                 }
-                catch (Exception) {}
-            }
+                
+                auto executor = executorResult.unwrap();
+                
+                // Parse command with proper shell quoting support
+                auto cmdArray = parseCommand(command);
+                
+                // Execute hermetically with timeout
+                import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
+                auto timeoutEnforcer = createTimeoutEnforcer();
+                if (timeout > Duration.zero)
+                {
+                    timeoutEnforcer.start(timeout);
+                }
+                scope(exit)
+                {
+                    if (timeout > Duration.zero)
+                        timeoutEnforcer.stop();
+                }
+                
+                auto result = executor.execute(cmdArray, workDir);
+                
+                if (result.isErr)
+                {
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError(result.unwrapErr().message()));
+                }
+                
+                // Check for timeout
+                if (timeoutEnforcer.isTimedOut())
+                {
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError("Execution timed out"));
+                }
+                
+                auto output = result.unwrap();
+                ExecutionOutput execOutput;
+                execOutput.stdout = output.stdout;
+                execOutput.stderr = output.stderr;
+                execOutput.exitCode = output.exitCode;
+                
+                return Ok!(ExecutionOutput, DistributedError)(execOutput);
+            });
         }
     }
 }
@@ -309,45 +208,25 @@ version(linux)
 version(OSX)
 {
     /// macOS sandbox using sandbox-exec
-    final class MacOSSandbox : Sandbox
+    final class MacOSSandbox : SandboxBase, Sandbox
     {
+        protected override void addStandardPaths(ref SandboxSpecBuilder builder) @safe
+        {
+            builder.input("/usr/lib");
+            builder.input("/usr/include");
+            builder.input("/System/Library");
+            builder.input("/Library");
+        }
+        
         Result!(SandboxEnv, DistributedError) prepare(
             ActionRequest request,
             InputArtifact[] inputs
         ) @trusted
         {
-            // Build hermetic spec from action request
-            auto specBuilder = SandboxSpecBuilder.create();
-            
-            // Add input artifacts as inputs
-            foreach (input; inputs)
-            {
-                if (input.path.length > 0)
-                    specBuilder.input(input.path);
-            }
-            
-            // Create work directory
-            import std.random : uniform;
-            import std.uuid : randomUUID;
-            immutable workDir = buildPath(tempDir(), "builder-sandbox-" ~ randomUUID().toString());
-            mkdirRecurse(workDir);
-            
-            // Add work directory as temp
-            specBuilder.temp(workDir);
-            
-            // Add standard system paths
-            specBuilder.input("/usr/lib");
-            specBuilder.input("/usr/include");
-            specBuilder.input("/System/Library");
-            specBuilder.input("/Library");
-            
-            // Build spec
-            auto specResult = specBuilder.build();
+            string workDir;
+            auto specResult = buildSpec(request, inputs, workDir);
             if (specResult.isErr)
-            {
-                return Err!(SandboxEnv, DistributedError)(
-                    new DistributedError("Failed to build spec: " ~ specResult.unwrapErr()));
-            }
+                return Err!(SandboxEnv, DistributedError)(specResult.unwrapErr());
             
             return Ok!(SandboxEnv, DistributedError)(
                 cast(SandboxEnv)(new MacOSSandboxEnv(request, inputs, specResult.unwrap(), workDir))
@@ -356,24 +235,16 @@ version(OSX)
     }
     
     /// macOS sandbox environment using hermetic execution
-    final class MacOSSandboxEnv : SandboxEnv
+    final class MacOSSandboxEnv : SandboxEnvBase, SandboxEnv
     {
-        private ActionRequest request;
-        private InputArtifact[] inputs;
         private SandboxSpec spec;
-        private string workDir;
-        private ResourceMonitor _monitor;
         
         this(ActionRequest request, InputArtifact[] inputs, SandboxSpec spec, string workDir) @trusted
         {
-            this.request = request;
-            this.inputs = inputs;
-            this.spec = spec;
-            this.workDir = workDir;
-            
-            // Create macOS resource monitor
             import engine.runtime.hermetic.monitoring : createMonitor;
-            _monitor = createMonitor(spec.resources);
+            this.spec = spec;
+            super(request, inputs, createMonitor(spec.resources));
+            this.workDir = workDir; // Override with passed workDir
         }
         
         Result!(ExecutionOutput, DistributedError) execute(
@@ -382,80 +253,56 @@ version(OSX)
             Duration timeout
         ) @trusted
         {
-            // Start monitoring
-            _monitor.start();
-            scope(exit) _monitor.stop();
-            
-            // Create hermetic executor
-            auto executorResult = HermeticExecutor.create(spec, workDir);
-            if (executorResult.isErr)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(executorResult.unwrapErr().message()));
-            }
-            
-            auto executor = executorResult.unwrap();
-            
-            // Parse command with proper shell quoting support
-            auto cmdArray = parseCommand(command);
-            
-            // Execute hermetically with timeout
-            import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
-            auto timeoutEnforcer = createTimeoutEnforcer();
-            if (timeout > Duration.zero)
-            {
-                timeoutEnforcer.start(timeout);
-            }
-            scope(exit)
-            {
-                if (timeout > Duration.zero)
-                    timeoutEnforcer.stop();
-            }
-            
-            auto result = executor.execute(cmdArray, workDir);
-            
-            if (result.isErr)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(result.unwrapErr().message()));
-            }
-            
-            // Check for timeout
-            if (timeoutEnforcer.isTimedOut())
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError("Execution timed out"));
-            }
-            
-            auto output = result.unwrap();
-            ExecutionOutput execOutput;
-            execOutput.stdout = output.stdout;
-            execOutput.stderr = output.stderr;
-            execOutput.exitCode = output.exitCode;
-            
-            return Ok!(ExecutionOutput, DistributedError)(execOutput);
-        }
-        
-        ResourceUsage resourceUsage() @safe
-        {
-            return _monitor.snapshot();
-        }
-        
-        ResourceMonitor monitor() @safe
-        {
-            return _monitor;
-        }
-        
-        void cleanup() @trusted
-        {
-            if (exists(workDir))
-            {
-                try
+            return executeWithMonitoring({
+                // Create hermetic executor
+                auto executorResult = HermeticExecutor.create(spec, workDir);
+                if (executorResult.isErr)
                 {
-                    rmdirRecurse(workDir);
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError(executorResult.unwrapErr().message()));
                 }
-                catch (Exception) {}
-            }
+                
+                auto executor = executorResult.unwrap();
+                
+                // Parse command with proper shell quoting support
+                auto cmdArray = parseCommand(command);
+                
+                // Execute hermetically with timeout
+                import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
+                auto timeoutEnforcer = createTimeoutEnforcer();
+                if (timeout > Duration.zero)
+                {
+                    timeoutEnforcer.start(timeout);
+                }
+                scope(exit)
+                {
+                    if (timeout > Duration.zero)
+                        timeoutEnforcer.stop();
+                }
+                
+                auto result = executor.execute(cmdArray, workDir);
+                
+                if (result.isErr)
+                {
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError(result.unwrapErr().message()));
+                }
+                
+                // Check for timeout
+                if (timeoutEnforcer.isTimedOut())
+                {
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError("Execution timed out"));
+                }
+                
+                auto output = result.unwrap();
+                ExecutionOutput execOutput;
+                execOutput.stdout = output.stdout;
+                execOutput.stderr = output.stderr;
+                execOutput.exitCode = output.exitCode;
+                
+                return Ok!(ExecutionOutput, DistributedError)(execOutput);
+            });
         }
     }
 }
@@ -463,39 +310,23 @@ version(OSX)
 version(Windows)
 {
     /// Windows sandbox using job objects
-    final class WindowsSandbox : Sandbox
+    final class WindowsSandbox : SandboxBase, Sandbox
     {
+        protected override void addStandardPaths(ref SandboxSpecBuilder builder) @safe
+        {
+            // Windows typically doesn't need standard paths added
+            // System directories are automatically available
+        }
+        
         Result!(SandboxEnv, DistributedError) prepare(
             ActionRequest request,
             InputArtifact[] inputs
         ) @trusted
         {
-            // Build hermetic spec from action request
-            auto specBuilder = SandboxSpecBuilder.create();
-            
-            // Add input artifacts as inputs
-            foreach (input; inputs)
-            {
-                if (input.path.length > 0)
-                    specBuilder.input(input.path);
-            }
-            
-            // Create work directory
-            import std.random : uniform;
-            import std.uuid : randomUUID;
-            immutable workDir = buildPath(tempDir(), "builder-sandbox-" ~ randomUUID().toString());
-            mkdirRecurse(workDir);
-            
-            // Add work directory as temp
-            specBuilder.temp(workDir);
-            
-            // Build spec
-            auto specResult = specBuilder.build();
+            string workDir;
+            auto specResult = buildSpec(request, inputs, workDir);
             if (specResult.isErr)
-            {
-                return Err!(SandboxEnv, DistributedError)(
-                    new DistributedError("Failed to build spec: " ~ specResult.unwrapErr()));
-            }
+                return Err!(SandboxEnv, DistributedError)(specResult.unwrapErr());
             
             return Ok!(SandboxEnv, DistributedError)(
                 cast(SandboxEnv)(new WindowsSandboxEnv(request, inputs, specResult.unwrap(), workDir))
@@ -504,24 +335,16 @@ version(Windows)
     }
     
     /// Windows sandbox environment using job objects
-    final class WindowsSandboxEnv : SandboxEnv
+    final class WindowsSandboxEnv : SandboxEnvBase, SandboxEnv
     {
-        private ActionRequest request;
-        private InputArtifact[] inputs;
         private SandboxSpec spec;
-        private string workDir;
-        private ResourceMonitor _monitor;
         
         this(ActionRequest request, InputArtifact[] inputs, SandboxSpec spec, string workDir) @trusted
         {
-            this.request = request;
-            this.inputs = inputs;
-            this.spec = spec;
-            this.workDir = workDir;
-            
-            // Create Windows resource monitor
             import engine.runtime.hermetic.monitoring : createMonitor;
-            _monitor = createMonitor(spec.resources);
+            this.spec = spec;
+            super(request, inputs, createMonitor(spec.resources));
+            this.workDir = workDir; // Override with passed workDir
         }
         
         Result!(ExecutionOutput, DistributedError) execute(
@@ -530,142 +353,58 @@ version(Windows)
             Duration timeout
         ) @trusted
         {
-            // Start monitoring
-            _monitor.start();
-            scope(exit) _monitor.stop();
-            
-            // Create hermetic executor
-            auto executorResult = HermeticExecutor.create(spec, workDir);
-            if (executorResult.isErr)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(executorResult.unwrapErr().message()));
-            }
-            
-            auto executor = executorResult.unwrap();
-            
-            // Parse command with proper shell quoting support
-            auto cmdArray = parseCommand(command);
-            
-            // Execute hermetically with timeout
-            import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
-            auto timeoutEnforcer = createTimeoutEnforcer();
-            if (timeout > Duration.zero)
-            {
-                timeoutEnforcer.start(timeout);
-            }
-            scope(exit)
-            {
-                if (timeout > Duration.zero)
-                    timeoutEnforcer.stop();
-            }
-            
-            auto result = executor.execute(cmdArray, workDir);
-            
-            if (result.isErr)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(result.unwrapErr().message()));
-            }
-            
-            // Check for timeout
-            if (timeoutEnforcer.isTimedOut())
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError("Execution timed out"));
-            }
-            
-            auto output = result.unwrap();
-            ExecutionOutput execOutput;
-            execOutput.stdout = output.stdout;
-            execOutput.stderr = output.stderr;
-            execOutput.exitCode = output.exitCode;
-            
-            return Ok!(ExecutionOutput, DistributedError)(execOutput);
-        }
-        
-        ResourceUsage resourceUsage() @safe
-        {
-            return _monitor.snapshot();
-        }
-        
-        ResourceMonitor monitor() @safe
-        {
-            return _monitor;
-        }
-        
-        void cleanup() @trusted
-        {
-            if (exists(workDir))
-            {
-                try
+            return executeWithMonitoring({
+                // Create hermetic executor
+                auto executorResult = HermeticExecutor.create(spec, workDir);
+                if (executorResult.isErr)
                 {
-                    rmdirRecurse(workDir);
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError(executorResult.unwrapErr().message()));
                 }
-                catch (Exception) {}
-            }
+                
+                auto executor = executorResult.unwrap();
+                
+                // Parse command with proper shell quoting support
+                auto cmdArray = parseCommand(command);
+                
+                // Execute hermetically with timeout
+                import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
+                auto timeoutEnforcer = createTimeoutEnforcer();
+                if (timeout > Duration.zero)
+                {
+                    timeoutEnforcer.start(timeout);
+                }
+                scope(exit)
+                {
+                    if (timeout > Duration.zero)
+                        timeoutEnforcer.stop();
+                }
+                
+                auto result = executor.execute(cmdArray, workDir);
+                
+                if (result.isErr)
+                {
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError(result.unwrapErr().message()));
+                }
+                
+                // Check for timeout
+                if (timeoutEnforcer.isTimedOut())
+                {
+                    return Err!(ExecutionOutput, DistributedError)(
+                        new ExecutionError("Execution timed out"));
+                }
+                
+                auto output = result.unwrap();
+                ExecutionOutput execOutput;
+                execOutput.stdout = output.stdout;
+                execOutput.stderr = output.stderr;
+                execOutput.exitCode = output.exitCode;
+                
+                return Ok!(ExecutionOutput, DistributedError)(execOutput);
+            });
         }
     }
-}
-
-/// Parse command string with shell quoting support
-/// Handles single quotes, double quotes, and escaped spaces
-private string[] parseCommand(string command) @safe
-{
-    import std.array : appender;
-    import std.string : strip;
-    
-    auto result = appender!(string[]);
-    auto current = appender!string;
-    bool inSingleQuote = false;
-    bool inDoubleQuote = false;
-    bool escaped = false;
-    
-    foreach (char c; command)
-    {
-        if (escaped)
-        {
-            current ~= c;
-            escaped = false;
-            continue;
-        }
-        
-        if (c == '\\' && !inSingleQuote)
-        {
-            escaped = true;
-            continue;
-        }
-        
-        if (c == '\'' && !inDoubleQuote)
-        {
-            inSingleQuote = !inSingleQuote;
-            continue;
-        }
-        
-        if (c == '"' && !inSingleQuote)
-        {
-            inDoubleQuote = !inDoubleQuote;
-            continue;
-        }
-        
-        if (c == ' ' && !inSingleQuote && !inDoubleQuote)
-        {
-            if (current.data.length > 0)
-            {
-                result ~= current.data;
-                current = appender!string;
-            }
-            continue;
-        }
-        
-        current ~= c;
-    }
-    
-    // Add final token
-    if (current.data.length > 0)
-        result ~= current.data;
-    
-    return result.data;
 }
 
 /// Create platform-appropriate sandbox
@@ -674,29 +413,32 @@ Sandbox createSandbox(bool hermetic = true) @trusted
     if (!hermetic)
         return new NoSandbox();
     
+    // Use capability detection to determine best sandbox
+    auto caps = getCapabilities();
+    
+    if (!caps.canRunHermetic())
+        return new NoSandbox();
+    
     version(linux)
     {
-        // Check if running in environment that supports namespaces
-        import std.file : exists;
-        if (exists("/proc/self/ns/user"))
+        if (caps.namespacesAvailable)
             return new LinuxSandbox();
         else
-            return new NoSandbox();  // Fallback if namespaces not available
+            return new NoSandbox();
     }
     else version(OSX)
     {
-        // Check if sandbox-exec is available
-        import std.process : execute;
-        auto result = execute(["which", "sandbox-exec"]);
-        if (result.status == 0)
+        if (caps.sandboxExecAvailable)
             return new MacOSSandbox();
         else
-            return new NoSandbox();  // Fallback if sandbox-exec not available
+            return new NoSandbox();
     }
     else version(Windows)
     {
-        // Windows job objects - future implementation
-        return new WindowsSandbox();
+        if (caps.jobObjectsAvailable)
+            return new WindowsSandbox();
+        else
+            return new NoSandbox();
     }
     else
     {

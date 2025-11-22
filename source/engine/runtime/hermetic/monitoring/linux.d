@@ -40,7 +40,7 @@ final class LinuxMonitor : BaseMonitor
     
     override void start() @safe
     {
-        super.start();
+        super.start(); // Calls recordInitialCounters()
         
         // Create dedicated cgroup for this execution
         if (useCgroupV2)
@@ -51,17 +51,14 @@ final class LinuxMonitor : BaseMonitor
         {
             setupCgroupV1();
         }
-        
-        // Record initial I/O for delta calculation
-        recordInitialIO();
     }
     
     override void stop() @safe
     {
-        super.stop();
+        super.stop(); // Calls checkAllLimits()
         
-        // Check for violations before cleanup
-        checkLimits();
+        // Check platform-specific limits
+        checkProcessLimit();
         
         // Cleanup cgroup
         cleanupCgroup();
@@ -306,41 +303,16 @@ final class LinuxMonitor : BaseMonitor
         return 0;
     }
     
-    /// Record initial I/O for delta calculation
-    private void recordInitialIO() @safe
+    /// Record initial I/O for delta calculation (override base method)
+    protected override void recordInitialCounters() @safe
     {
         initialDiskRead = readDiskRead();
         initialDiskWrite = readDiskWrite();
     }
     
-    /// Check if any limits have been exceeded
-    private void checkLimits() @safe
+    /// Check process count limit (platform-specific extension)
+    private void checkProcessLimit() @safe
     {
-        auto usage = snapshot();
-        
-        // Check memory limit
-        if (limits.maxMemoryBytes > 0 && usage.peakMemory > limits.maxMemoryBytes)
-        {
-            recordViolation(
-                ViolationType.Memory,
-                usage.peakMemory,
-                limits.maxMemoryBytes,
-                "Peak memory exceeded limit"
-            );
-        }
-        
-        // Check CPU time limit
-        if (limits.maxCpuTimeMs > 0 && usage.cpuTime.total!"msecs" > limits.maxCpuTimeMs)
-        {
-            recordViolation(
-                ViolationType.CpuTime,
-                usage.cpuTime.total!"msecs",
-                limits.maxCpuTimeMs,
-                "CPU time exceeded limit"
-            );
-        }
-        
-        // Check process count (if cgroup exists)
         if (limits.maxProcesses > 0 && cgroupPath.length > 0)
         {
             try
@@ -355,7 +327,7 @@ final class LinuxMonitor : BaseMonitor
                             ViolationType.Processes,
                             count,
                             limits.maxProcesses,
-                            "Process count exceeded limit"
+                            formatViolation("Process count", count, limits.maxProcesses, "processes")
                         );
                     }
                 }

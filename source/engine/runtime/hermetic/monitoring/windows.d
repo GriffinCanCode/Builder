@@ -157,8 +157,8 @@ final class WindowsMonitor : BaseMonitor
         );
     }
     
-    /// Record initial counters for delta calculation
-    private void recordInitialCounters() @trusted
+    /// Record initial counters for delta calculation (override base method)
+    protected override void recordInitialCounters() @trusted
     {
         JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accountInfo;
         if (QueryInformationJobObject(
@@ -182,34 +182,8 @@ final class WindowsMonitor : BaseMonitor
         {
             initialReadBytes = ioCounters.ReadTransferCount;
             initialWriteBytes = ioCounters.WriteTransferCount;
-        }
-    }
-    
-    /// Check if any limits have been exceeded
-    private void checkLimits() @trusted
-    {
-        auto usage = snapshot();
-        
-        // Check memory limit
-        if (limits.maxMemoryBytes > 0 && usage.peakMemory > limits.maxMemoryBytes)
-        {
-            recordViolation(
-                ViolationType.Memory,
-                usage.peakMemory,
-                limits.maxMemoryBytes,
-                "Peak memory exceeded limit"
-            );
-        }
-        
-        // Check CPU time limit
-        if (limits.maxCpuTimeMs > 0 && usage.cpuTime.total!"msecs" > limits.maxCpuTimeMs)
-        {
-            recordViolation(
-                ViolationType.CpuTime,
-                usage.cpuTime.total!"msecs",
-                limits.maxCpuTimeMs,
-                "CPU time exceeded limit"
-            );
+            initialDiskRead = initialReadBytes;
+            initialDiskWrite = initialWriteBytes;
         }
     }
     

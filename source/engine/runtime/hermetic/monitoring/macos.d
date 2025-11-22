@@ -31,20 +31,24 @@ final class MacOSMonitor : BaseMonitor
     
     override void start() @safe
     {
-        super.start();
-        
-        // Record initial resource usage
-        auto initial = getRusage();
-        initialUserTime = timevalToMs(initial.ru_utime);
-        initialSystemTime = timevalToMs(initial.ru_stime);
+        super.start(); // Calls recordInitialCounters()
     }
     
     override void stop() @safe
     {
-        super.stop();
+        super.stop(); // Calls checkAllLimits()
+    }
+    
+    /// Record initial counters (override base method)
+    protected override void recordInitialCounters() @safe
+    {
+        auto initial = getRusage();
+        initialUserTime = timevalToMs(initial.ru_utime);
+        initialSystemTime = timevalToMs(initial.ru_stime);
         
-        // Check for violations
-        checkLimits();
+        // I/O tracking via rusage (blocks, not bytes)
+        initialDiskRead = initial.ru_inblock * 512;
+        initialDiskWrite = initial.ru_oublock * 512;
     }
     
     override ResourceUsage snapshot() @safe
@@ -92,34 +96,6 @@ final class MacOSMonitor : BaseMonitor
     private static ulong timevalToMs(timeval tv) @safe pure nothrow
     {
         return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-    }
-    
-    /// Check if any limits have been exceeded
-    private void checkLimits() @safe
-    {
-        auto usage = snapshot();
-        
-        // Check memory limit
-        if (limits.maxMemoryBytes > 0 && usage.peakMemory > limits.maxMemoryBytes)
-        {
-            recordViolation(
-                ViolationType.Memory,
-                usage.peakMemory,
-                limits.maxMemoryBytes,
-                "Peak memory exceeded limit"
-            );
-        }
-        
-        // Check CPU time limit
-        if (limits.maxCpuTimeMs > 0 && usage.cpuTime.total!"msecs" > limits.maxCpuTimeMs)
-        {
-            recordViolation(
-                ViolationType.CpuTime,
-                usage.cpuTime.total!"msecs",
-                limits.maxCpuTimeMs,
-                "CPU time exceeded limit"
-            );
-        }
     }
 }
 

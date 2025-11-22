@@ -1,0 +1,60 @@
+[36m[INFO][0m Starting build...
+[36m[INFO][0m ═══════════════════════════════════════════
+[36m[INFO][0m   MODE: Builderfile (1 file(s) found)
+[36m[INFO][0m ═══════════════════════════════════════════
+[32m[SUCCESS][0m Successfully parsed 3 target(s) from 1 Builderfile file(s)
+[36m[INFO][0m Found 3 targets
+[DEBUG] BuildServices: Starting constructor
+[DEBUG] BuildServices: Initializing SIMD
+[DEBUG] BuildServices: Initializing observability
+[DEBUG] BuildServices: Creating ShutdownCoordinator
+[DEBUG] BuildServices: Creating EventPublisher
+[DEBUG] BuildServices: Creating HandlerRegistry
+[DEBUG] BuildServices: Creating CacheService
+[90m[DEBUG][0m Loaded 0 dependency entries from cache
+[DEBUG] BuildServices: Creating DependencyAnalyzer
+[DEBUG] BuildServices: Skipping incremental analysis (disabled)
+[DEBUG] BuildServices: Initializing remote execution
+[90m[DEBUG][0m Remote execution disabled
+[DEBUG] BuildServices: Initializing telemetry
+[DEBUG] BuildServices: Finalizing constructor
+[DEBUG] BuildServices: Constructor complete
+[36m[INFO][0m Analyzing dependencies...
+[90m[DEBUG][0m Graph cache miss - analyzing dependencies...
+[90m[DEBUG][0m   //.:python-lib: 0 dependencies
+[90m[DEBUG][0m   //.:javascript-lib: 0 dependencies
+[90m[DEBUG][0m   //.:go-service: 0 dependencies
+[90m[DEBUG][0m Cached dependency graph for future builds
+[32m[SUCCESS][0m Analysis complete (6ms)
+[90m[DEBUG][0m Loaded 0 dependency entries from cache
+[36m[INFO][0m Dynamic graph support enabled
+[36m[INFO][0m Dynamic graph support enabled
+
+Building 3 targets (parallelism: 16)...
+
+[36m[INFO][0m Max parallelism: 16 jobs
+
+✓ Build completed in 323ms
+  Built: 0, Cached: 0
+
+
+Cache Statistics:
+  Hit rate:      nan% (0 hits, 0 misses)
+  Total entries: 0
+  Total size:    0 B
+
+Build Statistics:
+  Total targets:  3
+  Completed:      0
+  Cached:         0
+  Failed:         0
+  Elapsed:        323ms
+  Throughput:     9.29 targets/sec
+
+
+[36m[INFO][0m Build Summary:
+[36m[INFO][0m   Built: 0
+[36m[INFO][0m   Cached: 0
+[36m[INFO][0m   Failed: 0
+[36m[INFO][0m   Time: 323ms
+[32m[SUCCESS][0m Build completed successfully!

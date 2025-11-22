@@ -28,6 +28,7 @@ Thumbs.db
 test_glob/
 *.test
 coverage/
+build.log
 
 # Generated documentation
 docs/api/

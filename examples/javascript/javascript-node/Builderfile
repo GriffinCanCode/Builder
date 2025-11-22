@@ -3,6 +3,10 @@ target("utils") {
     type: library;
     language: javascript;
     sources: ["utils.js"];
+    
+    javascript: {
+        "bundler": "none"
+    };
 }
 
 target("app") {
@@ -11,7 +15,7 @@ target("app") {
     sources: ["app.js"];
     deps: [":utils"];
     
-    config: {
+    javascript: {
         "mode": "node",
         "bundler": "none"
     };
