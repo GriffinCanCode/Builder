@@ -23,16 +23,25 @@ module engine.graph;
 /// - DiscoveryMetadata: Protocol for dynamic dependencies
 /// - Common patterns for codegen, tests, libraries
 /// 
+/// ### Verification (`engine.graph.verification`)
+/// Formal verification of build correctness:
+/// - BuildVerifier: Generate mathematical proofs of graph properties
+/// - BuildProof: Acyclicity, hermeticity, determinism, race-freedom
+/// - ProofCertificate: Cryptographically signed proof certificates
+/// - Uses SMT-style verification with constructive proofs
+/// 
 /// ## Performance
 /// - Graph construction: O(V+E) with deferred validation
 /// - Cache hits: 10-50x speedup, sub-millisecond validation
 /// - Binary format: ~10x faster than JSON, ~40% smaller
 /// - Thread-safe: atomic operations for concurrent execution
+/// - Verification: O(V+E) proof generation
 /// 
 /// ## Thread Safety
 /// - BuildNode: Atomic status fields for concurrent reads/writes
 /// - GraphCache: Mutex-protected cache operations
 /// - DynamicBuildGraph: Synchronized mutation operations
+/// - BuildVerifier: Immutable proofs, no shared state
 
 // Core graph structures
 public import engine.graph.core;
@@ -42,4 +51,7 @@ public import engine.graph.caching;
 
 // Dynamic discovery
 public import engine.graph.dynamic;
+
+// Formal verification
+public import engine.graph.verification;
 
