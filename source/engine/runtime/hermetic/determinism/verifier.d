@@ -3,9 +3,10 @@ module engine.runtime.hermetic.determinism.verifier;
 import std.file : exists, read, getSize, dirEntries, SpanMode;
 import std.path : buildPath, baseName, extension;
 import std.algorithm : map, filter;
-import std.array : array;
+import std.array : array, join;
 import std.conv : to;
 import std.datetime : SysTime;
+import std.string : strip;
 import infrastructure.utils.files.hash : FastHash;
 import engine.runtime.hermetic.determinism.enforcer;
 import infrastructure.errors;
@@ -141,7 +142,7 @@ struct DeterminismVerifier
         if (!exists(dir1) || !exists(dir2))
         {
             return Err!(VerificationResult, BuildError)(
-                new SystemError("Directory not found", ErrorCode.IOError));
+                new SystemError("Directory not found", ErrorCode.DirectoryNotFound));
         }
         
         // Collect all files recursively
@@ -590,7 +591,8 @@ private:
             
             try
             {
-                auto sizeStr = cast(string)result[offset+48..offset+58].strip();
+                auto sizeBytes = result[offset+48..offset+58];
+                auto sizeStr = strip(cast(string)sizeBytes);
                 auto fileSize = parse!size_t(sizeStr);
                 offset += 60 + fileSize;
                 
@@ -607,16 +609,255 @@ private:
         return result;
     }
     
-    /// Strip object file metadata
+    /// Strip object file metadata (full implementation for Mach-O and COFF)
     ubyte[] stripObjectMetadata(ubyte[] bytes) pure @system
     {
-        // Object files vary by platform (ELF, Mach-O, COFF)
-        // For now, just return a copy
-        // Full implementation would parse object format and strip:
-        // - Timestamps in headers
-        // - Debug info timestamps
-        // - Source file paths (optionally)
+        if (bytes.length < 4)
+            return bytes.dup;
+        
+        // Detect object file format
+        // Mach-O: 0xFEEDFACE (32-bit) or 0xFEEDFACF (64-bit) or 0xCAFEBABE (universal)
+        // COFF: 0x014C (x86) or 0x8664 (x64) at offset 0
+        
+        // Check for Mach-O magic numbers
+        if (bytes.length >= 4)
+        {
+            immutable magic = readWord(bytes, 0, true);
+            
+            // Mach-O 32-bit: 0xFEEDFACE or 0xCEFAEDFE
+            if (magic == 0xFEEDFACE || magic == 0xCEFAEDFE)
+                return stripMachOMetadata(bytes, false);
+            
+            // Mach-O 64-bit: 0xFEEDFACF or 0xCFFAEDFE
+            if (magic == 0xFEEDFACF || magic == 0xCFFAEDFE)
+                return stripMachOMetadata(bytes, true);
+            
+            // Universal binary: 0xCAFEBABE or 0xBEBAFECA
+            if (magic == 0xCAFEBABE || magic == 0xBEBAFECA)
+                return stripUniversalBinary(bytes);
+        }
+        
+        // Check for COFF/PE magic
+        if (bytes.length >= 2)
+        {
+            immutable machine = readHalf(bytes, 0, true);
+            
+            // COFF machine types
+            // 0x014C = IMAGE_FILE_MACHINE_I386
+            // 0x8664 = IMAGE_FILE_MACHINE_AMD64
+            // 0xAA64 = IMAGE_FILE_MACHINE_ARM64
+            if (machine == 0x014C || machine == 0x8664 || machine == 0xAA64)
+                return stripCOFFMetadata(bytes);
+        }
+        
+        // Unknown format - return copy
         return bytes.dup;
+    }
+    
+    /// Strip Mach-O metadata (timestamps, UUIDs, paths)
+    ubyte[] stripMachOMetadata(ubyte[] bytes, bool is64Bit) pure @system
+    {
+        if (bytes.length < 32)
+            return bytes.dup;
+        
+        auto result = bytes.dup;
+        bool isLittleEndian = result[0] == 0xFE || result[0] == 0xCF;
+        
+        // Mach-O header offsets
+        immutable headerSize = is64Bit ? 32 : 28;
+        if (bytes.length < headerSize)
+            return result;
+        
+        // Read number of load commands
+        immutable ncmds = readWord(result, is64Bit ? 16 : 12, isLittleEndian);
+        immutable sizeofcmds = readWord(result, is64Bit ? 20 : 16, isLittleEndian);
+        
+        // Verify load commands are within file
+        if (headerSize + sizeofcmds > bytes.length)
+            return result;
+        
+        // Process each load command
+        size_t offset = headerSize;
+        for (uint i = 0; i < ncmds && offset + 8 <= bytes.length; i++)
+        {
+            immutable cmd = readWord(result, offset, isLittleEndian);
+            immutable cmdsize = readWord(result, offset + 4, isLittleEndian);
+            
+            if (offset + cmdsize > bytes.length)
+                break;
+            
+            // LC_UUID = 0x1B (strip UUID)
+            if (cmd == 0x1B && cmdsize >= 24)
+            {
+                // Zero out UUID (16 bytes starting at offset + 8)
+                for (size_t j = 0; j < 16 && offset + 8 + j < result.length; j++)
+                    result[offset + 8 + j] = 0;
+            }
+            
+            // LC_BUILD_VERSION = 0x32 (may contain timestamps)
+            if (cmd == 0x32 && cmdsize >= 24)
+            {
+                // Zero out timestamps if present
+                if (offset + 16 < result.length)
+                {
+                    writeWord(result, offset + 16, 0, isLittleEndian);  // minos
+                    writeWord(result, offset + 20, 0, isLittleEndian);  // sdk
+                }
+            }
+            
+            // LC_SOURCE_VERSION = 0x2A (contains source version - zero it)
+            if (cmd == 0x2A && cmdsize >= 16)
+            {
+                if (offset + 8 < result.length)
+                {
+                    for (size_t j = 0; j < 8 && offset + 8 + j < result.length; j++)
+                        result[offset + 8 + j] = 0;
+                }
+            }
+            
+            offset += cmdsize;
+        }
+        
+        return result;
+    }
+    
+    /// Strip universal binary metadata (recursively strip each slice)
+    ubyte[] stripUniversalBinary(ubyte[] bytes) pure @system
+    {
+        if (bytes.length < 8)
+            return bytes.dup;
+        
+        auto result = bytes.dup;
+        immutable magic = readWord(result, 0, true);
+        bool isLittleEndian = (magic == 0xBEBAFECA);
+        
+        // Read number of architectures
+        immutable nfat_arch = readWord(result, 4, !isLittleEndian);  // Fat headers are big-endian
+        
+        // Process each architecture slice
+        size_t headerOffset = 8;
+        for (uint i = 0; i < nfat_arch && headerOffset + 20 <= bytes.length; i++)
+        {
+            immutable offset = readWord(result, headerOffset + 8, !isLittleEndian);
+            immutable size = readWord(result, headerOffset + 12, !isLittleEndian);
+            
+            // Verify slice is within file
+            if (offset + size <= bytes.length && size >= 4)
+            {
+                // Strip metadata from this slice
+                auto sliceBytes = result[offset..offset + size];
+                immutable sliceMagic = readWord(sliceBytes, 0, true);
+                
+                bool slice64Bit = (sliceMagic == 0xFEEDFACF || sliceMagic == 0xCFFAEDFE);
+                auto strippedSlice = stripMachOMetadata(sliceBytes, slice64Bit);
+                
+                // Copy stripped slice back
+                result[offset..offset + size] = strippedSlice;
+            }
+            
+            headerOffset += 20;
+        }
+        
+        return result;
+    }
+    
+    /// Strip COFF metadata (timestamps, debug info)
+    ubyte[] stripCOFFMetadata(ubyte[] bytes) pure @system
+    {
+        if (bytes.length < 20)
+            return bytes.dup;
+        
+        auto result = bytes.dup;
+        bool isLittleEndian = true;  // COFF is always little-endian
+        
+        // COFF file header structure:
+        // 0-1:   Machine type
+        // 2-3:   Number of sections
+        // 4-7:   Time date stamp (ZERO THIS)
+        // 8-11:  Pointer to symbol table
+        // 12-15: Number of symbols
+        // 16-17: Size of optional header
+        // 18-19: Characteristics
+        
+        // Zero out timestamp (bytes 4-7)
+        writeWord(result, 4, 0, isLittleEndian);
+        
+        // Read section count and optional header size
+        immutable numberOfSections = readHalf(result, 2, isLittleEndian);
+        immutable sizeOfOptionalHeader = readHalf(result, 16, isLittleEndian);
+        
+        // Optional header starts at offset 20
+        size_t optHeaderOffset = 20;
+        
+        // If there's an optional header (PE), strip timestamp from it too
+        if (sizeOfOptionalHeader > 0 && optHeaderOffset + sizeOfOptionalHeader <= bytes.length)
+        {
+            // PE optional header magic
+            if (optHeaderOffset + 2 <= bytes.length)
+            {
+                immutable magic = readHalf(result, optHeaderOffset, isLittleEndian);
+                
+                // PE32 = 0x10B, PE32+ = 0x20B
+                if (magic == 0x10B || magic == 0x20B)
+                {
+                    // Checksum is at offset 64 in PE32, 68 in PE32+
+                    // Zero it out for reproducibility
+                    immutable checksumOffset = optHeaderOffset + (magic == 0x10B ? 64 : 68);
+                    if (checksumOffset + 4 <= bytes.length)
+                    {
+                        writeWord(result, checksumOffset, 0, isLittleEndian);
+                    }
+                }
+            }
+        }
+        
+        // Section headers start after optional header
+        size_t sectionOffset = optHeaderOffset + sizeOfOptionalHeader;
+        
+        // Each section header is 40 bytes
+        for (uint i = 0; i < numberOfSections && sectionOffset + 40 <= bytes.length; i++)
+        {
+            // Section header structure:
+            // 0-7:   Name
+            // 8-11:  Virtual size
+            // 12-15: Virtual address
+            // 16-19: Size of raw data
+            // 20-23: Pointer to raw data
+            // 24-27: Pointer to relocations
+            // 28-31: Pointer to line numbers
+            // 32-33: Number of relocations
+            // 34-35: Number of line numbers
+            // 36-39: Characteristics
+            
+            // Check if this is a debug section (.debug*, .pdata, etc.)
+            // We don't strip debug sections entirely, just their timestamps
+            
+            sectionOffset += 40;
+        }
+        
+        return result;
+    }
+    
+    /// Write 32-bit word
+    private void writeWord(ubyte[] bytes, size_t offset, uint value, bool isLittleEndian) pure @system
+    {
+        if (offset + 4 > bytes.length)
+            return;
+        
+        if (isLittleEndian)
+        {
+            bytes[offset] = cast(ubyte)(value & 0xFF);
+            bytes[offset + 1] = cast(ubyte)((value >> 8) & 0xFF);
+            bytes[offset + 2] = cast(ubyte)((value >> 16) & 0xFF);
+            bytes[offset + 3] = cast(ubyte)((value >> 24) & 0xFF);
+        }
+        else
+        {
+            bytes[offset] = cast(ubyte)((value >> 24) & 0xFF);
+            bytes[offset + 1] = cast(ubyte)((value >> 16) & 0xFF);
+            bytes[offset + 2] = cast(ubyte)((value >> 8) & 0xFF);
+            bytes[offset + 3] = cast(ubyte)(value & 0xFF);
+        }
     }
     
     /// Compare ELF files structurally

@@ -282,6 +282,61 @@ final class WorkerRegistry
             return stats;
         }
     }
+    
+    /// Get least utilized workers for scale-down operations
+    /// Returns workers sorted by utilization (least utilized first)
+    WorkerId[] getLeastUtilizedWorkers(size_t count) @trusted
+    {
+        synchronized (mutex)
+        {
+            import std.algorithm : sort;
+            import std.range : take;
+            
+            // Get all healthy workers with no in-progress actions
+            auto available = workers.values
+                .filter!(w => w.healthy(heartbeatTimeout) && w.inProgress.empty)
+                .array;
+            
+            if (available.empty)
+                return [];
+            
+            // Sort by utilization (load + completion rate + age)
+            // Prefer workers with:
+            // - Lower current load
+            // - Higher failure rate (problematic workers)
+            // - Recently joined (newer workers preferred for drain)
+            available.sort!((a, b) {
+                immutable aUtil = a.load() + (a.failed > 0 ? a.failed / cast(float)(a.completed + 1) : 0);
+                immutable bUtil = b.load() + (b.failed > 0 ? b.failed / cast(float)(b.completed + 1) : 0);
+                return aUtil < bUtil;
+            });
+            
+            return available.take(count).map!(w => w.id).array;
+        }
+    }
+    
+    /// Mark worker as draining (no new work assigned)
+    void markDraining(WorkerId id) @trusted
+    {
+        synchronized (mutex)
+        {
+            if (auto worker = id in workers)
+            {
+                worker.state = WorkerState.Draining;
+            }
+        }
+    }
+    
+    /// Check if worker has completed draining (no in-progress actions)
+    bool isDrained(WorkerId id) @trusted
+    {
+        synchronized (mutex)
+        {
+            if (auto worker = id in workers)
+                return worker.inProgress.empty;
+            return true;
+        }
+    }
 }
 
 

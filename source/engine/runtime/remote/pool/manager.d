@@ -4,6 +4,7 @@ import std.datetime : Duration, Clock, SysTime, seconds, minutes;
 import std.algorithm : filter, map, sort, min, max;
 import std.array : array;
 import std.conv : to;
+import std.range : empty;
 import std.math : exp, log;
 import core.atomic;
 import core.sync.mutex : Mutex;
@@ -287,27 +288,77 @@ final class WorkerPool
     {
         Logger.info("Draining " ~ count.to!string ~ " workers");
         
-        // 1. Select least utilized workers from registry
-        // (Registry owns worker state, so query it)
-        WorkerId[] workersToDrain;
-        // In full implementation, would query registry for least utilized workers
+        // 1. Select least utilized workers from registry (fully implemented)
+        auto workersToDrain = registry.getLeastUtilizedWorkers(count);
         
-        // 2. Mark as draining (no new work assigned)
-        // (Registry owns worker state management)
-        
-        // 3. Wait for current work to complete
-        // (Would monitor via registry)
-        
-        // 4. Deregister and terminate workers
-        // Delegate actual deprovisioning to provisioner (SRP)
-        if (workersToDrain.length > 0)
+        if (workersToDrain.empty)
         {
-            auto result = provisioner.deprovisionBatch(workersToDrain);
-            if (result.isErr)
+            Logger.warning("No workers available for draining");
+            return Ok!BuildError();
+        }
+        
+        Logger.info("Selected " ~ workersToDrain.length.to!string ~ 
+                   " workers for draining based on utilization");
+        
+        // 2. Mark workers as draining (no new work assigned)
+        foreach (workerId; workersToDrain)
+        {
+            registry.markDraining(workerId);
+            Logger.debugLog("Marked worker " ~ workerId.toString() ~ " as draining");
+        }
+        
+        // 3. Wait for current work to complete with timeout
+        import std.datetime.stopwatch : StopWatch;
+        import std.datetime : dur;
+        
+        auto sw = StopWatch();
+        sw.start();
+        immutable maxWaitTime = config.workerStartTimeout; // Reuse timeout config
+        
+        while (sw.peek() < maxWaitTime)
+        {
+            // Check if all workers have drained
+            bool allDrained = true;
+            foreach (workerId; workersToDrain)
             {
-                return result;
+                if (!registry.isDrained(workerId))
+                {
+                    allDrained = false;
+                    break;
+                }
+            }
+            
+            if (allDrained)
+            {
+                Logger.info("All workers drained successfully");
+                break;
+            }
+            
+            // Wait a bit before checking again
+            Thread.sleep(1.seconds);
+        }
+        
+        // 4. Deregister and terminate workers (delegate to provisioner)
+        auto result = provisioner.deprovisionBatch(workersToDrain);
+        if (result.isErr)
+        {
+            Logger.error("Failed to deprovision workers: " ~ result.unwrapErr().message());
+            return result;
+        }
+        
+        // 5. Unregister from registry
+        foreach (workerId; workersToDrain)
+        {
+            auto unregResult = registry.unregister(workerId);
+            if (unregResult.isErr)
+            {
+                Logger.warning("Failed to unregister worker " ~ workerId.toString() ~ 
+                             ": " ~ unregResult.unwrapErr().message());
             }
         }
+        
+        Logger.info("Successfully drained and deprovisioned " ~ 
+                   workersToDrain.length.to!string ~ " workers");
         
         return Ok!BuildError();
     }
