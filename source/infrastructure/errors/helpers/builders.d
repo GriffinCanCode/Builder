@@ -2,6 +2,7 @@ module infrastructure.errors.helpers.builders;
 
 import std.path : baseName, dirName;
 import std.string : format;
+import std.array : empty;
 import std.file : exists;
 import infrastructure.errors.types.types;
 import infrastructure.errors.types.context;
@@ -69,7 +70,7 @@ auto createParseError(
     else if (fileName == "Builderspace")
     {
         error.addSuggestion(ErrorSuggestion.docs("Review Builderspace syntax", "docs/architecture/dsl.md"));
-        error.addSuggestion(ErrorSuggestion("Check workspace-level configuration");
+        error.addSuggestion(ErrorSuggestion("Check workspace-level configuration"));
     }
     else
     {

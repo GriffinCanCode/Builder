@@ -59,8 +59,8 @@ interface IObservabilityService
 final class ObservabilityService : IObservabilityService
 {
     private EventPublisher eventPublisher;
-    private Tracer tracer;
-    private StructuredLogger structuredLogger;
+    private Tracer _tracer;
+    private StructuredLogger _structuredLogger;
     
     this(EventPublisher eventPublisher = null, 
          Tracer tracer = null,
@@ -68,8 +68,8 @@ final class ObservabilityService : IObservabilityService
     {
         // Use provided dependencies (no global fallbacks)
         this.eventPublisher = eventPublisher;
-        this.tracer = tracer;
-        this.structuredLogger = structuredLogger;
+        this._tracer = tracer;
+        this._structuredLogger = structuredLogger;
     }
     
     void publishEvent(BuildEvent event) @trusted
@@ -82,45 +82,45 @@ final class ObservabilityService : IObservabilityService
     
     Span startSpan(string name, SpanKind kind, Span parent = null) @trusted
     {
-        return tracer.startSpan(name, kind, parent);
+        return _tracer.startSpan(name, kind, parent);
     }
     
     void finishSpan(Span span) @trusted
     {
-        tracer.finishSpan(span);
+        _tracer.finishSpan(span);
     }
     
     void logInfo(string message, string[string] fields = null) @trusted
     {
         string[string] f = fields is null ? (string[string]).init : fields;
-        structuredLogger.info(message, f);
+        _structuredLogger.info(message, f);
     }
     
     void logDebug(string message, string[string] fields = null) @trusted
     {
         string[string] f = fields is null ? (string[string]).init : fields;
-        structuredLogger.debug_(message, f);
+        _structuredLogger.debug_(message, f);
     }
     
     void logError(string message, string[string] fields = null) @trusted
     {
         string[string] f = fields is null ? (string[string]).init : fields;
-        structuredLogger.error(message, f);
+        _structuredLogger.error(message, f);
     }
     
     void logException(Exception e, string message = "") @trusted
     {
-        structuredLogger.exception(e, message);
+        _structuredLogger.exception(e, message);
     }
     
     void flush() @trusted
     {
-        tracer.flush();
+        _tracer.flush();
     }
     
     void startTrace() @trusted
     {
-        tracer.startTrace();
+        _tracer.startTrace();
     }
     
     void setSpanStatus(Span span, SpanStatus status, string description = "") @trusted
@@ -145,12 +145,12 @@ final class ObservabilityService : IObservabilityService
     
     @property Tracer tracer() @trusted
     {
-        return this.tracer;
+        return this._tracer;
     }
     
     @property StructuredLogger logger() @trusted
     {
-        return this.structuredLogger;
+        return this._structuredLogger;
     }
 }
 

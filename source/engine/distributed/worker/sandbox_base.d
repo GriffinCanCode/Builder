@@ -6,8 +6,8 @@ import std.path : buildPath;
 import std.conv : to;
 import std.uuid : randomUUID;
 import engine.distributed.protocol.protocol;
-import engine.runtime.hermetic;
 import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.core.spec : ResourceLimits, SandboxSpec, SandboxSpecBuilder;
 import infrastructure.errors;
 
 /// Input artifact (for sandbox mounting)
@@ -27,9 +27,17 @@ struct ExecutionOutput
     int exitCode;       // Process exit code
 }
 
+/// Sandbox environment interface (forward declaration for SandboxEnvBase)
+interface ISandboxEnv
+{
+    ResourceUsage resourceUsage();
+    ResourceMonitor monitor();
+    void cleanup();
+}
+
 /// Base sandbox environment implementation
 /// Extracts common patterns shared across all platform-specific sandbox environments
-abstract class SandboxEnvBase
+abstract class SandboxEnvBase : ISandboxEnv
 {
     protected ActionRequest request;
     protected InputArtifact[] inputs;

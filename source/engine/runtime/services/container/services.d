@@ -406,6 +406,12 @@ final class BuildServices
     {
         Logger.info("Shutting down services...");
         
+        // Stop remote execution service
+        if (_remoteService !is null)
+        {
+            _remoteService.stop();
+        }
+        
         // Shutdown economics (save history, display summary)
         if (_economics !is null)
         {
@@ -416,11 +422,21 @@ final class BuildServices
             }
         }
         
+        // Shutdown coordinator handles all cache cleanup
+        if (_shutdownCoordinator !is null)
+        {
+            _shutdownCoordinator.shutdown();
+        }
+        
         // Persist telemetry
         saveTelemetry();
         
         // Flush renderer
         flush();
+        
+        // Shutdown SIMD capabilities
+        if (_simdCapabilities !is null)
+            _simdCapabilities.shutdown();
         
         Logger.info("Services shutdown complete");
     }
@@ -502,31 +518,6 @@ final class BuildServices
     bool hasRemoteExecution() const @property
     {
         return _remoteService !is null;
-    }
-    
-    void shutdown()
-    {
-        // Stop remote execution service
-        if (_remoteService !is null)
-        {
-            _remoteService.stop();
-        }
-        
-        // Flush any pending output
-        flush();
-        
-        // Shutdown coordinator handles all cache cleanup
-        if (_shutdownCoordinator !is null)
-        {
-            _shutdownCoordinator.shutdown();
-        }
-        
-        // Save telemetry
-        saveTelemetry();
-        
-        // Shutdown SIMD capabilities
-        if (_simdCapabilities !is null)
-            _simdCapabilities.shutdown();
     }
 }
 

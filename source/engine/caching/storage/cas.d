@@ -31,10 +31,11 @@ final class ContentAddressableStorage
     /// Returns: content hash of stored blob
     Result!(string, BuildError) putBlob(const(ubyte)[] data) @system
     {
+        string blobPath;
         try
         {
             immutable hash = FastHash.hashBytes(data);
-            immutable blobPath = getBlobPath(hash);
+            blobPath = getBlobPath(hash);
             
             synchronized (storageMutex)
             {

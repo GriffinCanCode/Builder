@@ -10,10 +10,9 @@ import std.conv;
 import std.regex;
 import std.process : environment;
 import languages.base.base;
-import languages.dynamic.spec;
+import languages.dynamic.spec : DynamicLanguageSpec = LanguageSpec;
 import infrastructure.config.schema.schema;
 import infrastructure.analysis.targets.types;
-import infrastructure.analysis.targets.spec;
 import infrastructure.utils.files.hash;
 import infrastructure.utils.logging.logger;
 import infrastructure.utils.security : execute;
@@ -24,10 +23,10 @@ import engine.caching.actions.action;
 /// Eliminates need to write D code for simple language integrations
 class SpecBasedHandler : BaseLanguageHandler
 {
-    private LanguageSpec spec;
+    private DynamicLanguageSpec spec;
     private ActionCache cache;
     
-    this(LanguageSpec spec)
+    this(DynamicLanguageSpec spec)
     {
         this.spec = spec;
     }
@@ -72,12 +71,12 @@ class SpecBasedHandler : BaseLanguageHandler
         
         if (!target.outputPath.empty)
         {
-            outputs ~= buildPath(config.options.outputDir, target.outputPath);
+            outputs ~= buildPath(config.root, target.outputPath);
         }
         else
         {
             auto name = target.name.split(":")[$ - 1];
-            outputs ~= buildPath(config.options.outputDir, name);
+            outputs ~= buildPath(config.root, name);
         }
         
         return outputs;

@@ -8,16 +8,24 @@ import std.conv : to;
 import std.algorithm : map;
 import std.array : array;
 import engine.distributed.protocol.protocol;
-import engine.runtime.hermetic;
-import engine.runtime.hermetic.monitoring;
-import engine.runtime.hermetic.platforms.capabilities;
 import infrastructure.errors;
 
-// Import base classes
+// Import base classes (includes ExecutionOutput and ISandboxEnv)
 public import engine.distributed.worker.sandbox_base;
 
+// Import hermetic execution (hide ExecutionOutput to avoid conflict)
+static import engine.runtime.hermetic;
+import engine.runtime.hermetic.monitoring;
+import engine.runtime.hermetic.platforms.capabilities;
+
+// Bring hermetic symbols into scope except ExecutionOutput
+alias HermeticExecutor = engine.runtime.hermetic.HermeticExecutor;
+alias HermeticSpecBuilder = engine.runtime.hermetic.HermeticSpecBuilder;
+alias SandboxSpec = engine.runtime.hermetic.SandboxSpec;
+alias SandboxSpecBuilder = engine.runtime.hermetic.SandboxSpecBuilder;
+
 /// Sandbox environment interface
-interface SandboxEnv
+interface SandboxEnv : ISandboxEnv
 {
     /// Execute command in sandbox
     Result!(ExecutionOutput, DistributedError) execute(
@@ -25,15 +33,6 @@ interface SandboxEnv
         string[string] env,
         Duration timeout
     );
-    
-    /// Get resource usage
-    ResourceUsage resourceUsage();
-    
-    /// Get resource monitor (if available)
-    ResourceMonitor monitor();
-    
-    /// Cleanup sandbox
-    void cleanup();
 }
 
 /// Sandbox factory (platform-specific)
@@ -75,7 +74,7 @@ final class NoSandboxEnv : SandboxEnvBase, SandboxEnv
         Duration timeout
     ) @trusted
     {
-        return executeWithMonitoring({
+        return executeWithMonitoring(() @trusted {
             try
             {
                 import infrastructure.utils.security.executor : execute;
@@ -151,7 +150,7 @@ version(linux)
             Duration timeout
         ) @trusted
         {
-            return executeWithMonitoring({
+            return executeWithMonitoring(() @trusted {
                 // Create hermetic executor
                 auto executorResult = HermeticExecutor.create(spec, workDir);
                 if (executorResult.isErr)
@@ -253,7 +252,7 @@ version(OSX)
             Duration timeout
         ) @trusted
         {
-            return executeWithMonitoring({
+            return executeWithMonitoring(() @trusted {
                 // Create hermetic executor
                 auto executorResult = HermeticExecutor.create(spec, workDir);
                 if (executorResult.isErr)
@@ -353,7 +352,7 @@ version(Windows)
             Duration timeout
         ) @trusted
         {
-            return executeWithMonitoring({
+            return executeWithMonitoring(() @trusted {
                 // Create hermetic executor
                 auto executorResult = HermeticExecutor.create(spec, workDir);
                 if (executorResult.isErr)

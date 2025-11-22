@@ -22,7 +22,7 @@ final class EconomicsIntegration
     private PricingConfig pricingConfig;
     private bool enabled;
     
-    this(EconomicsConfig config, string cacheDir) @safe
+    this(EconomicsConfig config, string cacheDir) @trusted
     {
         this.enabled = config.enabled;
         
@@ -190,7 +190,8 @@ final class EconomicsIntegration
 private string repeat(string s, size_t n) pure @safe
 {
     import std.array : join, array;
-    import std.range : iota, map;
+    import std.range : iota;
+    import std.algorithm : map;
     
     return iota(n).map!(_ => s).join;
 }
