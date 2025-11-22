@@ -88,7 +88,7 @@ final class CostEstimator
             if (auto historicalData = history.lookup(node.id.toString()))
             {
                 Logger.debugLog("Using historical data for " ~ node.idString);
-                return Ok!(BuildEstimate, BuildError)(*historicalData);
+                return Ok!(BuildEstimate, BuildError)(historicalData.estimate);
             }
             
             // Fallback to heuristics based on target type
@@ -252,10 +252,10 @@ final class ExecutionHistory
     }
     
     /// Lookup historical estimate
-    const(BuildEstimate)* lookup(string targetId) @trusted
+    const(HistoryEntry)* lookup(string targetId) @trusted
     {
         if (auto entry = targetId in entries)
-            return &entry.estimate;
+            return entry;
         return null;
     }
     
@@ -291,10 +291,55 @@ final class ExecutionHistory
     /// Import from JSON
     static ExecutionHistory fromJson(string json) @trusted
     {
+        import std.json : parseJSON, JSONValue, JSONType, JSONException;
+        import std.datetime : msecs;
+        
         auto history = new ExecutionHistory();
         
-        // Simplified JSON parsing (in production, use proper JSON library)
-        // For now, return empty history
+        try
+        {
+            JSONValue root = parseJSON(json);
+            
+            if (root.type != JSONType.array)
+                return history;
+            
+            foreach (item; root.array)
+            {
+                if (item.type != JSONType.object)
+                    continue;
+                
+                // Extract fields
+                string targetId = item["target"].str;
+                long durationMs = item["duration"].integer;
+                int cores = cast(int)item["cores"].integer;
+                ulong memory = cast(ulong)item["memory"].integer;
+                ulong network = cast(ulong)item["network"].integer;
+                ulong diskIO = cast(ulong)item["diskIO"].integer;
+                float cacheHitRate = cast(float)item["cacheHitRate"].floating;
+                size_t execCount = cast(size_t)item["execCount"].integer;
+                
+                // Reconstruct entry
+                ResourceUsageEstimate usage;
+                usage.cores = cores;
+                usage.memoryBytes = memory;
+                usage.networkBytes = network;
+                usage.diskIOBytes = diskIO;
+                
+                HistoryEntry entry;
+                entry.estimate.duration = msecs(durationMs);
+                entry.estimate.usage = usage;
+                entry.cacheHitRate = cacheHitRate;
+                entry.executionCount = execCount;
+                
+                history.entries[targetId] = entry;
+            }
+        }
+        catch (JSONException e)
+        {
+            // Return empty history on parse failure
+            import infrastructure.utils.logging.logger;
+            Logger.warning("Failed to parse execution history JSON: " ~ e.msg);
+        }
         
         return history;
     }

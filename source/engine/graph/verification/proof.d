@@ -290,9 +290,9 @@ struct BuildVerifier
             foreach (source; node.target.sources)
                 proof.inputs.add(source);
             
-            // Add outputs to output set
-            foreach (output; node.target.outputs)
-                proof.outputs.add(output);
+            // Add output to output set
+            if (node.target.outputPath.length > 0)
+                proof.outputs.add(node.target.outputPath);
         }
         
         // Prove I ∩ O = ∅ (disjoint input/output sets)
@@ -330,13 +330,14 @@ struct BuildVerifier
             
             // Hash inputs (sources + dependencies)
             auto inputsData = computeInputsHash(node);
-            spec.inputsHash = Blake3.hash(cast(ubyte[]) inputsData);
+            spec.inputsHash = Blake3.hashHex(cast(ubyte[]) inputsData);
             
-            // Hash command (deterministic build command)
-            spec.commandHash = Blake3.hash(cast(ubyte[]) node.target.command);
+            // Hash target configuration (deterministic build specification)
+            immutable targetSpec = node.id.toString() ~ "|" ~ node.target.type.to!string;
+            spec.commandHash = Blake3.hashHex(cast(ubyte[]) targetSpec);
             
             // Hash environment (uses SandboxSpec in production)
-            spec.envHash = Blake3.hash(cast(ubyte[]) "hermetic-env");
+            spec.envHash = Blake3.hashHex(cast(ubyte[]) "hermetic-env");
             
             // Expected outputs hash (computed from actual outputs at runtime)
             spec.outputsHash = "";
@@ -365,11 +366,13 @@ struct BuildVerifier
         string[] inputs;
         
         // Add sources
-        inputs ~= node.target.sources;
+        foreach (source; node.target.sources)
+            inputs ~= source;
         
         // Add dependency IDs (sorted for determinism)
         auto depIds = node.dependencyIds.map!(d => d.toString()).array.sort.array;
-        inputs ~= depIds;
+        foreach (dep; depIds)
+            inputs ~= dep;
         
         return inputs.join("|");
     }
@@ -424,8 +427,8 @@ struct BuildVerifier
         foreach (node; graph.nodes.values)
         {
             PathSet writeSet;
-            foreach (output; node.target.outputs)
-                writeSet.add(output);
+            if (node.target.outputPath.length > 0)
+                writeSet.add(node.target.outputPath);
             writeSets[node.id.toString()] = writeSet;
         }
         
@@ -458,7 +461,7 @@ struct BuildVerifier
             proof.timestamp.toISOExtString()
         );
         
-        return Blake3.hash(cast(ubyte[]) data);
+        return Blake3.hashHex(cast(ubyte[]) data);
     }
 }
 
@@ -529,7 +532,7 @@ Result!(ProofCertificate, BuildError) generateCertificate(BuildGraph graph, stri
     cert.workspace = workspace;
     
     // Generate signature using BLAKE3
-    cert.signature = Blake3.hash(cast(ubyte[])(cert.proof.proofHash ~ workspace));
+    cert.signature = Blake3.hashHex(cast(ubyte[])(cert.proof.proofHash ~ workspace));
     
     return Result!(ProofCertificate, BuildError).ok(cert);
 }

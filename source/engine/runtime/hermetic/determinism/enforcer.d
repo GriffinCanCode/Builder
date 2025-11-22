@@ -5,6 +5,7 @@ import std.path : buildPath, absolutePath;
 import std.file : exists, mkdirRecurse, tempDir;
 import std.conv : to;
 import std.uuid : randomUUID;
+import std.range : empty;
 import engine.runtime.hermetic.core.spec;
 import engine.runtime.hermetic.core.executor;
 import infrastructure.errors;
@@ -216,7 +217,7 @@ struct DeterminismEnforcer
     private:
     
     /// Augment sandbox spec with determinism environment variables
-    SandboxSpec augmentDeterministicEnvironment(SandboxSpec spec) @system
+    SandboxSpec augmentDeterministicEnvironment(const SandboxSpec spec) @system
     {
         import engine.runtime.hermetic.core.spec : SandboxSpecBuilder;
         

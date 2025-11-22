@@ -246,7 +246,7 @@ class WatchModeWithDiscovery
                 dynamicGraph.markDiscoverable(node.id);
             
             // Get language handler
-            auto handlers = HandlerRegistry.instance();
+            auto handlers = new HandlerRegistry();
             auto handler = handlers.get(node.target.language);
             if (handler is null)
             {
@@ -287,15 +287,15 @@ class WatchModeWithDiscovery
     /// Rebuild affected targets after discovery
     private Result!(size_t, string) rebuildAffectedTargets(BuildNode[] originalNodes, BuildNode[] newNodes) @system
     {
-        import engine.runtime.core.executor;
-        import engine.runtime.core.parallel;
+        import engine.runtime.services.container.services;
         
         size_t rebuiltCount = 0;
         
         // Reset state for original nodes
         foreach (node; originalNodes)
         {
-            node.resetState();
+            // Reset node status to pending for rebuild
+            node.setStatus(BuildStatus.Pending);
             rebuiltCount++;
         }
         

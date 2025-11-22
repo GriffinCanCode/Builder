@@ -4,12 +4,16 @@ import engine.runtime.remote.providers.base;
 import engine.distributed.protocol.protocol : WorkerId;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;
-import std.process : execute, Config;
+import std.process : execute, pipeProcess, Redirect, wait;
 import std.format : format;
-import std.datetime : Clock;
-import std.string : strip, split, indexOf;
+import std.datetime : Clock, SysTime;
+import std.string : strip, split, join;
 import std.conv : to;
 import std.uuid : randomUUID;
+import std.algorithm : map;
+import std.stdio : File;
+import std.array : array;
+import std.json : parseJSON, JSONValue, JSONException, JSONType;
 
 /// Kubernetes provider implementation
 /// 
@@ -19,6 +23,7 @@ final class KubernetesProvider : CloudProvider
 {
     private string namespace;
     private string kubeconfig;
+    private string[WorkerId] podNameMap;  // Maps WorkerId to Pod name
     
     this(string namespace, string kubeconfig) @safe
     {
@@ -74,7 +79,7 @@ spec:
             podSpec ~= format("    %s: %s\n", key, value);
         }
         
-        // Apply pod using kubectl
+        // Apply pod using kubectl with piped input
         string[] kubectlArgs = [
             "kubectl",
             "--kubeconfig=" ~ kubeconfig,
@@ -83,30 +88,68 @@ spec:
             "-"
         ];
         
-        auto result = execute(kubectlArgs, null, Config.none, size_t.max, podSpec);
-        
-        if (result.status != 0)
+        try
+        {
+            auto pipes = pipeProcess(kubectlArgs, Redirect.stdin | Redirect.stdout | Redirect.stderr);
+            pipes.stdin.write(podSpec);
+            pipes.stdin.close();
+            
+            auto status = wait(pipes.pid);
+            string output = pipes.stdout.byLine.map!(a => a.idup).join("\n");
+            string errorOutput = pipes.stderr.byLine.map!(a => a.idup).join("\n");
+            
+            if (status != 0)
+            {
+                auto error = new SystemError(
+                    format("Failed to create Kubernetes pod: %s", errorOutput),
+                    ErrorCode.ProcessSpawnFailed
+                );
+                return Err!(WorkerId, BuildError)(error);
+            }
+        }
+        catch (Exception e)
         {
             auto error = new SystemError(
-                format("Failed to create Kubernetes pod: %s", result.output),
-                ErrorCode.ExternalError
+                format("Failed to execute kubectl: %s", e.msg),
+                ErrorCode.ProcessSpawnFailed
             );
             return Err!(WorkerId, BuildError)(error);
         }
         
+        // Convert string pod name to WorkerId by hashing
+        import std.digest.murmurhash : MurmurHash3;
+        MurmurHash3!128 hasher;
+        hasher.put(cast(ubyte[])podName);
+        auto hash = hasher.finish();
+        ulong id = *cast(ulong*)&hash[0];
+        
         Logger.info("Created Kubernetes pod: " ~ podName);
-        return Ok!(WorkerId, BuildError)(WorkerId(podName));
+        podNameMap[WorkerId(id)] = podName;
+        return Ok!(WorkerId, BuildError)(WorkerId(id));
     }
     
     Result!BuildError terminateWorker(WorkerId workerId) @trusted
     {
+        // Lookup actual pod name
+        auto podNamePtr = workerId in podNameMap;
+        if (podNamePtr is null)
+        {
+            auto error = new SystemError(
+                "Worker ID not found in pod map",
+                ErrorCode.WorkerFailed
+            );
+            return Result!BuildError.err(error);
+        }
+        
+        string podName = *podNamePtr;
+        
         string[] kubectlArgs = [
             "kubectl",
             "--kubeconfig=" ~ kubeconfig,
             "-n", namespace,
             "delete",
             "pod",
-            workerId.id,
+            podName,
             "--grace-period=30"
         ];
         
@@ -115,25 +158,39 @@ spec:
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to delete Kubernetes pod %s: %s", workerId.id, result.output),
-                ErrorCode.ExternalError
+                format("Failed to delete Kubernetes pod %s: %s", podName, result.output),
+                ErrorCode.ProcessSpawnFailed
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
         
-        Logger.info("Deleted Kubernetes pod: " ~ workerId.id);
+        Logger.info("Deleted Kubernetes pod: " ~ podName);
+        podNameMap.remove(workerId);
         return Ok!BuildError();
     }
     
     Result!(WorkerStatus, BuildError) getWorkerStatus(WorkerId workerId) @trusted
     {
+        // Lookup actual pod name
+        auto podNamePtr = workerId in podNameMap;
+        if (podNamePtr is null)
+        {
+            auto error = new SystemError(
+                "Worker ID not found in pod map",
+                ErrorCode.WorkerFailed
+            );
+            return Err!(WorkerStatus, BuildError)(error);
+        }
+        
+        string podName = *podNamePtr;
+        
         string[] kubectlArgs = [
             "kubectl",
             "--kubeconfig=" ~ kubeconfig,
             "-n", namespace,
             "get",
             "pod",
-            workerId.id,
+            podName,
             "-o", "json"
         ];
         
@@ -142,47 +199,129 @@ spec:
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to get pod status for %s: %s", workerId.id, result.output),
-                ErrorCode.ExternalError
+                format("Failed to get pod status for %s: %s", podName, result.output),
+                ErrorCode.ProcessSpawnFailed
             );
             return Err!(WorkerStatus, BuildError)(error);
         }
         
-        // Parse JSON output (simplified - real implementation would use JSON parser)
+        // Parse JSON output properly
         WorkerStatus status;
-        auto output = result.output;
         
-        // Extract phase (Pending, Running, Succeeded, Failed)
-        if (output.indexOf("\"phase\":\"Pending\"") != -1)
-            status.state = WorkerStatus.State.Pending;
-        else if (output.indexOf("\"phase\":\"Running\"") != -1)
-            status.state = WorkerStatus.State.Running;
-        else if (output.indexOf("\"phase\":\"Succeeded\"") != -1)
-            status.state = WorkerStatus.State.Stopped;
-        else if (output.indexOf("\"phase\":\"Failed\"") != -1)
-            status.state = WorkerStatus.State.Failed;
-        else
-            status.state = WorkerStatus.State.Pending;
-        
-        // Extract IPs (simplified)
-        auto podIpIdx = output.indexOf("\"podIP\":\"");
-        if (podIpIdx != -1)
+        try
         {
-            auto ipStart = podIpIdx + 9; // Length of "\"podIP\":\""
-            auto ipEnd = output.indexOf("\"", ipStart);
-            if (ipEnd != -1)
+            JSONValue podJson = parseJSON(result.output);
+            
+            // Extract pod phase from status.phase
+            if (auto statusObj = "status" in podJson)
             {
-                status.publicIp = output[ipStart..ipEnd];
-                status.privateIp = status.publicIp; // In K8s, typically same
+                if (statusObj.type == JSONType.object)
+                {
+                    if (auto phaseVal = "phase" in *statusObj)
+                    {
+                        string phase = phaseVal.str;
+                        switch (phase)
+                        {
+                            case "Pending":
+                                status.state = WorkerStatus.State.Pending;
+                                break;
+                            case "Running":
+                                status.state = WorkerStatus.State.Running;
+                                break;
+                            case "Succeeded":
+                                status.state = WorkerStatus.State.Stopped;
+                                break;
+                            case "Failed":
+                            case "Unknown":
+                                status.state = WorkerStatus.State.Failed;
+                                break;
+                            default:
+                                status.state = WorkerStatus.State.Pending;
+                        }
+                    }
+                    
+                    // Extract pod IP from status.podIP
+                    if (auto podIpVal = "podIP" in *statusObj)
+                    {
+                        status.publicIp = podIpVal.str;
+                        status.privateIp = status.publicIp; // In K8s, typically same
+                    }
+                    
+                    // Extract host IP from status.hostIP
+                    if (auto hostIpVal = "hostIP" in *statusObj)
+                    {
+                        status.privateIp = hostIpVal.str;
+                    }
+                    
+                    // Extract start time from status.startTime
+                    if (auto startTimeVal = "startTime" in *statusObj)
+                    {
+                        status.launchTime = parseK8sTimestamp(startTimeVal.str);
+                    }
+                    else
+                    {
+                        status.launchTime = Clock.currTime;
+                    }
+                }
+            }
+            
+            // Extract metadata.creationTimestamp as fallback
+            if (status.launchTime == SysTime.init)
+            {
+                if (auto metadataObj = "metadata" in podJson)
+                {
+                    if (metadataObj.type == JSONType.object)
+                    {
+                        if (auto creationTime = "creationTimestamp" in *metadataObj)
+                        {
+                            status.launchTime = parseK8sTimestamp(creationTime.str);
+                        }
+                    }
+                }
             }
         }
-        
-        status.launchTime = Clock.currTime; // Would extract from pod creation timestamp
+        catch (JSONException e)
+        {
+            auto error = new SystemError(
+                format("Failed to parse pod JSON: %s", e.msg),
+                ErrorCode.ParseFailed
+            );
+            return Err!(WorkerStatus, BuildError)(error);
+        }
         
         return Ok!(WorkerStatus, BuildError)(status);
     }
 
 private:
+    
+    /// Parse Kubernetes ISO 8601 timestamp (e.g., "2023-11-22T10:30:00Z")
+    static SysTime parseK8sTimestamp(string timestamp) @trusted
+    {
+        import std.datetime : DateTime, UTC;
+        import std.string : replace;
+        
+        try
+        {
+            // K8s uses ISO 8601: "2023-11-22T10:30:00Z"
+            // Simple parser for this specific format
+            if (timestamp.length < 19)
+                return Clock.currTime;
+            
+            int year = timestamp[0..4].to!int;
+            int month = timestamp[5..7].to!int;
+            int day = timestamp[8..10].to!int;
+            int hour = timestamp[11..13].to!int;
+            int minute = timestamp[14..16].to!int;
+            int second = timestamp[17..19].to!int;
+            
+            auto dt = DateTime(year, month, day, hour, minute, second);
+            return SysTime(dt, UTC());
+        }
+        catch (Exception)
+        {
+            return Clock.currTime;
+        }
+    }
     
     /// Get memory request for instance type
     string getMemoryRequest(string instanceType) const pure @safe

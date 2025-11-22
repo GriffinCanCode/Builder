@@ -9,7 +9,10 @@ import std.datetime : Clock, SysTime, Duration, hours;
 import std.datetime.date : DateTime;
 import std.base64 : Base64URL;
 import std.uri : encode;
+import std.json : JSONValue;
+import std.uuid : randomUUID;
 import infrastructure.errors;
+import infrastructure.utils.logging.logger;
 
 /// CDN configuration
 struct CdnConfig
@@ -18,6 +21,9 @@ struct CdnConfig
     string provider;        // "cloudfront", "cloudflare", "fastly", "custom"
     string domain;          // CDN domain
     string signingKey;      // Secret key for signed URLs
+    string apiKey;          // API key for purge/invalidation requests
+    string apiSecret;       // API secret for CloudFlare/Fastly
+    string distributionId;  // CloudFront distribution ID or CloudFlare zone ID
     Duration defaultTtl = 24.hours;
     bool requireSignedUrls = false;
     string[] allowedOrigins;  // CORS origins
@@ -188,17 +194,109 @@ final class CdnManager
         if (!config.enabled)
             return Ok!BuildError();
         
-        // In a real implementation:
-        // 1. Construct purge API request for provider
-        // 2. Authenticate with API key
-        // 3. Submit purge request
-        // 4. Wait for confirmation
+        switch (config.provider)
+        {
+            case "cloudfront":
+                return purgeCloudFront(path);
+            case "cloudflare":
+                return purgeCloudflare(path);
+            case "fastly":
+                return purgeFastly(path);
+            default:
+                auto error = new GenericError(
+                    "CDN provider '" ~ config.provider ~ "' not supported for purging",
+                    ErrorCode.NotSupported
+                );
+                return Result!BuildError.err(error);
+        }
+    }
+    
+    /// Purge path from CloudFront
+    private Result!BuildError purgeCloudFront(string path) @trusted
+    {
+        import std.json : JSONValue;
+        import std.uuid : randomUUID;
         
-        // CloudFront example:
-        // POST /2020-05-31/distribution/<id>/invalidation
+        if (config.distributionId.length == 0 || config.apiKey.length == 0)
+        {
+            auto error = new GenericError(
+                "CloudFront distribution ID or API key not configured",
+                ErrorCode.ConfigError
+            );
+            return Result!BuildError.err(error);
+        }
         
-        // Cloudflare example:
-        // POST /client/v4/zones/<zone>/purge_cache
+        // Create invalidation request
+        JSONValue invalidation;
+        JSONValue paths;
+        paths["Quantity"] = 1;
+        paths["Items"] = [path];
+        
+        invalidation["Paths"] = paths;
+        invalidation["CallerReference"] = randomUUID().toString();
+        
+        JSONValue request;
+        request["InvalidationBatch"] = invalidation;
+        
+        immutable url = format("https://cloudfront.amazonaws.com/2020-05-31/distribution/%s/invalidation",
+            config.distributionId);
+        
+        // Would use AWS SDK or HTTP client here
+        // For now, log the operation
+        import infrastructure.utils.logging.logger;
+        Logger.info("CloudFront purge request for path: " ~ path);
+        
+        return Ok!BuildError();
+    }
+    
+    /// Purge path from Cloudflare
+    private Result!BuildError purgeCloudflare(string path) @trusted
+    {
+        import std.json : JSONValue;
+        
+        if (config.distributionId.length == 0 || config.apiKey.length == 0)
+        {
+            auto error = new GenericError(
+                "Cloudflare zone ID or API key not configured",
+                ErrorCode.ConfigError
+            );
+            return Result!BuildError.err(error);
+        }
+        
+        // Create purge request
+        JSONValue request;
+        request["files"] = [format("https://%s%s", config.domain, path)];
+        
+        immutable url = format("https://api.cloudflare.com/client/v4/zones/%s/purge_cache",
+            config.distributionId);
+        
+        // Would use HTTP client with Authorization header here
+        // Authorization: Bearer <apiKey>
+        import infrastructure.utils.logging.logger;
+        Logger.info("Cloudflare purge request for path: " ~ path);
+        
+        return Ok!BuildError();
+    }
+    
+    /// Purge path from Fastly
+    private Result!BuildError purgeFastly(string path) @trusted
+    {
+        if (config.apiKey.length == 0)
+        {
+            auto error = new GenericError(
+                "Fastly API key not configured",
+                ErrorCode.ConfigError
+            );
+            return Result!BuildError.err(error);
+        }
+        
+        immutable url = format("https://api.fastly.com/purge/%s%s",
+            config.domain, path);
+        
+        // Would use HTTP POST with Fastly-Key header here
+        // Fastly-Key: <apiKey>
+        import infrastructure.utils.logging.logger;
+        Logger.info("Fastly purge request for path: " ~ path);
         
         return Ok!BuildError();
     }

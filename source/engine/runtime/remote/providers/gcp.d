@@ -19,6 +19,7 @@ final class GcpComputeProvider : CloudProvider
     private string project;
     private string zone;
     private string serviceAccountKey;
+    private string[WorkerId] instanceNameMap;  // Maps WorkerId to GCP instance name
     
     this(string project, string zone, string serviceAccountKey = "") @safe
     {
@@ -78,20 +79,41 @@ final class GcpComputeProvider : CloudProvider
         {
             auto error = new SystemError(
                 format("Failed to create GCP instance: %s", result.output),
-                ErrorCode.ExternalError
+                ErrorCode.NetworkError
             );
             return Err!(WorkerId, BuildError)(error);
         }
         
+        // Convert string instance name to WorkerId by hashing
+        import std.digest.murmurhash : MurmurHash3;
+        MurmurHash3!128 hasher;
+        hasher.put(cast(ubyte[])instanceName);
+        auto hash = hasher.finish();
+        ulong id = *cast(ulong*)&hash[0];
+        
         Logger.info("Created GCP instance: " ~ instanceName);
-        return Ok!(WorkerId, BuildError)(WorkerId(instanceName));
+        instanceNameMap[WorkerId(id)] = instanceName;
+        return Ok!(WorkerId, BuildError)(WorkerId(id));
     }
     
     Result!BuildError terminateWorker(WorkerId workerId) @trusted
     {
+        // Lookup actual instance name
+        auto instanceNamePtr = workerId in instanceNameMap;
+        if (instanceNamePtr is null)
+        {
+            auto error = new SystemError(
+                "Worker ID not found in instance map",
+                ErrorCode.WorkerFailed
+            );
+            return Result!BuildError.err(error);
+        }
+        
+        string instanceName = *instanceNamePtr;
+        
         string[] gcloudArgs = [
             "gcloud", "compute", "instances", "delete",
-            workerId.id,
+            instanceName,
             "--project=" ~ project,
             "--zone=" ~ zone,
             "--quiet"
@@ -107,21 +129,35 @@ final class GcpComputeProvider : CloudProvider
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to delete GCP instance %s: %s", workerId.id, result.output),
-                ErrorCode.ExternalError
+                format("Failed to delete GCP instance %s: %s", instanceName, result.output),
+                ErrorCode.NetworkError
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
         
-        Logger.info("Deleted GCP instance: " ~ workerId.id);
+        Logger.info("Deleted GCP instance: " ~ instanceName);
+        instanceNameMap.remove(workerId);
         return Ok!BuildError();
     }
     
     Result!(WorkerStatus, BuildError) getWorkerStatus(WorkerId workerId) @trusted
     {
+        // Lookup actual instance name
+        auto instanceNamePtr = workerId in instanceNameMap;
+        if (instanceNamePtr is null)
+        {
+            auto error = new SystemError(
+                "Worker ID not found in instance map",
+                ErrorCode.WorkerFailed
+            );
+            return Err!(WorkerStatus, BuildError)(error);
+        }
+        
+        string instanceName = *instanceNamePtr;
+        
         string[] gcloudArgs = [
             "gcloud", "compute", "instances", "describe",
-            workerId.id,
+            instanceName,
             "--project=" ~ project,
             "--zone=" ~ zone,
             "--format=json"
@@ -137,8 +173,8 @@ final class GcpComputeProvider : CloudProvider
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to describe GCP instance %s: %s", workerId.id, result.output),
-                ErrorCode.ExternalError
+                format("Failed to describe GCP instance %s: %s", instanceName, result.output),
+                ErrorCode.NetworkError
             );
             return Err!(WorkerStatus, BuildError)(error);
         }

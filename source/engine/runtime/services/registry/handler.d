@@ -5,6 +5,7 @@ import languages.base.base : LanguageHandler;
 import languages.dynamic : SpecRegistry, SpecBasedHandler;
 import languages.registry : parseLanguageName;
 import infrastructure.errors;
+import std.conv : to;
 
 /// Handler registry interface
 interface IHandlerRegistry

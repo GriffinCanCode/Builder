@@ -116,8 +116,15 @@ final class AzureVmProvider : CloudProvider
         auto idEnd = output.indexOf("\"", idStart);
         immutable vmId = output[idStart..idEnd];
         
+        // Convert string VM ID to WorkerId by hashing
+        import std.digest.murmurhash : MurmurHash3;
+        MurmurHash3!128 hasher;
+        hasher.put(cast(ubyte[])vmId);
+        auto hash = hasher.finish();
+        ulong id = *cast(ulong*)&hash[0];
+        
         Logger.info("Created Azure VM: " ~ vmName ~ " (ID: " ~ vmId ~ ")");
-        return Ok!(WorkerId, BuildError)(WorkerId(vmName));
+        return Ok!(WorkerId, BuildError)(WorkerId(id));
     }
     
     Result!BuildError terminateWorker(WorkerId workerId) @trusted
@@ -126,7 +133,7 @@ final class AzureVmProvider : CloudProvider
             "az", "vm", "delete",
             "--subscription", subscriptionId,
             "--resource-group", resourceGroup,
-            "--name", workerId.id,
+            "--name", workerId.toString(),
             "--yes",
             "--no-wait"
         ];
@@ -145,13 +152,13 @@ final class AzureVmProvider : CloudProvider
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to delete Azure VM %s: %s", workerId.id, result.output),
+                format("Failed to delete Azure VM %s: %s", workerId.toString(), result.output),
                 ErrorCode.NetworkError
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
         
-        Logger.info("Deleted Azure VM: " ~ workerId.id);
+        Logger.info("Deleted Azure VM: " ~ workerId.toString());
         return Ok!BuildError();
     }
     
@@ -161,7 +168,7 @@ final class AzureVmProvider : CloudProvider
             "az", "vm", "show",
             "--subscription", subscriptionId,
             "--resource-group", resourceGroup,
-            "--name", workerId.id,
+            "--name", workerId.toString(),
             "--show-details",
             "--output", "json"
         ];
@@ -180,7 +187,7 @@ final class AzureVmProvider : CloudProvider
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to describe Azure VM %s: %s", workerId.id, result.output),
+                format("Failed to describe Azure VM %s: %s", workerId.toString(), result.output),
                 ErrorCode.NetworkError
             );
             return Err!(WorkerStatus, BuildError)(error);

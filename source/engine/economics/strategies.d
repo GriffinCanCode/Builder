@@ -1,6 +1,6 @@
 module engine.economics.strategies;
 
-import std.datetime : Duration, seconds;
+import std.datetime : Duration, seconds, dur;
 import std.algorithm : map, filter, sort;
 import std.array : array;
 import std.conv : to;
@@ -51,7 +51,7 @@ struct BuildPlan
     {
         immutable cacheFactor = cacheHitProbability > 0.9f ? 0.1f : (1.0f - cacheHitProbability);
         immutable msecs = cast(long)(estimatedTime.total!"msecs" * cacheFactor);
-        return msecs.msecs;
+        return dur!"msecs"(msecs);
     }
     
     /// Check if this plan dominates another (Pareto dominance)

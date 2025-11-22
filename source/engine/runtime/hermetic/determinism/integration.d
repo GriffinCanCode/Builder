@@ -46,7 +46,7 @@ Result!(DeterminismEnforcer, BuildError) createEnforcerFromConfig(
 void updateWithDeterminismResult(
     ref ActionEntry entry,
     const DeterminismResult result
-) @safe nothrow
+) @safe
 {
     entry.isDeterministic = result.deterministic;
     entry.verificationHash = result.outputHash;

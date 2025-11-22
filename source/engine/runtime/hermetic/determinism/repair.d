@@ -4,6 +4,7 @@ import std.algorithm : canFind, map, filter;
 import std.array : array;
 import std.conv : to;
 import std.string : format;
+import std.range : empty;
 import engine.runtime.hermetic.determinism.detector;
 import engine.runtime.hermetic.determinism.enforcer;
 

@@ -2,7 +2,7 @@ module engine.economics.optimizer;
 
 import std.datetime : Duration, seconds;
 import std.algorithm : map, sort, filter;
-import std.array : array;
+import std.array : array, replace;
 import std.conv : to;
 import engine.economics.pricing;
 import engine.economics.strategies;
@@ -42,7 +42,7 @@ final class CostOptimizer
     {
         this.estimator = estimator;
         this.pricingConfig = pricingConfig;
-        this.enumerator = StrategyEnumerator();
+        this.enumerator = new StrategyEnumerator();
     }
     
     /// Optimize build plan for entire graph
@@ -230,7 +230,7 @@ class EconomicsError : BaseBuildError
         addContext(ErrorContext("line", line.to!string));
     }
     
-    override ErrorCategory category() const pure nothrow => ErrorCategory.User;
+    override ErrorCategory category() const pure nothrow => ErrorCategory.Config;
     override bool recoverable() const pure nothrow => true;
 }
 

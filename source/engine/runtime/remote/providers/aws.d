@@ -19,6 +19,7 @@ final class AwsEc2Provider : CloudProvider
     private string region;
     private string accessKey;
     private string secretKey;
+    private string[WorkerId] instanceIdMap;  // Maps WorkerId to AWS instance ID
     
     this(string region, string accessKey, string secretKey) @safe
     {
@@ -68,7 +69,7 @@ final class AwsEc2Provider : CloudProvider
         {
             auto error = new SystemError(
                 format("Failed to launch EC2 instance: %s", result.output),
-                ErrorCode.ExternalError
+                ErrorCode.NetworkError
             );
             return Err!(WorkerId, BuildError)(error);
         }
@@ -80,7 +81,7 @@ final class AwsEc2Provider : CloudProvider
         {
             auto error = new SystemError(
                 "Failed to parse instance ID from AWS response",
-                ErrorCode.ExternalError
+                ErrorCode.NetworkError
             );
             return Err!(WorkerId, BuildError)(error);
         }
@@ -89,16 +90,38 @@ final class AwsEc2Provider : CloudProvider
         auto idEnd = output.indexOf("\"", idStart);
         immutable instanceId = output[idStart..idEnd];
         
+        // Convert string instance ID to WorkerId by hashing
+        import std.digest.murmurhash : MurmurHash3;
+        MurmurHash3!128 hasher;
+        hasher.put(cast(ubyte[])instanceId);
+        auto hash = hasher.finish();
+        ulong id = *cast(ulong*)&hash[0];
+        
         Logger.info("Launched EC2 instance: " ~ instanceId);
-        return Ok!(WorkerId, BuildError)(WorkerId(instanceId));
+        // Store mapping for later retrieval
+        instanceIdMap[WorkerId(id)] = instanceId;
+        return Ok!(WorkerId, BuildError)(WorkerId(id));
     }
     
     Result!BuildError terminateWorker(WorkerId workerId) @trusted
     {
+        // Lookup actual instance ID
+        auto instanceIdPtr = workerId in instanceIdMap;
+        if (instanceIdPtr is null)
+        {
+            auto error = new SystemError(
+                "Worker ID not found in instance map",
+                ErrorCode.WorkerFailed
+            );
+            return Result!BuildError.err(error);
+        }
+        
+        string instanceId = *instanceIdPtr;
+        
         string[] awsArgs = [
             "aws", "ec2", "terminate-instances",
             "--region", region,
-            "--instance-ids", workerId.id
+            "--instance-ids", instanceId
         ];
         
         // Set AWS credentials in environment
@@ -115,22 +138,36 @@ final class AwsEc2Provider : CloudProvider
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to terminate EC2 instance %s: %s", workerId.id, result.output),
-                ErrorCode.ExternalError
+                format("Failed to terminate EC2 instance %s: %s", instanceId, result.output),
+                ErrorCode.NetworkError
             );
-            return Err!BuildError(error);
+            return Result!BuildError.err(error);
         }
         
-        Logger.info("Terminated EC2 instance: " ~ workerId.id);
+        Logger.info("Terminated EC2 instance: " ~ instanceId);
+        instanceIdMap.remove(workerId);
         return Ok!BuildError();
     }
     
     Result!(WorkerStatus, BuildError) getWorkerStatus(WorkerId workerId) @trusted
     {
+        // Lookup actual instance ID
+        auto instanceIdPtr = workerId in instanceIdMap;
+        if (instanceIdPtr is null)
+        {
+            auto error = new SystemError(
+                "Worker ID not found in instance map",
+                ErrorCode.WorkerFailed
+            );
+            return Err!(WorkerStatus, BuildError)(error);
+        }
+        
+        string instanceId = *instanceIdPtr;
+        
         string[] awsArgs = [
             "aws", "ec2", "describe-instances",
             "--region", region,
-            "--instance-ids", workerId.id,
+            "--instance-ids", instanceId,
             "--output", "json"
         ];
         
@@ -148,8 +185,8 @@ final class AwsEc2Provider : CloudProvider
         if (result.status != 0)
         {
             auto error = new SystemError(
-                format("Failed to describe EC2 instance %s: %s", workerId.id, result.output),
-                ErrorCode.ExternalError
+                format("Failed to describe EC2 instance %s: %s", instanceId, result.output),
+                ErrorCode.NetworkError
             );
             return Err!(WorkerStatus, BuildError)(error);
         }

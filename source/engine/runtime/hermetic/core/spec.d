@@ -330,9 +330,9 @@ struct SandboxSpecBuilder
     }
     
     /// Set network policy
-    ref auto withNetwork(NetworkPolicy policy) @safe return
+    ref auto withNetwork(const NetworkPolicy policy) @trusted return
     {
-        spec.network = policy;
+        spec.network = cast(NetworkPolicy)policy;
         return this;
     }
     

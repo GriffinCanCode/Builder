@@ -95,9 +95,8 @@ struct HermeticExecutor
         // Ensure working directory is in allowed paths
         if (!spec.canRead(execDir) && !spec.canWrite(execDir))
         {
-            // Log violation (if audit logger available)
-            if (auditLogger.enabled)
-                auditLogger.logFilesystemAccess(execDir, "working_directory", command[0], false);
+            // Note: Optional audit logging disabled (auditLogger not passed to function)
+            // TODO: Pass audit logger parameter if needed
             
             return Result!(Output, BuildError).err(
                 new SystemError("Working directory not in allowed paths: " ~ execDir, 

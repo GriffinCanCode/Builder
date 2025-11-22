@@ -57,7 +57,7 @@ class DependencyAnalyzer
     {
         if (incrementalAnalyzer is null)
         {
-            auto error = new BuildError(
+            auto error = new ConfigError(
                 "Incremental analyzer not injected - must be provided via constructor",
                 ErrorCode.InvalidConfiguration
             );

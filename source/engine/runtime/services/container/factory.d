@@ -40,7 +40,7 @@ struct ServiceFactory
         BuildCache cache,
         EventPublisher publisher)
     {
-        return new BuildServices(config, analyzer, cache, publisher);
+        return new BuildServices(config, analyzer, cache, publisher, null);
     }
 }
 

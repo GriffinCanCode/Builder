@@ -2,7 +2,7 @@ module engine.economics.tracking;
 
 import std.datetime : Duration, Clock, SysTime;
 import std.conv : to;
-import std.file : exists, readText, writeText;
+import std.file : exists, readText, write;
 import std.path : buildPath;
 import engine.economics.pricing;
 import engine.economics.estimator;
@@ -74,13 +74,14 @@ final class CostTracker
         {
             immutable historyPath = buildPath(cacheDir, "execution-history.json");
             immutable json = history.toJson();
-            writeText(historyPath, json);
+            write(historyPath, json);
             Logger.debugLog("Saved execution history to " ~ historyPath);
             return Ok!BuildError();
         }
         catch (Exception e)
         {
-            return Err!BuildError(new EconomicsError("Failed to save history: " ~ e.msg));
+            BuildError error = new EconomicsError("Failed to save history: " ~ e.msg);
+            return Result!BuildError.err(error);
         }
     }
     
@@ -98,8 +99,10 @@ final class CostTracker
             }
             
             immutable json = readText(historyPath);
-            // Note: ExecutionHistory.fromJson needs proper implementation
-            // For now, we start fresh each time
+            
+            // Deserialize execution history from JSON
+            import engine.economics.estimator : ExecutionHistory;
+            this.history = ExecutionHistory.fromJson(json);
             
             Logger.debugLog("Loaded execution history from " ~ historyPath);
             return Ok!BuildError();

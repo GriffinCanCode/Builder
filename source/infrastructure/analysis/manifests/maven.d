@@ -70,14 +70,19 @@ final class MavenManifestParser : IManifestParser
             
             // Extract dependencies
             info.dependencies = project.dependencies
-                .map!(d => d.groupId ~ ":" ~ d.artifactId ~ ":" ~ d.version_)
+                .map!(d => Dependency(
+                    d.groupId ~ ":" ~ d.artifactId,
+                    d.version_,
+                    DependencyType.Runtime,
+                    d.scope_ == "provided"
+                ))
                 .array;
             
             // Set source paths
             if (project.sourceDirectory.length > 0)
-                info.sourcePaths = [project.sourceDirectory];
+                info.sources = [project.sourceDirectory ~ "/**/*.java"];
             else
-                info.sourcePaths = ["src/main/java"];  // Maven default
+                info.sources = ["src/main/java/**/*.java"];  // Maven default
             
             // Set output directory
             if (project.outputDirectory.length > 0)
