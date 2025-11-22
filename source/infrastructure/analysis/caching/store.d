@@ -7,6 +7,7 @@ import std.array;
 import std.conv;
 import core.sync.mutex;
 import infrastructure.analysis.targets.types;
+import infrastructure.analysis.caching.interface_;
 import engine.caching.storage.cas;
 import infrastructure.utils.files.hash;
 import infrastructure.errors;
@@ -14,7 +15,7 @@ import infrastructure.errors;
 /// Content-addressable analysis cache
 /// Stores FileAnalysis results indexed by content hash for deduplication
 /// Inspired by Bazel's action cache and Buck2's DICE engine
-final class AnalysisCache
+final class AnalysisCache : IAnalysisCache
 {
     private ContentAddressableStorage cas;
     private string cacheDir;
@@ -169,21 +170,12 @@ final class AnalysisCache
         }
     }
     
-    /// Get cache statistics
-    struct Stats
-    {
-        size_t hits;
-        size_t misses;
-        size_t stores;
-        float hitRate;
-        size_t totalQueries;
-    }
-    
-    Stats getStats() const @system
+    /// Get cache statistics (implements IAnalysisCache)
+    override IAnalysisCache.Stats getStats() const @system
     {
         synchronized (cast(Mutex)cacheMutex)
         {
-            Stats stats;
+            IAnalysisCache.Stats stats;
             stats.hits = hitCount;
             stats.misses = missCount;
             stats.stores = storeCount;

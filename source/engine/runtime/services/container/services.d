@@ -8,6 +8,7 @@ import engine.runtime.services.registry : HandlerRegistry;
 import engine.runtime.remote : IRemoteExecutionService, RemoteExecutionService, RemoteServiceBuilder;
 import engine.caching.targets.cache;
 import engine.runtime.shutdown.shutdown : ShutdownCoordinator;
+import engine.economics.integration : EconomicsIntegration;
 import infrastructure.telemetry;
 import infrastructure.telemetry.distributed.tracing;
 import infrastructure.utils.logging.structured;
@@ -16,6 +17,10 @@ import infrastructure.utils.simd.capabilities;
 import infrastructure.config.schema.schema;
 import infrastructure.config.parsing.parser;
 import infrastructure.analysis.inference.analyzer;
+import infrastructure.analysis.incremental.interface_;
+import infrastructure.analysis.incremental.analyzer : IncrementalAnalyzer;
+import infrastructure.analysis.caching.store : AnalysisCache;
+import infrastructure.analysis.tracking.tracker : FileChangeTracker;
 import frontend.cli.events.events;
 import frontend.cli.display.render;
 import infrastructure.errors;
@@ -44,6 +49,8 @@ final class BuildServices
     private HandlerRegistry _registry;
     private IRemoteExecutionService _remoteService;
     private ShutdownCoordinator _shutdownCoordinator;
+    private EconomicsIntegration _economics;
+    private IIncrementalAnalyzer _incrementalAnalyzer;
     
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
@@ -80,13 +87,17 @@ final class BuildServices
         this._cache = cacheService.getInternalCache();
         this._shutdownCoordinator.registerCache(this._cache);
         
-        // Initialize analyzer
-        writeln("[DEBUG] BuildServices: Creating DependencyAnalyzer"); stdout.flush();
-        this._analyzer = new DependencyAnalyzer(config);
+        // Initialize incremental analyzer with dependency injection
+        writeln("[DEBUG] BuildServices: Creating IncrementalAnalyzer with DI"); stdout.flush();
+        this._initializeIncrementalAnalyzer(config, options.cacheDir);
         
-        // Incremental analysis temporarily disabled due to circular dependency issues
-        // TODO: Refactor incremental analyzer to use dependency injection
-        writeln("[DEBUG] BuildServices: Skipping incremental analysis (disabled)"); stdout.flush();
+        // Initialize analyzer with injected incremental analyzer
+        writeln("[DEBUG] BuildServices: Creating DependencyAnalyzer"); stdout.flush();
+        this._analyzer = new DependencyAnalyzer(config, this._incrementalAnalyzer, options.cacheDir);
+        
+        // Initialize economics (if enabled)
+        writeln("[DEBUG] BuildServices: Initializing economics"); stdout.flush();
+        this._economics = new EconomicsIntegration(options.economics, options.cacheDir);
         
         // Initialize remote execution service (if enabled)
         writeln("[DEBUG] BuildServices: Initializing remote execution"); stdout.flush();
@@ -150,6 +161,38 @@ final class BuildServices
         }
     }
     
+    /// Initialize incremental analyzer with dependency injection
+    /// Creates cache and tracker instances and wires them together
+    private void _initializeIncrementalAnalyzer(WorkspaceConfig config, string cacheDir) @system
+    {
+        import std.path : buildPath;
+        import std.process : environment;
+        
+        // Check if incremental analysis should be disabled
+        auto incrementalDisabled = environment.get("BUILDER_INCREMENTAL_DISABLED", "0");
+        if (incrementalDisabled == "1" || incrementalDisabled == "true")
+        {
+            this._incrementalAnalyzer = null;
+            return;
+        }
+        
+        try
+        {
+            // Create dependencies using DI pattern
+            auto analysisCache = new AnalysisCache(buildPath(cacheDir, "analysis"));
+            auto changeTracker = new FileChangeTracker();
+            
+            // Inject dependencies into analyzer
+            this._incrementalAnalyzer = new IncrementalAnalyzer(config, analysisCache, changeTracker);
+        }
+        catch (Exception e)
+        {
+            // Fallback to null on initialization failure
+            Logger.warning("Failed to initialize incremental analyzer: " ~ e.msg);
+            this._incrementalAnalyzer = null;
+        }
+    }
+    
     /// Initialize observability infrastructure
     /// Tracing is ENABLED BY DEFAULT for comprehensive observability
     private void _initializeObservability()
@@ -199,11 +242,13 @@ final class BuildServices
     }
     
     /// Create services with explicit dependencies (for testing)
+    /// Note: All dependencies must be properly injected - no defaults
     this(
         WorkspaceConfig config,
         DependencyAnalyzer analyzer,
         BuildCache cache,
         EventPublisher publisher,
+        IIncrementalAnalyzer incrementalAnalyzer,
         Renderer renderer = null)
     {
         this._config = config;
@@ -211,10 +256,15 @@ final class BuildServices
         this._cache = cache;
         this._publisher = publisher;
         this._renderer = renderer;
+        this._incrementalAnalyzer = incrementalAnalyzer;
         this._telemetryEnabled = false;
         
         // Initialize handler registry (handlers loaded lazily on-demand)
         this._registry = new HandlerRegistry();
+        
+        // Initialize SIMD and shutdown coordinator
+        this._initializeSIMD();
+        this._shutdownCoordinator = new ShutdownCoordinator();
     }
     
     /// Get workspace configuration
@@ -246,6 +296,12 @@ final class BuildServices
     
     /// Get shutdown coordinator
     @property ShutdownCoordinator shutdownCoordinator() { return _shutdownCoordinator; }
+    
+    /// Get economics integration
+    @property EconomicsIntegration economics() { return _economics; }
+    
+    /// Get incremental analyzer
+    @property IIncrementalAnalyzer incrementalAnalyzer() { return _incrementalAnalyzer; }
     
     /// Set render mode for UI
     void setRenderMode(RenderMode mode)
@@ -346,6 +402,29 @@ final class BuildServices
     
     /// Cleanup and shutdown services
     /// Explicitly flushes all caches and persists state before termination
+    void shutdown() @trusted
+    {
+        Logger.info("Shutting down services...");
+        
+        // Shutdown economics (save history, display summary)
+        if (_economics !is null)
+        {
+            auto econResult = _economics.shutdown();
+            if (econResult.isErr)
+            {
+                Logger.warning("Economics shutdown failed: " ~ econResult.unwrapErr().message());
+            }
+        }
+        
+        // Persist telemetry
+        saveTelemetry();
+        
+        // Flush renderer
+        flush();
+        
+        Logger.info("Services shutdown complete");
+    }
+    
     /// Initialize remote execution service (if enabled)
     private void _initializeRemoteExecution(WorkspaceConfig config, BuildOptions options) @trusted
     {

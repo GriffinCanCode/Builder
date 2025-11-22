@@ -18,39 +18,51 @@ import infrastructure.utils.logging.logger;
 import languages.registry;
 import infrastructure.utils.files.hash;
 import infrastructure.utils.concurrency.parallel;
-import infrastructure.analysis.incremental.analyzer;
+import infrastructure.analysis.incremental.interface_;
 import infrastructure.errors;
 
 /// Modern dependency analyzer using compile-time metaprogramming
+/// Now uses dependency injection for incremental analysis
 class DependencyAnalyzer
 {
     private WorkspaceConfig config;
     private FileScanner scanner;
     private DependencyResolver resolver;
     private GraphCache graphCache;
-    private IncrementalAnalyzer incrementalAnalyzer;
+    private IIncrementalAnalyzer incrementalAnalyzer;
     
     // Inject compile-time generated analyzer functions
     mixin LanguageAnalyzer;
     
     private string _cacheDir;
     
-    this(WorkspaceConfig config, string cacheDir = ".builder-cache")
+    /// Constructor with dependency injection (incremental analyzer optional)
+    /// Parameters:
+    ///   config = Workspace configuration
+    ///   incrementalAnalyzer = Optional incremental analyzer (null to disable)
+    ///   cacheDir = Cache directory path
+    this(WorkspaceConfig config, IIncrementalAnalyzer incrementalAnalyzer, string cacheDir = ".builder-cache")
     {
         this.config = config;
         this._cacheDir = cacheDir;
         this.scanner = new FileScanner();
         this.resolver = new DependencyResolver(config);
         this.graphCache = new GraphCache(cacheDir);
-        // IncrementalAnalyzer created lazily in enableIncremental() to avoid circular dependency
+        this.incrementalAnalyzer = incrementalAnalyzer;
     }
     
-    /// Enable incremental analysis mode
+    /// Initialize incremental analysis (if analyzer is available)
     /// Call this after construction to initialize file tracking
     Result!BuildError enableIncremental() @system
     {
         if (incrementalAnalyzer is null)
-            incrementalAnalyzer = new IncrementalAnalyzer(config, _cacheDir);
+        {
+            auto error = new BuildError(
+                "Incremental analyzer not injected - must be provided via constructor",
+                ErrorCode.InvalidConfiguration
+            );
+            return Result!BuildError.err(error);
+        }
         return incrementalAnalyzer.initialize(config);
     }
     
@@ -61,7 +73,7 @@ class DependencyAnalyzer
     }
     
     /// Get incremental analyzer instance (for watch mode integration)
-    @property IncrementalAnalyzer getIncrementalAnalyzer() pure nothrow @nogc
+    @property IIncrementalAnalyzer getIncrementalAnalyzer() pure nothrow @nogc
     {
         return incrementalAnalyzer;
     }

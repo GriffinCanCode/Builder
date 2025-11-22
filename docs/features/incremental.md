@@ -60,10 +60,15 @@ if (result.hasChanged) {
 
 #### 3. Incremental Analyzer (`analysis/incremental/analyzer.d`)
 
-Coordinates caching and selective reanalysis:
+Coordinates caching and selective reanalysis with dependency injection:
 
 ```d
-auto analyzer = new IncrementalAnalyzer(config);
+// Create dependencies
+auto analysisCache = new AnalysisCache(".builder-cache/analysis");
+auto changeTracker = new FileChangeTracker();
+
+// Inject dependencies
+auto analyzer = new IncrementalAnalyzer(config, analysisCache, changeTracker);
 analyzer.initialize(config);  // Initialize tracking
 
 // Analyze target incrementally
@@ -117,18 +122,24 @@ builder build --watch //my:target
 - Cache invalidated proactively
 - Minimal rebuild latency
 
-### Programmatic Usage
+### Programmatic Usage (Dependency Injection)
 
 ```d
-import analysis.incremental;
+import infrastructure.analysis.incremental;
+import infrastructure.analysis.caching.store;
+import infrastructure.analysis.tracking.tracker;
 
-// Create analyzer
-auto analyzer = new IncrementalAnalyzer(config);
+// Create dependencies
+auto analysisCache = new AnalysisCache(".builder-cache/analysis");
+auto changeTracker = new FileChangeTracker();
 
-// Enable incremental mode
-auto result = analyzer.enableIncremental();
+// Inject into analyzer
+auto analyzer = new IncrementalAnalyzer(config, analysisCache, changeTracker);
+
+// Initialize tracking
+auto result = analyzer.initialize(config);
 if (result.isErr)
-    writeln("Failed to enable incremental analysis");
+    writeln("Failed to initialize incremental analysis");
 
 // Analyze target (automatically uses cache)
 auto analysisResult = analyzer.analyzeTarget(target);

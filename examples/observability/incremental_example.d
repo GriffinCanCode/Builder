@@ -37,11 +37,23 @@ void main()
     
     writefln("   ✓ Loaded %d target(s)", workspace.config.targets.length);
     
-    // 2. Create analyzer with incremental support
+    // 2. Create analyzer with incremental support (using DI)
     writeln("\n2. Creating analyzer with incremental support...");
-    auto analyzer = new DependencyAnalyzer(workspace.config, ".builder-cache");
     
-    // Enable incremental analysis
+    // Create incremental analyzer dependencies
+    import infrastructure.analysis.incremental.analyzer : IncrementalAnalyzer;
+    import infrastructure.analysis.caching.store : AnalysisCache;
+    import infrastructure.analysis.tracking.tracker : FileChangeTracker;
+    import std.path : buildPath;
+    
+    auto analysisCache = new AnalysisCache(buildPath(".builder-cache", "analysis"));
+    auto changeTracker = new FileChangeTracker();
+    auto incrementalAnalyzer = new IncrementalAnalyzer(workspace.config, analysisCache, changeTracker);
+    
+    // Inject into dependency analyzer
+    auto analyzer = new DependencyAnalyzer(workspace.config, incrementalAnalyzer, ".builder-cache");
+    
+    // Initialize incremental tracking
     auto enableResult = analyzer.enableIncremental();
     if (enableResult.isErr)
     {

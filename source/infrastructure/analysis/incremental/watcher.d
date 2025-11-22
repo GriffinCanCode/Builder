@@ -8,15 +8,16 @@ import std.conv;
 import core.time : Duration, msecs;
 import infrastructure.utils.files.watch;
 import infrastructure.utils.logging.logger;
-import infrastructure.analysis.incremental.analyzer;
+import infrastructure.analysis.incremental.interface_;
 import infrastructure.config.schema.schema;
 import infrastructure.errors;
 
 /// Proactive analysis cache updater using file watching
 /// Automatically invalidates and updates cache when files change
+/// Now uses dependency injection with IIncrementalAnalyzer
 final class AnalysisWatcher
 {
-    private IncrementalAnalyzer analyzer;
+    private IIncrementalAnalyzer analyzer;
     private IFileWatcher watcher;
     private WorkspaceConfig config;
     private bool active;
@@ -25,7 +26,7 @@ final class AnalysisWatcher
     private size_t filesInvalidated;
     private size_t eventsProcessed;
     
-    this(IncrementalAnalyzer analyzer, WorkspaceConfig config) @system
+    this(IIncrementalAnalyzer analyzer, WorkspaceConfig config) @system
     {
         this.analyzer = analyzer;
         this.config = config;

@@ -31,8 +31,8 @@ void discoverCommand(string[] args)
     
     auto config = configResult.unwrap();
     
-    // Create analyzer
-    auto analyzer = new DependencyAnalyzer(config, ".builder-cache");
+    // Create analyzer with no incremental support (not needed for discovery)
+    auto analyzer = new DependencyAnalyzer(config, null, ".builder-cache");
     
     // Analyze dependencies
     auto graphResult = analyzer.analyze("");

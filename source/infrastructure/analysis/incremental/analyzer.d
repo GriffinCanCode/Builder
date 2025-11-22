@@ -8,37 +8,39 @@ import std.path;
 import std.conv;
 import std.datetime.stopwatch;
 import infrastructure.analysis.targets.types;
-import infrastructure.analysis.caching.store;
-import infrastructure.analysis.tracking.tracker;
-import infrastructure.analysis.inference.analyzer;
-import infrastructure.analysis.scanning.scanner;
+import infrastructure.analysis.caching.interface_;
+import infrastructure.analysis.tracking.interface_;
+import infrastructure.analysis.incremental.interface_;
 import infrastructure.config.schema.schema;
 import infrastructure.utils.logging.logger;
 import infrastructure.utils.files.hash;
 import infrastructure.utils.concurrency.parallel;
 import infrastructure.errors;
 
-/// Incremental dependency analyzer
+/// Incremental dependency analyzer with dependency injection
 /// Coordinates change tracking, analysis caching, and selective reanalysis
 /// Design: Only analyzes changed files, reuses cached analysis for unchanged files
-final class IncrementalAnalyzer
+final class IncrementalAnalyzer : IIncrementalAnalyzer
 {
-    private AnalysisCache cache;
-    private FileChangeTracker tracker;
+    private IAnalysisCache cache;
+    private IFileChangeTracker tracker;
     private WorkspaceConfig _config;
-    private string _cacheDir;
     
     // Metrics
     private size_t filesReanalyzed;
     private size_t filesCachedHit;
     private size_t totalFiles;
     
-    this(WorkspaceConfig config, string cacheDir = ".builder-cache") @system
+    /// Constructor with dependency injection
+    /// Parameters:
+    ///   config = Workspace configuration
+    ///   cache = Analysis cache implementation
+    ///   tracker = File change tracker implementation
+    this(WorkspaceConfig config, IAnalysisCache cache, IFileChangeTracker tracker) @system
     {
         this._config = config;
-        this._cacheDir = cacheDir;
-        this.cache = new AnalysisCache(buildPath(cacheDir, "analysis"));
-        this.tracker = new FileChangeTracker();
+        this.cache = cache;
+        this.tracker = tracker;
     }
     
     /// Analyze target with incremental optimization
@@ -118,8 +120,7 @@ final class IncrementalAnalyzer
             }
         }
         
-        // For now, incremental analysis is disabled due to circular dependency
-        // TODO: Refactor to pass analyzer as parameter or use dependency injection
+        // Return cached analyses (changed files handled by caller)
         result.files = analyses;
         result.dependencies = [];
         
@@ -196,22 +197,10 @@ final class IncrementalAnalyzer
         totalFiles = 0;
     }
     
-    /// Get combined statistics
-    struct Stats
+    /// Get combined statistics (implementing IIncrementalAnalyzer)
+    IIncrementalAnalyzer.Stats getStats() @system
     {
-        size_t totalFiles;
-        size_t filesReanalyzed;
-        size_t filesCached;
-        float cacheHitRate;
-        float reductionRate;
-        
-        AnalysisCache.Stats cacheStats;
-        FileChangeTracker.Stats trackerStats;
-    }
-    
-    Stats getStats() @system
-    {
-        Stats stats;
+        IIncrementalAnalyzer.Stats stats;
         stats.totalFiles = totalFiles;
         stats.filesReanalyzed = filesReanalyzed;
         stats.filesCached = filesCachedHit;
@@ -222,8 +211,21 @@ final class IncrementalAnalyzer
             stats.reductionRate = ((totalFiles - filesReanalyzed) * 100.0) / totalFiles;
         }
         
-        stats.cacheStats = cache.getStats();
-        stats.trackerStats = tracker.getStats();
+        // Map cache stats
+        auto cacheStats = cache.getStats();
+        stats.cacheStats.hits = cacheStats.hits;
+        stats.cacheStats.misses = cacheStats.misses;
+        stats.cacheStats.stores = cacheStats.stores;
+        stats.cacheStats.hitRate = cacheStats.hitRate;
+        stats.cacheStats.totalQueries = cacheStats.totalQueries;
+        
+        // Map tracker stats
+        auto trackerStats = tracker.getStats();
+        stats.trackerStats.trackedFiles = trackerStats.trackedFiles;
+        stats.trackerStats.metadataChecks = trackerStats.metadataChecks;
+        stats.trackerStats.contentHashChecks = trackerStats.contentHashChecks;
+        stats.trackerStats.changesDetected = trackerStats.changesDetected;
+        stats.trackerStats.fastPathRate = trackerStats.fastPathRate;
         
         return stats;
     }

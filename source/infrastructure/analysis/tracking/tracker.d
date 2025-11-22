@@ -7,6 +7,7 @@ import std.algorithm;
 import std.array;
 import std.conv;
 import core.sync.mutex;
+import infrastructure.analysis.tracking.interface_;
 import infrastructure.utils.files.hash;
 import infrastructure.errors;
 
@@ -23,7 +24,7 @@ struct FileState
 
 /// File change detection using two-tier validation
 /// Optimized for minimal I/O: metadata check → content hash only if needed
-final class FileChangeTracker
+final class FileChangeTracker : IFileChangeTracker
 {
     private FileState[string] states;
     private Mutex trackerMutex;
@@ -252,21 +253,12 @@ final class FileChangeTracker
         }
     }
     
-    /// Get statistics
-    struct Stats
-    {
-        size_t trackedFiles;
-        size_t metadataChecks;
-        size_t contentHashChecks;
-        size_t changesDetected;
-        float fastPathRate;  // Percentage of checks resolved by metadata
-    }
-    
-    Stats getStats() const @system
+    /// Get statistics (implements IFileChangeTracker)
+    override IFileChangeTracker.Stats getStats() const @system
     {
         synchronized (cast(Mutex)trackerMutex)
         {
-            Stats stats;
+            IFileChangeTracker.Stats stats;
             stats.trackedFiles = states.length;
             stats.metadataChecks = metadataChecks;
             stats.contentHashChecks = contentHashChecks;
