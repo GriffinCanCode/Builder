@@ -18,11 +18,44 @@ import engine.runtime.remote.protocol.reapi;
 import engine.runtime.remote.providers.provisioner : WorkerProvisioner;
 import engine.runtime.remote.providers.base : CloudProvider;
 import engine.runtime.remote.providers.mock : MockCloudProvider;
+import engine.runtime.remote.providers.aws : AwsEc2Provider;
+import engine.runtime.remote.providers.gcp : GcpComputeProvider;
+import engine.runtime.remote.providers.kubernetes : KubernetesProvider;
 import engine.runtime.remote.monitoring.health : RemoteServiceHealthMonitor;
 import engine.runtime.remote.monitoring.metrics : RemoteServiceMetricsCollector, ServiceMetrics;
 import engine.runtime.hermetic;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;
+
+/// Cloud provider type
+enum ProviderType
+{
+    Mock,        // Mock provider for testing
+    AWS,         // AWS EC2
+    GCP,         // Google Cloud Platform Compute Engine
+    Kubernetes,  // Kubernetes Pods
+    Azure        // Azure VMs (future)
+}
+
+/// Provider-specific configuration
+struct ProviderConfig
+{
+    ProviderType type = ProviderType.Mock;
+    
+    // AWS configuration
+    string awsRegion = "us-east-1";
+    string awsAccessKey = "";
+    string awsSecretKey = "";
+    
+    // GCP configuration
+    string gcpProject = "";
+    string gcpZone = "us-central1-a";
+    string gcpServiceAccountKey = "";
+    
+    // Kubernetes configuration
+    string k8sNamespace = "builder";
+    string k8sKubeconfig = "";
+}
 
 /// Remote execution service configuration
 struct RemoteServiceConfig
@@ -36,6 +69,9 @@ struct RemoteServiceConfig
     
     // Executor settings
     RemoteExecutorConfig executorConfig;
+    
+    // Provider settings
+    ProviderConfig providerConfig;
     
     // Service settings
     bool enableReapi = true;                // Expose REAPI endpoint?
@@ -154,13 +190,41 @@ final class RemoteExecutionService : IRemoteExecutionService
     /// Responsibility: Factory method for provider selection
     private CloudProvider createProvider(PoolConfig poolConfig) @trusted
     {
-        // Would select provider based on configuration
-        // For now, use mock provider (stub implementation)
-        // In production, would check config and return:
-        // - AwsCloudProvider for AWS EC2
-        // - KubernetesCloudProvider for K8s
-        // - GcpCloudProvider for GCP Compute
-        return new MockCloudProvider();
+        auto providerConfig = config.providerConfig;
+        
+        final switch (providerConfig.type)
+        {
+            case ProviderType.Mock:
+                Logger.info("Using Mock cloud provider");
+                return new MockCloudProvider();
+            
+            case ProviderType.AWS:
+                Logger.info("Using AWS EC2 provider (region: " ~ providerConfig.awsRegion ~ ")");
+                return new AwsEc2Provider(
+                    providerConfig.awsRegion,
+                    providerConfig.awsAccessKey,
+                    providerConfig.awsSecretKey
+                );
+            
+            case ProviderType.GCP:
+                Logger.info("Using GCP Compute Engine provider (project: " ~ providerConfig.gcpProject ~ ")");
+                return new GcpComputeProvider(
+                    providerConfig.gcpProject,
+                    providerConfig.gcpZone,
+                    providerConfig.gcpServiceAccountKey
+                );
+            
+            case ProviderType.Kubernetes:
+                Logger.info("Using Kubernetes provider (namespace: " ~ providerConfig.k8sNamespace ~ ")");
+                return new KubernetesProvider(
+                    providerConfig.k8sNamespace,
+                    providerConfig.k8sKubeconfig
+                );
+            
+            case ProviderType.Azure:
+                Logger.warning("Azure provider not yet implemented, falling back to Mock");
+                return new MockCloudProvider();
+        }
     }
     
     /// Start service

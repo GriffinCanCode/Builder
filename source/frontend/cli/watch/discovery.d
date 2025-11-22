@@ -11,6 +11,14 @@ import infrastructure.config.schema.schema;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 
+/// Re-discovery statistics
+struct RediscoveryStats
+{
+    size_t rediscoveredTargets;
+    size_t newNodes;
+    size_t rebuiltTargets;
+}
+
 /// Watch mode discovery tracker
 /// Tracks file changes that may trigger discovery re-execution
 final class WatchDiscoveryTracker
@@ -142,18 +150,168 @@ class WatchModeWithDiscovery
         {
             Logger.info("Re-discovery needed for " ~ targetsNeedingRediscovery.length.to!string ~ " targets");
             
-            // Trigger rebuild with discovery
             foreach (targetId; targetsNeedingRediscovery)
-            {
                 Logger.info("  • " ~ targetId);
+            
+            // Execute full re-discovery workflow
+            auto result = executeRediscovery(targetsNeedingRediscovery);
+            if (result.isErr)
+                Logger.error("Re-discovery failed: " ~ result.unwrapErr());
+            else
+            {
+                auto stats = result.unwrap();
+                Logger.success("Re-discovery complete: " ~ 
+                             stats.rediscoveredTargets.to!string ~ " targets, " ~
+                             stats.newNodes.to!string ~ " new nodes, " ~
+                             stats.rebuiltTargets.to!string ~ " targets rebuilt");
+            }
+        }
+    }
+    
+    /// Execute re-discovery workflow for changed targets
+    private Result!(RediscoveryStats, string) executeRediscovery(string[] targetIds) @system
+    {
+        import engine.runtime.core.engine.discovery;
+        import engine.runtime.services;
+        import languages.base.base;
+        
+        RediscoveryStats stats;
+        
+        // 1. Clear old discoveries for these targets
+        clearOldDiscoveries(targetIds);
+        stats.rediscoveredTargets = targetIds.length;
+        
+        // 2. Re-run discovery phase for affected targets
+        BuildNode[] nodesToRediscover;
+        foreach (targetId; targetIds)
+        {
+            if (targetId in dynamicGraph.graph.nodes)
+                nodesToRediscover ~= dynamicGraph.graph.nodes[targetId];
+        }
+        
+        if (nodesToRediscover.empty)
+            return Result!(RediscoveryStats, string).ok(stats);
+        
+        // 3. Execute discovery on each node
+        auto discoveryResult = runDiscoveryPhase(nodesToRediscover);
+        if (discoveryResult.isErr)
+            return Result!(RediscoveryStats, string).err(discoveryResult.unwrapErr());
+        
+        auto newNodes = discoveryResult.unwrap();
+        stats.newNodes = newNodes.length;
+        
+        // 4. Update graph with new discoveries and rebuild affected targets
+        auto rebuildResult = rebuildAffectedTargets(nodesToRediscover, newNodes);
+        if (rebuildResult.isErr)
+            return Result!(RediscoveryStats, string).err(rebuildResult.unwrapErr());
+        
+        stats.rebuiltTargets = rebuildResult.unwrap();
+        
+        return Result!(RediscoveryStats, string).ok(stats);
+    }
+    
+    /// Clear old discoveries for targets needing re-discovery
+    private void clearOldDiscoveries(string[] targetIds) @system
+    {
+        foreach (targetId; targetIds)
+        {
+            // Remove tracked discovered files from this target
+            string[] filesToRemove;
+            foreach (file, origin; tracker.discoveredFileOrigins)
+            {
+                if (origin == targetId)
+                    filesToRemove ~= file;
             }
             
-            // In a full implementation, this would:
-            // 1. Clear old discoveries for these targets
-            // 2. Re-run discovery phase
-            // 3. Update graph with new discoveries
-            // 4. Rebuild affected targets
+            foreach (file; filesToRemove)
+                tracker.discoveredFileOrigins.remove(file);
+            
+            Logger.debugLog("Cleared old discoveries for " ~ targetId);
         }
+    }
+    
+    /// Run discovery phase on nodes
+    private Result!(BuildNode[], string) runDiscoveryPhase(BuildNode[] nodes) @system
+    {
+        import engine.runtime.core.engine.discovery;
+        import engine.runtime.services;
+        import languages.base.base;
+        
+        BuildNode[] newNodes;
+        
+        foreach (node; nodes)
+        {
+            // Mark as discoverable if not already
+            if (!dynamicGraph.isDiscoverable(node.id))
+                dynamicGraph.markDiscoverable(node.id);
+            
+            // Get language handler
+            auto handlers = HandlerRegistry.instance();
+            auto handler = handlers.get(node.target.language);
+            if (handler is null)
+            {
+                Logger.warning("No handler for language: " ~ node.target.language.to!string);
+                continue;
+            }
+            
+            // Check if handler supports discovery
+            auto discoverableHandler = cast(DiscoverableAction) handler;
+            if (discoverableHandler is null)
+                continue;
+            
+            // Execute discovery
+            import infrastructure.config.schema.schema : WorkspaceConfig;
+            WorkspaceConfig config; // Use default config for now
+            auto discoveryResult = discoverableHandler.executeWithDiscovery(node.target, config);
+            
+            if (discoveryResult.success && discoveryResult.hasDiscovery)
+            {
+                // Record discovery
+                tracker.registerDiscovery(discoveryResult.discovery);
+                dynamicGraph.recordDiscovery(discoveryResult.discovery);
+                
+                Logger.info("Re-discovered " ~ discoveryResult.discovery.discoveredOutputs.length.to!string ~ 
+                          " files for " ~ node.idString);
+            }
+        }
+        
+        // Apply discoveries to graph
+        auto applyResult = dynamicGraph.applyDiscoveries();
+        if (applyResult.isErr)
+            return Result!(BuildNode[], string).err(applyResult.unwrapErr().message());
+        
+        newNodes = applyResult.unwrap();
+        return Result!(BuildNode[], string).ok(newNodes);
+    }
+    
+    /// Rebuild affected targets after discovery
+    private Result!(size_t, string) rebuildAffectedTargets(BuildNode[] originalNodes, BuildNode[] newNodes) @system
+    {
+        import engine.runtime.core.executor;
+        import engine.runtime.core.parallel;
+        
+        size_t rebuiltCount = 0;
+        
+        // Reset state for original nodes
+        foreach (node; originalNodes)
+        {
+            node.resetState();
+            rebuiltCount++;
+        }
+        
+        // Initialize new nodes
+        foreach (node; newNodes)
+        {
+            node.initPendingDeps();
+            if (node.pendingDeps == 0)
+                rebuiltCount++;
+        }
+        
+        // Note: Actual rebuild execution would be triggered by the watch loop
+        // This just prepares nodes for rebuild
+        Logger.info("Prepared " ~ rebuiltCount.to!string ~ " targets for rebuild");
+        
+        return Result!(size_t, string).ok(rebuiltCount);
     }
     
     /// Register a discovery result

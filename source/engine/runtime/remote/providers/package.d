@@ -9,4 +9,5 @@ public import engine.runtime.remote.providers.base;
 public import engine.runtime.remote.providers.provisioner;
 public import engine.runtime.remote.providers.mock;
 public import engine.runtime.remote.providers.aws;
+public import engine.runtime.remote.providers.gcp;
 public import engine.runtime.remote.providers.kubernetes;
