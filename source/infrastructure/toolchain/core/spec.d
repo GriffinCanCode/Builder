@@ -52,8 +52,8 @@ struct Version
     /// Parse from string (e.g., "1.2.3", "4.5.6-beta")
     static Result!(Version, BuildError) parse(string str) @system
     {
-        import std.array : split, empty;
-        import std.string : strip;
+        import std.array : empty;
+        import std.string : split, strip, indexOf;
         import std.conv : to;
         
         if (str.empty)
@@ -300,7 +300,7 @@ struct ToolchainRef
     }
 }
 
-@safe unittest
+@system unittest
 {
     // Test version parsing
     auto ver = Version.parse("1.2.3");
@@ -320,7 +320,7 @@ struct ToolchainRef
     assert(beta.unwrap().prerelease == "beta");
 }
 
-@safe unittest
+@system unittest
 {
     // Test toolchain reference parsing
     auto ref1 = ToolchainRef.parse("@toolchains//arm:gcc");

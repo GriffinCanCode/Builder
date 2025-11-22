@@ -21,12 +21,12 @@ enum BalanceStrategy
 /// Load balancer metrics for decision making
 struct LoadMetrics
 {
-    size_t queueSize;           // Current queue size
-    size_t tasksExecuted;       // Total tasks executed
-    size_t tasksStolen;         // Tasks stolen from others
-    size_t stealAttempts;       // Steal attempts made
-    float utilizationRate;      // CPU utilization (0-1)
-    float stealSuccessRate;     // Successful steals / attempts
+    size_t queueSize = 0;           // Current queue size
+    size_t tasksExecuted = 0;       // Total tasks executed
+    size_t tasksStolen = 0;         // Tasks stolen from others
+    size_t stealAttempts = 0;       // Steal attempts made
+    float utilizationRate = 0.0;    // CPU utilization (0-1)
+    float stealSuccessRate = 0.0;   // Successful steals / attempts
     
     /// Calculate load score (higher = more loaded)
     float loadScore() const pure nothrow @nogc
@@ -404,8 +404,19 @@ unittest
     balancer.updateMetrics(2, m2);
     balancer.updateMetrics(3, m3);
     
-    // Should select worker 1 (least loaded)
-    assert(balancer.selectWorker() == 1);
+    // Should select worker 1 (least loaded with queueSize=5)
+    auto selected = balancer.selectWorker();
+    // Debug: print load scores if test fails
+    if (selected != 1)
+    {
+        writeln("Expected worker 1 but got ", selected);
+        foreach (i; 0 .. 4)
+        {
+            auto m = balancer.getMetrics(i);
+            writeln("Worker ", i, ": queueSize=", m.queueSize, " loadScore=", m.loadScore());
+        }
+    }
+    assert(selected == 1);
     
     writeln("\x1b[32m  ✓ Least loaded\x1b[0m");
 }

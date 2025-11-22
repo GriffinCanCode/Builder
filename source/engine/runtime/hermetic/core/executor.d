@@ -440,7 +440,7 @@ struct HermeticSpecBuilder
         "/tmp/temp"
     );
     
-    assert(specResult.isOk, "Failed to create spec: " ~ specResult.unwrapErr());
+    assert(specResult.isOk, "Failed to create spec: " ~ specResult.unwrapErr().toString());
     
     // Test executor creation
     auto executorResult = HermeticExecutor.create(specResult.unwrap());

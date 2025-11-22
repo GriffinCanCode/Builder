@@ -33,19 +33,24 @@ class DependencyAnalyzer
     // Inject compile-time generated analyzer functions
     mixin LanguageAnalyzer;
     
+    private string _cacheDir;
+    
     this(WorkspaceConfig config, string cacheDir = ".builder-cache")
     {
         this.config = config;
+        this._cacheDir = cacheDir;
         this.scanner = new FileScanner();
         this.resolver = new DependencyResolver(config);
         this.graphCache = new GraphCache(cacheDir);
-        this.incrementalAnalyzer = new IncrementalAnalyzer(config, cacheDir);
+        // IncrementalAnalyzer created lazily in enableIncremental() to avoid circular dependency
     }
     
     /// Enable incremental analysis mode
     /// Call this after construction to initialize file tracking
     Result!BuildError enableIncremental() @system
     {
+        if (incrementalAnalyzer is null)
+            incrementalAnalyzer = new IncrementalAnalyzer(config, _cacheDir);
         return incrementalAnalyzer.initialize(config);
     }
     

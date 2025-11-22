@@ -7,7 +7,7 @@ import std.file : exists, mkdirRecurse, write, remove, tempDir;
 import std.path : buildPath;
 import std.string : join, replace;
 import std.conv : to;
-import std.algorithm : map;
+import std.algorithm : map, canFind;
 import std.array : array;
 import engine.runtime.hermetic.core.spec;
 import infrastructure.errors;

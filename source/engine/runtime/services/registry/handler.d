@@ -21,107 +21,135 @@ interface IHandlerRegistry
 }
 
 /// Concrete handler registry implementation
-/// Manages language handler lifecycle and lookup
+/// Manages language handler lifecycle with lazy per-language loading
 final class HandlerRegistry : IHandlerRegistry
 {
     private LanguageHandler[TargetLanguage] handlers;
-    private bool _initialized;
     
-    this()
+    /// Create handler on-demand for a specific language
+    private LanguageHandler createHandler(TargetLanguage language) @trusted
     {
-        _initialized = false;
+        final switch (language)
+        {
+            case TargetLanguage.Python:
+                import languages.scripting.python : PythonHandler;
+                return new PythonHandler();
+            case TargetLanguage.JavaScript:
+                import languages.web.javascript : JavaScriptHandler;
+                return new JavaScriptHandler();
+            case TargetLanguage.TypeScript:
+                import languages.web.typescript : TypeScriptHandler;
+                return new TypeScriptHandler();
+            case TargetLanguage.Elm:
+                import languages.web.elm : ElmHandler;
+                return new ElmHandler();
+            case TargetLanguage.Go:
+                import languages.scripting.go : GoHandler;
+                return new GoHandler();
+            case TargetLanguage.Rust:
+                import languages.compiled.rust : RustHandler;
+                return new RustHandler();
+            case TargetLanguage.D:
+                import languages.compiled.d : DHandler;
+                return new DHandler();
+            case TargetLanguage.Cpp:
+                import languages.compiled.cpp : CppHandler;
+                return new CppHandler();
+            case TargetLanguage.C:
+                import languages.compiled.cpp : CHandler;
+                return new CHandler();
+            case TargetLanguage.Java:
+                import languages.jvm.java : JavaHandler;
+                return new JavaHandler();
+            case TargetLanguage.Kotlin:
+                import languages.jvm.kotlin : KotlinHandler;
+                return new KotlinHandler();
+            case TargetLanguage.Scala:
+                import languages.jvm.scala : ScalaHandler;
+                return new ScalaHandler();
+            case TargetLanguage.CSharp:
+                import languages.dotnet.csharp : CSharpHandler;
+                return new CSharpHandler();
+            case TargetLanguage.Zig:
+                import languages.compiled.zig : ZigHandler;
+                return new ZigHandler();
+            case TargetLanguage.Swift:
+                import languages.compiled.swift : SwiftHandler;
+                return new SwiftHandler();
+            case TargetLanguage.Ruby:
+                import languages.scripting.ruby : RubyHandler;
+                return new RubyHandler();
+            case TargetLanguage.Perl:
+                import languages.scripting.perl : PerlHandler;
+                return new PerlHandler();
+            case TargetLanguage.PHP:
+                import languages.scripting.php : PHPHandler;
+                return new PHPHandler();
+            case TargetLanguage.Elixir:
+                import languages.scripting.elixir : ElixirHandler;
+                return new ElixirHandler();
+            case TargetLanguage.Nim:
+                import languages.compiled.nim : NimHandler;
+                return new NimHandler();
+            case TargetLanguage.Lua:
+                import languages.scripting.lua : LuaHandler;
+                return new LuaHandler();
+            case TargetLanguage.R:
+                import languages.scripting.r : RHandler;
+                return new RHandler();
+            case TargetLanguage.Haskell:
+                import languages.compiled.haskell : HaskellHandler;
+                return new HaskellHandler();
+            case TargetLanguage.OCaml:
+                import languages.compiled.ocaml : OCamlHandler;
+                return new OCamlHandler();
+            case TargetLanguage.Protobuf:
+                import languages.compiled.protobuf : ProtobufHandler;
+                return new ProtobufHandler();
+            case TargetLanguage.FSharp:
+            case TargetLanguage.CSS:
+            case TargetLanguage.Generic:
+                return null;
+        }
     }
     
-    /// Initialize registry with all language handlers
-    /// Lazy initialization pattern - only create handlers when needed
-    void initialize() @trusted
+    /// Legacy initialize method (now a no-op for compatibility)
+    void initialize() @safe
     {
-        if (_initialized)
-            return;
-        
-        // Import all handler modules
-        import languages.scripting.python : PythonHandler;
-        import languages.web.javascript : JavaScriptHandler;
-        import languages.web.typescript : TypeScriptHandler;
-        import languages.web.elm : ElmHandler;
-        import languages.scripting.go : GoHandler;
-        import languages.compiled.rust : RustHandler;
-        import languages.compiled.d : DHandler;
-        import languages.compiled.cpp : CppHandler, CHandler;
-        import languages.jvm.java : JavaHandler;
-        import languages.jvm.kotlin : KotlinHandler;
-        import languages.jvm.scala : ScalaHandler;
-        import languages.dotnet.csharp : CSharpHandler;
-        import languages.compiled.zig : ZigHandler;
-        import languages.compiled.swift : SwiftHandler;
-        import languages.scripting.ruby : RubyHandler;
-        import languages.scripting.perl : PerlHandler;
-        import languages.scripting.php : PHPHandler;
-        import languages.scripting.elixir : ElixirHandler;
-        import languages.compiled.nim : NimHandler;
-        import languages.scripting.lua : LuaHandler;
-        import languages.scripting.r : RHandler;
-        import languages.compiled.haskell : HaskellHandler;
-        import languages.compiled.ocaml : OCamlHandler;
-        import languages.compiled.protobuf : ProtobufHandler;
-        
-        // Register all handlers
-        handlers[TargetLanguage.Python] = new PythonHandler();
-        handlers[TargetLanguage.JavaScript] = new JavaScriptHandler();
-        handlers[TargetLanguage.TypeScript] = new TypeScriptHandler();
-        handlers[TargetLanguage.Elm] = new ElmHandler();
-        handlers[TargetLanguage.Go] = new GoHandler();
-        handlers[TargetLanguage.Rust] = new RustHandler();
-        handlers[TargetLanguage.D] = new DHandler();
-        handlers[TargetLanguage.Cpp] = new CppHandler();
-        handlers[TargetLanguage.C] = new CHandler();
-        handlers[TargetLanguage.Java] = new JavaHandler();
-        handlers[TargetLanguage.Kotlin] = new KotlinHandler();
-        handlers[TargetLanguage.Scala] = new ScalaHandler();
-        handlers[TargetLanguage.CSharp] = new CSharpHandler();
-        handlers[TargetLanguage.Zig] = new ZigHandler();
-        handlers[TargetLanguage.Swift] = new SwiftHandler();
-        handlers[TargetLanguage.Ruby] = new RubyHandler();
-        handlers[TargetLanguage.Perl] = new PerlHandler();
-        handlers[TargetLanguage.PHP] = new PHPHandler();
-        handlers[TargetLanguage.Elixir] = new ElixirHandler();
-        handlers[TargetLanguage.Nim] = new NimHandler();
-        handlers[TargetLanguage.Lua] = new LuaHandler();
-        handlers[TargetLanguage.R] = new RHandler();
-        handlers[TargetLanguage.Haskell] = new HaskellHandler();
-        handlers[TargetLanguage.OCaml] = new OCamlHandler();
-        handlers[TargetLanguage.Protobuf] = new ProtobufHandler();
-        
-        _initialized = true;
+        // No longer needed - handlers are created on-demand
     }
     
     LanguageHandler get(TargetLanguage language) @trusted
     {
-        if (!_initialized)
-            initialize();
+        // Check if already cached
+        if (auto handler = language in handlers)
+            return *handler;
         
-        return handlers.get(language, null);
+        // Create handler on-demand
+        auto handler = createHandler(language);
+        if (handler !is null)
+            handlers[language] = handler;
+        
+        return handler;
     }
     
     bool has(TargetLanguage language) @trusted
     {
-        if (!_initialized)
-            initialize();
+        // Check cache first
+        if (language in handlers)
+            return true;
         
-        return (language in handlers) !is null;
+        // For uncached handlers, check if we can create one
+        return createHandler(language) !is null;
     }
     
     void register(TargetLanguage language, LanguageHandler handler) @trusted
     {
         handlers[language] = handler;
-        _initialized = true;
     }
     
     TargetLanguage[] languages() @trusted
     {
-        if (!_initialized)
-            initialize();
-        
         return handlers.keys;
     }
 }

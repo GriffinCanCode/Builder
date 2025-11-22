@@ -4,6 +4,7 @@ import std.traits;
 import std.range;
 import std.algorithm;
 import std.array;
+import std.typecons : Tuple, tuple;
 import infrastructure.errors.handling.result;
 
 /// Advanced functional operations for Result monad
@@ -16,11 +17,12 @@ import infrastructure.errors.handling.result;
 ///   auto files = ["a.txt", "b.txt", "c.txt"];
 ///   auto result = traverse(files, (f) => readFile(f));
 ///   // Returns Result!(string[], BuildError) with all file contents or first error
-Result!(T[], E) traverse(R, T, E)(R range, Result!(T, E) delegate(ElementType!R) fn)
+Result!(T[], E) traverse(R, Fn, T, E)(R range, Fn fn)
     if (isInputRange!R)
 {
     T[] results;
-    results.reserve(range.length);
+    static if (hasLength!R)
+        results.reserve(range.length);
     
     foreach (elem; range)
     {
@@ -88,8 +90,6 @@ Partitioned!(T, E) partition(T, E)(Result!(T, E)[] results)
 ///   auto zipped = zip(r1, r2);  // Ok!((1, "a"))
 Result!(Tuple!(T1, T2), E) zip(T1, T2, E)(Result!(T1, E) r1, Result!(T2, E) r2)
 {
-    import std.typecons : Tuple, tuple;
-    
     if (r1.isErr)
         return Result!(Tuple!(T1, T2), E).err(r1.unwrapErr());
     if (r2.isErr)
@@ -102,8 +102,6 @@ Result!(Tuple!(T1, T2), E) zip(T1, T2, E)(Result!(T1, E) r1, Result!(T2, E) r2)
 Result!(Tuple!(T1, T2, T3), E) zip(T1, T2, T3, E)(
     Result!(T1, E) r1, Result!(T2, E) r2, Result!(T3, E) r3)
 {
-    import std.typecons : Tuple, tuple;
-    
     if (r1.isErr) return Result!(Tuple!(T1, T2, T3), E).err(r1.unwrapErr());
     if (r2.isErr) return Result!(Tuple!(T1, T2, T3), E).err(r2.unwrapErr());
     if (r3.isErr) return Result!(Tuple!(T1, T2, T3), E).err(r3.unwrapErr());
@@ -161,8 +159,8 @@ enum CollectStrategy
 }
 
 /// Collect results from a range using specified strategy
-auto collectWith(R, T, E, CollectStrategy strategy = CollectStrategy.FailFast)(
-    R range, Result!(T, E) delegate(ElementType!R) fn)
+auto collectWith(R, Fn, T, E, CollectStrategy strategy = CollectStrategy.FailFast)(
+    R range, Fn fn)
     if (isInputRange!R)
 {
     static if (strategy == CollectStrategy.FailFast)
@@ -303,13 +301,15 @@ unittest
     
     // Test traverse
     auto range = [1, 2, 3];
-    auto result = traverse(range, (int x) => Result!(int, string).ok(x * 2));
+    Result!(int, string) delegate(int) fn = (int x) => Result!(int, string).ok(x * 2);
+    auto result = traverse!(int[], typeof(fn), int, string)(range, fn);
     assert(result.isOk);
     assert(result.unwrap() == [2, 4, 6]);
     
     // Test traverse with error
-    auto errorResult = traverse(range, (int x) => 
-        x == 2 ? Result!(int, string).err("error") : Result!(int, string).ok(x));
+    Result!(int, string) delegate(int) errorFn = (int x) => 
+        x == 2 ? Result!(int, string).err("error") : Result!(int, string).ok(x);
+    auto errorResult = traverse!(int[], typeof(errorFn), int, string)(range, errorFn);
     assert(errorResult.isErr);
     
     // Test partition
@@ -337,7 +337,8 @@ unittest
     
     // Test recover
     auto failed = Result!(int, string).err("error");
-    auto recovered = failed.recover((e) => 0);
+    int delegate(string) recoverFn = (e) => 0;
+    auto recovered = recover(failed, recoverFn);
     assert(recovered == 0);
 }
 

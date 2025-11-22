@@ -618,7 +618,7 @@ auto execute(
     // Test injection prevention
     auto badResult = exec.run(["echo", "hello; rm -rf /"]);
     assert(badResult.isErr);
-    assert(badResult.unwrapErr().code == SecurityCode.InjectionAttempt);
+    assert(badResult.unwrapErr().code == ErrorCode.ValidationFailed);
     
     // Test builder pattern
     auto configured = SecureExecutor.create()

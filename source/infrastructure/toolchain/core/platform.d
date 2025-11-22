@@ -354,7 +354,7 @@ private string abiToString(ABI abi) pure nothrow @safe
     }
 }
 
-@safe unittest
+@system unittest
 {
     // Test platform parsing
     auto result = Platform.parse("x86_64-unknown-linux-gnu");
@@ -374,7 +374,7 @@ private string abiToString(ABI abi) pure nothrow @safe
     assert(hostPlatform.os != OS.Unknown);
 }
 
-@safe unittest
+@system unittest
 {
     // Test cross-compilation detection
     auto host = Platform(Arch.X86_64, OS.Linux, ABI.GNU);

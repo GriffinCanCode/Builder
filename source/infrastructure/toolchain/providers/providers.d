@@ -437,8 +437,7 @@ private Capability parseCapability(string str) @safe
     }`;
     
     // Write temp manifest
-    import std.file : write, remove;
-    import std.path : tempDir;
+    import std.file : write, remove, tempDir;
     auto tempPath = buildPath(tempDir(), "test-toolchain.json");
     write(tempPath, manifest);
     

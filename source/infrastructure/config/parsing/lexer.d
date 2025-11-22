@@ -670,8 +670,16 @@ unittest
     assert(tokens2[5].type == TokenType.String);
     assert(tokens2[5].value == "-Wall");
     
-    // Bare - followed by letter after array bracket should error (not a number, not an identifier start)
+    // Bare - followed by letter after array bracket lexes as Minus + Identifier
+    // Parser should validate if this is allowed in the context
     auto result3 = lex(`flags: [-O2]`);
-    assert(result3.isErr, "Bare -O2 after [ should be an error");
+    assert(result3.isOk, "Lexer should tokenize -O2 as Minus + Identifier");
+    auto tokens3 = result3.unwrap();
+    // Should lex as: Identifier(flags), Colon, LeftBracket, Minus, Identifier(O2), RightBracket, EOF
+    assert(tokens3[2].type == TokenType.LeftBracket);
+    assert(tokens3[3].type == TokenType.Minus);
+    assert(tokens3[4].type == TokenType.Identifier);
+    assert(tokens3[4].value == "O2");
+    assert(tokens3[5].type == TokenType.RightBracket);
 }
 

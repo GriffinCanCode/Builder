@@ -788,6 +788,14 @@ class UnifiedParser
             return Ok!(Expr, BuildError)(new IdentExpr(token.value, loc));
         }
         
+        // Type keywords used as values (e.g., type: library)
+        if (token.type == TokenType.Executable || token.type == TokenType.Library ||
+            token.type == TokenType.Test || token.type == TokenType.Custom)
+        {
+            advance();
+            return Ok!(Expr, BuildError)(new IdentExpr(token.value, loc));
+        }
+        
         // Array literal
         if (token.type == TokenType.LeftBracket)
         {

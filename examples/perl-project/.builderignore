@@ -1,0 +1,33 @@
+# Builder Ignore File
+# Patterns listed here will be ignored during source scanning and target detection
+# Syntax is similar to .gitignore
+
+# Version control
+.git/
+.svn/
+.hg/
+
+# Builder's own cache
+.builder-cache/
+
+# Common build outputs
+dist/
+out/
+
+# IDE directories
+.idea/
+.vscode/
+.vs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Custom patterns
+# Add your own patterns below:

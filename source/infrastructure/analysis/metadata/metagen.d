@@ -163,8 +163,6 @@ template PrecompiledPattern(string pattern)
 enum LanguageCount = EnumMembers!TargetLanguage.length;
 enum GeneratedAnalyzers = LanguageCount;
 
-pragma(msg, "Generated analyzers for ", GeneratedAnalyzers, " languages at compile-time");
-
 /// Compile-time verification that all handlers exist
 template VerifyHandlers()
 {

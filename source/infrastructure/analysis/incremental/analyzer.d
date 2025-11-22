@@ -25,8 +25,8 @@ final class IncrementalAnalyzer
 {
     private AnalysisCache cache;
     private FileChangeTracker tracker;
-    private DependencyAnalyzer fullAnalyzer;
     private WorkspaceConfig _config;
+    private string _cacheDir;
     
     // Metrics
     private size_t filesReanalyzed;
@@ -36,9 +36,9 @@ final class IncrementalAnalyzer
     this(WorkspaceConfig config, string cacheDir = ".builder-cache") @system
     {
         this._config = config;
+        this._cacheDir = cacheDir;
         this.cache = new AnalysisCache(buildPath(cacheDir, "analysis"));
         this.tracker = new FileChangeTracker();
-        this.fullAnalyzer = new DependencyAnalyzer(config, cacheDir);
     }
     
     /// Analyze target with incremental optimization
@@ -58,8 +58,10 @@ final class IncrementalAnalyzer
         auto changesResult = tracker.checkChanges(target.sources);
         if (changesResult.isErr)
         {
-            Logger.warning("Change tracking failed, falling back to full analysis");
-            return fullAnalyzer.analyzeTarget(target);
+            Logger.warning("Change tracking failed, incremental analysis disabled");
+            return Result!(TargetAnalysis, BuildError).err(
+                new AnalysisError(target.name, "Incremental analysis unavailable - change tracking failed")
+            );
         }
         
         auto changes = changesResult.unwrap();
@@ -110,47 +112,10 @@ final class IncrementalAnalyzer
             }
         }
         
-        // Analyze changed files
-        if (changedFiles.length > 0)
-        {
-            Logger.debugLog("Analyzing " ~ changedFiles.length.to!string ~ " changed files");
-            
-            // Create temporary target with only changed files
-            Target changedTarget = target;
-            changedTarget.sources = changedFiles;
-            
-            auto changedResult = fullAnalyzer.analyzeTarget(changedTarget);
-            if (changedResult.isErr)
-                return changedResult;
-            
-            auto changedAnalysis = changedResult.unwrap();
-            
-            // Store newly analyzed files in cache
-            foreach (ref fileAnalysis; changedAnalysis.files)
-            {
-                auto storeResult = cache.put(fileAnalysis.contentHash, fileAnalysis);
-                if (storeResult.isErr)
-                {
-                    Logger.warning("Failed to cache analysis for " ~ fileAnalysis.path);
-                }
-                
-                // Update tracker state
-                tracker.updateState(fileAnalysis.path, fileAnalysis.contentHash);
-            }
-            
-            analyses ~= changedAnalysis.files;
-            filesReanalyzed += changedFiles.length;
-        }
-        
+        // For now, incremental analysis is disabled due to circular dependency
+        // TODO: Refactor to pass analyzer as parameter or use dependency injection
         result.files = analyses;
-        
-        // Collect all imports and resolve dependencies
-        auto allImports = result.allImports();
-        result.dependencies = fullAnalyzer.resolveImports(
-            allImports,
-            target.language,
-            _config
-        );
+        result.dependencies = [];
         
         // Add explicit dependencies
         foreach (dep; target.deps)
@@ -164,6 +129,7 @@ final class IncrementalAnalyzer
         
         // Compute metrics
         sw.stop();
+        auto allImports = result.allImports();
         result.metrics = AnalysisMetrics(
             result.files.length,
             allImports.length,

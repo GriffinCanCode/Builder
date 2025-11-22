@@ -1,6 +1,6 @@
 module engine.runtime.services.container.services;
 
-import std.stdio;
+import std.stdio : writeln, stdout;
 import std.conv : to;
 import engine.graph;
 import engine.runtime.core.engine : ExecutionEngine;
@@ -48,45 +48,52 @@ final class BuildServices
     /// Create services with production configuration
     this(WorkspaceConfig config, BuildOptions options)
     {
+        writeln("[DEBUG] BuildServices: Starting constructor"); stdout.flush();
         this._config = config;
         this._renderMode = RenderMode.Auto;
         
         // Initialize SIMD capabilities early (detect hardware once)
+        writeln("[DEBUG] BuildServices: Initializing SIMD"); stdout.flush();
         this._initializeSIMD();
         
         // Initialize observability (tracing and structured logging)
+        writeln("[DEBUG] BuildServices: Initializing observability"); stdout.flush();
         this._initializeObservability();
         
         // Initialize shutdown coordinator (non-singleton, DI-based)
         // Created after SIMD/observability for semantic consistency
+        writeln("[DEBUG] BuildServices: Creating ShutdownCoordinator"); stdout.flush();
         this._shutdownCoordinator = new ShutdownCoordinator();
         
-        // Initialize handler registry
+        // Initialize event system (must be before cache service)
+        writeln("[DEBUG] BuildServices: Creating EventPublisher"); stdout.flush();
+        this._publisher = new SimpleEventPublisher();
+        
+        // Initialize handler registry (handlers loaded lazily on-demand)
+        writeln("[DEBUG] BuildServices: Creating HandlerRegistry"); stdout.flush();
         this._registry = new HandlerRegistry();
-        this._registry.initialize();
         
         // Initialize cache (using coordinator for unified caching)
         import engine.runtime.services.caching : CacheService;
+        writeln("[DEBUG] BuildServices: Creating CacheService"); stdout.flush();
         auto cacheService = new CacheService(options.cacheDir, this._publisher);
         this._cache = cacheService.getInternalCache();
         this._shutdownCoordinator.registerCache(this._cache);
         
         // Initialize analyzer
+        writeln("[DEBUG] BuildServices: Creating DependencyAnalyzer"); stdout.flush();
         this._analyzer = new DependencyAnalyzer(config);
         
-        // Enable incremental analysis for faster rebuilds
-        auto incrementalResult = this._analyzer.enableIncremental();
-        Logger.debugLog(incrementalResult.isErr ? 
-            "Incremental analysis not available, using full analysis" :
-            "Incremental analysis enabled");
+        // Incremental analysis temporarily disabled due to circular dependency issues
+        // TODO: Refactor incremental analyzer to use dependency injection
+        writeln("[DEBUG] BuildServices: Skipping incremental analysis (disabled)"); stdout.flush();
         
         // Initialize remote execution service (if enabled)
+        writeln("[DEBUG] BuildServices: Initializing remote execution"); stdout.flush();
         this._initializeRemoteExecution(config, options);
         
-        // Initialize event system
-        this._publisher = new SimpleEventPublisher();
-        
         // Initialize telemetry
+        writeln("[DEBUG] BuildServices: Initializing telemetry"); stdout.flush();
         auto telemetryConfig = TelemetryConfig.fromEnvironment();
         this._telemetryEnabled = telemetryConfig.enabled;
         if (this._telemetryEnabled)
@@ -97,11 +104,13 @@ final class BuildServices
         }
         
         // Log initialization (after _structuredLogger is initialized)
+        writeln("[DEBUG] BuildServices: Finalizing constructor"); stdout.flush();
         if (this._structuredLogger !is null)
             this._structuredLogger.info("Build services initialized", [
                 "cache_dir": options.cacheDir,
                 "telemetry_enabled": this._telemetryEnabled.to!string
             ]);
+        writeln("[DEBUG] BuildServices: Constructor complete"); stdout.flush();
     }
     
     /// Initialize SIMD capabilities (hardware detection and dispatch)
@@ -207,9 +216,8 @@ final class BuildServices
         this._renderer = renderer;
         this._telemetryEnabled = false;
         
-        // Initialize handler registry (required for createEngine)
+        // Initialize handler registry (handlers loaded lazily on-demand)
         this._registry = new HandlerRegistry();
-        this._registry.initialize();
     }
     
     /// Get workspace configuration

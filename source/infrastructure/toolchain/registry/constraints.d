@@ -1,6 +1,6 @@
 module infrastructure.toolchain.registry.constraints;
 
-import std.algorithm : canFind, all, any;
+import std.algorithm : canFind, all, any, count;
 import std.array : array, empty;
 import std.string : strip;
 import infrastructure.toolchain.core.spec;
@@ -144,7 +144,7 @@ struct VersionConstraint
     static Result!(VersionConstraint, BuildError) parse(string str) @system
     {
         import std.string : startsWith, indexOf, split, strip;
-        import std.algorithm : count;
+        import std.algorithm : canFind;
         
         str = str.strip();
         
@@ -154,6 +154,25 @@ struct VersionConstraint
         // Check for wildcard (1.x or 1.2.x)
         if (str.canFind("x") || str.canFind("X"))
             return parseWildcard(str);
+        
+        // Check for range (>=1.0.0 <2.0.0) BEFORE checking for >= alone
+        // Count occurrences manually since std.algorithm.count doesn't work with string needles
+        {
+            import std.string : indexOf;
+            auto gePos = str.indexOf(">=");
+            auto ltPos = str.indexOf("<");
+            
+            if (gePos >= 0 && ltPos > gePos)
+            {
+                // Check there's only one of each by looking for duplicates
+                auto gePos2 = str.indexOf(">=", gePos + 2);
+                auto ltPos2 = str.indexOf("<", ltPos + 1);
+                if (gePos2 < 0 && ltPos2 < 0)
+                {
+                    return parseRange(str);
+                }
+            }
+        }
         
         // Check for >= constraint
         if (str.startsWith(">="))
@@ -178,10 +197,6 @@ struct VersionConstraint
             return Ok!(VersionConstraint, BuildError)(
                 VersionConstraint(ConstraintType.LessThan, verResult.unwrap()));
         }
-        
-        // Check for range (>=1.0.0 <2.0.0)
-        if (str.count(">=") == 1 && str.count("<") == 1)
-            return parseRange(str);
         
         // Exact version
         auto verResult = Version.parse(str);
@@ -265,7 +280,8 @@ struct VersionConstraint
                 new SystemError("Range must start with >=", ErrorCode.InvalidInput));
         }
         
-        auto minResult = Version.parse(parts[0][2 .. $].strip());
+        auto minStr = parts[0][2 .. $].strip();
+        auto minResult = Version.parse(minStr);
         if (minResult.isErr)
             return Err!(VersionConstraint, BuildError)(minResult.unwrapErr());
         
@@ -276,7 +292,8 @@ struct VersionConstraint
                 new SystemError("Range must have < for upper bound", ErrorCode.InvalidInput));
         }
         
-        auto maxResult = Version.parse(parts[1][1 .. $].strip());
+        auto maxStr = parts[1][1 .. $].strip();
+        auto maxResult = Version.parse(maxStr);
         if (maxResult.isErr)
             return Err!(VersionConstraint, BuildError)(maxResult.unwrapErr());
         
@@ -345,7 +362,7 @@ struct ConstraintSolver
     }
 }
 
-@safe unittest
+@system unittest
 {
     import std.stdio : writeln;
     
@@ -381,7 +398,7 @@ struct ConstraintSolver
     writeln("Version constraint tests passed");
 }
 
-@safe unittest
+@system unittest
 {
     import std.stdio : writeln;
     

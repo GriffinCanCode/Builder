@@ -359,6 +359,10 @@ unittest
     
     // Test MemoryDelta
     {
+        // Disable GC to prevent collections during test
+        GC.disable();
+        scope(exit) GC.enable();
+        
         auto before = MemorySnapshot.take("before");
         
         // Allocate some memory
@@ -367,7 +371,8 @@ unittest
         auto after = MemorySnapshot.take("after");
         auto delta = MemoryDelta.between(before, after);
         
-        assert(delta.heapUsedDelta >= 0); // Should have grown
+        // Note: heapUsedDelta may be 0 if GC hasn't allocated yet, but shouldn't be negative
+        assert(delta.heapUsedDelta >= 0, "Heap should not shrink with GC disabled");
         assert(delta.fromLabel == "before");
         assert(delta.toLabel == "after");
     }
