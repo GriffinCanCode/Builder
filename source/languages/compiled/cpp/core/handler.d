@@ -445,9 +445,12 @@ class CppHandler : BaseLanguageHandler
         // Auto-detect build system
         if (config.buildSystem == BuildSystem.Auto)
         {
-            // TODO: Implement build system detection
-            // For now, default to standard compilation
-            config.buildSystem = BuildSystem.None;
+            config.buildSystem = detectBuildSystem(sourceDir, workspace.projectRoot);
+            
+            if (config.buildSystem != BuildSystem.None)
+            {
+                Logger.info("Detected build system: " ~ config.buildSystem.to!string);
+            }
         }
         
         // Auto-detect entry point
@@ -551,6 +554,46 @@ class CHandler : CppHandler
         }
         
         return allImports;
+    }
+    
+    /// Detect build system from project structure
+    private BuildSystem detectBuildSystem(string sourceDir, string projectRoot) @system
+    {
+        import std.file : exists;
+        import std.path : buildPath;
+        
+        // Check in source directory first, then project root
+        string[] searchDirs = [sourceDir, projectRoot];
+        
+        foreach (dir; searchDirs)
+        {
+            // CMake: CMakeLists.txt
+            if (exists(buildPath(dir, "CMakeLists.txt")))
+                return BuildSystem.CMake;
+            
+            // Meson: meson.build
+            if (exists(buildPath(dir, "meson.build")))
+                return BuildSystem.Meson;
+            
+            // Bazel: BUILD or BUILD.bazel
+            if (exists(buildPath(dir, "BUILD")) || exists(buildPath(dir, "BUILD.bazel")))
+                return BuildSystem.Bazel;
+            
+            // Xmake: xmake.lua
+            if (exists(buildPath(dir, "xmake.lua")))
+                return BuildSystem.Xmake;
+            
+            // Ninja: build.ninja
+            if (exists(buildPath(dir, "build.ninja")))
+                return BuildSystem.Ninja;
+            
+            // Make: Makefile or makefile
+            if (exists(buildPath(dir, "Makefile")) || exists(buildPath(dir, "makefile")))
+                return BuildSystem.Make;
+        }
+        
+        // No build system detected, use direct compilation
+        return BuildSystem.None;
     }
 }
 

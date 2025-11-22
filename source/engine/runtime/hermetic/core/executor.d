@@ -321,6 +321,7 @@ struct Output
     string stderr;
     int exitCode;
     bool hermetic;  // Was execution truly hermetic?
+    string[] outputFiles;  // Paths to output files produced
     
     /// Check if execution succeeded
     bool success() @safe const pure nothrow
