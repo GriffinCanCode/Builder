@@ -268,6 +268,13 @@ struct RubyTestConfig
     }
     
     RSpecOptions rspec;
+    
+    /// Cucumber-specific configuration
+    string cucumberTags;           // Filter scenarios by tags (e.g., "@smoke and not @wip")
+    string cucumberProfile;        // Use specific Cucumber profile
+    bool cucumberStrict = false;   // Fail if there are undefined or pending steps
+    bool cucumberDryRun = false;   // Dry-run to check for undefined steps
+    string[] cucumberArgs;         // Additional Cucumber arguments
 }
 
 /// Type checking configuration

@@ -230,8 +230,7 @@ class RubyHandler : BaseLanguageHandler
                 break;
             
             case RubyTestFramework.Cucumber:
-                // Not implemented yet
-                result.success = true;
+                result = runCucumber(target, rubyConfig, rubyCmd);
                 break;
             
             case RubyTestFramework.None:
@@ -311,10 +310,19 @@ class RubyHandler : BaseLanguageHandler
     
     private RubyTestFramework detectTestFramework(string projectRoot)
     {
+        // Check for Cucumber first (BDD takes precedence)
+        import languages.scripting.ruby.tooling.testers.cucumber;
+        if (CucumberRunner.detectCucumber(projectRoot))
+            return RubyTestFramework.Cucumber;
+        
+        // Check for RSpec
         if (exists(buildPath(projectRoot, "spec")))
             return RubyTestFramework.RSpec;
+        
+        // Check for Minitest/Test::Unit
         if (exists(buildPath(projectRoot, "test")))
             return RubyTestFramework.Minitest;
+        
         return RubyTestFramework.Minitest;
     }
     
@@ -365,6 +373,93 @@ class RubyHandler : BaseLanguageHandler
         if (!result.success)
             result.error = "Test::Unit failed";
         result.outputHash = FastHash.hashStrings(target.sources);
+        
+        return result;
+    }
+    
+    private LanguageBuildResult runCucumber(in Target target, RubyConfig config, string rubyCmd)
+    {
+        LanguageBuildResult result;
+        
+        import languages.scripting.ruby.tooling.testers.cucumber;
+        
+        // Check if Cucumber is available
+        if (!CucumberRunner.isAvailable())
+        {
+            result.error = "Cucumber not available (install: gem install cucumber)";
+            Logger.error(result.error);
+            return result;
+        }
+        
+        Logger.info("Running Cucumber BDD tests");
+        
+        // Determine feature files
+        string[] featureFiles;
+        
+        // Use sources if they are .feature files
+        foreach (source; target.sources)
+        {
+            if (source.endsWith(".feature"))
+                featureFiles ~= source;
+        }
+        
+        // If no feature files in sources, check for features directory
+        if (featureFiles.empty)
+        {
+            import std.file : dirEntries, SpanMode;
+            auto featuresDir = buildPath(dirName(target.sources.empty ? "." : target.sources[0]), "features");
+            
+            if (!exists(featuresDir))
+                featuresDir = "features"; // Default location
+            
+            if (exists(featuresDir))
+            {
+                try {
+                    foreach (entry; dirEntries(featuresDir, "*.feature", SpanMode.depth))
+                        featureFiles ~= entry.name;
+                } catch (Exception e) {
+                    Logger.warning("Failed to scan features directory: " ~ e.msg);
+                }
+            }
+        }
+        
+        if (featureFiles.empty)
+        {
+            Logger.warning("No feature files found, skipping Cucumber tests");
+            result.success = true;
+            result.outputHash = FastHash.hashStrings(target.sources);
+            return result;
+        }
+        
+        // Run Cucumber tests
+        auto cucumberResult = CucumberRunner.runTests(
+            featureFiles,
+            config.test,
+            rubyCmd,
+            dirName(featureFiles[0])
+        );
+        
+        result.success = cucumberResult.success;
+        result.error = cucumberResult.error;
+        result.outputHash = FastHash.hashStrings(target.sources);
+        
+        if (cucumberResult.hasFailures())
+        {
+            Logger.error("Cucumber tests failed:");
+            Logger.error("  Scenarios: " ~ cucumberResult.scenariosPassed.to!string ~ "/" ~ 
+                        cucumberResult.scenarios.to!string ~ " passed");
+            Logger.error("  Steps: " ~ cucumberResult.stepsPassed.to!string ~ "/" ~ 
+                        cucumberResult.steps.to!string ~ " passed");
+            
+            if (!result.error.empty)
+                Logger.error("  " ~ result.error);
+        }
+        else if (cucumberResult.scenarios > 0)
+        {
+            Logger.info("All Cucumber tests passed:");
+            Logger.info("  " ~ cucumberResult.scenarios.to!string ~ " scenarios, " ~ 
+                       cucumberResult.steps.to!string ~ " steps");
+        }
         
         return result;
     }

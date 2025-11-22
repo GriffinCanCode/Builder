@@ -7,6 +7,7 @@ import std.path;
 import std.algorithm;
 import std.array;
 import std.string;
+import std.process : environment;
 import languages.base.base;
 import languages.base.mixins;
 import languages.jvm.java.core.config;
@@ -323,13 +324,110 @@ class JavaHandler : BaseLanguageHandler
         
         Logger.info("Running JUnit tests directly");
         
-        // This is a simplified implementation
-        // In a real scenario, we'd need to find JUnit JAR and run tests properly
+        // Import JUnit test utilities
+        import languages.jvm.java.tooling.testers.junit;
         
-        Logger.warning("Direct JUnit execution not fully implemented, use Maven/Gradle for testing");
+        // Detect JUnit version
+        auto junitVersion = detectJUnitVersion(config.root);
+        Logger.info("Detected " ~ (junitVersion == JUnitVersion.JUnit5 ? "JUnit 5" : "JUnit 4"));
+        
+        // Try to build classpath
+        string classpath = buildClasspath(config.root, javaConfig);
+        
+        if (classpath.empty)
+        {
+            Logger.warning("Could not build classpath, tests may fail");
+            classpath = buildPath(config.root, "target", "test-classes") ~ ":" ~ 
+                       buildPath(config.root, "target", "classes");
+        }
+        
+        // Find test classes from sources
+        string[] testClasses;
+        foreach (source; target.sources)
+        {
+            if (source.endsWith(".java") && (source.canFind("Test") || source.canFind("test")))
+            {
+                // Convert file path to class name
+                auto className = source
+                    .replace("/", ".")
+                    .replace("\\", ".")
+                    .stripExtension();
+                
+                // Remove src/test/java prefix if present
+                auto srcTestIdx = className.indexOf("src.test.java.");
+                if (srcTestIdx >= 0)
+                    className = className[srcTestIdx + "src.test.java.".length .. $];
+                
+                testClasses ~= className;
+            }
+        }
+        
+        if (testClasses.empty)
+        {
+            Logger.warning("No test classes found, marking as success");
+            result.success = true;
+            result.outputHash = FastHash.hashStrings(target.sources);
+            return result;
+        }
+        
+        // Run JUnit tests
+        auto testResult = runJUnitDirect(testClasses, classpath, junitVersion);
+        
+        if (!testResult.success)
+        {
+            result.error = testResult.error;
+            Logger.error("Tests failed: " ~ testResult.error);
+            
+            if (testResult.failed > 0)
+            {
+                Logger.error(testResult.failed.to!string ~ " test(s) failed, " ~ 
+                           testResult.passed.to!string ~ " passed");
+            }
+            
+            return result;
+        }
+        
+        Logger.info("All tests passed: " ~ testResult.passed.to!string ~ " tests");
         
         result.success = true;
+        result.outputHash = FastHash.hashStrings(target.sources);
+        
         return result;
+    }
+    
+    /// Build classpath for testing
+    private string buildClasspath(string projectDir, JavaConfig config)
+    {
+        string[] classpathEntries;
+        
+        // Add compiled classes
+        classpathEntries ~= buildPath(projectDir, "target", "classes");
+        classpathEntries ~= buildPath(projectDir, "target", "test-classes");
+        
+        // Add build output
+        classpathEntries ~= buildPath(projectDir, "build", "classes", "java", "main");
+        classpathEntries ~= buildPath(projectDir, "build", "classes", "java", "test");
+        
+        // Add dependencies from Maven local repo
+        auto m2Repo = buildPath(environment.get("HOME", ""), ".m2", "repository");
+        if (exists(m2Repo))
+        {
+            try {
+                import std.file : dirEntries, SpanMode;
+                foreach (entry; dirEntries(m2Repo, "*.jar", SpanMode.depth))
+                {
+                    auto name = baseName(entry.name);
+                    // Only include test-related JARs
+                    if (name.canFind("junit") || name.canFind("hamcrest") || name.canFind("mockito"))
+                        classpathEntries ~= entry.name;
+                }
+            } catch (Exception) {}
+        }
+        
+        version(Windows)
+            return classpathEntries.join(";");
+        else
+            return classpathEntries.join(":");
     }
     
     override Import[] analyzeImports(in string[] sources)

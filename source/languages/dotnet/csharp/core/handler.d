@@ -16,6 +16,7 @@ import languages.dotnet.csharp.tooling.info;
 import languages.dotnet.csharp.tooling.builders;
 import languages.dotnet.csharp.tooling.formatters;
 import languages.dotnet.csharp.tooling.analyzers;
+import languages.dotnet.csharp.tooling.testers;
 import languages.dotnet.csharp.analysis;
 import infrastructure.config.schema.schema;
 import infrastructure.analysis.targets.types;
@@ -325,13 +326,86 @@ class CSharpHandler : BaseLanguageHandler
         
         Logger.info("Running tests directly");
         
-        // This is a simplified implementation
-        // In a real scenario, we'd need to find test framework and run tests properly
+        // Auto-detect test framework if not specified
+        CSharpTestFramework framework = csConfig.test.framework;
+        if (framework == CSharpTestFramework.Auto)
+        {
+            // Try to detect from project file
+            auto projectFiles = findProjectFiles(config.root);
+            if (!projectFiles.empty)
+            {
+                framework = detectTestFramework(projectFiles[0]);
+                if (framework == CSharpTestFramework.None)
+                {
+                    Logger.warning("Could not detect test framework, trying xUnit");
+                    framework = CSharpTestFramework.XUnit;
+                }
+            }
+            else
+            {
+                framework = CSharpTestFramework.XUnit; // Default
+            }
+        }
         
-        Logger.warning("Direct test execution not fully implemented, use dotnet test");
+        // Create test runner
+        auto testRunner = TestRunnerFactory.create(framework);
+        
+        if (!testRunner.isAvailable())
+        {
+            result.error = testRunner.name() ~ " test runner not available";
+            Logger.warning(result.error ~ ", falling back to 'dotnet test'");
+            
+            // Try dotnet test as fallback
+            if (DotNetOps.test(config.root, csConfig.test))
+            {
+                result.success = true;
+                result.outputHash = FastHash.hashStrings(target.sources.dup);
+                return result;
+            }
+            return result;
+        }
+        
+        Logger.info("Using " ~ testRunner.name() ~ " test runner");
+        
+        // Run tests
+        auto testResult = testRunner.runTests(target.sources, csConfig.test, config.root);
+        
+        if (!testResult.success)
+        {
+            result.error = testResult.error;
+            Logger.error("Tests failed: " ~ testResult.error);
+            return result;
+        }
+        
+        // Log test summary
+        if (testResult.failed > 0)
+        {
+            Logger.warning("Some tests failed: " ~ testResult.failed.to!string ~ " / " ~ 
+                          (testResult.passed + testResult.failed).to!string);
+            result.error = "Test failures detected";
+            return result;
+        }
+        
+        Logger.info("All tests passed: " ~ testResult.passed.to!string ~ " tests");
         
         result.success = true;
+        result.outputHash = FastHash.hashStrings(target.sources.dup);
+        
         return result;
+    }
+    
+    /// Find project files in directory
+    private string[] findProjectFiles(string dir)
+    {
+        import std.file : dirEntries, SpanMode;
+        
+        string[] projects;
+        try {
+            foreach (entry; dirEntries(dir, "*.csproj", SpanMode.depth))
+                projects ~= entry.name;
+        } catch (Exception) {}
+        
+        return projects;
     }
     
     override Import[] analyzeImports(in string[] sources)

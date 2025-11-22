@@ -22,19 +22,12 @@ struct WorkspaceDecl
     /// Get field by name
     const(WorkspaceField)* getField(string name) const
     {
-        foreach (ref field; fields)
-        {
-            if (field.name == name)
-                return &field;
-        }
-        return null;
+        auto found = fields.find!(f => f.name == name);
+        return found.empty ? null : &found.front;
     }
     
     /// Check if has field
-    bool hasField(string name) const
-    {
-        return getField(name) !is null;
-    }
+    bool hasField(string name) const { return getField(name) !is null; }
 }
 
 /// Workspace field (similar to Field but for workspace config)
@@ -69,75 +62,48 @@ struct WorkspaceParser
     /// Parse Builderspace file into AST
     Result!(WorkspaceFile, BuildError) parse()
     {
-        WorkspaceFile file;
-        file.filePath = filePath;
-        
         auto workspaceResult = parseWorkspace();
-        if (workspaceResult.isErr)
-            return Err!(WorkspaceFile, BuildError)(workspaceResult.unwrapErr());
+        if (workspaceResult.isErr) return Err!(WorkspaceFile, BuildError)(workspaceResult.unwrapErr());
         
-        file.workspace = workspaceResult.unwrap();
-        
-        return Ok!(WorkspaceFile, BuildError)(file);
+        return Ok!(WorkspaceFile, BuildError)(WorkspaceFile(workspaceResult.unwrap(), filePath));
     }
     
     /// Parse workspace declaration
     private Result!(WorkspaceDecl, BuildError) parseWorkspace()
     {
         auto token = peek();
-        size_t line = token.line;
-        size_t col = token.column;
+        immutable line = token.line, col = token.column;
         
         // Expect: workspace keyword (identifier "workspace")
         if (!check(TokenType.Identifier) || peek().value != "workspace")
-        {
             return error!(WorkspaceDecl)("Expected 'workspace' keyword at start of Builderspace file");
-        }
         advance();
         
-        // Expect: (
         if (!match(TokenType.LeftParen))
-        {
             return error!(WorkspaceDecl)("Expected '(' after 'workspace'");
-        }
         
-        // Expect: "name"
         if (!check(TokenType.String))
-        {
             return error!(WorkspaceDecl)("Expected workspace name as string literal");
-        }
         
         string name = advance().value;
         
-        // Expect: )
         if (!match(TokenType.RightParen))
-        {
             return error!(WorkspaceDecl)("Expected ')' after workspace name");
-        }
         
-        // Expect: {
         if (!match(TokenType.LeftBrace))
-        {
             return error!(WorkspaceDecl)("Expected '{' to begin workspace body");
-        }
         
         // Parse fields
         WorkspaceField[] fields;
-        
         while (!check(TokenType.RightBrace) && !isAtEnd())
         {
             auto fieldResult = parseField();
-            if (fieldResult.isErr)
-                return Err!(WorkspaceDecl, BuildError)(fieldResult.unwrapErr());
-            
+            if (fieldResult.isErr) return Err!(WorkspaceDecl, BuildError)(fieldResult.unwrapErr());
             fields ~= fieldResult.unwrap();
         }
         
-        // Expect: }
         if (!match(TokenType.RightBrace))
-        {
             return error!(WorkspaceDecl)("Expected '}' to end workspace body");
-        }
         
         return Ok!(WorkspaceDecl, BuildError)(WorkspaceDecl(name, fields, line, col));
     }
@@ -146,132 +112,413 @@ struct WorkspaceParser
     private Result!(WorkspaceField, BuildError) parseField()
     {
         auto token = peek();
-        size_t line = token.line;
-        size_t col = token.column;
+        immutable line = token.line, col = token.column;
         
         // Get field name (keyword or identifier)
-        string fieldName;
+        string fieldName = token.type == TokenType.Identifier ? advance().value :
+            [TokenType.Type: "type", TokenType.Language: "language", TokenType.Sources: "sources",
+             TokenType.Deps: "deps", TokenType.Flags: "flags", TokenType.Env: "env",
+             TokenType.Output: "output", TokenType.Includes: "includes"].get(token.type, null);
         
-        switch (token.type)
-        {
-            case TokenType.Type:
-                fieldName = "type";
-                advance();
-                break;
-            case TokenType.Language:
-                fieldName = "language";
-                advance();
-                break;
-            case TokenType.Sources:
-                fieldName = "sources";
-                advance();
-                break;
-            case TokenType.Deps:
-                fieldName = "deps";
-                advance();
-                break;
-            case TokenType.Flags:
-                fieldName = "flags";
-                advance();
-                break;
-            case TokenType.Env:
-                fieldName = "env";
-                advance();
-                break;
-            case TokenType.Output:
-                fieldName = "output";
-                advance();
-                break;
-            case TokenType.Includes:
-                fieldName = "includes";
-                advance();
-                break;
-            case TokenType.Identifier:
-                fieldName = advance().value;
-                break;
-            default:
-                return error!(WorkspaceField)("Expected field name");
-        }
+        if (fieldName is null) return error!(WorkspaceField)("Expected field name");
+        if (token.type != TokenType.Identifier) advance();
         
-        // Expect: :
-        if (!match(TokenType.Colon))
-        {
-            return error!(WorkspaceField)("Expected ':' after field name");
-        }
+        if (!match(TokenType.Colon)) return error!(WorkspaceField)("Expected ':' after field name");
         
-        // Parse value
         auto valueResult = parseExpression();
-        if (valueResult.isErr)
-            return Err!(WorkspaceField, BuildError)(valueResult.unwrapErr());
+        if (valueResult.isErr) return Err!(WorkspaceField, BuildError)(valueResult.unwrapErr());
         
-        auto value = valueResult.unwrap();
+        if (!match(TokenType.Semicolon)) return error!(WorkspaceField)("Expected ';' after field value");
         
-        // Expect: ;
-        if (!match(TokenType.Semicolon))
-        {
-            return error!(WorkspaceField)("Expected ';' after field value");
-        }
-        
-        return Ok!(WorkspaceField, BuildError)(WorkspaceField(fieldName, value, line, col));
+        return Ok!(WorkspaceField, BuildError)(WorkspaceField(fieldName, valueResult.unwrap(), line, col));
     }
     
-    /// Parse expression - basic implementation
+    /// Parse expression - fully implemented with support for all literal types
     private Result!(Expr, BuildError) parseExpression()
+    {
+        return parseTernary();
+    }
+    
+    /// Parse ternary conditional: condition ? trueExpr : falseExpr
+    private Result!(Expr, BuildError) parseTernary()
+    {
+        auto exprResult = parseLogicalOr();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        if (match(TokenType.Question))
+        {
+            auto token = previous();
+            auto loc = Location(filePath, token.line, token.column);
+            
+            auto trueResult = parseExpression();
+            if (trueResult.isErr) return trueResult;
+            
+            if (!match(TokenType.Colon))
+                return error!Expr("Expected ':' in ternary expression");
+            
+            auto falseResult = parseExpression();
+            if (falseResult.isErr) return falseResult;
+            
+            return Ok!(Expr, BuildError)(new TernaryExpr(expr, trueResult.unwrap(), falseResult.unwrap(), loc));
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse logical OR: expr || expr
+    private Result!(Expr, BuildError) parseLogicalOr()
+    {
+        auto exprResult = parseLogicalAnd();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (match(TokenType.PipePipe))
+        {
+            auto token = previous();
+            auto loc = Location(filePath, token.line, token.column);
+            auto rightResult = parseLogicalAnd();
+            if (rightResult.isErr) return rightResult;
+            expr = new BinaryExpr(expr, "||", rightResult.unwrap(), loc);
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse logical AND: expr && expr
+    private Result!(Expr, BuildError) parseLogicalAnd()
+    {
+        auto exprResult = parseEquality();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (match(TokenType.AmpAmp))
+        {
+            auto token = previous();
+            auto loc = Location(filePath, token.line, token.column);
+            auto rightResult = parseEquality();
+            if (rightResult.isErr) return rightResult;
+            expr = new BinaryExpr(expr, "&&", rightResult.unwrap(), loc);
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse equality: expr == expr, expr != expr
+    private Result!(Expr, BuildError) parseEquality()
+    {
+        auto exprResult = parseComparison();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (check(TokenType.EqualEqual) || check(TokenType.BangEqual))
+        {
+            auto token = advance();
+            auto loc = Location(filePath, token.line, token.column);
+            auto rightResult = parseComparison();
+            if (rightResult.isErr) return rightResult;
+            string op = token.type == TokenType.EqualEqual ? "==" : "!=";
+            expr = new BinaryExpr(expr, op, rightResult.unwrap(), loc);
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse comparison: <, <=, >, >=
+    private Result!(Expr, BuildError) parseComparison()
+    {
+        auto exprResult = parseAdditive();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (check(TokenType.Less) || check(TokenType.LessEqual) || 
+               check(TokenType.Greater) || check(TokenType.GreaterEqual))
+        {
+            auto token = advance();
+            auto loc = Location(filePath, token.line, token.column);
+            auto rightResult = parseAdditive();
+            if (rightResult.isErr) return rightResult;
+            
+            immutable string[TokenType] ops = [TokenType.Less: "<", TokenType.LessEqual: "<=",
+                                                TokenType.Greater: ">", TokenType.GreaterEqual: ">="];
+            expr = new BinaryExpr(expr, ops[token.type], rightResult.unwrap(), loc);
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse additive: + -
+    private Result!(Expr, BuildError) parseAdditive()
+    {
+        auto exprResult = parseMultiplicative();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (check(TokenType.Plus) || check(TokenType.Minus))
+        {
+            auto token = advance();
+            auto loc = Location(filePath, token.line, token.column);
+            auto rightResult = parseMultiplicative();
+            if (rightResult.isErr) return rightResult;
+            string op = token.type == TokenType.Plus ? "+" : "-";
+            expr = new BinaryExpr(expr, op, rightResult.unwrap(), loc);
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse multiplicative: * / %
+    private Result!(Expr, BuildError) parseMultiplicative()
+    {
+        auto exprResult = parseUnary();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (check(TokenType.Star) || check(TokenType.Slash) || check(TokenType.Percent))
+        {
+            auto token = advance();
+            auto loc = Location(filePath, token.line, token.column);
+            auto rightResult = parseUnary();
+            if (rightResult.isErr) return rightResult;
+            
+            immutable string[TokenType] ops = [TokenType.Star: "*", TokenType.Slash: "/", TokenType.Percent: "%"];
+            expr = new BinaryExpr(expr, ops[token.type], rightResult.unwrap(), loc);
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse unary: ! -
+    private Result!(Expr, BuildError) parseUnary()
+    {
+        if (check(TokenType.Bang) || check(TokenType.Minus))
+        {
+            auto token = advance();
+            auto loc = Location(filePath, token.line, token.column);
+            auto operandResult = parseUnary();
+            if (operandResult.isErr) return operandResult;
+            string op = token.type == TokenType.Bang ? "!" : "-";
+            return Ok!(Expr, BuildError)(new UnaryExpr(op, operandResult.unwrap(), loc));
+        }
+        
+        return parsePostfix();
+    }
+    
+    /// Parse postfix: member access, indexing, calls
+    private Result!(Expr, BuildError) parsePostfix()
+    {
+        auto exprResult = parsePrimary();
+        if (exprResult.isErr) return exprResult;
+        auto expr = exprResult.unwrap();
+        
+        while (true)
+        {
+            auto token = peek();
+            auto loc = Location(filePath, token.line, token.column);
+            
+            if (match(TokenType.Dot))
+            {
+                // Member access: expr.member
+                if (!check(TokenType.Identifier))
+                    return error!Expr("Expected member name after '.'");
+                auto member = advance().value;
+                expr = new MemberExpr(expr, member, loc);
+            }
+            else if (match(TokenType.LeftBracket))
+            {
+                // Index or slice: expr[index] or expr[start:end]
+                auto indexResult = parseExpression();
+                if (indexResult.isErr) return indexResult;
+                
+                if (match(TokenType.Colon))
+                {
+                    // Slice
+                    auto endResult = parseExpression();
+                    if (endResult.isErr) return endResult;
+                    if (!match(TokenType.RightBracket))
+                        return error!Expr("Expected ']' after slice");
+                    expr = new SliceExpr(expr, indexResult.unwrap(), endResult.unwrap(), loc);
+                }
+                else
+                {
+                    // Index
+                    if (!match(TokenType.RightBracket))
+                        return error!Expr("Expected ']' after index");
+                    expr = new IndexExpr(expr, indexResult.unwrap(), loc);
+                }
+            }
+            else if (match(TokenType.LeftParen))
+            {
+                // Function call: expr(args)
+                Expr[] args;
+                if (!check(TokenType.RightParen))
+                {
+                    do {
+                        auto argResult = parseExpression();
+                        if (argResult.isErr) return argResult;
+                        args ~= argResult.unwrap();
+                    } while (match(TokenType.Comma));
+                }
+                
+                if (!match(TokenType.RightParen))
+                    return error!Expr("Expected ')' after function arguments");
+                
+                // Extract callee name
+                string callee;
+                if (auto ident = cast(IdentExpr)expr)
+                    callee = ident.name;
+                else
+                    return error!Expr("Function calls require identifier");
+                
+                expr = new CallExpr(callee, args, loc);
+            }
+            else
+            {
+                break;
+            }
+        }
+        
+        return Ok!(Expr, BuildError)(expr);
+    }
+    
+    /// Parse primary: literals, identifiers, arrays, maps, grouped expressions
+    private Result!(Expr, BuildError) parsePrimary()
     {
         auto token = peek();
         auto loc = Location(filePath, token.line, token.column);
         
-        // Simple literal parsing
+        // String literal
         if (token.type == TokenType.String)
         {
             advance();
-            import infrastructure.config.workspace.ast : Literal, LiteralExpr;
             return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeString(token.value), loc));
         }
         
-        return error!Expr("Expression parsing not fully implemented in workspace parser");
+        // Number literal
+        if (token.type == TokenType.Number)
+        {
+            advance();
+            try { return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeNumber(token.value.to!long), loc)); }
+            catch (Exception) { return error!Expr("Invalid number: " ~ token.value); }
+        }
+        
+        // Boolean and null literals
+        if (token.type == TokenType.True) { advance(); return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeBool(true), loc)); }
+        if (token.type == TokenType.False) { advance(); return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeBool(false), loc)); }
+        if (token.type == TokenType.Null) { advance(); return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeNull(), loc)); }
+        
+        // Array literal: [elem1, elem2, ...]
+        if (token.type == TokenType.LeftBracket)
+        {
+            advance();
+            Literal[] elements;
+            
+            if (!check(TokenType.RightBracket))
+            {
+                do {
+                    auto elemResult = parseExpression();
+                    if (elemResult.isErr) return elemResult;
+                    
+                    // Convert expression to literal if possible
+                    if (auto litExpr = cast(LiteralExpr)elemResult.unwrap())
+                        elements ~= litExpr.value;
+                    else
+                        return error!Expr("Array elements must be literals in workspace config");
+                } while (match(TokenType.Comma));
+            }
+            
+            if (!match(TokenType.RightBracket))
+                return error!Expr("Expected ']' after array elements");
+            
+            return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeArray(elements), loc));
+        }
+        
+        // Map literal: {key: value, ...}
+        if (token.type == TokenType.LeftBrace)
+        {
+            advance();
+            Literal[string] pairs;
+            
+            if (!check(TokenType.RightBrace))
+            {
+                do {
+                    // Parse key (must be string or identifier)
+                    string key;
+                    if (check(TokenType.String))
+                    {
+                        key = advance().value;
+                    }
+                    else if (check(TokenType.Identifier))
+                    {
+                        key = advance().value;
+                    }
+                    else
+                    {
+                        return error!Expr("Expected string or identifier as map key");
+                    }
+                    
+                    if (!match(TokenType.Colon))
+                        return error!Expr("Expected ':' after map key");
+                    
+                    auto valueResult = parseExpression();
+                    if (valueResult.isErr) return valueResult;
+                    
+                    // Convert expression to literal
+                    if (auto litExpr = cast(LiteralExpr)valueResult.unwrap())
+                        pairs[key] = litExpr.value;
+                    else
+                        return error!Expr("Map values must be literals in workspace config");
+                } while (match(TokenType.Comma));
+            }
+            
+            if (!match(TokenType.RightBrace))
+                return error!Expr("Expected '}' after map pairs");
+            
+            return Ok!(Expr, BuildError)(new LiteralExpr(Literal.makeMap(pairs), loc));
+        }
+        
+        // Identifier
+        if (token.type == TokenType.Identifier)
+        {
+            advance();
+            return Ok!(Expr, BuildError)(new IdentExpr(token.value, loc));
+        }
+        
+        // Grouped expression: (expr)
+        if (token.type == TokenType.LeftParen)
+        {
+            advance();
+            auto exprResult = parseExpression();
+            if (exprResult.isErr) return exprResult;
+            if (!match(TokenType.RightParen)) return error!Expr("Expected ')' after grouped expression");
+            return exprResult;
+        }
+        
+        return error!Expr("Expected expression");
     }
     
     /// Parsing utilities
     
     private bool match(TokenType type)
     {
-        if (check(type))
-        {
-            advance();
-            return true;
-        }
-        return false;
+        if (!check(type)) return false;
+        advance();
+        return true;
     }
     
-    private bool check(TokenType type) const
-    {
-        if (isAtEnd())
-            return false;
-        return peek().type == type;
-    }
+    private bool check(TokenType type) const { return !isAtEnd() && peek().type == type; }
     
     private Token advance()
     {
-        if (!isAtEnd())
-            current++;
+        if (!isAtEnd()) current++;
         return previous();
     }
     
-    private bool isAtEnd() const
-    {
-        return peek().type == TokenType.EOF;
-    }
+    private bool isAtEnd() const { return peek().type == TokenType.EOF; }
     
-    private Token peek() const
-    {
-        return tokens[current];
-    }
+    private Token peek() const { return tokens[current]; }
     
-    private Token previous() const
-    {
-        return tokens[current - 1];
-    }
+    private Token previous() const { return tokens[current - 1]; }
     
     private Result!(T, BuildError) error(T)(string message)
     {
@@ -279,10 +526,10 @@ struct WorkspaceParser
         auto err = new ParseError(filePath, message, ErrorCode.ParseFailed);
         err.line = token.line;
         err.column = token.column;
-        err.addSuggestion("Check the Builderspace file syntax");
-        err.addSuggestion("See docs/architecture/DSL.md for Builderspace syntax reference");
-        err.addSuggestion("Review examples in the examples/ directory");
-        err.addSuggestion("Ensure all braces, parentheses, and quotes are properly matched");
+        ["Check the Builderspace file syntax",
+         "See docs/architecture/DSL.md for Builderspace syntax reference",
+         "Review examples in the examples/ directory",
+         "Ensure all braces, parentheses, and quotes are properly matched"].each!(s => err.addSuggestion(s));
         return Err!(T, BuildError)(err);
     }
 }
@@ -303,149 +550,126 @@ struct WorkspaceAnalyzer
         auto decl = ast.workspace;
         
         // Parse build options
-        if (decl.hasField("cacheDir"))
+        if (auto field = decl.getField("cacheDir"))
         {
-            auto field = decl.getField("cacheDir");
             auto litExpr = cast(LiteralExpr)field.value;
             if (!litExpr || litExpr.value.kind != LiteralKind.String)
                 return error("Field 'cacheDir' must be a string");
             config.options.cacheDir = litExpr.value.asString();
         }
         
-        if (decl.hasField("outputDir"))
+        if (auto field = decl.getField("outputDir"))
         {
-            auto field = decl.getField("outputDir");
             auto litExpr = cast(LiteralExpr)field.value;
             if (!litExpr || litExpr.value.kind != LiteralKind.String)
-            {
                 return error("Field 'outputDir' must be a string");
-            }
             config.options.outputDir = litExpr.value.asString();
         }
         
-        if (decl.hasField("parallel"))
+        if (auto field = decl.getField("parallel"))
         {
-            auto field = decl.getField("parallel");
-            auto litExpr = cast(LiteralExpr)field.value;
-            if (!litExpr || litExpr.value.kind != LiteralKind.String)
-            {
-                return error("Field 'parallel' must be a boolean (true/false)");
-            }
-            string val = litExpr.value.asString().toLower;
-            config.options.parallel = (val == "true" || val == "1");
+            auto boolResult = extractBool(field.value);
+            if (boolResult.isErr) return error("Field 'parallel' must be a boolean (true/false)");
+            config.options.parallel = boolResult.unwrap();
         }
         
-        if (decl.hasField("incremental"))
+        if (auto field = decl.getField("incremental"))
         {
-            auto field = decl.getField("incremental");
-            auto litExpr = cast(LiteralExpr)field.value;
-            if (!litExpr || litExpr.value.kind != LiteralKind.String)
-            {
-                return error("Field 'incremental' must be a boolean (true/false)");
-            }
-            string val = litExpr.value.asString().toLower;
-            config.options.incremental = (val == "true" || val == "1");
+            auto boolResult = extractBool(field.value);
+            if (boolResult.isErr) return error("Field 'incremental' must be a boolean (true/false)");
+            config.options.incremental = boolResult.unwrap();
         }
         
-        if (decl.hasField("verbose"))
+        if (auto field = decl.getField("verbose"))
         {
-            auto field = decl.getField("verbose");
-            auto litExpr = cast(LiteralExpr)field.value;
-            if (!litExpr || litExpr.value.kind != LiteralKind.String)
-            {
-                return error("Field 'verbose' must be a boolean (true/false)");
-            }
-            string val = litExpr.value.asString().toLower;
-            config.options.verbose = (val == "true" || val == "1");
+            auto boolResult = extractBool(field.value);
+            if (boolResult.isErr) return error("Field 'verbose' must be a boolean (true/false)");
+            config.options.verbose = boolResult.unwrap();
         }
         
-        if (decl.hasField("maxJobs"))
+        if (auto field = decl.getField("maxJobs"))
         {
-            auto field = decl.getField("maxJobs");
-            try
-            {
-                auto litExpr = cast(LiteralExpr)field.value;
-                if (!litExpr)
-                {
-                    return error("Field 'maxJobs' must be a number");
-                }
-                
-                if (litExpr.value.kind == LiteralKind.Number)
-                {
-                    config.options.maxJobs = cast(size_t)litExpr.value.asNumber();
-                }
-                else if (litExpr.value.kind == LiteralKind.String)
-                {
-                    config.options.maxJobs = litExpr.value.asString().to!size_t;
-                }
-                else
-                {
-                    return error("Field 'maxJobs' must be a number");
-                }
-            }
-            catch (Exception e)
-            {
-                return error("Field 'maxJobs' must be a number");
-            }
+            auto numResult = extractNumber(field.value);
+            if (numResult.isErr) return error("Field 'maxJobs' must be a number");
+            auto value = numResult.unwrap();
+            if (value <= 0) return error("Field 'maxJobs' must be positive");
+            config.options.maxJobs = cast(size_t)value;
         }
         
         // Parse global environment
-        if (decl.hasField("env"))
+        if (auto field = decl.getField("env"))
         {
-            auto field = decl.getField("env");
             auto litExpr = cast(LiteralExpr)field.value;
             if (!litExpr || litExpr.value.kind != LiteralKind.Map)
-            {
                 return error("Field 'env' must be a map of strings");
-            }
             auto result = litExpr.value.toStringMap();
-            if (result.isErr)
-            {
-                return error("Field 'env' must be a map of strings");
-            }
+            if (result.isErr) return error("Field 'env' must be a map of strings");
             config.globalEnv = result.unwrap();
         }
         
-        // Warn about unimplemented/unknown fields
-        auto knownFields = [
-            "cacheDir", "outputDir", "parallel", "incremental", 
-            "verbose", "maxJobs", "env", "name"
-        ];
-        
-        foreach (field; decl.fields)
+        // Parse checkpointing configuration
+        if (auto field = decl.getField("checkpointing"))
         {
-            bool isKnown = false;
-            foreach (known; knownFields)
+            auto boolResult = extractBool(field.value);
+            if (boolResult.isOk)
             {
-                if (field.name == known)
-                {
-                    isKnown = true;
-                    break;
-                }
+                config.checkpointing.enabled = boolResult.unwrap();
             }
-            
-            if (!isKnown)
+            else if (auto litExpr = cast(LiteralExpr)field.value)
             {
-                import infrastructure.utils.logging.logger;
-                
-                // Check if it's a commonly unimplemented feature
-                if (field.name == "checkpointing")
-                {
-                    Logger.warning("Builderspace field 'checkpointing' is currently experimental and may not be fully implemented");
-                }
-                else if (field.name == "retry")
-                {
-                    Logger.warning("Builderspace field 'retry' is currently experimental and may not be fully implemented");
-                }
-                else if (field.name == "telemetry")
-                {
-                    Logger.warning("Builderspace field 'telemetry' is enabled by default; explicit configuration is currently experimental");
-                }
-                else
-                {
-                    Logger.warning("Unknown Builderspace field '" ~ field.name ~ "' will be ignored");
-                }
+                if (litExpr.value.kind != LiteralKind.Map)
+                    return error("Field 'checkpointing' must be boolean or map");
+                auto map = litExpr.value.asMap();
+                if (auto enabled = "enabled" in map)
+                    if (auto res = extractBoolFromLiteral(*enabled); res.isOk)
+                        config.checkpointing.enabled = res.unwrap();
+                if (auto interval = "interval" in map)
+                    if (interval.kind == LiteralKind.Number)
+                        config.checkpointing.interval = cast(size_t)interval.asNumber();
+                if (auto path = "path" in map)
+                    if (path.kind == LiteralKind.String)
+                        config.checkpointing.path = path.asString();
             }
+            else return error("Field 'checkpointing' must be boolean or map");
+        }
+        
+        // Parse retry configuration
+        if (auto field = decl.getField("retry"))
+        {
+            auto boolResult = extractBool(field.value);
+            if (boolResult.isOk)
+            {
+                config.retry.enabled = boolResult.unwrap();
+            }
+            else if (auto litExpr = cast(LiteralExpr)field.value)
+            {
+                if (litExpr.value.kind != LiteralKind.Map)
+                    return error("Field 'retry' must be boolean or map");
+                auto map = litExpr.value.asMap();
+                if (auto enabled = "enabled" in map)
+                    if (auto res = extractBoolFromLiteral(*enabled); res.isOk)
+                        config.retry.enabled = res.unwrap();
+                if (auto maxAttempts = "maxAttempts" in map)
+                    if (maxAttempts.kind == LiteralKind.Number)
+                        config.retry.maxAttempts = cast(size_t)maxAttempts.asNumber();
+                if (auto backoffMs = "backoffMs" in map)
+                    if (backoffMs.kind == LiteralKind.Number)
+                        config.retry.backoffMs = cast(size_t)backoffMs.asNumber();
+                if (auto exponential = "exponential" in map)
+                    if (auto res = extractBoolFromLiteral(*exponential); res.isOk)
+                        config.retry.exponentialBackoff = res.unwrap();
+            }
+            else return error("Field 'retry' must be boolean or map");
+        }
+        
+        // Warn about unknown fields
+        immutable knownFields = ["cacheDir", "outputDir", "parallel", "incremental", 
+                                  "verbose", "maxJobs", "env", "name", "checkpointing", "retry"];
+        
+        foreach (field; decl.fields.filter!(f => !knownFields.canFind(f.name)))
+        {
+            import infrastructure.utils.logging.logger;
+            Logger.warning("Unknown Builderspace field '" ~ field.name ~ "' will be ignored");
         }
         
         return Result!BuildError.ok();
@@ -454,34 +678,64 @@ struct WorkspaceAnalyzer
     private Result!BuildError error(string message)
     {
         auto err = new ParseError(workspacePath, message, ErrorCode.InvalidBuildFile);
-        err.addSuggestion("Verify the workspace configuration is valid");
-        err.addSuggestion("Check docs/architecture/DSL.md for valid workspace fields");
-        err.addSuggestion("Review Builderspace examples in the examples/ directory");
+        ["Verify the workspace configuration is valid",
+         "Check docs/architecture/DSL.md for valid workspace fields",
+         "Review Builderspace examples in the examples/ directory"].each!(s => err.addSuggestion(s));
         return Result!BuildError.err(err);
+    }
+    
+    /// Extract boolean from expression (handles bool literals and strings)
+    private Result!(bool, BuildError) extractBool(Expr expr)
+    {
+        return expr ? extractBoolFromLiteral((cast(LiteralExpr)expr).value) :
+            Err!(bool, BuildError)(new ParseError("Expected boolean literal", null));
+    }
+    
+    /// Extract boolean from literal
+    private Result!(bool, BuildError) extractBoolFromLiteral(Literal lit)
+    {
+        if (lit.kind == LiteralKind.Bool) return Ok!(bool, BuildError)(lit.asBool());
+        
+        if (lit.kind == LiteralKind.String)
+        {
+            immutable val = lit.asString().toLower;
+            if (["true", "1", "yes"].canFind(val)) return Ok!(bool, BuildError)(true);
+            if (["false", "0", "no"].canFind(val)) return Ok!(bool, BuildError)(false);
+        }
+        
+        return Err!(bool, BuildError)(new ParseError("Expected boolean value", null));
+    }
+    
+    /// Extract number from expression
+    private Result!(long, BuildError) extractNumber(Expr expr)
+    {
+        auto litExpr = cast(LiteralExpr)expr;
+        if (!litExpr) return Err!(long, BuildError)(new ParseError("Expected number literal", null));
+        
+        if (litExpr.value.kind == LiteralKind.Number)
+            return Ok!(long, BuildError)(litExpr.value.asNumber());
+        
+        if (litExpr.value.kind == LiteralKind.String)
+        {
+            try { return Ok!(long, BuildError)(litExpr.value.asString().to!long); }
+            catch (Exception) { return Err!(long, BuildError)(new ParseError("Invalid number format", null)); }
+        }
+        
+        return Err!(long, BuildError)(new ParseError("Expected number value", null));
     }
 }
 
 /// High-level API for parsing Builderspace files
 Result!BuildError parseWorkspaceDSL(string source, string filePath, ref WorkspaceConfig config)
 {
-    // Lex
     auto lexResult = lex(source, filePath);
-    if (lexResult.isErr)
-        return Result!BuildError.err(lexResult.unwrapErr());
+    if (lexResult.isErr) return Result!BuildError.err(lexResult.unwrapErr());
     
-    auto tokens = lexResult.unwrap();
-    
-    // Parse
-    auto parser = WorkspaceParser(tokens, filePath);
+    auto parser = WorkspaceParser(lexResult.unwrap(), filePath);
     auto parseResult = parser.parse();
-    if (parseResult.isErr)
-        return Result!BuildError.err(parseResult.unwrapErr());
+    if (parseResult.isErr) return Result!BuildError.err(parseResult.unwrapErr());
     
-    auto ast = parseResult.unwrap();
-    
-    // Semantic analysis
-    auto analyzer = WorkspaceAnalyzer(filePath);
-    return analyzer.analyze(ast, config);
+    return WorkspaceAnalyzer(filePath).analyze(parseResult.unwrap(), config);
 }
 
 /// High-level Workspace class for convenient workspace management
@@ -493,45 +747,36 @@ class Workspace
     
     this(string rootPath)
     {
-        this._rootPath = rootPath;
         import std.path : baseName;
+        this._rootPath = rootPath;
         this._name = baseName(rootPath);
     }
     
     /// Load workspace from directory
     static Workspace load(string path)
     {
-        import std.file : exists, isDir;
+        import std.file : exists, isDir, readText;
         import std.path : buildPath;
         
-        if (!exists(path) || !isDir(path))
-            return null;
+        if (!exists(path) || !isDir(path)) return null;
         
         auto workspace = new Workspace(path);
-        
-        // Try to load Builderspace file if it exists
         auto builderspacePath = buildPath(path, "Builderspace");
+        
         if (exists(builderspacePath))
         {
-            import std.file : readText;
             try
             {
-                auto content = readText(builderspacePath);
-                
-                // Parse the workspace file
-                auto lexResult = lex(content, builderspacePath);
+                auto lexResult = lex(readText(builderspacePath), builderspacePath);
                 if (lexResult.isOk)
                 {
-                    auto tokens = lexResult.unwrap();
-                    auto parser = WorkspaceParser(tokens, builderspacePath);
+                    auto parser = WorkspaceParser(lexResult.unwrap(), builderspacePath);
                     auto parseResult = parser.parse();
                     
                     if (parseResult.isOk)
                     {
                         auto wsFile = parseResult.unwrap();
                         workspace._name = wsFile.workspace.name;
-                        
-                        // Also analyze for config
                         auto analyzer = WorkspaceAnalyzer(builderspacePath);
                         analyzer.analyze(wsFile, workspace._config);
                     }
@@ -540,7 +785,6 @@ class Workspace
             catch (Exception e)
             {
                 import infrastructure.utils.logging.logger;
-                // Builderspace file exists but can't be parsed - this should be visible
                 Logger.warning("Failed to parse Builderspace file at " ~ builderspacePath ~ ": " ~ e.msg);
             }
         }
@@ -549,16 +793,10 @@ class Workspace
     }
     
     /// Get workspace name
-    @property string name() const
-    {
-        return _name;
-    }
+    @property string name() const { return _name; }
     
     /// Get workspace root path
-    @property string rootPath() const
-    {
-        return _rootPath;
-    }
+    @property string rootPath() const { return _rootPath; }
     
     /// Find all Builderfiles in workspace
     string[] findBuilderfiles()
@@ -572,20 +810,14 @@ class Workspace
         try
         {
             return dirEntries(_rootPath, SpanMode.depth)
-                .filter!((e) {
-                    // Check if any part of the path should be ignored
-                    auto relPath = relativePath(e.name, _rootPath);
-                    if (IgnoreRegistry.shouldIgnorePathAny(relPath))
-                        return false;
-                    return e.isFile && e.name.baseName == "Builderfile";
-                })
+                .filter!(e => e.isFile && e.name.baseName == "Builderfile" && 
+                              !IgnoreRegistry.shouldIgnorePathAny(relativePath(e.name, _rootPath)))
                 .map!(e => e.name)
                 .array;
         }
         catch (Exception ex)
         {
             import infrastructure.utils.logging.logger : Logger;
-            // Failure to scan for Builderfiles should be visible (could be permissions, etc.)
             Logger.warning("Failed to find Builderfiles in " ~ _rootPath ~ ": " ~ ex.msg);
             return [];
         }

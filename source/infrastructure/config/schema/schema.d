@@ -329,6 +329,8 @@ struct WorkspaceConfig
     Target[] targets;
     string[string] globalEnv;
     BuildOptions options;
+    CheckpointingConfig checkpointing;
+    RetryConfig retry;
     
     // Repository rules (external dependencies)
     import infrastructure.repository.core.types : RepositoryRule;
@@ -531,6 +533,30 @@ struct DeterminismOptions
 }
 
 /// Build options
+/// Checkpointing configuration for resumable builds
+struct CheckpointingConfig
+{
+    bool enabled = false;                       // Enable checkpointing
+    string path = ".builder-checkpoints";       // Checkpoint directory
+    size_t interval = 10;                       // Checkpoint every N targets
+    bool autoResume = true;                     // Auto-resume from latest checkpoint
+    bool cleanup = true;                        // Clean up old checkpoints
+    size_t keepLast = 3;                        // Number of checkpoints to keep
+}
+
+/// Retry configuration for transient failure handling
+struct RetryConfig
+{
+    bool enabled = false;                       // Enable automatic retries
+    size_t maxAttempts = 3;                     // Maximum retry attempts
+    size_t backoffMs = 1000;                    // Initial backoff in milliseconds
+    bool exponentialBackoff = true;             // Use exponential backoff
+    float backoffMultiplier = 2.0;              // Backoff multiplier for exponential
+    size_t maxBackoffMs = 30000;                // Maximum backoff (30 seconds)
+    bool retryOnNetworkErrors = true;           // Retry on network failures
+    bool retryOnTimeouts = true;                // Retry on timeout errors
+}
+
 struct BuildOptions
 {
     bool verbose;

@@ -5,3 +5,4 @@ public import languages.jvm.java.tooling.info;
 public import languages.jvm.java.tooling.builders;
 public import languages.jvm.java.tooling.formatters;
 public import languages.jvm.java.tooling.processors;
+public import languages.jvm.java.tooling.testers;
