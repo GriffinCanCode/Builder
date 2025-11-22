@@ -70,31 +70,20 @@ final class StealEngine
         this.config = config;
     }
     
-    /// Attempt to steal work from a peer
-    /// Returns ActionRequest if successful, null otherwise
+    /// Attempt to steal work from a peer (returns ActionRequest if successful, null otherwise)
     ActionRequest steal(Transport transport) @trusted
     {
         atomicOp!"+="(metrics.attempts, 1);
-        
-        // Select victim using configured strategy
         auto victimResult = selectVictim();
-        if (victimResult.isErr)
-        {
-            atomicOp!"+="(metrics.failures, 1);
-            return null;
-        }
+        if (victimResult.isErr) { atomicOp!"+="(metrics.failures, 1); return null; }
         
         auto victimId = victimResult.unwrap();
-        
-        // Try to steal from victim with retries
         foreach (attempt; 0 .. config.maxRetries)
         {
             auto result = trySteal(victimId, transport);
-            
             if (result.isOk)
             {
-                auto action = result.unwrap();
-                if (action !is null)
+                if (auto action = result.unwrap())
                 {
                     atomicOp!"+="(metrics.successes, 1);
                     Logger.debugLog("Stole work from " ~ victimId.toString());
@@ -102,45 +91,21 @@ final class StealEngine
                 }
             }
             else if (cast(NetworkError)result.unwrapErr() !is null)
-            {
-                atomicOp!"+="(metrics.networkErrors, 1);
-                peers.markDead(victimId);
-                break;  // Don't retry on network errors
-            }
+            { atomicOp!"+="(metrics.networkErrors, 1); peers.markDead(victimId); break; }
             
-            // Backoff before retry
-            if (attempt < config.maxRetries - 1)
-                Thread.sleep(config.retryBackoff * (1 << attempt));
+            if (attempt < config.maxRetries - 1) Thread.sleep(config.retryBackoff * (1 << attempt));
         }
-        
         atomicOp!"+="(metrics.failures, 1);
         return null;
     }
     
-    /// Handle steal request from another worker
-    /// Returns StealResponse with action if available
-    StealResponse handleStealRequest(
-        StealRequest req,
-        ActionRequest delegate() @system tryStealLocal) @system
+    /// Handle steal request from another worker (returns StealResponse with action if available)
+    StealResponse handleStealRequest(StealRequest req, ActionRequest delegate() @system tryStealLocal) @system
     {
         Logger.debugLog("Processing steal request from " ~ req.thief.toString());
-        
-        // Try to steal from local queue
         auto action = tryStealLocal();
-        
-        // Create response
-        StealResponse response;
-        response.victim = selfId;
-        response.thief = req.thief;
-        response.hasWork = (action !is null);
-        response.action = action;
-        
-        if (action !is null)
-            Logger.debugLog("Giving work to " ~ req.thief.toString());
-        else
-            Logger.debugLog("No work to give to " ~ req.thief.toString());
-        
-        return response;
+        Logger.debugLog(action !is null ? "Giving work to " ~ req.thief.toString() : "No work to give to " ~ req.thief.toString());
+        return StealResponse(selfId, req.thief, action !is null, action);
     }
     
     /// Get metrics
@@ -200,18 +165,10 @@ final class StealEngine
     Result!(WorkerId, DistributedError) selectLeastLoaded() @trusted
     {
         auto alivePeers = peers.getAlivePeers();
-        
-        if (alivePeers.length == 0)
-            return Err!(WorkerId, DistributedError)(
-                new DistributedError("No alive peers"));
+        if (alivePeers.length == 0) return Err!(WorkerId, DistributedError)(new DistributedError("No alive peers"));
         
         PeerInfo best = alivePeers[0];
-        foreach (peer; alivePeers[1 .. $])
-        {
-            if (atomicLoad(peer.loadFactor) < atomicLoad(best.loadFactor))
-                best = peer;
-        }
-        
+        foreach (peer; alivePeers[1 .. $]) if (atomicLoad(peer.loadFactor) < atomicLoad(best.loadFactor)) best = peer;
         return Ok!(WorkerId, DistributedError)(best.id);
     }
     
@@ -219,37 +176,18 @@ final class StealEngine
     Result!(WorkerId, DistributedError) selectMostLoaded() @trusted
     {
         auto alivePeers = peers.getAlivePeers();
-        
-        if (alivePeers.length == 0)
-            return Err!(WorkerId, DistributedError)(
-                new DistributedError("No alive peers"));
+        if (alivePeers.length == 0) return Err!(WorkerId, DistributedError)(new DistributedError("No alive peers"));
         
         PeerInfo best = alivePeers[0];
-        foreach (peer; alivePeers[1 .. $])
-        {
-            if (atomicLoad(peer.queueDepth) > atomicLoad(best.queueDepth))
-                best = peer;
-        }
-        
-        // Only steal if victim has significant work
-        if (atomicLoad(best.queueDepth) < 4)
-            return Err!(WorkerId, DistributedError)(
-                new DistributedError("No suitable victims"));
-        
+        foreach (peer; alivePeers[1 .. $]) if (atomicLoad(peer.queueDepth) > atomicLoad(best.queueDepth)) best = peer;
+        if (atomicLoad(best.queueDepth) < 4) return Err!(WorkerId, DistributedError)(new DistributedError("No suitable victims"));
         return Ok!(WorkerId, DistributedError)(best.id);
     }
     
     /// Adaptive strategy - switch based on success rate
     Result!(WorkerId, DistributedError) selectAdaptive() @trusted
     {
-        immutable successRate = metrics.successRate();
-        
-        // If success rate is low, try most loaded (more aggressive)
-        if (successRate < 0.3)
-            return selectMostLoaded();
-        
-        // If success rate is good, use power-of-two (balanced)
-        return peers.selectVictim();
+        return metrics.successRate() < 0.3 ? selectMostLoaded() : peers.selectVictim(); // If success rate is low, try most loaded (more aggressive), otherwise use power-of-two (balanced)
     }
     
     /// Try to steal from specific victim

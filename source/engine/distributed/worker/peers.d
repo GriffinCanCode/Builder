@@ -44,25 +44,18 @@ final class PeerRegistry
     /// Register peer worker
     Result!DistributedError register(WorkerId id, string address) @trusted
     {
-        if (id.value == selfId.value) return Ok!DistributedError();  // Don't register self
-        
+        if (id.value == selfId.value) return Ok!DistributedError();
         synchronized (mutex)
         {
-            if (peers.length >= MAX_PEERS)
-                return Result!DistributedError.err(new DistributedError("Peer registry full"));
+            if (peers.length >= MAX_PEERS) return Result!DistributedError.err(new DistributedError("Peer registry full"));
             
-            PeerInfo info;
-            info.id = id;
-            info.address = address;
-            info.lastSeen = Clock.currTime;
+            PeerInfo info = {id: id, address: address, lastSeen: Clock.currTime};
             atomicStore(info.queueDepth, cast(size_t)0);
             atomicStore(info.loadFactor, 0.0f);
             atomicStore(info.alive, true);
-            
             peers[id] = info;
             Logger.debugLog("Peer registered: " ~ id.toString() ~ " @ " ~ address);
         }
-        
         return Ok!DistributedError();
     }
     
@@ -104,33 +97,23 @@ final class PeerRegistry
         }
     }
     
-    /// Select best victim for work-stealing using power-of-two-choices
-    /// Returns WorkerId of victim, or null result if none suitable
+    /// Select best victim for work-stealing using power-of-two-choices (returns WorkerId of victim, or null result if none suitable)
     Result!(WorkerId, DistributedError) selectVictim() @trusted
     {
         import std.algorithm : maxElement;
         
         synchronized (mutex)
         {
-            // Filter to alive peers with work
-            auto candidates = peers.values
-                .filter!(p => atomicLoad(p.alive) && atomicLoad(p.queueDepth) >= MIN_QUEUE_FOR_STEAL)
-                .array;
-            
-            if (candidates.length == 0)
-                return Err!(WorkerId, DistributedError)(new DistributedError("No suitable victims"));
-            
-            // Power-of-two-choices: sample 2 random peers, pick best
+            auto candidates = peers.values.filter!(p => atomicLoad(p.alive) && atomicLoad(p.queueDepth) >= MIN_QUEUE_FOR_STEAL).array;
+            if (candidates.length == 0) return Err!(WorkerId, DistributedError)(new DistributedError("No suitable victims"));
             if (candidates.length == 1) return Ok!(WorkerId, DistributedError)(candidates[0].id);
             
             immutable idx1 = uniform(0, candidates.length);
             size_t idx2 = uniform(0, candidates.length);
             while (idx2 == idx1) idx2 = uniform(0, candidates.length);
             
-            immutable score1 = calculateStealScore(candidates[idx1]);
-            immutable score2 = calculateStealScore(candidates[idx2]);
-            
-            return Ok!(WorkerId, DistributedError)(score1 > score2 ? candidates[idx1].id : candidates[idx2].id);
+            return Ok!(WorkerId, DistributedError)(calculateStealScore(candidates[idx1]) > calculateStealScore(candidates[idx2]) 
+                ? candidates[idx1].id : candidates[idx2].id);
         }
     }
     
@@ -166,17 +149,8 @@ final class PeerRegistry
         synchronized (mutex)
         {
             immutable now = Clock.currTime;
-            WorkerId[] toRemove;
-            
-            foreach (id, peer; peers)
-                if (now - peer.lastSeen > staleThreshold) toRemove ~= id;
-            
-            foreach (id; toRemove)
-            {
-                peers.remove(id);
-                Logger.info("Pruned stale peer: " ~ id.toString());
-            }
-            
+            WorkerId[] toRemove = peers.byKeyValue.filter!(kv => now - kv.value.lastSeen > staleThreshold).map!(kv => kv.key).array;
+            foreach (id; toRemove) { peers.remove(id); Logger.info("Pruned stale peer: " ~ id.toString()); }
             return toRemove.length;
         }
     }
@@ -204,10 +178,8 @@ final class PeerRegistry
     {
         synchronized (mutex)
         {
-            RegistryStats stats;
-            stats.totalPeers = peers.length;
+            RegistryStats stats = {totalPeers: peers.length};
             float totalLoad = 0.0;
-            
             foreach (peer; peers.values)
             {
                 if (atomicLoad(peer.alive))
@@ -218,9 +190,7 @@ final class PeerRegistry
                 }
                 else stats.deadPeers++;
             }
-            
             if (stats.alivePeers > 0) stats.avgLoadFactor = totalLoad / stats.alivePeers;
-            
             return stats;
         }
     }

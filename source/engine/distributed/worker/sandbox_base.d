@@ -80,15 +80,9 @@ abstract class SandboxEnvBase : ISandboxEnv
     /// Cleanup sandbox (final to ensure consistent cleanup pattern)
     final void cleanup() @trusted
     {
-        if (_cleaned)
-            return;
-        
+        if (_cleaned) return;
         _cleaned = true;
-        
-        // Platform-specific cleanup
         doCleanup();
-        
-        // Clean work directory
         cleanupWorkDirectory();
     }
     
@@ -113,26 +107,17 @@ abstract class SandboxEnvBase : ISandboxEnv
     
     /// Execute command with standard monitoring pattern
     protected final Result!(ExecutionOutput, DistributedError) executeWithMonitoring(
-        scope Result!(ExecutionOutput, DistributedError) delegate() @trusted executeFunc
-    ) @trusted
+        scope Result!(ExecutionOutput, DistributedError) delegate() @trusted executeFunc) @trusted
     {
         _monitor.start();
         scope(exit) _monitor.stop();
-        
         auto result = executeFunc();
         
-        // Check for resource violations
         if (_monitor.isViolated())
         {
             auto violations = _monitor.violations();
-            if (violations.length > 0)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ResourceLimitError(violations[0].message)
-                );
-            }
+            if (violations.length > 0) return Err!(ExecutionOutput, DistributedError)(new ResourceLimitError(violations[0].message));
         }
-        
         return result;
     }
     
@@ -170,32 +155,15 @@ abstract class SandboxBase
     protected abstract void addStandardPaths(ref SandboxSpecBuilder builder) @safe;
     
     /// Build sandbox spec from action request
-    protected final Result!(SandboxSpec, DistributedError) buildSpec(
-        ActionRequest request,
-        InputArtifact[] inputs,
-        out string workDir
-    ) @trusted
+    protected final Result!(SandboxSpec, DistributedError) buildSpec(ActionRequest request, InputArtifact[] inputs, out string workDir) @trusted
     {
         auto specBuilder = SandboxSpecBuilder.create();
-        
-        // Add inputs
         addInputsToSpec(specBuilder, inputs);
-        
-        // Create and add work directory
         workDir = createAndAddWorkDir(specBuilder);
-        
-        // Platform-specific paths
         addStandardPaths(specBuilder);
         
-        // Build spec
         auto specResult = specBuilder.build();
-        if (specResult.isErr)
-        {
-            return Err!(SandboxSpec, DistributedError)(
-                new DistributedError("Failed to build spec: " ~ specResult.unwrapErr())
-            );
-        }
-        
+        if (specResult.isErr) return Err!(SandboxSpec, DistributedError)(new DistributedError("Failed to build spec: " ~ specResult.unwrapErr()));
         return Ok!(SandboxSpec, DistributedError)(specResult.unwrap());
     }
 }

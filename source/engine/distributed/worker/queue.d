@@ -68,41 +68,22 @@ final class DistributedQueue
         return action;
     }
     
-    /// Attempt to steal work from remote peer
-    /// Returns action if successful, null otherwise
+    /// Attempt to steal work from remote peer (returns action if successful, null otherwise)
     ActionRequest stealFromPeer(WorkerId victimId) @trusted
     {
-        // Get victim's address
         auto peerResult = peers.getPeer(victimId);
-        if (peerResult.isErr)
-            return null;
+        if (peerResult.isErr) return null;
         
-        auto peer = peerResult.unwrap();
-        
-        // Create steal request
-        StealRequest req;
-        req.thief = selfId;
-        req.victim = victimId;
-        req.minPriority = Priority.Low;
-        
+        auto req = StealRequest(selfId, victimId, Priority.Low);
         try
         {
-            // Send steal request via transport
             auto sendResult = transport.sendStealRequest(victimId, req);
-            if (sendResult.isErr)
-            {
-                peers.markDead(victimId);
-                return null;
-            }
+            if (sendResult.isErr) { peers.markDead(victimId); return null; }
             
-            // Wait for response (with timeout)
             auto receiveResult = transport.receiveStealResponse(100.msecs);
-            if (receiveResult.isErr)
-                return null;
+            if (receiveResult.isErr) return null;
             
-            auto envelope = receiveResult.unwrap();
-            auto response = envelope.payload;
-            
+            auto response = receiveResult.unwrap().payload;
             if (response.hasWork)
             {
                 atomicOp!"+="(stealsReceived, 1);
@@ -110,45 +91,27 @@ final class DistributedQueue
                 return response.action;
             }
         }
-        catch (Exception e)
-        {
-            Logger.error("Steal from peer failed: " ~ e.msg);
-            peers.markDead(victimId);
-        }
-        
+        catch (Exception e) { Logger.error("Steal from peer failed: " ~ e.msg); peers.markDead(victimId); }
         return null;
     }
     
-    /// Handle incoming steal request from remote peer
-    /// Returns action to give, or null if insufficient work
+    /// Handle incoming steal request from remote peer (returns action to give, or null if insufficient work)
     ActionRequest handleStealRequest(StealRequest req) @trusted
     {
-        // Check if we have enough work to share
         immutable queueSize = localQueue.size();
         if (queueSize <= minLocalReserve)
         {
-            Logger.debugLog("Rejecting steal from " ~ req.thief.toString() ~ 
-                          " (queue too small: " ~ queueSize.to!string ~ ")");
+            Logger.debugLog("Rejecting steal from " ~ req.thief.toString() ~ " (queue too small: " ~ queueSize.to!string ~ ")");
             return null;
         }
         
-        // Steal from bottom of our deque (FIFO for stealing)
-        // This gives away "oldest" work, keeping recent work local
-        auto stolen = localQueue.steal();
-        
+        auto stolen = localQueue.steal(); // Steal from bottom of our deque (FIFO for stealing) - gives away "oldest" work, keeping recent work local
         if (stolen !is null)
         {
             atomicOp!"+="(stealsGiven, 1);
             Logger.debugLog("Gave work to " ~ req.thief.toString());
-            
-            // Update peer metrics
-            peers.updateMetrics(
-                selfId,
-                localQueue.size(),
-                calculateLoadFactor()
-            );
+            peers.updateMetrics(selfId, localQueue.size(), calculateLoadFactor());
         }
-        
         return stolen;
     }
     
@@ -191,20 +154,12 @@ final class DistributedQueue
     
     QueueStats getStats() @trusted const
     {
-        QueueStats stats;
-        stats.localPushes = atomicLoad(localPushes);
-        stats.localPops = atomicLoad(localPops);
-        stats.stealsGiven = atomicLoad(stealsGiven);
-        stats.stealsReceived = atomicLoad(stealsReceived);
-        stats.currentDepth = localQueue.size();
-        stats.loadFactor = calculateLoadFactor();
+        QueueStats stats = {localPushes: atomicLoad(localPushes), localPops: atomicLoad(localPops), 
+            stealsGiven: atomicLoad(stealsGiven), stealsReceived: atomicLoad(stealsReceived),
+            currentDepth: localQueue.size(), loadFactor: calculateLoadFactor()};
         
-        // Calculate steal efficiency
-        immutable received = stats.stealsReceived;
-        immutable total = received + (atomicLoad(localPops) - received);
-        if (total > 0)
-            stats.stealEfficiency = cast(float)received / cast(float)total;
-        
+        immutable total = stats.stealsReceived + (stats.localPops - stats.stealsReceived);
+        if (total > 0) stats.stealEfficiency = cast(float)stats.stealsReceived / cast(float)total;
         return stats;
     }
     

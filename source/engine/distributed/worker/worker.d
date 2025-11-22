@@ -44,27 +44,22 @@ final class Worker
     Result!DistributedError start() @trusted
     {
         auto startResult = lifecycle.start();
-        if (startResult.isErr)
-            return startResult;
+        if (startResult.isErr) return startResult;
         
-        // Start main loop
         mainThread = new Thread(&mainLoop);
         mainThread.start();
         lifecycle.setMainThread(mainThread);
         
-        // Start heartbeat
         heartbeatThread = new Thread(&heartbeatLoop);
         heartbeatThread.start();
         lifecycle.setHeartbeatThread(heartbeatThread);
         
-        // Start peer announce (if work-stealing enabled)
         if (lifecycle.getConfig().enableWorkStealing)
         {
             peerAnnounceThread = new Thread(&peerAnnounceLoop);
             peerAnnounceThread.start();
             lifecycle.setPeerAnnounceThread(peerAnnounceThread);
         }
-        
         return Ok!DistributedError();
     }
     
@@ -83,58 +78,26 @@ final class Worker
         while (lifecycle.isRunning())
         {
             // 1. Try local work first
-            auto ref localQueue = lifecycle.getLocalQueue();
-            auto localAction = localQueue.pop();
-            if (localAction !is null)
-            {
-                executeAction(localAction);
-                consecutiveIdle = 0;
-                continue;
-            }
+            if (auto localAction = lifecycle.getLocalQueue().pop())
+            { executeAction(localAction); consecutiveIdle = 0; continue; }
             
             // 2. Request work from coordinator
-            auto coordinatorAction = communication.requestWork(
-                lifecycle.getId(),
-                lifecycle.getCoordinatorTransport()
-            );
-            if (coordinatorAction !is null)
-            {
-                executeAction(coordinatorAction);
-                consecutiveIdle = 0;
-                continue;
-            }
+            if (auto coordinatorAction = communication.requestWork(lifecycle.getId(), lifecycle.getCoordinatorTransport()))
+            { executeAction(coordinatorAction); consecutiveIdle = 0; continue; }
             
             // 3. Try stealing from peers (if enabled)
-            if (config.enableWorkStealing)
+            if (config.enableWorkStealing && lifecycle.getStealEngine() !is null)
             {
-                auto stealEngine = lifecycle.getStealEngine();
-                auto stealTelemetry = lifecycle.getStealTelemetry();
+                immutable startTime = MonoTime.currTime;
+                auto stolenAction = lifecycle.getStealEngine().steal(lifecycle.getCoordinatorTransport());
+                immutable latency = MonoTime.currTime - startTime;
                 
-                if (stealEngine !is null)
-                {
-                    auto startTime = MonoTime.currTime;
-                    auto stolenAction = stealEngine.steal(lifecycle.getCoordinatorTransport());
-                    auto latency = MonoTime.currTime - startTime;
-                    
-                    if (stolenAction !is null)
-                    {
-                        if (stealTelemetry !is null)
-                            stealTelemetry.recordAttempt(WorkerId(0), latency, true);
-                        executeAction(stolenAction);
-                        consecutiveIdle = 0;
-                        continue;
-                    }
-                    else
-                    {
-                        if (stealTelemetry !is null)
-                            stealTelemetry.recordAttempt(WorkerId(0), latency, false);
-                    }
-                }
+                if (auto telemetry = lifecycle.getStealTelemetry()) telemetry.recordAttempt(WorkerId(0), latency, stolenAction !is null);
+                if (stolenAction !is null) { executeAction(stolenAction); consecutiveIdle = 0; continue; }
             }
             
             // 4. No work available, backoff
-            consecutiveIdle++;
-            lifecycle.backoff(consecutiveIdle);
+            lifecycle.backoff(++consecutiveIdle);
         }
     }
     
@@ -142,21 +105,9 @@ final class Worker
     private void executeAction(ActionRequest request) @trusted
     {
         lifecycle.setState(WorkerState.Executing);
-        
         auto config = lifecycle.getConfig();
-        executor.executeAction(
-            request,
-            config.enableSandboxing,
-            config.defaultCapabilities,
-            (ActionResult result) @trusted {
-                communication.sendResult(
-                    lifecycle.getId(),
-                    result,
-                    lifecycle.getCoordinatorTransport()
-                );
-            }
-        );
-        
+        executor.executeAction(request, config.enableSandboxing, config.defaultCapabilities,
+            (ActionResult result) @trusted { communication.sendResult(lifecycle.getId(), result, lifecycle.getCoordinatorTransport()); });
         lifecycle.setState(WorkerState.Idle);
     }
     
@@ -164,39 +115,18 @@ final class Worker
     private void heartbeatLoop() @trusted
     {
         auto config = lifecycle.getConfig();
-        auto runningPtr = lifecycle.getRunningPtr();
-        
-        communication.heartbeatLoop(
-            lifecycle.getId(),
-            runningPtr,
-            () @trusted => lifecycle.getState(),
-            () @trusted => lifecycle.getMetrics(),
-            lifecycle.getCoordinatorTransport(),
-            config.heartbeatInterval
-        );
+        communication.heartbeatLoop(lifecycle.getId(), lifecycle.getRunningPtr(),
+            () @trusted => lifecycle.getState(), () @trusted => lifecycle.getMetrics(),
+            lifecycle.getCoordinatorTransport(), config.heartbeatInterval);
     }
     
     /// Peer announce loop
     private void peerAnnounceLoop() @trusted
     {
         auto config = lifecycle.getConfig();
-        auto runningPtr = lifecycle.getRunningPtr();
         auto ref localQueue = lifecycle.getLocalQueue();
-        
-        communication.peerAnnounceLoop(
-            lifecycle.getId(),
-            runningPtr,
-            config.listenAddress,
-            localQueue,
-            () @trusted => communication.calculateLoadFactor(
-                localQueue.size(),
-                config.localQueueSize,
-                lifecycle.getState(),
-                config.maxConcurrentActions
-            ),
-            lifecycle.getPeerRegistry(),
-            lifecycle.getCoordinatorTransport(),
-            config.peerAnnounceInterval
-        );
+        communication.peerAnnounceLoop(lifecycle.getId(), lifecycle.getRunningPtr(), config.listenAddress, localQueue,
+            () @trusted => communication.calculateLoadFactor(localQueue.size(), config.localQueueSize, lifecycle.getState(), config.maxConcurrentActions),
+            lifecycle.getPeerRegistry(), lifecycle.getCoordinatorTransport(), config.peerAnnounceInterval);
     }
 }

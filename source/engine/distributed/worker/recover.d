@@ -43,35 +43,12 @@ final class WorkerRecovery
         this.mutex = new Mutex();
     }
     
-    /// Execute action with retry logic
-    /// Wraps retry orchestrator with distributed failure handling
-    Result!(ActionResult, BuildError) executeWithRetry(
-        ActionRequest request,
-        Result!(ActionResult, BuildError) delegate() @system execute) @system
+    /// Execute action with retry logic (wraps retry orchestrator with distributed failure handling)
+    Result!(ActionResult, BuildError) executeWithRetry(ActionRequest request, Result!(ActionResult, BuildError) delegate() @system execute) @system
     {
-        immutable operationId = "action-" ~ request.id.toString();
-        
-        // Create retry policy based on action priority
-        auto policy = createPolicy(request.priority);
-        
-        // Execute with retry logic
-        auto result = retryOrchestrator.withRetry!ActionResult(
-            operationId,
-            execute,
-            policy
-        );
-        
-        // Update statistics
-        if (result.isOk)
-        {
-            atomicOp!"+="(successfulRetries, 1);
-        }
-        else
-        {
-            atomicOp!"+="(failedRetries, 1);
-            handleFailure(result.unwrapErr());
-        }
-        
+        auto result = retryOrchestrator.withRetry!ActionResult("action-" ~ request.id.toString(), execute, createPolicy(request.priority));
+        if (result.isOk) atomicOp!"+="(successfulRetries, 1);
+        else { atomicOp!"+="(failedRetries, 1); handleFailure(result.unwrapErr()); }
         return result;
     }
     
@@ -79,18 +56,9 @@ final class WorkerRecovery
     void handlePeerFailure(WorkerId peer, DistributedError error) @trusted
     {
         atomicOp!"+="(totalFailures, 1);
-        
-        // Classify error
         if (cast(engine.distributed.protocol.protocol.NetworkError)error !is null)
-        {
-            atomicOp!"+="(networkFailures, 1);
-            handleNetworkFailure(peer, error);
-        }
-        else
-        {
-            atomicOp!"+="(timeoutFailures, 1);
-            handleTimeoutFailure(peer, error);
-        }
+        { atomicOp!"+="(networkFailures, 1); handleNetworkFailure(peer, error); }
+        else { atomicOp!"+="(timeoutFailures, 1); handleTimeoutFailure(peer, error); }
     }
     
     /// Check if peer is blacklisted
@@ -100,13 +68,7 @@ final class WorkerRecovery
         {
             if (auto entry = peer in blacklist)
             {
-                // Check if blacklist has expired
-                if (entry.shouldRetry(Clock.currTime))
-                {
-                    blacklist.remove(peer);
-                    Logger.info("Peer removed from blacklist: " ~ peer.toString());
-                    return false;
-                }
+                if (entry.shouldRetry(Clock.currTime)) { blacklist.remove(peer); Logger.info("Peer removed from blacklist: " ~ peer.toString()); return false; }
                 return true;
             }
             return false;
@@ -150,29 +112,17 @@ final class WorkerRecovery
     
     RecoveryStats getStats() @trusted
     {
-        RecoveryStats stats;
-        
-        stats.totalFailures = atomicLoad(totalFailures);
-        stats.networkFailures = atomicLoad(networkFailures);
-        stats.timeoutFailures = atomicLoad(timeoutFailures);
-        stats.successfulRetries = atomicLoad(successfulRetries);
-        stats.failedRetries = atomicLoad(failedRetries);
+        RecoveryStats stats = {totalFailures: atomicLoad(totalFailures), networkFailures: atomicLoad(networkFailures),
+            timeoutFailures: atomicLoad(timeoutFailures), successfulRetries: atomicLoad(successfulRetries), failedRetries: atomicLoad(failedRetries)};
         
         synchronized (mutex)
         {
             stats.blacklistedPeers = blacklist.length;
-            
-            foreach (health; connections.values)
-            {
-                if (health.state != ConnectionState.Healthy)
-                    stats.unhealthyConnections++;
-            }
+            foreach (health; connections.values) if (health.state != ConnectionState.Healthy) stats.unhealthyConnections++;
         }
         
         immutable total = stats.successfulRetries + stats.failedRetries;
-        if (total > 0)
-            stats.retrySuccessRate = cast(float)stats.successfulRetries / cast(float)total;
-        
+        if (total > 0) stats.retrySuccessRate = cast(float)stats.successfulRetries / cast(float)total;
         return stats;
     }
     

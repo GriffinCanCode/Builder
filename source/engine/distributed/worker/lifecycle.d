@@ -64,12 +64,8 @@ struct WorkerLifecycle
         this.localQueue = WorkStealingDeque!ActionRequest(config.localQueueSize);
         atomicStore(state, WorkerState.Idle);
         atomicStore(running, false);
-        
-        // Initialize memory pools
         this.arenaPool = new ArenaPool(64 * 1024, 32);
         this.bufferPool = new BufferPool(64 * 1024, 128);
-        
-        // Pre-allocate buffers for optimal performance
         bufferPool.preallocate(16);
     }
     
@@ -78,19 +74,14 @@ struct WorkerLifecycle
     {
         if (atomicLoad(running)) return Ok!DistributedError();
         
-        // Connect to coordinator
         auto transportResult = TransportFactory.create(config.coordinatorUrl);
         if (transportResult.isErr) return Result!DistributedError.err(transportResult.unwrapErr());
-        
         coordinatorTransport = transportResult.unwrap();
         
-        // Register with coordinator
         auto registerResult = registerWithCoordinator();
         if (registerResult.isErr) return Result!DistributedError.err(registerResult.unwrapErr());
-        
         id = registerResult.unwrap();
         
-        // Initialize work-stealing components
         if (config.enableWorkStealing)
         {
             peerRegistry = new PeerRegistry(id);
@@ -101,7 +92,6 @@ struct WorkerLifecycle
         
         atomicStore(running, true);
         Logger.info("Worker started: " ~ id.toString());
-        
         return Ok!DistributedError();
     }
     
@@ -109,26 +99,11 @@ struct WorkerLifecycle
     void stop() @trusted
     {
         atomicStore(running, false);
-        
-        if (mainThread !is null)
-            mainThread.join();
-        
-        if (heartbeatThread !is null)
-            heartbeatThread.join();
-        
-        if (peerAnnounceThread !is null)
-            peerAnnounceThread.join();
-        
-        if (coordinatorTransport !is null)
-            coordinatorTransport.close();
-        
-        // Log work-stealing statistics
-        if (stealTelemetry !is null)
-        {
-            auto stats = stealTelemetry.getStats();
-            Logger.info("Work-stealing stats: " ~ stats.toString());
-        }
-        
+        if (mainThread !is null) mainThread.join();
+        if (heartbeatThread !is null) heartbeatThread.join();
+        if (peerAnnounceThread !is null) peerAnnounceThread.join();
+        if (coordinatorTransport !is null) coordinatorTransport.close();
+        if (stealTelemetry !is null) Logger.info("Work-stealing stats: " ~ stealTelemetry.getStats().toString());
         Logger.info("Worker stopped: " ~ id.toString());
     }
     
@@ -140,65 +115,39 @@ struct WorkerLifecycle
         
         try
         {
-            // Create registration message
-            WorkerRegistration reg;
-            reg.address = "worker-" ~ uniform!uint().to!string;  // Simplified address
-            reg.capabilities = config.defaultCapabilities;
-            reg.metrics = collectMetrics();
-            
+            auto reg = WorkerRegistration("worker-" ~ uniform!uint().to!string, config.defaultCapabilities, collectMetrics());
             auto regData = serializeRegistration(reg);
             
-            // Connect to coordinator
             auto socket = coordinatorTransport;
             if (!socket.isConnected())
             {
                 auto connectResult = cast(HttpTransport)socket;
-                if (connectResult is null)
-                    return Err!(WorkerId, DistributedError)(
-                        new NetworkError("Invalid transport"));
-                
+                if (connectResult is null) return Err!(WorkerId, DistributedError)(new NetworkError("Invalid transport"));
                 auto connResult = connectResult.connect();
-                if (connResult.isErr)
-                    return Err!(WorkerId, DistributedError)(connResult.unwrapErr());
+                if (connResult.isErr) return Err!(WorkerId, DistributedError)(connResult.unwrapErr());
             }
             
-            // Send registration
             ubyte[1] typeBytes = [cast(ubyte)MessageType.Registration];
             ubyte[4] lengthBytes;
             *cast(uint*)lengthBytes.ptr = cast(uint)regData.length;
             
-            // Note: Would send via socket, simplified for now
-            
-            // Receive worker ID
-            ubyte[8] idBytes;
-            // Would receive via socket
-            
             return Ok!(WorkerId, DistributedError)(WorkerId(uniform!ulong()));
         }
-        catch (Exception e)
-        {
-            return Err!(WorkerId, DistributedError)(
-                new NetworkError("Registration failed: " ~ e.msg));
-        }
+        catch (Exception e) { return Err!(WorkerId, DistributedError)(new NetworkError("Registration failed: " ~ e.msg)); }
     }
     
     /// Collect system metrics
     private SystemMetrics collectMetrics() @trusted
     {
-        SystemMetrics m;
-        m.queueDepth = localQueue.size();
-        m.activeActions = atomicLoad(state) == WorkerState.Executing ? 1 : 0;
-        
         import core.memory : GC;
         auto stats = GC.stats();
-        m.memoryUsage = stats.usedSize > 0 ? cast(float)stats.usedSize / stats.usedSize : 0.0f;
+        immutable queueSize = localQueue.size();
+        immutable activeActions = atomicLoad(state) == WorkerState.Executing ? 1 : 0;
+        immutable queueLoad = queueSize > 0 ? cast(float)queueSize / config.localQueueSize : 0.0f;
+        immutable actionLoad = activeActions > 0 ? cast(float)activeActions / config.maxConcurrentActions : 0.0f;
         
-        immutable queueLoad = localQueue.size() > 0 ? cast(float)localQueue.size() / config.localQueueSize : 0.0f;
-        immutable actionLoad = m.activeActions > 0 ? cast(float)m.activeActions / config.maxConcurrentActions : 0.0f;
-        m.cpuUsage = queueLoad * 0.5 + actionLoad * 0.5;
-        m.diskUsage = getDiskUsage();
-        
-        return m;
+        return SystemMetrics(queueSize, activeActions, stats.usedSize > 0 ? cast(float)stats.usedSize / stats.usedSize : 0.0f,
+            queueLoad * 0.5 + actionLoad * 0.5, getDiskUsage());
     }
     
     /// Get disk usage for current working directory (platform-specific)
@@ -211,12 +160,8 @@ struct WorkerLifecycle
             import std.string : toStringz;
             
             statvfs_t stat;
-            if (statvfs(toStringz(getcwd()), &stat) == 0)
-            {
-                immutable totalBytes = stat.f_blocks * stat.f_frsize;
-                if (totalBytes > 0)
-                    return cast(float)(totalBytes - stat.f_bavail * stat.f_frsize) / totalBytes;
-            }
+            if (statvfs(toStringz(getcwd()), &stat) == 0 && stat.f_blocks > 0)
+                return cast(float)(stat.f_blocks - stat.f_bavail) * stat.f_frsize / (stat.f_blocks * stat.f_frsize);
             return 0.2f;
         }
         else version(Windows)
@@ -226,9 +171,7 @@ struct WorkerLifecycle
             import std.utf : toUTF16;
             
             ULARGE_INTEGER freeBytesAvailable, totalBytes, freeBytes;
-            immutable wpath = (getcwd() ~ "\0").toUTF16;
-            
-            if (GetDiskFreeSpaceExW(wpath.ptr, &freeBytesAvailable, &totalBytes, &freeBytes) && totalBytes.QuadPart > 0)
+            if (GetDiskFreeSpaceExW((getcwd() ~ "\0").toUTF16.ptr, &freeBytesAvailable, &totalBytes, &freeBytes) && totalBytes.QuadPart > 0)
                 return cast(float)(totalBytes.QuadPart - freeBytes.QuadPart) / totalBytes.QuadPart;
             return 0.2f;
         }
@@ -242,8 +185,7 @@ struct WorkerLifecycle
         import std.algorithm : min;
         
         if (attempt < 10) Thread.yield();
-        else if (attempt < 20)
-            Thread.sleep((min(1 << (attempt - 10), 100) + uniform(0, min(1 << (attempt - 10), 100) / 2)).msecs);
+        else if (attempt < 20) Thread.sleep((min(1 << (attempt - 10), 100) + uniform(0, min(1 << (attempt - 10), 100) / 2)).msecs);
         else Thread.sleep(100.msecs);
     }
     

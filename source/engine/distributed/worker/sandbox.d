@@ -68,36 +68,16 @@ final class NoSandboxEnv : SandboxEnvBase, SandboxEnv
         super(request, inputs, new NoOpMonitor());
     }
     
-    Result!(ExecutionOutput, DistributedError) execute(
-        string command,
-        string[string] env,
-        Duration timeout
-    ) @trusted
+    Result!(ExecutionOutput, DistributedError) execute(string command, string[string] env, Duration timeout) @trusted
     {
         return executeWithMonitoring(() @trusted {
             try
             {
                 import infrastructure.utils.security.executor : execute;
-                // Execute command directly (no sandboxing)
-                auto result = execute(
-                    ["sh", "-c", command],
-                    env,
-                    Config.none,
-                    size_t.max,
-                    workDir
-                );
-                
-                ExecutionOutput output;
-                output.stdout = result.output;
-                output.exitCode = result.status;
-                
-                return Ok!(ExecutionOutput, DistributedError)(output);
+                auto result = execute(["sh", "-c", command], env, Config.none, size_t.max, workDir);
+                return Ok!(ExecutionOutput, DistributedError)(ExecutionOutput(result.output, "", result.status));
             }
-            catch (Exception e)
-            {
-                return Err!(ExecutionOutput, DistributedError)(
-                    new ExecutionError(e.msg));
-            }
+            catch (Exception e) { return Err!(ExecutionOutput, DistributedError)(new ExecutionError(e.msg)); }
         });
     }
 }
@@ -141,64 +121,26 @@ version(linux)
             import engine.runtime.hermetic.monitoring : createMonitor;
             this.spec = spec;
             super(request, inputs, createMonitor(spec.resources));
-            this.workDir = workDir; // Override with passed workDir
+            this.workDir = workDir;
         }
         
-        Result!(ExecutionOutput, DistributedError) execute(
-            string command,
-            string[string] env,
-            Duration timeout
-        ) @trusted
+        Result!(ExecutionOutput, DistributedError) execute(string command, string[string] env, Duration timeout) @trusted
         {
             return executeWithMonitoring(() @trusted {
-                // Create hermetic executor
                 auto executorResult = HermeticExecutor.create(spec, workDir);
-                if (executorResult.isErr)
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError(executorResult.unwrapErr().message()));
-                }
+                if (executorResult.isErr) return Err!(ExecutionOutput, DistributedError)(new ExecutionError(executorResult.unwrapErr().message()));
                 
-                auto executor = executorResult.unwrap();
-                
-                // Parse command with proper shell quoting support
-                auto cmdArray = parseCommand(command);
-                
-                // Execute hermetically with timeout
                 import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
                 auto timeoutEnforcer = createTimeoutEnforcer();
-                if (timeout > Duration.zero)
-                {
-                    timeoutEnforcer.start(timeout);
-                }
-                scope(exit)
-                {
-                    if (timeout > Duration.zero)
-                        timeoutEnforcer.stop();
-                }
+                if (timeout > Duration.zero) timeoutEnforcer.start(timeout);
+                scope(exit) if (timeout > Duration.zero) timeoutEnforcer.stop();
                 
-                auto result = executor.execute(cmdArray, workDir);
-                
-                if (result.isErr)
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError(result.unwrapErr().message()));
-                }
-                
-                // Check for timeout
-                if (timeoutEnforcer.isTimedOut())
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError("Execution timed out"));
-                }
+                auto result = executorResult.unwrap().execute(parseCommand(command), workDir);
+                if (result.isErr) return Err!(ExecutionOutput, DistributedError)(new ExecutionError(result.unwrapErr().message()));
+                if (timeoutEnforcer.isTimedOut()) return Err!(ExecutionOutput, DistributedError)(new ExecutionError("Execution timed out"));
                 
                 auto output = result.unwrap();
-                ExecutionOutput execOutput;
-                execOutput.stdout = output.stdout;
-                execOutput.stderr = output.stderr;
-                execOutput.exitCode = output.exitCode;
-                
-                return Ok!(ExecutionOutput, DistributedError)(execOutput);
+                return Ok!(ExecutionOutput, DistributedError)(ExecutionOutput(output.stdout, output.stderr, output.exitCode));
             });
         }
     }
@@ -243,64 +185,26 @@ version(OSX)
             import engine.runtime.hermetic.monitoring : createMonitor;
             this.spec = spec;
             super(request, inputs, createMonitor(spec.resources));
-            this.workDir = workDir; // Override with passed workDir
+            this.workDir = workDir;
         }
         
-        Result!(ExecutionOutput, DistributedError) execute(
-            string command,
-            string[string] env,
-            Duration timeout
-        ) @trusted
+        Result!(ExecutionOutput, DistributedError) execute(string command, string[string] env, Duration timeout) @trusted
         {
             return executeWithMonitoring(() @trusted {
-                // Create hermetic executor
                 auto executorResult = HermeticExecutor.create(spec, workDir);
-                if (executorResult.isErr)
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError(executorResult.unwrapErr().message()));
-                }
+                if (executorResult.isErr) return Err!(ExecutionOutput, DistributedError)(new ExecutionError(executorResult.unwrapErr().message()));
                 
-                auto executor = executorResult.unwrap();
-                
-                // Parse command with proper shell quoting support
-                auto cmdArray = parseCommand(command);
-                
-                // Execute hermetically with timeout
                 import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
                 auto timeoutEnforcer = createTimeoutEnforcer();
-                if (timeout > Duration.zero)
-                {
-                    timeoutEnforcer.start(timeout);
-                }
-                scope(exit)
-                {
-                    if (timeout > Duration.zero)
-                        timeoutEnforcer.stop();
-                }
+                if (timeout > Duration.zero) timeoutEnforcer.start(timeout);
+                scope(exit) if (timeout > Duration.zero) timeoutEnforcer.stop();
                 
-                auto result = executor.execute(cmdArray, workDir);
-                
-                if (result.isErr)
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError(result.unwrapErr().message()));
-                }
-                
-                // Check for timeout
-                if (timeoutEnforcer.isTimedOut())
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError("Execution timed out"));
-                }
+                auto result = executorResult.unwrap().execute(parseCommand(command), workDir);
+                if (result.isErr) return Err!(ExecutionOutput, DistributedError)(new ExecutionError(result.unwrapErr().message()));
+                if (timeoutEnforcer.isTimedOut()) return Err!(ExecutionOutput, DistributedError)(new ExecutionError("Execution timed out"));
                 
                 auto output = result.unwrap();
-                ExecutionOutput execOutput;
-                execOutput.stdout = output.stdout;
-                execOutput.stderr = output.stderr;
-                execOutput.exitCode = output.exitCode;
-                
-                return Ok!(ExecutionOutput, DistributedError)(execOutput);
+                return Ok!(ExecutionOutput, DistributedError)(ExecutionOutput(output.stdout, output.stderr, output.exitCode));
             });
         }
     }
@@ -343,64 +247,26 @@ version(Windows)
             import engine.runtime.hermetic.monitoring : createMonitor;
             this.spec = spec;
             super(request, inputs, createMonitor(spec.resources));
-            this.workDir = workDir; // Override with passed workDir
+            this.workDir = workDir;
         }
         
-        Result!(ExecutionOutput, DistributedError) execute(
-            string command,
-            string[string] env,
-            Duration timeout
-        ) @trusted
+        Result!(ExecutionOutput, DistributedError) execute(string command, string[string] env, Duration timeout) @trusted
         {
             return executeWithMonitoring(() @trusted {
-                // Create hermetic executor
                 auto executorResult = HermeticExecutor.create(spec, workDir);
-                if (executorResult.isErr)
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError(executorResult.unwrapErr().message()));
-                }
+                if (executorResult.isErr) return Err!(ExecutionOutput, DistributedError)(new ExecutionError(executorResult.unwrapErr().message()));
                 
-                auto executor = executorResult.unwrap();
-                
-                // Parse command with proper shell quoting support
-                auto cmdArray = parseCommand(command);
-                
-                // Execute hermetically with timeout
                 import engine.runtime.hermetic.security.timeout : createTimeoutEnforcer;
                 auto timeoutEnforcer = createTimeoutEnforcer();
-                if (timeout > Duration.zero)
-                {
-                    timeoutEnforcer.start(timeout);
-                }
-                scope(exit)
-                {
-                    if (timeout > Duration.zero)
-                        timeoutEnforcer.stop();
-                }
+                if (timeout > Duration.zero) timeoutEnforcer.start(timeout);
+                scope(exit) if (timeout > Duration.zero) timeoutEnforcer.stop();
                 
-                auto result = executor.execute(cmdArray, workDir);
-                
-                if (result.isErr)
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError(result.unwrapErr().message()));
-                }
-                
-                // Check for timeout
-                if (timeoutEnforcer.isTimedOut())
-                {
-                    return Err!(ExecutionOutput, DistributedError)(
-                        new ExecutionError("Execution timed out"));
-                }
+                auto result = executorResult.unwrap().execute(parseCommand(command), workDir);
+                if (result.isErr) return Err!(ExecutionOutput, DistributedError)(new ExecutionError(result.unwrapErr().message()));
+                if (timeoutEnforcer.isTimedOut()) return Err!(ExecutionOutput, DistributedError)(new ExecutionError("Execution timed out"));
                 
                 auto output = result.unwrap();
-                ExecutionOutput execOutput;
-                execOutput.stdout = output.stdout;
-                execOutput.stderr = output.stderr;
-                execOutput.exitCode = output.exitCode;
-                
-                return Ok!(ExecutionOutput, DistributedError)(execOutput);
+                return Ok!(ExecutionOutput, DistributedError)(ExecutionOutput(output.stdout, output.stderr, output.exitCode));
             });
         }
     }
@@ -409,40 +275,14 @@ version(Windows)
 /// Create platform-appropriate sandbox
 Sandbox createSandbox(bool hermetic = true) @trusted
 {
-    if (!hermetic)
-        return new NoSandbox();
-    
-    // Use capability detection to determine best sandbox
+    if (!hermetic) return new NoSandbox();
     auto caps = getCapabilities();
+    if (!caps.canRunHermetic()) return new NoSandbox();
     
-    if (!caps.canRunHermetic())
-        return new NoSandbox();
-    
-    version(linux)
-    {
-        if (caps.namespacesAvailable)
-            return new LinuxSandbox();
-        else
-            return new NoSandbox();
-    }
-    else version(OSX)
-    {
-        if (caps.sandboxExecAvailable)
-            return new MacOSSandbox();
-        else
-            return new NoSandbox();
-    }
-    else version(Windows)
-    {
-        if (caps.jobObjectsAvailable)
-            return new WindowsSandbox();
-        else
-            return new NoSandbox();
-    }
-    else
-    {
-        return new NoSandbox();
-    }
+    version(linux) return caps.namespacesAvailable ? new LinuxSandbox() : new NoSandbox();
+    else version(OSX) return caps.sandboxExecAvailable ? new MacOSSandbox() : new NoSandbox();
+    else version(Windows) return caps.jobObjectsAvailable ? new WindowsSandbox() : new NoSandbox();
+    else return new NoSandbox();
 }
 
 
