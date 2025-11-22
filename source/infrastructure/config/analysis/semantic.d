@@ -161,6 +161,33 @@ struct SemanticAnalyzer
             target.toolchain = toolResult.unwrap();
         }
         
+        // Parse language-specific config blocks (e.g., javascript:, go:, python:, etc.)
+        // These are stored in target.langConfig as JSON strings
+        foreach (field; decl.fields)
+        {
+            string fieldName = field.name.toLower();
+            
+            // Check if field name is a recognized language or language config
+            // Use the language registry to determine if this is a language-specific config
+            import languages.registry : parseLanguageName;
+            auto parsedLang = parseLanguageName(fieldName);
+            
+            // If it's a recognized language (not Generic), treat it as a config block
+            // Also handle common patterns like "jsConfig", "goConfig", etc.
+            bool isLangConfig = parsedLang != TargetLanguage.Generic || 
+                               fieldName.endsWith("config");
+            
+            if (isLangConfig)
+            {
+                // Convert the field value to JSON string
+                auto jsonResult = extractMapAsJSON(field.value);
+                if (jsonResult.isOk)
+                {
+                    target.langConfig[fieldName] = jsonResult.unwrap();
+                }
+            }
+        }
+        
         // Generate full target name
         string relativeDir = relativePath(dirName(filePath), workspaceRoot);
         target.name = "//" ~ relativeDir ~ ":" ~ target.name;
@@ -228,8 +255,12 @@ struct SemanticAnalyzer
             case "test": return Ok!(TargetType, BuildError)(TargetType.Test);
             case "custom": return Ok!(TargetType, BuildError)(TargetType.Custom);
             default:
-                return Err!(TargetType, BuildError)(
-                    new ParseError("Invalid target type: " ~ typeStr, null));
+            {
+                import infrastructure.errors.types.types : unknownFieldError;
+                const string[] validTypes = ["executable", "library", "test", "custom"];
+                auto err = unknownFieldError(currentFile, typeStr, validTypes);
+                return Err!(TargetType, BuildError)(err);
+            }
         }
     }
     
@@ -241,6 +272,48 @@ struct SemanticAnalyzer
         
         return Ok!(TargetLanguage, BuildError)(
             parseLanguageName(strResult.unwrap()));
+    }
+    
+    private Result!(string, BuildError) extractMapAsJSON(const Expr expr) @system
+    {
+        import std.json : JSONValue;
+        
+        if (auto litExpr = cast(const LiteralExpr)expr)
+        {
+            if (litExpr.value.kind == LiteralKind.Map)
+            {
+                // Convert map to JSON
+                JSONValue[string] jsonObj;
+                
+                auto map = litExpr.value.asMap();
+                foreach (key, value; map)
+                {
+                    // Handle different value types
+                    if (value.kind == LiteralKind.String)
+                        jsonObj[key] = JSONValue(value.asString());
+                    else if (value.kind == LiteralKind.Bool)
+                        jsonObj[key] = JSONValue(value.asBool());
+                    else if (value.kind == LiteralKind.Number)
+                        jsonObj[key] = JSONValue(value.asNumber());
+                    else if (value.kind == LiteralKind.Array)
+                    {
+                        auto arr = value.asArray();
+                        JSONValue[] jsonArr;
+                        foreach (item; arr)
+                        {
+                            if (item.kind == LiteralKind.String)
+                                jsonArr ~= JSONValue(item.asString());
+                        }
+                        jsonObj[key] = JSONValue(jsonArr);
+                    }
+                }
+                
+                return Ok!(string, BuildError)(JSONValue(jsonObj).toString());
+            }
+        }
+        
+        return Err!(string, BuildError)(
+            new ParseError("Expected map for language config", null));
     }
     
     // ========================================================================

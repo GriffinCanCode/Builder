@@ -136,6 +136,23 @@ class ParseError : BaseBuildError
         this.filePath = filePath;
     }
     
+    /// Constructor with line/column info
+    this(string filePath, string message, size_t line, size_t column, ErrorCode code = ErrorCode.ParseFailed) @trusted
+    {
+        super(code, message);
+        this.filePath = filePath;
+        this.line = line;
+        this.column = column;
+    }
+    
+    /// Auto-extract snippet from file
+    void extractSnippet(size_t contextLines = 2) nothrow
+    {
+        import infrastructure.errors.utils.snippets : extractSnippet;
+        if (!filePath.empty && line > 0)
+            snippet = extractSnippet(filePath, line, contextLines);
+    }
+    
     override string toString() const
     {
         string result = super.toString();
@@ -576,23 +593,26 @@ IOError fileReadError(string path, string errorMsg, string context = "") @system
 }
 
 /// Create a parse error with helpful suggestions
-ParseError parseErrorWithContext(string filePath, string message, size_t line = 0, string context = "") @system
+ParseError parseErrorWithContext(string filePath, string message, size_t line = 0, size_t column = 0, string context = "") @system
 {
-    auto error = new ParseError(filePath, message, ErrorCode.ParseFailed);
-    error.line = line;
+    auto error = new ParseError(filePath, message, line, column, ErrorCode.ParseFailed);
+    
+    // Auto-extract snippet if file and line are available
+    if (line > 0)
+        error.extractSnippet();
     
     import std.path : baseName;
     string fileName = baseName(filePath);
     
     if (fileName == "Builderfile")
     {
-        error.addSuggestion(ErrorSuggestion.docs("Check Builderfile syntax", "docs/user-guides/EXAMPLES.md"));
+        error.addSuggestion(ErrorSuggestion.docs("Check Builderfile syntax", "docs/user-guides/examples.md"));
         error.addSuggestion(ErrorSuggestion.command("Validate JSON syntax", "jsonlint " ~ filePath));
         error.addSuggestion(ErrorSuggestion.fileCheck("Ensure all braces and brackets are matched"));
     }
     else if (fileName == "Builderspace")
     {
-        error.addSuggestion(ErrorSuggestion.docs("Check Builderspace syntax", "docs/architecture/DSL.md"));
+        error.addSuggestion(ErrorSuggestion.docs("Check Builderspace syntax", "docs/architecture/dsl.md"));
         error.addSuggestion(ErrorSuggestion.fileCheck("Review examples in examples/ directory"));
         error.addSuggestion(ErrorSuggestion.fileCheck("Ensure all declarations are properly formatted"));
     }
@@ -725,15 +745,58 @@ SystemError processExecutionError(string command, int exitCode, string message =
 }
 
 /// Create an invalid configuration error with helpful suggestions
-ParseError invalidConfigError(string filePath, string fieldName, string message) @system
+ParseError invalidConfigError(string filePath, string fieldName, string message, size_t line = 0, size_t column = 0) @system
 {
     auto fullMessage = "Invalid configuration in '" ~ fieldName ~ "': " ~ message;
-    auto error = new ParseError(filePath, fullMessage, ErrorCode.InvalidFieldValue);
+    auto error = new ParseError(filePath, fullMessage, line, column, ErrorCode.InvalidFieldValue);
+    
+    if (line > 0)
+        error.extractSnippet();
     
     error.addSuggestion(ErrorSuggestion.fileCheck("Check the '" ~ fieldName ~ "' field in " ~ filePath));
-    error.addSuggestion(ErrorSuggestion.docs("See configuration syntax", "docs/user-guides/EXAMPLES.md"));
+    error.addSuggestion(ErrorSuggestion.docs("See configuration syntax", "docs/user-guides/examples.md"));
     error.addSuggestion(ErrorSuggestion.fileCheck("Verify field type and format"));
     error.addSuggestion(ErrorSuggestion.command("Validate configuration", "builder check"));
+    
+    return error;
+}
+
+/// Create a parse error with "did you mean?" suggestion for unknown field
+ParseError unknownFieldError(string filePath, string fieldName, const(string)[] validFields, size_t line = 0, size_t column = 0) @system
+{
+    import infrastructure.errors.utils.fuzzy : didYouMean;
+    
+    auto message = "Unknown field '" ~ fieldName ~ "'";
+    auto suggestion = didYouMean(fieldName, validFields);
+    
+    if (!suggestion.empty)
+        message ~= ". " ~ suggestion;
+    
+    auto error = new ParseError(filePath, message, line, column, ErrorCode.InvalidFieldValue);
+    
+    if (line > 0)
+        error.extractSnippet();
+    
+    error.addSuggestion(ErrorSuggestion.docs("See valid fields", "docs/user-guides/examples.md"));
+    
+    return error;
+}
+
+/// Create a parse error with "did you mean?" suggestion for unknown target
+ParseError unknownTargetError(string targetName, const(string)[] availableTargets, string filePath = "") @system
+{
+    import infrastructure.errors.utils.fuzzy : didYouMean;
+    
+    auto message = "Target '" ~ targetName ~ "' not found";
+    auto suggestion = didYouMean(targetName, availableTargets);
+    
+    if (!suggestion.empty)
+        message ~= ". " ~ suggestion;
+    
+    auto error = new ParseError(filePath, message, ErrorCode.TargetNotFound);
+    
+    error.addSuggestion(ErrorSuggestion.command("List available targets", "builder query --targets"));
+    error.addSuggestion(ErrorSuggestion.fileCheck("Check Builderfile for target definitions"));
     
     return error;
 }

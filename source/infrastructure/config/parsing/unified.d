@@ -989,9 +989,8 @@ class UnifiedParser
     private Result!(T, BuildError) error(T)(string message) @system
     {
         auto token = peek();
-        auto err = new ParseError(filePath, message, ErrorCode.ParseFailed);
-        err.line = token.line;
-        err.column = token.column;
+        auto err = new ParseError(filePath, message, token.line, token.column, ErrorCode.ParseFailed);
+        err.extractSnippet();
         return Err!(T, BuildError)(err);
     }
 }

@@ -42,6 +42,7 @@ Specific feature implementations and technical details:
 - **simdhash.md** - SIMD hashing implementation
 - **blake3.md** - BLAKE3 hashing details
 - **languages.md** - Language separation (JS/TS)
+- **error-codes.md** - Complete error code reference with examples
 
 ### [`security/`](./security)
 Security and safety documentation:
