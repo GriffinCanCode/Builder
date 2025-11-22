@@ -1,0 +1,187 @@
+topic: determinism
+category: concepts
+summary: "Bit-for-bit reproducible builds through syscall interception and enforcement"
+definition: |
+  Deterministic builds ensure the same source code always produces identical outputs,
+  byte-for-byte, regardless of when, where, or by whom the build is performed.
+  
+  Builder achieves this through syscall interception (time, random, PID), compiler
+  flag detection, and automatic verification. This goes beyond hermetic isolation
+  to guarantee reproducibility.
+
+why_critical:
+  - "Cache correctness: Non-deterministic builds break caching"
+  - "Remote execution: Must verify remote builds match local"
+  - "Security: Detect supply chain tampering"
+  - "Debugging: Same code = same binary, always"
+  - "Distributed builds: Cross-machine verification"
+
+hermetic_vs_deterministic:
+  hermetic:
+    - "Isolates build environment (sandbox)"
+    - "Controls inputs (files, deps)"
+    - "Prevents network access"
+    - "BUT: Doesn't guarantee same outputs"
+  
+  deterministic:
+    - "Everything hermetic does, PLUS:"
+    - "Fixed timestamps (no BUILD_TIME)"
+    - "Seeded random (no UUIDs)"
+    - "Controlled parallelism (no race conditions)"
+    - "RESULT: Bit-for-bit identical outputs"
+
+common_causes_nondeterminism:
+  - source: "Timestamps"
+    examples: ["__DATE__ macro", "__TIME__ macro", "Build timestamp in binary"]
+    detection: "Compiler embeds timestamp"
+    fix: "SOURCE_DATE_EPOCH=1640995200"
+  
+  - source: "Random values"
+    examples: ["UUID generation", "Random register allocation", "ASLR addresses"]
+    detection: "Different output hash on rebuild"
+    fix: "RANDOM_SEED=42, -frandom-seed=42"
+  
+  - source: "Thread scheduling"
+    examples: ["Parallel compilation order", "File write order", "Link order"]
+    detection: "Different builds have different file ordering"
+    fix: "Single-threaded or deterministic scheduling"
+  
+  - source: "Build paths"
+    examples: ["Absolute paths in debug info", "__FILE__ macro", "DWARF paths"]
+    detection: "Binary contains /home/user/project"
+    fix: "-ffile-prefix-map=/workspace/=./"
+  
+  - source: "Compiler non-determinism"
+    examples: ["GCC register allocation", "Symbol ordering", "Optimization passes"]
+    detection: "Same flags, different output"
+    fix: "-frandom-seed=<hash-of-source>"
+
+how_builder_enforces:
+  syscall_interception:
+    mechanism: "LD_PRELOAD (Linux) / DYLD_INSERT_LIBRARIES (macOS)"
+    library: "libdetshim.so / libdetshim.dylib"
+    intercepts:
+      - "time() → Returns fixed timestamp (1640995200)"
+      - "gettimeofday() → Returns fixed time"
+      - "clock_gettime() → Returns fixed time"
+      - "random() / rand() → Returns seeded PRNG"
+      - "getpid() → Returns fixed PID (42)"
+    overhead: "~1-2% performance cost"
+  
+  compiler_flags:
+    gcc_gxx:
+      - "-frandom-seed=42"
+      - "-ffile-prefix-map=/workspace/=./"
+      - "-fdebug-prefix-map=/workspace/=./"
+    
+    clang_clangxx:
+      - "-fdebug-prefix-map=/workspace/=./"
+      - "-Wno-builtin-macro-redefined"
+      - "-D__DATE__=\"Jan 01 2022\""
+      - "-D__TIME__=\"00:00:00\""
+    
+    rustc:
+      - "RUSTFLAGS=-Cembed-bitcode=yes"
+      - "-Cincremental=false"
+    
+    go:
+      - "go build -trimpath"
+      - "-buildmode=default"
+  
+  automatic_detection:
+    - "Compares outputs across multiple builds"
+    - "Analyzes compiler commands for non-deterministic flags"
+    - "Pattern matches for timestamps, UUIDs in binaries"
+    - "Suggests exact fixes with compiler-specific flags"
+
+usage:
+  enable_in_builderfile: |
+    target("myapp") {
+        determinism: {
+            enabled: true;
+            strict: false;  // Warn but don't fail
+            verify_iterations: 3;  // Verify across 3 builds
+            fixed_timestamp: 1640995200;  // 2022-01-01 UTC
+            prng_seed: 42;
+        };
+    }
+  
+  cli_verification: |
+    # Build and verify determinism
+    builder build //app --determinism=strict
+    
+    # Verify across 5 builds
+    builder verify-determinism //app --iterations=5
+    
+    # Detect non-determinism sources
+    builder detect-non-determinism //app
+    
+    # Get repair suggestions
+    builder repair-plan //app
+
+verification_strategies:
+  - name: "Content Hash (default)"
+    speed: "Fast"
+    method: "BLAKE3 hash comparison"
+    use: "Normal builds"
+  
+  - name: "Bit-for-bit"
+    speed: "Thorough"
+    method: "Byte-by-byte comparison"
+    use: "Security-critical builds"
+  
+  - name: "Fuzzy"
+    speed: "Fast"
+    method: "Ignores timestamps in metadata"
+    use: "Legacy toolchains"
+
+key_points:
+  - "Required for reliable caching"
+  - "Enables distributed build verification"
+  - "Automatic syscall interception (zero config)"
+  - "Compiler-specific flag suggestions"
+  - "~1-2% overhead for enforcement"
+  - "Verification built into build system"
+
+configuration:
+  - var: "BUILD_TIMESTAMP"
+    default: "1640995200"
+    description: "Fixed Unix timestamp for builds"
+  
+  - var: "RANDOM_SEED"
+    default: "42"
+    description: "PRNG seed for deterministic randomness"
+  
+  - var: "SOURCE_DATE_EPOCH"
+    default: "1640995200"
+    description: "Standard reproducible builds variable"
+
+related: [caching, hermetic, remote-execution, verification]
+
+examples:
+  - description: "Enable determinism in C project"
+    code: |
+      target("app") {
+          type: executable;
+          language: c;
+          sources: ["main.c"];
+          determinism: { enabled: true; };
+          flags: ["-frandom-seed=42", "-ffile-prefix-map=$(pwd)=."];
+      }
+  
+  - description: "Verify determinism"
+    command: "builder verify-determinism //app:app --iterations=5"
+    expected_output: |
+      Build 1/5: hash=abc123...
+      Build 2/5: hash=abc123...
+      Build 3/5: hash=abc123...
+      Build 4/5: hash=abc123...
+      Build 5/5: hash=abc123...
+      ✓ Build is deterministic: all outputs match
+
+next_steps: |
+  - See 'builder explain hermetic' for build isolation
+  - See 'builder explain caching' to understand why determinism matters
+  - See 'builder explain example determinism' for complete examples
+  - See docs/features/determinism.md for detailed architecture
+

@@ -1,0 +1,122 @@
+# AI Documentation Index
+# Fast lookup table for all AI-optimized documentation
+
+concepts:
+  blake3:
+    file: "concepts/blake3.yaml"
+    summary: "BLAKE3 cryptographic hash function - 3-5x faster than SHA-256"
+    keywords: ["hash", "blake3", "crypto", "performance", "cache-key"]
+  
+  caching:
+    file: "concepts/caching.yaml"
+    summary: "Multi-tier caching system: target-level, action-level, and remote"
+    keywords: ["cache", "build-cache", "target-cache", "performance", "optimization"]
+  
+  determinism:
+    file: "concepts/determinism.yaml"
+    summary: "Bit-for-bit reproducible builds through syscall interception"
+    keywords: ["determinism", "reproducible", "hermetic", "verification", "security"]
+  
+  incremental:
+    file: "concepts/incremental.yaml"
+    summary: "Module-level incremental compilation - only rebuild affected files"
+    keywords: ["incremental", "dependencies", "smart-rebuild", "optimization"]
+  
+  action-cache:
+    file: "concepts/action-cache.yaml"
+    summary: "Fine-grained caching for individual build actions"
+    keywords: ["action-cache", "fine-grained", "compile", "link", "granular"]
+  
+  remote-cache:
+    file: "concepts/remote-cache.yaml"
+    summary: "Shared cache across machines/CI - HTTP-based distributed caching"
+    keywords: ["remote-cache", "distributed", "ci", "team", "shared"]
+  
+  hermetic:
+    file: "concepts/hermetic.yaml"
+    summary: "Isolated build execution with sandboxed environments"
+    keywords: ["hermetic", "sandbox", "isolation", "reproducible"]
+  
+  workspace:
+    file: "concepts/workspace.yaml"
+    summary: "Workspace configuration (Builderspace) - project-wide settings"
+    keywords: ["workspace", "builderspace", "configuration", "settings"]
+  
+  targets:
+    file: "concepts/targets.yaml"
+    summary: "Build targets - the basic unit of compilation in Builder"
+    keywords: ["targets", "build", "executable", "library", "dependencies"]
+
+aliases:
+  hash: "blake3"
+  hashing: "blake3"
+  cache: "caching"
+  build-cache: "caching"
+  reproducible: "determinism"
+  action: "action-cache"
+  actions: "action-cache"
+  remote: "remote-cache"
+  distributed: "remote-cache"
+  incremental-compilation: "incremental"
+  sandbox: "hermetic"
+  isolation: "hermetic"
+  builderspace: "workspace"
+  config: "workspace"
+  target: "targets"
+  build: "targets"
+
+categories:
+  - name: "concepts"
+    description: "Core Builder concepts and features"
+    count: 9
+  
+  - name: "workflows"
+    description: "Step-by-step task guides"
+    count: 0
+  
+  - name: "examples"
+    description: "Working code examples"
+    count: 0
+  
+  - name: "commands"
+    description: "CLI command references"
+    count: 0
+  
+  - name: "troubleshooting"
+    description: "Problem-solution mappings"
+    count: 0
+
+all_topics:
+  - blake3
+  - caching
+  - determinism
+  - incremental
+  - action-cache
+  - remote-cache
+  - hermetic
+  - workspace
+  - targets
+
+searchable_terms:
+  - "blake3"
+  - "hash"
+  - "hashing"
+  - "crypto"
+  - "cache"
+  - "caching"
+  - "build-cache"
+  - "target-cache"
+  - "action-cache"
+  - "remote-cache"
+  - "determinism"
+  - "deterministic"
+  - "reproducible"
+  - "hermetic"
+  - "incremental"
+  - "dependencies"
+  - "optimization"
+  - "performance"
+  - "distributed"
+  - "ci"
+  - "verification"
+

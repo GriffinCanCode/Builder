@@ -1,0 +1,131 @@
+topic: action-cache
+category: concepts
+summary: "Fine-grained caching for individual build actions (compile, link, test)"
+definition: |
+  Action-level caching tracks individual build steps (compile one file, link objects,
+  run test) instead of entire targets. This enables partial rebuilds where some actions
+  use cached results while others execute.
+  
+  Example: If only linker flags change, reuse all compiled object files and only re-link.
+
+granularity_comparison:
+  target_cache:
+    level: "Entire target"
+    reuse: "All or nothing"
+    example: "Cache entire 'libutils.a' with all 50 object files"
+  
+  action_cache:
+    level: "Individual actions"
+    reuse: "Per-action"
+    example: "Cache each of 50 .o files separately, reuse 49, recompile 1"
+
+action_types:
+  - type: "Compile"
+    example: "gcc -c main.cpp -o main.o"
+    granularity: "Per source file"
+  
+  - type: "Link"
+    example: "g++ main.o utils.o -o app"
+    granularity: "Per executable/library"
+  
+  - type: "Codegen"
+    example: "protoc --cpp_out=. schema.proto"
+    granularity: "Per generated file"
+  
+  - type: "Test"
+    example: "./test_suite --test=parser"
+    granularity: "Per test or test suite"
+  
+  - type: "Package"
+    example: "tar czf app.tar.gz app"
+    granularity: "Per package"
+
+action_identification:
+  components:
+    - "Target ID: Which target this action belongs to"
+    - "Action type: Compile, Link, Test, etc."
+    - "Input hash: BLAKE3 hash of action inputs"
+    - "Sub-identifier: Specific file or action instance"
+  
+  example: |
+    ActionId(
+      targetId: "//app:myapp",
+      type: ActionType.Compile,
+      inputHash: "a3f2b1c9...",
+      subId: "src/main.cpp"
+    )
+
+cache_validation:
+  action_valid_if:
+    - "Action succeeded previously"
+    - "All input files have same content hashes"
+    - "All output files exist on disk"
+    - "Metadata unchanged (flags, env vars, compiler version)"
+    - "Not expired (default 30 days)"
+
+use_cases:
+  - scenario: "Linker flags changed"
+    without_action_cache: "Recompile all sources + re-link"
+    with_action_cache: "Reuse all .o files, only re-link"
+    speedup: "90%+ (skip 50 compiles, do 1 link)"
+  
+  - scenario: "One source file changed"
+    without_action_cache: "May need full rebuild depending on target cache"
+    with_action_cache: "Recompile 1 file, reuse 49 others, re-link"
+    speedup: "95%+ (1 compile + 1 link vs 50 compiles + 1 link)"
+  
+  - scenario: "Test suite with 100 tests, 1 test's code changed"
+    without_action_cache: "Re-run all 100 tests"
+    with_action_cache: "Reuse 99 test results, run 1 test"
+    speedup: "99%"
+
+integration_with_target_cache:
+  decision_flow: |
+    1. Check target cache
+       ├─ HIT → Use entire cached target (fastest)
+       └─ MISS → Check action cache
+           ├─ SOME HITS → Partial rebuild with cached actions
+           └─ NO HITS → Full rebuild
+  
+  complementary: "Target cache = coarse optimization, Action cache = fine optimization"
+
+language_handler_integration:
+  opt_in: "Language handlers opt into action cache via buildWithContext()"
+  
+  recording_example: |
+    // During build
+    context.recordAction(
+      actionId,
+      inputs: ["src/main.cpp", "include/utils.h"],
+      outputs: ["obj/main.o"],
+      metadata: {"flags": "-O2 -Wall", "compiler": "gcc-11"},
+      success: true
+    );
+  
+  checking_example: |
+    // Before compile
+    if (actionCache.isCached(actionId, inputs, metadata)) {
+      // Skip compilation, reuse cached main.o
+      continue;
+    }
+
+performance_characteristics:
+  space_per_action: "~512 bytes"
+  default_max_entries: "50,000 actions (~25 MB)"
+  cache_check_time: "O(inputs) for hash comparison"
+  cache_update_time: "O(inputs + outputs) for hashing"
+
+key_points:
+  - "Finer than target cache: Per-action not per-target"
+  - "Optional: Language handlers opt in"
+  - "Complementary: Works with target cache and incremental"
+  - "Persistent: Stored in .builder-cache/actions/"
+  - "Validated: Inputs and outputs are re-hashed"
+
+related: [caching, incremental, target-cache]
+
+next_steps: |
+  - See 'builder explain caching' for overall cache architecture
+  - See 'builder explain incremental' for complementary optimization
+  - See docs/features/caching.md for detailed action cache docs
+

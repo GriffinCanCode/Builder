@@ -1,0 +1,60 @@
+topic: workspace
+category: concepts
+summary: "Workspace configuration (Builderspace) - project-wide settings"
+definition: |
+  The Builderspace file defines project-wide configuration for Builder. It specifies
+  workspace-level settings like cache configuration, remote execution, distributed
+  builds, and default options that apply to all targets.
+  
+  Location: Builderspace (project root)
+
+key_sections:
+  workspace:
+    - "name: Workspace identifier"
+    - "version: Builder version requirement"
+  
+  options:
+    - "caching: Cache configuration"
+    - "distributed: Remote execution settings"
+    - "hermetic: Hermeticity enforcement"
+    - "determinism: Determinism configuration"
+    - "economics: Cost optimization"
+  
+  defaults:
+    - "flags: Default compiler flags for all targets"
+    - "env: Default environment variables"
+
+example: |
+  workspace {
+      name: "my-project";
+      version: "1.0.6";
+  }
+  
+  options {
+      caching: {
+          enabled: true;
+          max_size: "10GB";
+          max_age_days: 30;
+      };
+      
+      distributed: {
+          remote_execution: false;
+          coordinator_url: "http://localhost:9000";
+      };
+      
+      determinism: {
+          enabled: true;
+          strict: false;
+      };
+  }
+
+vs_builderfile:
+  builderspace: "Project-wide configuration, single file at root"
+  builderfile: "Target definitions, can be multiple files in subdirectories"
+
+related: [builderfile, configuration, targets]
+
+next_steps: |
+  - See docs/user-guides/cli.md for complete configuration reference
+  - See 'builder explain example workspace' for complete examples
+

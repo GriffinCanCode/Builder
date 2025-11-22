@@ -1,0 +1,85 @@
+topic: blake3
+category: concepts
+summary: "BLAKE3 cryptographic hash function - 3-5x faster than SHA-256"
+definition: |
+  BLAKE3 is a cryptographic hash function that Builder uses for all hashing operations.
+  It provides 128-bit collision resistance (equivalent to SHA-256 security) while being
+  3-5x faster through SIMD parallelization and modern CPU optimizations.
+  
+  Builder switched from SHA-256 to BLAKE3 for performance while maintaining security.
+
+why_used: |
+  - File content hashing: Hash source files for change detection
+  - Cache keys: Generate cache identifiers for build artifacts
+  - Dependency tracking: Create fingerprints for dependency graphs
+  - Content-addressable storage: Deduplicate artifacts by content hash
+  - Integrity verification: Ensure remote cache artifacts are not tampered with
+
+performance:
+  - "1 MB file: 0.8ms (was 3.2ms with SHA-256) - 4x faster"
+  - "10 MB file: 7ms (was 32ms with SHA-256) - 4.6x faster"
+  - "String hash: 120ns (was 450ns with SHA-256) - 3.8x faster"
+  - "Full build (1000 files): 2.8s (was 4.2s) - 33% faster overall"
+
+key_points:
+  - "Cryptographically secure: 128-bit collision resistance"
+  - "SIMD-accelerated: Uses AVX2/AVX-512 on x86, NEON on ARM"
+  - "Parallel by design: Can hash in parallel chunks"
+  - "Self-contained: C implementation compiled into Builder, no external deps"
+  - "Deterministic: Same input always produces same 32-byte output"
+
+implementation:
+  location: "source/infrastructure/utils/crypto/"
+  c_library: "source/infrastructure/utils/crypto/c/blake3.c"
+  d_wrapper: "source/infrastructure/utils/crypto/blake3.d"
+  bindings: "source/infrastructure/utils/crypto/blake3_bindings.d"
+
+usage_examples:
+  - command: "import infrastructure.utils.crypto.blake3;"
+    description: "Hash a string"
+    code: |
+      auto hash = Blake3.hashHex("hello world");
+      // Returns: 32-byte hash as 64-character hex string
+  
+  - description: "Hash binary data"
+    code: |
+      ubyte[] data = [1, 2, 3, 4, 5];
+      auto binaryHash = Blake3.hash(data);
+  
+  - description: "Incremental hashing (for large files)"
+    code: |
+      auto hasher = Blake3(0);
+      hasher.put("part 1");
+      hasher.put("part 2");
+      auto result = hasher.finishHex();
+  
+  - description: "Hash a file (automatic in Builder)"
+    code: |
+      import infrastructure.utils.files.hash;
+      auto fileHash = hashFile("path/to/file");
+
+security:
+  collision_resistance: "128 bits (2^128 operations to find collision)"
+  preimage_resistance: "256 bits (full output size)"
+  use_for_mac: "Supports keyed hashing for HMAC-style authentication"
+  comparison_sha256: "Equal security level, much faster performance"
+
+integration_points:
+  - "BuildCache: Cache entry validation"
+  - "ActionCache: Action result fingerprinting"
+  - "RemoteCache: Upload/download verification"
+  - "DependencyCache: Dependency graph hashing"
+  - "ContentAddressableStorage: Blob deduplication"
+
+related: [caching, remote-cache, determinism, content-addressable-storage]
+
+references:
+  - "Official BLAKE3: https://github.com/BLAKE3-team/BLAKE3"
+  - "Security proof: https://blake3.io/blake3.pdf"
+  - "Builder docs: docs/features/blake3.md"
+
+next_steps: |
+  - See 'builder explain caching' to understand how BLAKE3 enables fast cache validation
+  - See 'builder explain determinism' to learn how hashing ensures reproducible builds
+  - See 'builder explain example blake3' for complete code examples
+

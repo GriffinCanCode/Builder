@@ -1,0 +1,86 @@
+topic: targets
+category: concepts
+summary: "Build targets - the basic unit of compilation in Builder"
+definition: |
+  A target defines what to build (executable, library, test) and how to build it
+  (sources, dependencies, flags). Targets are the basic unit of the build graph.
+  
+  Format: //path/to:target-name
+  Example: //src/app:main, //lib:utils
+
+target_types:
+  - type: "executable"
+    output: "Binary executable"
+    example: "target(\"myapp\") { type: executable; }"
+  
+  - type: "library"
+    output: "Static or shared library"
+    example: "target(\"libutils\") { type: library; }"
+  
+  - type: "test"
+    output: "Test executable"
+    example: "target(\"unit_tests\") { type: test; }"
+  
+  - type: "custom"
+    output: "Custom command"
+    example: "target(\"gen\") { type: custom; command: \"./gen.sh\"; }"
+
+target_structure:
+  - field: "name"
+    required: true
+    description: "Unique target identifier"
+  
+  - field: "type"
+    required: true
+    description: "executable, library, test, or custom"
+  
+  - field: "language"
+    required: "for compiled targets"
+    description: "c, cpp, rust, go, python, etc."
+  
+  - field: "sources"
+    required: true
+    description: "Source files to compile"
+  
+  - field: "deps"
+    required: false
+    description: "Dependencies on other targets"
+  
+  - field: "flags"
+    required: false
+    description: "Compiler/linker flags"
+
+example: |
+  target("myapp") {
+      type: executable;
+      language: cpp;
+      sources: ["main.cpp", "utils.cpp"];
+      deps: ["//lib:utils"];
+      flags: ["-O2", "-Wall"];
+      output: "bin/myapp";
+  }
+
+target_addressing:
+  absolute: "//path/to:target - From workspace root"
+  relative: ":target - Same directory"
+  package: "//path/to:all - All targets in package"
+  recursive: "//path/to/... - All targets recursively"
+
+dependencies:
+  syntax: "deps: [\"//lib:utils\", \":helper\"];"
+  resolution: "Builder automatically resolves and builds dependencies"
+  caching: "Dependencies are cached and reused"
+
+key_points:
+  - "Basic unit of the build graph"
+  - "Can depend on other targets"
+  - "Cached independently"
+  - "Language-agnostic definition"
+  - "Supports globs in sources"
+
+related: [builderfile, dependencies, build-graph]
+
+next_steps: |
+  - See docs/user-guides/cli.md for target syntax
+  - See 'builder explain example targets' for complete examples
+

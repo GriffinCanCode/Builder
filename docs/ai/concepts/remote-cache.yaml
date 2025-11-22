@@ -1,0 +1,179 @@
+topic: remote-cache
+category: concepts
+summary: "Shared cache across machines/CI - HTTP-based distributed caching"
+definition: |
+  Remote cache allows build artifacts to be shared across machines, teams, and CI runs.
+  Clean checkouts or new developers can pull pre-built artifacts from a central cache
+  server instead of rebuilding from scratch.
+  
+  Strategy: Read from remote on local miss, write to remote asynchronously.
+
+use_cases:
+  - case: "CI/CD pipelines"
+    benefit: "First build caches, subsequent builds pull artifacts - 70-85% faster"
+  
+  - case: "Team development"
+    benefit: "One developer builds, others reuse - no redundant compilation"
+  
+  - case: "Clean checkouts"
+    benefit: "git clone + build uses remote cache - near-instant builds"
+  
+  - case: "Build farms"
+    benefit: "Share artifacts across build agents"
+
+architecture:
+  read_strategy: "Local first → Remote on miss → Pull to local cache"
+  write_strategy: "Local immediately → Remote async (background push)"
+  protocol: "HTTP REST API"
+  storage: "Content-addressable: artifacts stored by BLAKE3 hash"
+  authentication: "Optional HMAC signatures or API keys"
+
+deployment_options:
+  - option: "Builtin cache server"
+    command: "builder cache-server --port=8080"
+    storage: "Local filesystem"
+    use_case: "Small teams, simple setup"
+  
+  - option: "S3-compatible storage"
+    setup: "AWS S3, MinIO, DigitalOcean Spaces"
+    use_case: "Cloud-native, scalable"
+  
+  - option: "CDN"
+    setup: "CloudFlare, Fastly with S3 backend"
+    use_case: "Global teams, low latency"
+  
+  - option: "Custom HTTP server"
+    setup: "nginx serving .builder-cache/"
+    use_case: "Existing infrastructure"
+
+setup:
+  server_start: |
+    # Start cache server
+    builder cache-server --port=8080 --cache-dir=/var/cache/builder
+  
+  client_config: |
+    # Configure client
+    export BUILDER_REMOTE_CACHE_URL=http://cache-server:8080
+    
+    # Or in Builderspace
+    options {
+        remote_cache: {
+            enabled: true;
+            url: "http://cache-server:8080";
+            read_only: false;  # Allow uploads
+            timeout: 30s;
+        };
+    }
+  
+  build_with_cache: |
+    # First build (populates cache)
+    builder build //app
+    # Uploads artifacts to remote cache in background
+    
+    # Clean build on another machine
+    git clone repo && cd repo
+    export BUILDER_REMOTE_CACHE_URL=http://cache-server:8080
+    builder build //app
+    # Downloads artifacts from remote cache - 85% faster
+
+protocol:
+  endpoints:
+    - method: "GET"
+      path: "/v1/cache/:hash"
+      description: "Fetch cached artifact by content hash"
+    
+    - method: "HEAD"
+      path: "/v1/cache/:hash"
+      description: "Check if artifact exists"
+    
+    - method: "PUT"
+      path: "/v1/cache/:hash"
+      description: "Upload artifact (async on client)"
+    
+    - method: "GET"
+      path: "/v1/stats"
+      description: "Cache statistics"
+
+content_addressing:
+  key_format: "BLAKE3 hash of artifact content (64 hex chars)"
+  example: "a3b2c1d4e5f6...789"
+  deduplication: "Same artifact = same hash = stored once"
+  verification: "Downloads are re-hashed to detect corruption"
+
+performance:
+  download_time: "Network RTT + transfer time (typically 100ms - 2s)"
+  upload_time: "Async, doesn't block build"
+  cache_hit_overhead: "Minimal - same speed as local cache"
+  cache_miss_fallback: "Build locally, upload for next time"
+
+security:
+  optional_hmac: "BLAKE3-based HMAC signatures prevent tampering"
+  workspace_isolation: "Different workspaces use different keys"
+  read_only_mode: "CI can use cache but not pollute it"
+  expiration: "Artifacts expire after 30 days (configurable)"
+
+key_points:
+  - "Transparent: Automatic fallback if remote unavailable"
+  - "Async writes: Uploads don't block build"
+  - "Content-addressable: Deduplication across all users"
+  - "Validated: Downloads are re-hashed for integrity"
+  - "Optional: Gracefully degrades to local-only"
+
+configuration:
+  - var: "BUILDER_REMOTE_CACHE_URL"
+    example: "http://cache.company.com:8080"
+    description: "Remote cache server URL"
+  
+  - var: "BUILDER_REMOTE_CACHE_TIMEOUT"
+    default: "30s"
+    description: "Network timeout"
+  
+  - var: "BUILDER_REMOTE_CACHE_READ_ONLY"
+    default: "false"
+    description: "Only download, never upload"
+  
+  - var: "BUILDER_REMOTE_CACHE_MAX_SIZE"
+    default: "10GB"
+    description: "Max artifact size to cache remotely"
+
+monitoring:
+  metrics:
+    - "Cache hits vs misses"
+    - "Upload/download bandwidth"
+    - "Storage usage"
+    - "Most cached artifacts"
+  
+  command: "builder telemetry remote-cache"
+  output: |
+    Remote Cache Statistics:
+      URL: http://cache-server:8080
+      Status: Connected
+      Uploads: 245 (15.2 GB)
+      Downloads: 1,892 (142.3 GB)
+      Hit rate: 88.4%
+      Avg download time: 847ms
+
+troubleshooting:
+  - problem: "Remote cache slow"
+    causes:
+      - "Network latency"
+      - "Large artifacts"
+      - "Server overloaded"
+    solutions:
+      - "Use CDN for global teams"
+      - "Enable compression"
+      - "Filter large artifacts"
+  
+  - problem: "Cache server out of space"
+    solution: "Configure eviction policy or increase storage"
+  
+  - problem: "Authentication failures"
+    solution: "Check API keys, HMAC configuration"
+
+related: [caching, action-cache, distributed, cdn]
+
+next_steps: |
+  - See 'builder explain workflow setup-remote-cache' for step-by-step setup
+  - See 'builder explain caching' for overall architecture
+  - See docs/features/remotecache.md for detailed documentation
+

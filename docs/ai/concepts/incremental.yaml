@@ -1,0 +1,182 @@
+topic: incremental
+category: concepts
+summary: "Module-level incremental compilation - only rebuild affected files"
+definition: |
+  Incremental compilation tracks file-to-file dependencies and recompiles only the
+  minimal set of files affected by changes. When a header changes, only source files
+  that transitively depend on it are recompiled.
+  
+  Builder combines dependency tracking with action-level caching for dual optimization:
+  dependency analysis determines WHAT to rebuild, action cache determines IF cached
+  results can be reused.
+
+architecture:
+  components:
+    - name: "DependencyCache"
+      location: ".builder-cache/incremental/"
+      purpose: "Tracks file-to-file dependencies (imports, includes)"
+      
+    - name: "IncrementalEngine"
+      location: "source/engine/compilation/incremental/engine.d"
+      purpose: "Orchestrates minimal rebuild determination"
+      
+    - name: "Language Analyzers"
+      location: "source/languages/*/analysis/incremental.d"
+      purpose: "Extract dependencies (C++ headers, Python imports, etc.)"
+
+how_it_works:
+  step1: "Extract dependencies from each source file"
+  step1_detail: "Parse imports/includes, resolve to absolute file paths"
+  
+  step2: "Store dependency graph in DependencyCache"
+  step2_detail: "file.cpp → [header1.h, header2.h, ...]"
+  
+  step3: "On change, analyze impact"
+  step3_detail: "If header2.h changed, find all files that depend on it"
+  
+  step4: "Determine rebuild set"
+  step4_detail: "Only recompile affected files, reuse cached for others"
+  
+  step5: "Execute minimal rebuild"
+  step5_detail: "Compile only necessary files, link with cached objects"
+
+example_scenario:
+  project:
+    - "main.cpp (includes utils.h, types.h)"
+    - "utils.cpp (includes utils.h, types.h)"
+    - "calc.cpp (includes calc.h)"
+    - "calc.h"
+    - "utils.h"
+    - "types.h"
+  
+  change: "types.h modified"
+  
+  traditional_rebuild: "Recompile all .cpp files (main, utils, calc)"
+  
+  incremental_rebuild:
+    - "main.cpp - RECOMPILE (depends on types.h)"
+    - "utils.cpp - RECOMPILE (depends on types.h)"
+    - "calc.cpp - CACHED (no dependency on types.h)"
+    - "Result: 33% reduction in compilation"
+
+compilation_strategies:
+  - name: "Full"
+    when: "CI, clean builds, untrusted cache"
+    behavior: "Rebuild everything regardless of changes"
+  
+  - name: "Incremental (default)"
+    when: "Development builds"
+    behavior: "Rebuild changed files + transitive dependents"
+  
+  - name: "Minimal"
+    when: "Aggressive caching, known safe changes"
+    behavior: "Rebuild only directly changed files"
+
+integration_with_caching:
+  combined_optimization: |
+    1. IncrementalEngine determines which files need consideration
+    2. ActionCache checks if any can use cached results
+    3. Only truly necessary files are compiled
+    
+    Example:
+    - 100 source files in project
+    - 5 files changed
+    - 20 files depend on those 5 (incremental analysis)
+    - 12 of those 20 have valid action cache hits
+    - Result: Only 8 files actually compiled
+
+key_points:
+  - "Language-aware: C++ headers, Python imports, Java packages, etc."
+  - "Transitive: Tracks indirect dependencies (A→B→C, A affected by C)"
+  - "Persistent: Dependency graph survives across builds"
+  - "Fast: O(affected files) not O(all files)"
+  - "Works with action cache: Double optimization"
+
+supported_languages:
+  cpp:
+    - "Scans #include directives"
+    - "Resolves to actual header files via include paths"
+    - "Tracks system headers optionally"
+  
+  python:
+    - "Scans import statements"
+    - "Resolves to .py files via PYTHONPATH"
+    - "Handles relative imports"
+  
+  java:
+    - "Scans import statements"
+    - "Resolves to .class files via classpath"
+    - "Tracks package dependencies"
+  
+  rust:
+    - "Scans use statements and mod declarations"
+    - "Resolves via Cargo dependency graph"
+  
+  typescript:
+    - "Scans import/require statements"
+    - "Resolves via node_modules and tsconfig paths"
+
+performance_impact:
+  - "Small change (1 file): 95% faster (only compile 1 vs 100)"
+  - "Header change (10 dependents): 90% faster (compile 10 vs 100)"
+  - "Large refactor (50 affected): 50% faster (compile 50 vs 100)"
+  - "Overhead: ~50ms for dependency analysis on 1000-file project"
+
+usage:
+  automatic: "Enabled by default for all builds"
+  
+  force_full: "builder build --incremental=false"
+  
+  force_minimal: "builder build --incremental=minimal"
+  
+  view_analysis: |
+    builder build //target --explain-rebuild
+    Output:
+      Rebuilding 8/100 files:
+        main.cpp: dependency changed (types.h)
+        utils.cpp: dependency changed (types.h)
+        calc.cpp: source file modified
+        ... (5 more)
+
+configuration:
+  - var: "BUILDER_INCREMENTAL_STRATEGY"
+    values: ["full", "incremental", "minimal"]
+    default: "incremental"
+  
+  - var: "BUILDER_TRACK_SYSTEM_HEADERS"
+    default: "false"
+    description: "Track system headers (slower, more accurate)"
+
+common_patterns:
+  refactoring:
+    problem: "Moving code between files"
+    solution: "Many files recompile, but action cache can help if content unchanged"
+  
+  header_guards:
+    problem: "Header changed but guarded content unchanged"
+    solution: "Files recompile but likely cache hit"
+  
+  forward_declarations:
+    optimization: "Use forward declarations to reduce dependencies"
+    benefit: "Fewer files need recompilation on changes"
+
+related: [caching, action-cache, dependency-tracking]
+
+troubleshooting:
+  - problem: "Too many files recompiling"
+    cause: "Widely-included header changed"
+    solution: "Split header, use forward declarations, or use PIMPL pattern"
+  
+  - problem: "Incremental build incorrect"
+    cause: "Missing dependency (hidden include)"
+    solution: "Run full build: builder build --incremental=false"
+  
+  - problem: "Dependency analysis slow"
+    cause: "Tracking system headers"
+    solution: "Set BUILDER_TRACK_SYSTEM_HEADERS=false"
+
+next_steps: |
+  - See 'builder explain action-cache' for complementary optimization
+  - See 'builder explain caching' for overall caching strategy
+  - See 'builder explain example incremental' for code examples
+

@@ -187,6 +187,9 @@ void main(string[] args)
                 auto helpCommand = args.length > 2 ? args[2] : "";
                 HelpCommand.execute(helpCommand);
                 break;
+            case "explain":
+                ExplainCommand.execute(args);
+                break;
             case "version":
                 writeln("Builder version 1.0.6");
                 writeln("High-performance build system for mixed-language monorepos");

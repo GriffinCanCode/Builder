@@ -1,0 +1,54 @@
+topic: hermetic
+category: concepts
+summary: "Isolated build execution with sandboxed environments"
+definition: |
+  Hermetic builds execute in isolated environments where all inputs are explicitly
+  declared and controlled. No undeclared dependencies or network access is allowed,
+  ensuring builds are reproducible and cacheable.
+  
+  Builder uses OS-level sandboxing (namespaces on Linux, sandbox-exec on macOS) to
+  enforce hermeticity.
+
+what_hermeticity_provides:
+  - "Controlled inputs: Only declared files are accessible"
+  - "No network access: Prevents downloading during build"
+  - "No system dependencies: Forces explicit declaration"
+  - "Reproducible: Same inputs → same environment"
+  - "Cacheable: Can trust cache because inputs are known"
+
+vs_non_hermetic:
+  traditional_builds:
+    - "Can access entire filesystem"
+    - "Can use system-installed tools without declaring them"
+    - "Can download from internet"
+    - "Results vary by machine configuration"
+  
+  hermetic_builds:
+    - "Only declared files accessible"
+    - "Must explicitly declare all tools and dependencies"
+    - "No network allowed"
+    - "Identical results everywhere"
+
+implementation:
+  linux: "User namespaces, mount namespaces, PID namespaces"
+  macos: "sandbox-exec with custom profile"
+  windows: "Job objects and restricted tokens"
+
+key_points:
+  - "Enforces explicit dependencies"
+  - "Enables reliable caching"
+  - "Prevents accidental dependency on system state"
+  - "Foundation for deterministic builds"
+  - "Required for distributed execution"
+
+hermetic_vs_deterministic:
+  hermetic: "Same inputs, isolated environment"
+  deterministic: "Same inputs → bit-for-bit same outputs"
+  relationship: "Hermetic is necessary but not sufficient for determinism"
+
+related: [determinism, caching, remote-execution, sandbox]
+
+next_steps: |
+  - See 'builder explain determinism' for the next level of reproducibility
+  - See 'builder explain remote-execution' for how hermeticity enables distributed builds
+

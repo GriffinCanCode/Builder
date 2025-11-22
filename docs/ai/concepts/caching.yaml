@@ -1,0 +1,139 @@
+topic: caching
+category: concepts
+summary: "Multi-tier caching system: target-level, action-level, and remote"
+definition: |
+  Builder's caching system stores build outputs to avoid redundant work. It operates
+  on three levels: target-level (complete builds), action-level (individual compile
+  steps), and remote caching (shared across machines/CI).
+  
+  Caches use BLAKE3 content hashing for validation and support automatic eviction
+  based on LRU, age, and size policies.
+
+architecture:
+  tiers:
+    - name: "Target-Level Cache"
+      location: ".builder-cache/cache.bin"
+      granularity: "Complete target outputs"
+      use_case: "Full target hasn't changed at all"
+      hit_time: "O(1) lookup + O(n) hash validation"
+      
+    - name: "Action-Level Cache"
+      location: ".builder-cache/actions/actions.bin"
+      granularity: "Individual compile/link/test actions"
+      use_case: "Some files changed, reuse unchanged compilations"
+      hit_time: "O(1) per action + O(inputs) validation"
+      
+    - name: "Remote Cache"
+      location: "HTTP server or CDN"
+      granularity: "Same as local caches, but shared"
+      use_case: "CI builds, team collaboration, clean checkouts"
+      hit_time: "Network RTT + transfer time"
+
+how_it_works:
+  target_cache: |
+    1. Compute hash of all sources + dependencies + flags
+    2. Check if hash exists in cache
+    3. If hit: Validate outputs still exist and match stored hashes
+    4. If valid: Skip build entirely
+    5. If miss: Build and store outputs with hash
+    
+  action_cache: |
+    1. Break build into actions (compile file1, compile file2, link, test)
+    2. For each action, compute hash of inputs + metadata
+    3. Check action cache for existing result
+    4. If hit: Reuse cached output (e.g., object file)
+    5. If miss: Execute action and cache result
+    
+  remote_cache: |
+    Read: Local first → Remote on miss → Pull to local
+    Write: Local immediately → Remote async (background)
+
+key_points:
+  - "Content-addressable: Cache keys are BLAKE3 hashes of inputs"
+  - "Deterministic: Same inputs must produce same outputs"
+  - "Validated: Outputs are re-hashed to detect corruption"
+  - "Eviction: LRU + age-based + size-based policies"
+  - "Thread-safe: Concurrent access from multiple build threads"
+  - "Persistent: Survives across builds, stored in .builder-cache/"
+
+cache_validation:
+  - "Input hash matches stored hash"
+  - "Output files exist on disk"
+  - "Output file hashes match stored hashes"
+  - "Metadata matches (flags, env vars, compiler version)"
+  - "Not expired (default: 30 days max age)"
+
+performance_impact:
+  - "Clean build with warm cache: 90-95% faster"
+  - "Incremental build (10% changed): 60-80% faster"
+  - "CI with remote cache: 70-85% faster than cold build"
+  - "Action cache hit: Skip compilation entirely (~100ms saved per file)"
+
+configuration:
+  env_vars:
+    - name: "BUILDER_CACHE_MAX_SIZE"
+      default: "10GB"
+      description: "Maximum local cache size"
+    
+    - name: "BUILDER_CACHE_MAX_AGE_DAYS"
+      default: "30"
+      description: "Maximum age before eviction"
+    
+    - name: "BUILDER_ACTION_CACHE_MAX_ENTRIES"
+      default: "50000"
+      description: "Maximum cached actions"
+    
+    - name: "BUILDER_REMOTE_CACHE_URL"
+      default: "none"
+      description: "Remote cache server URL"
+
+usage_examples:
+  - description: "Check if build is cached"
+    command: "builder build //target"
+    output: |
+      [Cache Hit] //target - 32ms (skipped build)
+  
+  - description: "Clean cache and rebuild"
+    command: "builder clean && builder build //target"
+  
+  - description: "View cache statistics"
+    command: "builder telemetry cache"
+    output: |
+      Target Cache: 1,248 entries, 2.4 GB, 87.3% hit rate
+      Action Cache: 15,392 actions, 420 MB, 91.2% hit rate
+      Remote Cache: Enabled, 245 uploads, 1,892 downloads
+  
+  - description: "Enable remote cache"
+    command: "export BUILDER_REMOTE_CACHE_URL=https://cache.company.com"
+
+cache_hierarchy:
+  decision_flow: |
+    Is target cached locally?
+    ├─ YES → Validate → Use cached output (fastest)
+    └─ NO → Is target cached remotely?
+        ├─ YES → Download to local → Use (fast)
+        └─ NO → Check action cache for partial reuse
+            ├─ SOME HITS → Partial rebuild (medium)
+            └─ ALL MISSES → Full rebuild (slow)
+
+related: [blake3, determinism, action-cache, remote-cache, incremental, content-addressable-storage]
+
+common_issues:
+  - problem: "Cache always misses"
+    cause: "Non-deterministic builds (timestamps, random values)"
+    solution: "See 'builder explain determinism' to fix"
+  
+  - problem: "Cache growing too large"
+    cause: "No eviction policy configured"
+    solution: "Set BUILDER_CACHE_MAX_SIZE or run 'builder clean'"
+  
+  - problem: "Remote cache slow"
+    cause: "Network latency or large artifacts"
+    solution: "Use CDN or compression, or disable for local dev"
+
+next_steps: |
+  - See 'builder explain action-cache' for fine-grained caching
+  - See 'builder explain remote-cache' for team collaboration setup
+  - See 'builder explain determinism' to ensure cache reliability
+  - See 'builder explain workflow setup-cache' for configuration guide
+
