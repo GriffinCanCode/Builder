@@ -8,6 +8,7 @@ import std.conv : to;
 import core.sync.mutex : Mutex;
 import infrastructure.utils.files.hash : FastHash;
 import infrastructure.errors;
+import infrastructure.errors.helpers;
 
 /// Content-addressable storage with automatic deduplication
 /// Stores blobs by content hash, enabling zero-copy artifact sharing
@@ -56,8 +57,9 @@ final class ContentAddressableStorage
         }
         catch (Exception e)
         {
-            return Err!(string, BuildError)(new CacheError(
-                "Failed to store blob: " ~ e.msg, ErrorCode.CacheWriteFailed));
+            return Err!(string, BuildError)(
+                createCacheError("Failed to store blob: " ~ e.msg, ErrorCode.CacheWriteFailed, blobPath)
+            );
         }
     }
     
@@ -71,8 +73,9 @@ final class ContentAddressableStorage
             synchronized (storageMutex)
             {
                 if (!exists(blobPath))
-                    return Err!(ubyte[], BuildError)(new CacheError(
-                        "Blob not found: " ~ hash, ErrorCode.CacheNotFound));
+                    return Err!(ubyte[], BuildError)(
+                        createCacheError("Blob not found: " ~ hash, ErrorCode.CacheNotFound, blobPath)
+                    );
                 
                 return Ok!(ubyte[], BuildError)(cast(ubyte[])read(blobPath));
             }

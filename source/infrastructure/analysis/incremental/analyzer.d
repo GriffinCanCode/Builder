@@ -59,9 +59,15 @@ final class IncrementalAnalyzer
         if (changesResult.isErr)
         {
             Logger.warning("Change tracking failed, incremental analysis disabled");
-            return Result!(TargetAnalysis, BuildError).err(
-                new AnalysisError(target.name, "Incremental analysis unavailable - change tracking failed")
+            auto error = createAnalysisError(
+                target.name,
+                "Incremental analysis unavailable - change tracking failed",
+                ErrorCode.AnalysisFailed
             );
+            error.addContext(ErrorContext("initializing incremental analysis", "change tracking initialization failed"));
+            error.addSuggestion(ErrorSuggestion("Full rebuild will be performed"));
+            error.addSuggestion(ErrorSuggestion.fileCheck("Check file system permissions for change tracking"));
+            return Result!(TargetAnalysis, BuildError).err(error);
         }
         
         auto changes = changesResult.unwrap();

@@ -41,4 +41,7 @@ public import infrastructure.errors.formatting.format;
 public import infrastructure.errors.handling.recovery;
 public import infrastructure.errors.handling.aggregate;
 public import infrastructure.errors.adaptation.adapt;
+public import infrastructure.errors.helpers;
+public import infrastructure.errors.utils.snippets;
+public import infrastructure.errors.utils.fuzzy;
 

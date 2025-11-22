@@ -14,6 +14,7 @@ import infrastructure.config.caching.parse;
 import infrastructure.analysis.detection.inference;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
+import infrastructure.errors.helpers;
 
 /// High-level configuration parser
 /// Wraps the unified parser and provides workspace-level parsing
@@ -47,10 +48,13 @@ class ConfigParser
                 
                 if (config.targets.empty)
                 {
-                    auto error = new ParseError(root, 
-                        "No Builderfile found and no build targets could be automatically inferred", 
-                        ErrorCode.ParseFailed);
-                    error.addSuggestion("Run 'builder init' to create a Builderfile");
+                    auto error = createParseError(
+                        root,
+                        "No Builderfile found and no build targets could be automatically inferred",
+                        ErrorCode.InvalidConfiguration
+                    );
+                    error.addSuggestion(ErrorSuggestion.command("Create a Builderfile", "builder init"));
+                    error.addSuggestion(ErrorSuggestion.docs("See zero-config mode", "docs/user-guides/examples.md"));
                     return Err!(WorkspaceConfig, BuildError)(error);
                 }
                 
@@ -59,10 +63,14 @@ class ConfigParser
             }
             catch (Exception e)
             {
-                auto error = new ParseError(root, 
-                    "Failed to automatically infer build targets: " ~ e.msg, 
-                    ErrorCode.ParseFailed);
-                error.addSuggestion("Create a Builderfile manually: builder init");
+                auto error = createParseError(
+                    root,
+                    "Failed to automatically infer build targets: " ~ e.msg,
+                    ErrorCode.AnalysisFailed
+                );
+                error.addSuggestion(ErrorSuggestion.command("Create a Builderfile manually", "builder init"));
+                error.addSuggestion(ErrorSuggestion.command("Run with verbose output", "builder build --verbose"));
+                error.addContext(ErrorContext("auto-inference", e.msg));
                 return Err!(WorkspaceConfig, BuildError)(error);
             }
         }
