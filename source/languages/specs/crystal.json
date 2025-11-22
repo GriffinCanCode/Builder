@@ -1,0 +1,34 @@
+{
+  "language": {
+    "name": "crystal",
+    "display": "Crystal",
+    "category": "compiled",
+    "extensions": [".cr"],
+    "aliases": ["cr", "crystal"]
+  },
+  "detection": {
+    "shebang": ["#!/usr/bin/env crystal"],
+    "files": ["shard.yml", "shard.lock"],
+    "version_cmd": "crystal --version"
+  },
+  "build": {
+    "compiler": "crystal",
+    "compile_cmd": "crystal build {{sources}} -o {{output}} {{flags}}",
+    "test_cmd": "crystal spec {{sources}}",
+    "format_cmd": "crystal tool format {{sources}}",
+    "lint_cmd": "crystal tool format --check {{sources}}",
+    "check_cmd": "crystal build --no-codegen {{sources}}",
+    "env": {
+      "CRYSTAL_PATH": "lib:{{workspace}}"
+    },
+    "incremental": false,
+    "caching": true
+  },
+  "dependencies": {
+    "pattern": "require \"([^\"]+)\"",
+    "resolver": "shard",
+    "manifest": "shard.yml",
+    "install_cmd": "shards install"
+  }
+}
+

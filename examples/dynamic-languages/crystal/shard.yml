@@ -1,0 +1,10 @@
+name: hello
+version: 1.0.0
+
+authors:
+  - Builder Team
+
+crystal: ">= 1.0.0"
+
+license: MIT
+

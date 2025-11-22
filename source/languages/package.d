@@ -6,6 +6,7 @@ module languages;
 /// Architecture:
 ///   registry.d   - **Central source of truth** for all language definitions, aliases, and metadata
 ///   base.d       - Base language interface
+///   dynamic/     - **NEW**: Zero-code language addition via declarative specs
 ///   python/      - Python language support (modular)
 ///   javascript/  - JavaScript/Node.js support (modular)
 ///   typescript/  - TypeScript support with type checking (modular)
@@ -30,6 +31,11 @@ module languages;
 ///   ocaml/       - OCaml language support (modular - dune, ocamlopt, ocamlc, opam)
 ///   protobuf/    - Protocol Buffers support (modular - protoc, buf, code generation)
 ///   elm/         - Elm language support (functional, web, compiles to JavaScript)
+/// 
+/// Dynamic Language Support
+///   Instead of 150+ lines of D code per language, define languages via JSON specs.
+///   See languages/specs/ for examples (Crystal, Dart, V).
+///   Community can contribute language support without knowing D!
 ///
 /// IMPORTANT: When adding support for a new language:
 /// 1. Add the language to the TargetLanguage enum in config/schema/schema.d
@@ -54,6 +60,7 @@ module languages;
 
 public import languages.base.base;
 public import languages.base.mixins;
+public import languages.dynamic;  // Universal Language Abstraction
 public import languages.scripting.python;
 public import languages.web;
 public import languages.scripting.go;

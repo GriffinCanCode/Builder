@@ -1,0 +1,32 @@
+{
+  "language": {
+    "name": "v",
+    "display": "V",
+    "category": "compiled",
+    "extensions": [".v", ".vv"],
+    "aliases": ["v", "vlang"]
+  },
+  "detection": {
+    "shebang": ["#!/usr/bin/env v"],
+    "files": ["v.mod"],
+    "version_cmd": "v version"
+  },
+  "build": {
+    "compiler": "v",
+    "compile_cmd": "v {{flags}} -o {{output}} {{sources}}",
+    "test_cmd": "v test {{sources}}",
+    "format_cmd": "v fmt -w {{sources}}",
+    "lint_cmd": "v vet {{sources}}",
+    "check_cmd": "v check {{sources}}",
+    "env": {},
+    "incremental": false,
+    "caching": true
+  },
+  "dependencies": {
+    "pattern": "import\\s+([a-zA-Z0-9_.]+)",
+    "resolver": "module",
+    "manifest": "v.mod",
+    "install_cmd": "v install"
+  }
+}
+

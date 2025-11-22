@@ -1,0 +1,32 @@
+{
+  "language": {
+    "name": "dart",
+    "display": "Dart",
+    "category": "compiled",
+    "extensions": [".dart"],
+    "aliases": ["dart"]
+  },
+  "detection": {
+    "shebang": ["#!/usr/bin/env dart"],
+    "files": ["pubspec.yaml", "pubspec.lock"],
+    "version_cmd": "dart --version"
+  },
+  "build": {
+    "compiler": "dart",
+    "compile_cmd": "dart compile exe {{sources}} -o {{output}} {{flags}}",
+    "test_cmd": "dart test {{sources}}",
+    "format_cmd": "dart format {{sources}}",
+    "lint_cmd": "dart analyze {{sources}}",
+    "check_cmd": "dart analyze --fatal-infos {{sources}}",
+    "env": {},
+    "incremental": false,
+    "caching": true
+  },
+  "dependencies": {
+    "pattern": "import ['\"]([^'\"]+)['\"]",
+    "resolver": "package",
+    "manifest": "pubspec.yaml",
+    "install_cmd": "dart pub get"
+  }
+}
+

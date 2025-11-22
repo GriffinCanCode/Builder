@@ -1,0 +1,16 @@
+// Crystal language example using dynamic spec-based handler
+// No D code needed - language defined in source/languages/specs/crystal.json
+
+target("hello") {
+    type: executable;
+    language: crystal;
+    sources: ["src/hello.cr"];
+    outputPath: "hello";
+}
+
+target("test") {
+    type: test;
+    language: crystal;
+    sources: ["spec/hello_spec.cr"];
+}
+

@@ -1,0 +1,15 @@
+// Dart language example using dynamic spec-based handler
+
+target("hello") {
+    type: executable;
+    language: dart;
+    sources: ["lib/hello.dart"];
+    outputPath: "hello";
+}
+
+target("test") {
+    type: test;
+    language: dart;
+    sources: ["test/hello_test.dart"];
+}
+

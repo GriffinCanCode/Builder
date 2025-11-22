@@ -129,7 +129,9 @@ interface LanguageHandler {
 }
 ```
 
-**Supported Languages (20+):**
+**Supported Languages (26+):**
+
+*Built-in Handlers (D Implementation):*
 - **Python**: AST validation, executable wrappers
 - **JavaScript**: Advanced bundling system with esbuild, webpack, and rollup support
 - **TypeScript**: Dedicated type-first handler with tsc, swc, and esbuild compilers
@@ -148,6 +150,15 @@ interface LanguageHandler {
 - **Elixir**: `mix` and `elixirc` BEAM compilation
 - **Nim**: `nim c` with optimization flags
 - **Lua**: Syntax validation, bytecode compilation
+- ...and more
+
+*Dynamic Spec-Based Languages (JSON Specifications):*
+- **Crystal** - Modern Ruby-like compiled language
+- **Dart** - Google's language for Flutter
+- **V** - Fast, safe, compiled language
+- **Your Language** - Add any language in ~20 lines of JSON!
+
+See [Universal Language Abstraction](universal-language-abstraction.md) for the revolutionary zero-code language addition system.
 
 **JavaScript Bundler System:**
 

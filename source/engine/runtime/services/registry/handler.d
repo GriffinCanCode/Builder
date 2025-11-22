@@ -2,6 +2,8 @@ module engine.runtime.services.registry.handler;
 
 import infrastructure.config.schema.schema : TargetLanguage;
 import languages.base.base : LanguageHandler;
+import languages.dynamic : SpecRegistry, SpecBasedHandler;
+import languages.registry : parseLanguageName;
 import infrastructure.errors;
 
 /// Handler registry interface
@@ -18,13 +20,19 @@ interface IHandlerRegistry
     
     /// Get all registered languages
     TargetLanguage[] languages();
+    
+    /// Get handler by string name (supports dynamic languages)
+    LanguageHandler getByName(string langName);
 }
 
 /// Concrete handler registry implementation
 /// Manages language handler lifecycle with lazy per-language loading
+/// Extended to support spec-based dynamic languages
 final class HandlerRegistry : IHandlerRegistry
 {
     private LanguageHandler[TargetLanguage] handlers;
+    private LanguageHandler[string] dynamicHandlers;  // For spec-based languages
+    private SpecRegistry specRegistry;
     
     /// Create handler on-demand for a specific language
     private LanguageHandler createHandler(TargetLanguage language) @trusted
@@ -113,10 +121,20 @@ final class HandlerRegistry : IHandlerRegistry
         }
     }
     
-    /// Legacy initialize method (now a no-op for compatibility)
-    void initialize() @safe
+    /// Initialize registry and load dynamic language specs
+    void initialize() @system
     {
-        // No longer needed - handlers are created on-demand
+        // Initialize spec registry for dynamic languages
+        specRegistry = new SpecRegistry();
+        auto result = specRegistry.loadAll();
+        
+        if (result.isOk)
+        {
+            import infrastructure.utils.logging.logger : Logger;
+            auto count = result.unwrap();
+            if (count > 0)
+                Logger.debugLog("Loaded " ~ count.to!string ~ " dynamic language specs");
+        }
     }
     
     LanguageHandler get(TargetLanguage language) @trusted
@@ -131,6 +149,36 @@ final class HandlerRegistry : IHandlerRegistry
             handlers[language] = handler;
         
         return handler;
+    }
+    
+    /// Get handler by string name (supports dynamic spec-based languages)
+    LanguageHandler getByName(string langName) @trusted
+    {
+        import std.conv : to;
+        
+        // First try built-in language enum lookup
+        auto language = parseLanguageName(langName);
+        if (language != TargetLanguage.Generic)
+        {
+            return get(language);
+        }
+        
+        // Check if already cached as dynamic handler
+        if (auto handler = langName in dynamicHandlers)
+            return *handler;
+        
+        // Try spec-based dynamic language
+        if (specRegistry is null)
+            initialize();
+        
+        if (auto spec = specRegistry.get(langName))
+        {
+            auto handler = new SpecBasedHandler(*spec);
+            dynamicHandlers[langName] = handler;
+            return handler;
+        }
+        
+        return null;
     }
     
     bool has(TargetLanguage language) @trusted
@@ -158,6 +206,11 @@ final class HandlerRegistry : IHandlerRegistry
 final class NullHandlerRegistry : IHandlerRegistry
 {
     LanguageHandler get(TargetLanguage language) @trusted
+    {
+        return null;
+    }
+    
+    LanguageHandler getByName(string langName) @trusted
     {
         return null;
     }

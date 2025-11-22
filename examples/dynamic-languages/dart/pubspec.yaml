@@ -1,0 +1,12 @@
+name: hello
+description: Dart example for Builder dynamic language support
+version: 1.0.0
+
+environment:
+  sdk: '>=2.17.0 <4.0.0'
+
+dependencies:
+
+dev_dependencies:
+  test: ^1.21.0
+
