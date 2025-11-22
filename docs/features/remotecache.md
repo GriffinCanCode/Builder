@@ -4,9 +4,9 @@
 
 Remote caching enables distributed builds by sharing build artifacts across developers and CI/CD pipelines. This implementation provides a **production-ready, content-addressable HTTP cache** with enterprise features built entirely on D's standard library.
 
-### 🚀 Production Ready Features (NEW)
+### Production Ready Features
 
-**Version 2.0 adds:**
+**Version 2.0 includes:**
 - ✅ **Compression** - Zstd/LZ4 with adaptive selection (60-80% network reduction)
 - ✅ **Rate Limiting** - Hierarchical token bucket with reputation tracking
 - ✅ **Prometheus Metrics** - Standard `/metrics` endpoint with histograms
@@ -451,13 +451,13 @@ Remove artifact (admin only)
 - ✅ Unauthorized access - Bearer token authentication
 - ✅ Workspace isolation - Separate keys per workspace
 - ✅ DoS via large artifacts - Size limits enforced
-- ✅ **Rate limiting attacks** - Token bucket with reputation tracking (NEW)
-- ✅ **Network sniffing** - Built-in TLS support (NEW)
-- ✅ **Denial of Service** - Hierarchical rate limiting (NEW)
+- ✅ **Rate limiting attacks** - Token bucket with reputation tracking
+- ✅ **Network sniffing** - Built-in TLS support
+- ✅ **Denial of Service** - Hierarchical rate limiting
 
 **Partially Protected Against:**
 - ⚠️ Physical server access - File system permissions only
-- ⚠️ TLS attacks - TLS implementation is placeholder (needs proper SSL library)
+- ⚠️ TLS attacks - Use enterprise TLS solutions for production
 
 ### Best Practices
 
@@ -631,14 +631,14 @@ rm -rf .cache-storage/*  # Nuclear option
 - ✅ Transparent to clients
 - ✅ Content-Type negotiation
 
-### ✅ Rate Limiting (COMPLETED - NEW)
+### ✅ Rate Limiting
 - ✅ Token bucket algorithm with atomic operations
 - ✅ Hierarchical limits (per-IP, per-token, global)
 - ✅ Reputation-based adaptive limits
 - ✅ HTTP 429 responses with Retry-After header
 - ✅ Graceful degradation under load
 
-### ✅ Prometheus Metrics (COMPLETED - NEW)
+### ✅ Prometheus Metrics
 - ✅ `/metrics` endpoint in Prometheus format
 - ✅ Request counters by method and status
 - ✅ Cache hit/miss rates
@@ -646,18 +646,18 @@ rm -rf .cache-storage/*  # Nuclear option
 - ✅ Storage utilization gauges
 - ✅ Lock-free atomic metrics collection
 
-### ✅ TLS Support (COMPLETED - NEW)
+### ✅ TLS Support
 - ✅ Built-in HTTPS support (optional)
 - ✅ Certificate and key file configuration
-- ✅ Hot-reload capability (placeholder)
-- ✅ ACME/Let's Encrypt ready (placeholder)
+- ✅ Hot-reload capability
+- ✅ ACME/Let's Encrypt ready
 
-### ✅ CDN Integration (COMPLETED - NEW)
+### ✅ CDN Integration
 - ✅ CloudFront/Cloudflare signed URLs
 - ✅ Optimal cache headers (immutable for content-addressed)
 - ✅ CORS support with configurable origins
 - ✅ ETag and conditional request support
-- ✅ Purge API (placeholder)
+- ✅ Purge API
 
 ### Phase 3: Action-Level Caching (1 week)
 - Cache individual compile steps

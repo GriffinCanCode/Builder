@@ -60,10 +60,10 @@ auto buildResult = handler.buildWithContext(buildContext);
 Context-aware SIMD operations without global state:
 
 ```d
-// OLD (DEPRECATED):
+// Deprecated approach:
 auto results = SIMDParallel.mapSIMD(data, func);
 
-// NEW (RECOMMENDED):
+// Recommended approach:
 auto caps = services.simdCapabilities;
 auto ctx = createSIMDContext(caps);
 auto results = ctx.mapParallel(data, func);

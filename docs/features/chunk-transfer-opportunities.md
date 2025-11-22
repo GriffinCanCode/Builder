@@ -53,7 +53,7 @@ auto updateResult = cacheClient.updateFileChunked(
 ```d
 class GraphCache
 {
-    // NEW: Chunked upload to remote cache
+    // Chunked upload to remote cache
     void putRemote(BuildGraph graph, RemoteCacheClient cacheClient)
     {
         auto graphData = GraphStorage.serialize(graph);
@@ -147,7 +147,7 @@ saveCache();  // Serializes all entries
 ```d
 class ActionCache
 {
-    // NEW: Incremental remote sync
+    // Incremental remote sync
     void syncToRemote(RemoteCacheClient cacheClient)
     {
         // Serialize action cache
@@ -196,7 +196,7 @@ client.send(serialized);  // Can be large (embedded data)
 ```d
 class DistributedQueue
 {
-    // NEW: Chunk-based action transfer
+    // Chunk-based action transfer
     void sendAction(ActionRequest action, Socket client)
     {
         // If action has large data, use chunking
@@ -247,7 +247,7 @@ appendToLog(event);  // Grows continuously
 ```d
 class TelemetryStorage
 {
-    // NEW: Chunked upload to monitoring
+    // Chunked upload to monitoring
     void uploadToMonitoring(RemoteCacheClient cacheClient)
     {
         auto logFile = buildPath(storageDir, "telemetry.log");
@@ -291,7 +291,7 @@ auto testData = read("fixtures/large_dataset.json");  // Can be 10MB+
 ```d
 class TestFramework
 {
-    // NEW: Chunked fixture distribution
+    // Chunked fixture distribution
     void distributeFixture(string fixturePath, TestWorker[] workers)
     {
         // Chunk large fixture once

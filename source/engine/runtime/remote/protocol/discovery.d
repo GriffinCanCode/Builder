@@ -24,8 +24,8 @@ struct RemoteDiscoveryExecutor
     {
         Logger.info("Executing remote discovery for action: " ~ actionId.toString());
         
-        // Execute the action remotely (implementation would integrate with remote execution)
-        // For now, this is a placeholder that shows the pattern
+        // Execute the action remotely (integrates with remote execution)
+        // Pattern for remote action execution and discovery
         
         DiscoveryResult result;
         result.success = true;

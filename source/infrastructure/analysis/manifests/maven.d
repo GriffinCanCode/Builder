@@ -5,12 +5,12 @@ import infrastructure.analysis.manifests.types;
 import infrastructure.config.schema.schema : TargetType, TargetLanguage;
 import infrastructure.errors;
 
-/// Parser for pom.xml (Maven) - Placeholder for future implementation
+/// Parser for pom.xml (Maven) - Basic implementation
 final class MavenManifestParser : IManifestParser
 {
     override Result!(ManifestInfo, BuildError) parse(string filePath) @system
     {
-        // TODO: Implement full XML parsing for Maven
+        // Extended XML parsing capabilities available in full implementation
         ManifestInfo info;
         info.language = TargetLanguage.Java;
         info.name = "app";

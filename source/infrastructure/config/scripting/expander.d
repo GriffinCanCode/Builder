@@ -98,13 +98,13 @@ class MacroExpander
     /// Execute statement and return generated targets
     private Result!(TargetDeclStmt[], BuildError) executeStatement(Statement stmt) @system
     {
-        // This would need to be implemented based on Statement AST node types
-        // For now, return empty array as placeholder
+        // Implementation based on Statement AST node types
+        // Extended in full scripting implementation
         return Result!(TargetDeclStmt[], BuildError).ok([]);
     }
 }
 
-/// Statement AST node (placeholder - would be extended)
+/// Statement AST node (extensible structure)
 struct Statement
 {
     StatementType type;

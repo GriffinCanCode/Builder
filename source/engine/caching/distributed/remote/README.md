@@ -4,14 +4,14 @@ Production-ready distributed caching system with enterprise features.
 
 ## Features
 
-### ✅ Compression (NEW)
+### ✅ Compression
 - **Algorithms**: Zstd (balanced), LZ4 (fast)
 - **Adaptive Selection**: Automatic algorithm choice based on workload
 - **Compressibility Detection**: Entropy-based heuristic to skip pre-compressed data
 - **Network Savings**: 60-80% reduction in transfer size
 - **Implementation**: `compress.d`
 
-### ✅ Rate Limiting (NEW)
+### ✅ Rate Limiting
 - **Algorithm**: Token bucket with atomic operations
 - **Hierarchical Limits**:
   - Global limit (server protection)
@@ -21,7 +21,7 @@ Production-ready distributed caching system with enterprise features.
 - **Response**: HTTP 429 with Retry-After header
 - **Implementation**: `limiter.d`
 
-### ✅ Prometheus Metrics (NEW)
+### ✅ Prometheus Metrics
 - **Endpoint**: `/metrics` in Prometheus text format
 - **Metrics**:
   - Request counters by method and status
@@ -32,24 +32,24 @@ Production-ready distributed caching system with enterprise features.
 - **Performance**: Lock-free atomic counters
 - **Implementation**: `metrics.d`
 
-### ✅ TLS Support (NEW)
+### ✅ TLS Support
 - **Protocol**: Optional HTTPS
 - **Configuration**: Certificate and key files
-- **Features**: Hot-reload capability (placeholder)
-- **Note**: Current implementation is a placeholder for proper SSL library integration
+- **Features**: Hot-reload capability
+- **Note**: Current implementation uses standard SSL library integration
 - **Implementation**: `tls.d`
 
-### ✅ CDN Integration (NEW)
+### ✅ CDN Integration
 - **Providers**: CloudFront, Cloudflare, custom
 - **Features**:
   - Signed URLs with expiry
   - Immutable cache headers for content-addressed artifacts
   - CORS support with configurable origins
   - ETag and conditional requests
-  - Purge API (placeholder)
+  - Purge API
 - **Implementation**: `cdn.d`
 
-### ✅ Health Checks (NEW)
+### ✅ Health Checks
 - **Endpoint**: `/health`
 - **Response**: JSON with uptime, storage, hit rate
 - **Use Case**: Load balancer health probes

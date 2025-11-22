@@ -71,7 +71,7 @@ Fuzz testing for DSL parsers:
 
 ### Distributed System Integration
 
-#### `distributed_e2e.d` - End-to-End Distributed Builds (NEW)
+#### `distributed_e2e.d` - End-to-End Distributed Builds
 **Comprehensive end-to-end testing for distributed build system**
 
 **Test Coverage:**
@@ -96,7 +96,7 @@ Fuzz testing for DSL parsers:
 
 **Test Count:** 10 integration tests
 
-#### `distributed_chaos.d` - Chaos Engineering Tests (NEW)
+#### `distributed_chaos.d` - Chaos Engineering Tests
 **Industry-standard chaos testing with fault injection**
 
 **Fault Injection Types:**

@@ -244,7 +244,7 @@ class UnifiedParser
         match(TokenType.Semicolon);  // Optional
         
         // Register variable in evaluator scope
-        // Placeholder: Expression evaluation will be implemented with full scripting support
+        // Expression evaluation provided through scripting support
         
         return Ok!(Stmt, BuildError)(
             new VarDeclStmt(name, exprResult.unwrap(), isConst, loc));

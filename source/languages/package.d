@@ -6,7 +6,7 @@ module languages;
 /// Architecture:
 ///   registry.d   - **Central source of truth** for all language definitions, aliases, and metadata
 ///   base.d       - Base language interface
-///   dynamic/     - **NEW**: Zero-code language addition via declarative specs
+///   dynamic/     - Zero-code language addition via declarative specs
 ///   python/      - Python language support (modular)
 ///   javascript/  - JavaScript/Node.js support (modular)
 ///   typescript/  - TypeScript support with type checking (modular)

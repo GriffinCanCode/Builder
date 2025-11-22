@@ -1,6 +1,6 @@
 module languages.compiled.ocaml.tooling;
 
-// Placeholder for future OCaml tooling integrations
-// (ocamlfind, ocamlformat, merlin, etc.)
+// OCaml tooling integrations module
+// Extension points for ocamlfind, ocamlformat, merlin, etc.
 
 

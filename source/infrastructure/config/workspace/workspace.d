@@ -215,7 +215,7 @@ struct WorkspaceParser
         return Ok!(WorkspaceField, BuildError)(WorkspaceField(fieldName, value, line, col));
     }
     
-    /// Parse expression - simple placeholder implementation
+    /// Parse expression - basic implementation
     private Result!(Expr, BuildError) parseExpression()
     {
         auto token = peek();

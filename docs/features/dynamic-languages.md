@@ -68,7 +68,7 @@ class CrystalHandler : BaseLanguageHandler {
 
 ```
 source/languages/
-├── dynamic/              # NEW: Dynamic language system
+├── dynamic/             # Dynamic language system
 │   ├── spec.d           # Specification parser and loader
 │   ├── handler.d        # Generic spec-based handler
 │   └── package.d        # Public API

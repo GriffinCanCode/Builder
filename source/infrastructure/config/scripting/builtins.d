@@ -235,13 +235,13 @@ private Result!(Value, BuildError) builtinAppend(Value[] args) @system
 
 private Result!(Value, BuildError) builtinFilter(Value[] args) @system
 {
-    // Note: This is a placeholder. Full implementation requires function calling
+    // Full implementation requires function calling support
     return err("filter() not yet implemented - requires function evaluation");
 }
 
 private Result!(Value, BuildError) builtinMap(Value[] args) @system
 {
-    // Note: This is a placeholder. Full implementation requires function calling
+    // Full implementation requires function calling support
     return err("map() not yet implemented - requires function evaluation");
 }
 

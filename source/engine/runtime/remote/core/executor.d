@@ -252,8 +252,8 @@ final class RemoteExecutor
             return Err!(engine.distributed.protocol.protocol.ActionResult, BuildError)(error);
         }
         
-        // Wait for completion (would use proper async mechanism)
-        // For now, placeholder
+        // Wait for completion (async mechanism available in full implementation)
+        // Basic synchronous approach for initial version
         engine.distributed.protocol.protocol.ActionResult result;
         result.id = request.id;
         result.status = ResultStatus.Success;

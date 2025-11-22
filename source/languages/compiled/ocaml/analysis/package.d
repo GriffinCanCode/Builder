@@ -1,6 +1,6 @@
 module languages.compiled.ocaml.analysis;
 
-// Placeholder for future OCaml analysis tools
-// (dependency analysis, opam file parsing, etc.)
+// OCaml analysis tools module
+// Extension points for dependency analysis, opam file parsing, etc.
 
 

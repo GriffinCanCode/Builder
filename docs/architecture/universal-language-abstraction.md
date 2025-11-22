@@ -133,11 +133,11 @@ crystal build src/main.cr src/lib.cr -o bin/app --release
 
 ```
 source/languages/
-├── dynamic/                    # NEW: Dynamic language system
+├── dynamic/                   # Dynamic language system
 │   ├── spec.d                 # LanguageSpec parser
 │   ├── handler.d              # SpecBasedHandler generator
 │   └── package.d              # Public API
-├── specs/                     # NEW: Language specifications
+├── specs/                     # Language specifications
 │   ├── crystal.json           # Crystal language
 │   ├── dart.json              # Dart language
 │   ├── v.json                 # V language
@@ -155,10 +155,10 @@ source/languages/
 final class HandlerRegistry : IHandlerRegistry
 {
     private LanguageHandler[TargetLanguage] handlers;      // Built-in
-    private LanguageHandler[string] dynamicHandlers;       // NEW: Spec-based
-    private SpecRegistry specRegistry;                     // NEW
+    private LanguageHandler[string] dynamicHandlers;       // Spec-based
+    private SpecRegistry specRegistry;
     
-    LanguageHandler getByName(string langName) @trusted    // NEW method
+    LanguageHandler getByName(string langName) @trusted
     {
         // Try built-in enum first
         auto language = parseLanguageName(langName);

@@ -6,7 +6,7 @@ module frontend.testframework;
 /// across all supported languages. It integrates with the existing
 /// language handlers and build system.
 /// 
-/// NEW FEATURES:
+/// Features:
 /// - Test sharding for parallel execution
 /// - Multi-level test result caching
 /// - Bayesian flaky test detection

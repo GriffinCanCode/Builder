@@ -175,7 +175,7 @@ Tests for CAS (content-addressable storage) with deduplication and garbage colle
 
 ### New Comprehensive Test Suites (80/20 Edge Case Coverage)
 
-#### `edge_cases.d` - Critical Edge Cases (NEW)
+#### `edge_cases.d` - Critical Edge Cases
 Comprehensive edge case testing following the 80/20 rule for maximum impact:
 
 **Concurrent Race Conditions:**
@@ -225,7 +225,7 @@ Comprehensive edge case testing following the 80/20 rule for maximum impact:
 - Large number of cache entries (1000+)
 - Very large blob storage (1MB+ blobs)
 
-#### `events_test.d` - Cache Events Testing (NEW)
+#### `events_test.d` - Cache Events Testing
 Comprehensive tests for cache event system and telemetry:
 
 **Event Creation and Properties:**
@@ -250,7 +250,7 @@ Comprehensive tests for cache event system and telemetry:
 **Realistic Event Sequences:**
 - Typical build event sequences
 
-#### `eviction_test.d` - Eviction Policy Tests (NEW)
+#### `eviction_test.d` - Eviction Policy Tests
 Focused tests on cache eviction policies and strategies:
 
 **Basic Eviction Tests:**
@@ -281,7 +281,7 @@ Focused tests on cache eviction policies and strategies:
 - BuildCache eviction integration
 - ActionCache eviction integration
 
-#### `integration_test.d` - Full System Integration (NEW)
+#### `integration_test.d` - Full System Integration
 End-to-end integration tests combining all caching components:
 
 **Multi-Tier Caching Integration:**
