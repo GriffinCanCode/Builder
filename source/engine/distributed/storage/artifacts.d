@@ -1,0 +1,475 @@
+module engine.distributed.storage.artifacts;
+
+import std.file : read, write, exists, mkdirRecurse, remove;
+import std.path : buildPath, dirName, baseName;
+import std.digest : toHexString;
+import std.string : toLower;
+import std.socket : Socket, TcpSocket, InternetAddress, SocketShutdown, SocketOptionLevel, SocketOption;
+import std.datetime : Duration, seconds;
+import std.conv : to;
+import engine.distributed.protocol.protocol : ArtifactId, InputSpec;
+import infrastructure.errors;
+import infrastructure.utils.logging.logger;
+import infrastructure.utils.crypto.blake3 : Blake3;
+
+/// Artifact with data
+struct InputArtifact
+{
+    ArtifactId id;
+    string path;
+    bool executable;
+    ubyte[] data;
+}
+
+/// Artifact store configuration
+struct ArtifactStoreConfig
+{
+    string localCachePath;      // Local disk cache directory
+    string remoteUrl;           // Remote artifact store URL (optional)
+    size_t maxLocalCacheSize;   // Max local cache size in bytes
+    bool enableRemote = true;   // Enable remote fetching/uploading
+    Duration timeout = 30.seconds;
+}
+
+/// Artifact store - manages fetching and uploading build artifacts
+final class ArtifactStore
+{
+    private ArtifactStoreConfig config;
+    private size_t currentCacheSize;
+    
+    this(ArtifactStoreConfig config) @safe
+    {
+        this.config = config;
+        
+        // Ensure local cache directory exists
+        if (config.localCachePath.length > 0)
+        {
+            try
+            {
+                import std.file : mkdirRecurse, exists;
+                if (!exists(config.localCachePath))
+                    mkdirRecurse(config.localCachePath);
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to create artifact cache directory: " ~ e.msg);
+            }
+        }
+    }
+    
+    /// Fetch artifact by ID
+    Result!(InputArtifact, BuildError) fetch(InputSpec spec) @trusted
+    {
+        InputArtifact artifact;
+        artifact.id = spec.id;
+        artifact.path = spec.path;
+        artifact.executable = spec.executable;
+        
+        // Try local cache first
+        auto localPath = getLocalPath(spec.id);
+        if (exists(localPath))
+        {
+            try
+            {
+                artifact.data = cast(ubyte[])read(localPath);
+                Logger.debugLog("Artifact fetched from local cache: " ~ spec.id.toString());
+                return Ok!(InputArtifact, BuildError)(artifact);
+            }
+            catch (Exception e)
+            {
+                Logger.warning("Failed to read from local cache: " ~ e.msg);
+                // Fall through to remote fetch
+            }
+        }
+        
+        // Try remote fetch if enabled
+        if (config.enableRemote && config.remoteUrl.length > 0)
+        {
+            auto remoteResult = fetchRemote(spec.id);
+            if (remoteResult.isOk)
+            {
+                artifact.data = remoteResult.unwrap();
+                
+                // Save to local cache
+                try
+                {
+                    saveToLocalCache(spec.id, artifact.data);
+                }
+                catch (Exception e)
+                {
+                    Logger.warning("Failed to save to local cache: " ~ e.msg);
+                }
+                
+                Logger.debugLog("Artifact fetched from remote: " ~ spec.id.toString());
+                return Ok!(InputArtifact, BuildError)(artifact);
+            }
+            else
+            {
+                Logger.error("Failed to fetch from remote: " ~ remoteResult.unwrapErr().message());
+            }
+        }
+        
+        // Artifact not found
+        auto error = new CacheError(
+            "Artifact not found: " ~ spec.id.toString(),
+            ErrorCode.CacheNotFound
+        );
+        return Err!(InputArtifact, BuildError)(error);
+    }
+    
+    /// Upload artifact
+    Result!BuildError upload(ArtifactId id, const ubyte[] data) @trusted
+    {
+        // Verify content hash matches ID
+        auto hasher = Blake3(0);
+        hasher.put(data);
+        auto actualHash = hasher.finish(32);
+        
+        if (actualHash[0 .. 32] != id.hash[0 .. 32])
+        {
+            auto error = new GenericError(
+                "Artifact hash mismatch: expected " ~ id.toString() ~ 
+                " but got " ~ toHexString(actualHash[0 .. 32]).toLower(),
+                ErrorCode.CacheInvalidData
+            );
+            return Result!BuildError.err(error);
+        }
+        
+        // Save to local cache
+        try
+        {
+            saveToLocalCache(id, data);
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Failed to save to local cache: " ~ e.msg);
+        }
+        
+        // Upload to remote if enabled
+        if (config.enableRemote && config.remoteUrl.length > 0)
+        {
+            auto remoteResult = uploadRemote(id, data);
+            if (remoteResult.isErr)
+            {
+                Logger.warning("Failed to upload to remote: " ~ remoteResult.unwrapErr().message());
+                // Don't fail - local cache is sufficient
+            }
+            else
+            {
+                Logger.debugLog("Artifact uploaded to remote: " ~ id.toString());
+            }
+        }
+        
+        return Ok!BuildError();
+    }
+    
+    /// Check if artifact exists locally
+    bool existsLocally(ArtifactId id) const @safe
+    {
+        auto localPath = getLocalPath(id);
+        return exists(localPath);
+    }
+    
+    /// Get local cache path for artifact
+    private string getLocalPath(ArtifactId id) const @safe
+    {
+        immutable hashStr = id.toString();
+        // Use 2-level directory structure for better filesystem performance
+        // e.g., /cache/ab/cd/abcd...
+        immutable subdir1 = hashStr[0 .. 2];
+        immutable subdir2 = hashStr[2 .. 4];
+        return buildPath(config.localCachePath, subdir1, subdir2, hashStr);
+    }
+    
+    /// Save artifact to local cache
+    private void saveToLocalCache(ArtifactId id, const ubyte[] data) @trusted
+    {
+        import std.file : write, mkdirRecurse;
+        
+        auto localPath = getLocalPath(id);
+        auto dir = dirName(localPath);
+        
+        if (!exists(dir))
+            mkdirRecurse(dir);
+        
+        write(localPath, data);
+        currentCacheSize += data.length;
+        
+        // Evict old entries if cache is too large
+        if (config.maxLocalCacheSize > 0 && currentCacheSize > config.maxLocalCacheSize)
+        {
+            evictOldEntries();
+        }
+    }
+    
+    /// Evict old cache entries (LRU-style)
+    private void evictOldEntries() @trusted
+    {
+        import std.file : dirEntries, SpanMode, timeLastModified;
+        import std.algorithm : sort;
+        import std.array : array;
+        
+        try
+        {
+            // Get all cached files sorted by modification time
+            auto files = dirEntries(config.localCachePath, SpanMode.depth)
+                .array
+                .sort!((a, b) => timeLastModified(a) < timeLastModified(b));
+            
+            // Remove oldest files until we're under the limit
+            size_t freed = 0;
+            foreach (file; files)
+            {
+                if (currentCacheSize - freed <= config.maxLocalCacheSize * 0.8) // 80% threshold
+                    break;
+                
+                try
+                {
+                    import std.file : getSize;
+                    immutable fileSize = getSize(file);
+                    remove(file);
+                    freed += fileSize;
+                    Logger.debugLog("Evicted cache entry: " ~ baseName(file));
+                }
+                catch (Exception e)
+                {
+                    Logger.warning("Failed to evict cache entry: " ~ e.msg);
+                }
+            }
+            
+            currentCacheSize -= freed;
+            Logger.info("Evicted " ~ freed.to!string ~ " bytes from artifact cache");
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Cache eviction failed: " ~ e.msg);
+        }
+    }
+    
+    /// Fetch artifact from remote store via HTTP
+    private Result!(ubyte[], BuildError) fetchRemote(ArtifactId id) @trusted
+    {
+        immutable url = config.remoteUrl ~ "/artifacts/" ~ id.toString();
+        return executeHttpGet(url);
+    }
+    
+    /// Upload artifact to remote store via HTTP
+    private Result!BuildError uploadRemote(ArtifactId id, const ubyte[] data) @trusted
+    {
+        immutable url = config.remoteUrl ~ "/artifacts/" ~ id.toString();
+        return executeHttpPut(url, data);
+    }
+    
+    /// Execute HTTP GET request
+    private Result!(ubyte[], BuildError) executeHttpGet(string url) @trusted
+    {
+        import std.string : indexOf, startsWith;
+        
+        // Parse URL
+        string host;
+        ushort port = 80;
+        string path;
+        
+        string remaining = url;
+        if (remaining.startsWith("http://"))
+            remaining = remaining[7 .. $];
+        else if (remaining.startsWith("https://"))
+        {
+            remaining = remaining[8 .. $];
+            port = 443;
+        }
+        
+        immutable slashPos = remaining.indexOf('/');
+        if (slashPos >= 0)
+        {
+            host = remaining[0 .. slashPos];
+            path = remaining[slashPos .. $];
+        }
+        else
+        {
+            host = remaining;
+            path = "/";
+        }
+        
+        // Extract port if present
+        immutable colonPos = host.indexOf(':');
+        if (colonPos >= 0)
+        {
+            port = host[colonPos + 1 .. $].to!ushort;
+            host = host[0 .. colonPos];
+        }
+        
+        try
+        {
+            auto addr = new InternetAddress(host, port);
+            auto socket = new TcpSocket();
+            socket.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, config.timeout);
+            socket.setOption(SocketOptionLevel.SOCKET, SocketOption.SNDTIMEO, config.timeout);
+            socket.connect(addr);
+            scope(exit) { socket.shutdown(SocketShutdown.BOTH); socket.close(); }
+            
+            // Build HTTP request
+            string request = "GET " ~ path ~ " HTTP/1.1\r\n";
+            request ~= "Host: " ~ host ~ "\r\n";
+            request ~= "Connection: close\r\n";
+            request ~= "\r\n";
+            
+            // Send request
+            socket.send(request);
+            
+            // Receive response
+            ubyte[] responseData;
+            ubyte[8192] buffer;
+            while (true)
+            {
+                auto received = socket.receive(buffer);
+                if (received <= 0)
+                    break;
+                responseData ~= buffer[0 .. received];
+            }
+            
+            // Parse HTTP response
+            immutable responseStr = cast(string)responseData;
+            immutable headersEnd = responseStr.indexOf("\r\n\r\n");
+            if (headersEnd < 0)
+            {
+                auto error = new NetworkError("Invalid HTTP response", ErrorCode.NetworkError);
+                return Err!(ubyte[], BuildError)(error);
+            }
+            
+            // Extract status code
+            immutable firstLine = responseStr[0 .. responseStr.indexOf('\r')];
+            import std.string : split;
+            auto parts = firstLine.split(' ');
+            if (parts.length < 2)
+            {
+                auto error = new NetworkError("Invalid HTTP status line", ErrorCode.NetworkError);
+                return Err!(ubyte[], BuildError)(error);
+            }
+            
+            immutable statusCode = parts[1].to!int;
+            if (statusCode == 404)
+            {
+                auto error = new CacheError("Artifact not found", ErrorCode.CacheNotFound);
+                return Err!(ubyte[], BuildError)(error);
+            }
+            else if (statusCode >= 400)
+            {
+                auto error = new NetworkError(
+                    "HTTP error: " ~ statusCode.to!string,
+                    ErrorCode.NetworkError
+                );
+                return Err!(ubyte[], BuildError)(error);
+            }
+            
+            // Extract body
+            auto body_ = cast(ubyte[])responseData[headersEnd + 4 .. $];
+            return Ok!(ubyte[], BuildError)(body_);
+        }
+        catch (Exception e)
+        {
+            auto error = new NetworkError("HTTP GET failed: " ~ e.msg, ErrorCode.NetworkError);
+            return Err!(ubyte[], BuildError)(error);
+        }
+    }
+    
+    /// Execute HTTP PUT request
+    private Result!BuildError executeHttpPut(string url, const ubyte[] data) @trusted
+    {
+        import std.string : indexOf, startsWith;
+        
+        // Parse URL (same as GET)
+        string host;
+        ushort port = 80;
+        string path;
+        
+        string remaining = url;
+        if (remaining.startsWith("http://"))
+            remaining = remaining[7 .. $];
+        else if (remaining.startsWith("https://"))
+        {
+            remaining = remaining[8 .. $];
+            port = 443;
+        }
+        
+        immutable slashPos = remaining.indexOf('/');
+        if (slashPos >= 0)
+        {
+            host = remaining[0 .. slashPos];
+            path = remaining[slashPos .. $];
+        }
+        else
+        {
+            host = remaining;
+            path = "/";
+        }
+        
+        immutable colonPos = host.indexOf(':');
+        if (colonPos >= 0)
+        {
+            port = host[colonPos + 1 .. $].to!ushort;
+            host = host[0 .. colonPos];
+        }
+        
+        try
+        {
+            auto addr = new InternetAddress(host, port);
+            auto socket = new TcpSocket();
+            socket.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, config.timeout);
+            socket.setOption(SocketOptionLevel.SOCKET, SocketOption.SNDTIMEO, config.timeout);
+            socket.connect(addr);
+            scope(exit) { socket.shutdown(SocketShutdown.BOTH); socket.close(); }
+            
+            // Build HTTP request
+            string request = "PUT " ~ path ~ " HTTP/1.1\r\n";
+            request ~= "Host: " ~ host ~ "\r\n";
+            request ~= "Content-Length: " ~ data.length.to!string ~ "\r\n";
+            request ~= "Content-Type: application/octet-stream\r\n";
+            request ~= "\r\n";
+            
+            // Send request and body
+            socket.send(request);
+            socket.send(data);
+            
+            // Receive response
+            ubyte[4096] buffer;
+            ubyte[] responseData;
+            while (true)
+            {
+                auto received = socket.receive(buffer);
+                if (received <= 0)
+                    break;
+                responseData ~= buffer[0 .. received];
+            }
+            
+            // Check status code
+            immutable responseStr = cast(string)responseData;
+            if (responseStr.length > 0)
+            {
+                immutable firstLine = responseStr[0 .. responseStr.indexOf('\r')];
+                import std.string : split;
+                auto parts = firstLine.split(' ');
+                if (parts.length >= 2)
+                {
+                    immutable statusCode = parts[1].to!int;
+                    if (statusCode >= 400)
+                    {
+                        auto error = new NetworkError(
+                            "HTTP PUT error: " ~ statusCode.to!string,
+                            ErrorCode.NetworkError
+                        );
+                        return Result!BuildError.err(error);
+                    }
+                }
+            }
+            
+            return Ok!BuildError();
+        }
+        catch (Exception e)
+        {
+            auto error = new NetworkError("HTTP PUT failed: " ~ e.msg, ErrorCode.NetworkError);
+            return Result!BuildError.err(error);
+        }
+    }
+}
+

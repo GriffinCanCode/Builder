@@ -214,8 +214,14 @@ final class CdnManager
     /// Purge path from CloudFront
     private Result!BuildError purgeCloudFront(string path) @trusted
     {
-        import std.json : JSONValue;
+        import std.json : JSONValue, toJSON, parseJSON;
         import std.uuid : randomUUID;
+        import std.socket : Socket, TcpSocket, InternetAddress, SocketShutdown, SocketOptionLevel, SocketOption;
+        import std.datetime : Duration, seconds;
+        import std.digest.sha : sha256Of;
+        import std.digest.hmac : hmac, HMAC;
+        import std.base64 : Base64;
+        import std.datetime.systime : SysTime, Clock, UTC;
         
         if (config.distributionId.length == 0 || config.apiKey.length == 0)
         {
@@ -240,19 +246,25 @@ final class CdnManager
         
         immutable url = format("https://cloudfront.amazonaws.com/2020-05-31/distribution/%s/invalidation",
             config.distributionId);
+        immutable requestBody = request.toJSON();
         
-        // Would use AWS SDK or HTTP client here
-        // For now, log the operation
-        import infrastructure.utils.logging.logger;
-        Logger.info("CloudFront purge request for path: " ~ path);
+        // Execute HTTP POST with AWS Signature Version 4
+        auto httpResult = executeAwsRequest("POST", url, requestBody, config.apiKey, config.apiSecret);
         
+        if (httpResult.isErr)
+        {
+            Logger.error("CloudFront purge failed: " ~ httpResult.unwrapErr().message());
+            return Result!BuildError.err(httpResult.unwrapErr());
+        }
+        
+        Logger.info("CloudFront purge request successful for path: " ~ path);
         return Ok!BuildError();
     }
     
     /// Purge path from Cloudflare
     private Result!BuildError purgeCloudflare(string path) @trusted
     {
-        import std.json : JSONValue;
+        import std.json : JSONValue, toJSON, parseJSON;
         
         if (config.distributionId.length == 0 || config.apiKey.length == 0)
         {
@@ -270,12 +282,42 @@ final class CdnManager
         immutable url = format("https://api.cloudflare.com/client/v4/zones/%s/purge_cache",
             config.distributionId);
         
-        // Would use HTTP client with Authorization header here
-        // Authorization: Bearer <apiKey>
-        import infrastructure.utils.logging.logger;
-        Logger.info("Cloudflare purge request for path: " ~ path);
+        // Execute HTTP POST with Bearer token
+        string[string] headers = [
+            "Authorization": "Bearer " ~ config.apiKey,
+            "Content-Type": "application/json"
+        ];
         
-        return Ok!BuildError();
+        auto httpResult = executeHttpRequest("POST", url, request.toJSON(), headers);
+        
+        if (httpResult.isErr)
+        {
+            Logger.error("Cloudflare purge failed: " ~ httpResult.unwrapErr().message());
+            return Result!BuildError.err(httpResult.unwrapErr());
+        }
+        
+        // Parse response to verify success
+        try
+        {
+            auto response = parseJSON(cast(string)httpResult.unwrap());
+            if ("success" in response && response["success"].type == JSONType.true_)
+            {
+                Logger.info("Cloudflare purge request successful for path: " ~ path);
+                return Ok!BuildError();
+            }
+            else
+            {
+                auto errorMsg = "errors" in response ? response["errors"].toString() : "Unknown error";
+                Logger.error("Cloudflare purge failed: " ~ errorMsg);
+                auto error = new GenericError("Cloudflare purge failed: " ~ errorMsg, ErrorCode.NetworkError);
+                return Result!BuildError.err(error);
+            }
+        }
+        catch (Exception e)
+        {
+            auto error = new GenericError("Failed to parse Cloudflare response: " ~ e.msg, ErrorCode.NetworkError);
+            return Result!BuildError.err(error);
+        }
     }
     
     /// Purge path from Fastly
@@ -293,12 +335,43 @@ final class CdnManager
         immutable url = format("https://api.fastly.com/purge/%s%s",
             config.domain, path);
         
-        // Would use HTTP POST with Fastly-Key header here
-        // Fastly-Key: <apiKey>
-        import infrastructure.utils.logging.logger;
-        Logger.info("Fastly purge request for path: " ~ path);
+        // Execute HTTP POST with Fastly-Key header
+        string[string] headers = [
+            "Fastly-Key": config.apiKey,
+            "Accept": "application/json"
+        ];
         
-        return Ok!BuildError();
+        auto httpResult = executeHttpRequest("POST", url, "", headers);
+        
+        if (httpResult.isErr)
+        {
+            Logger.error("Fastly purge failed: " ~ httpResult.unwrapErr().message());
+            return Result!BuildError.err(httpResult.unwrapErr());
+        }
+        
+        // Fastly returns 200 with {"status":"ok"} on success
+        try
+        {
+            import std.json : parseJSON, JSONType;
+            auto response = parseJSON(cast(string)httpResult.unwrap());
+            if ("status" in response && response["status"].str == "ok")
+            {
+                Logger.info("Fastly purge request successful for path: " ~ path);
+                return Ok!BuildError();
+            }
+            else
+            {
+                auto errorMsg = response.toString();
+                Logger.error("Fastly purge failed: " ~ errorMsg);
+                auto error = new GenericError("Fastly purge failed: " ~ errorMsg, ErrorCode.NetworkError);
+                return Result!BuildError.err(error);
+            }
+        }
+        catch (Exception e)
+        {
+            auto error = new GenericError("Failed to parse Fastly response: " ~ e.msg, ErrorCode.NetworkError);
+            return Result!BuildError.err(error);
+        }
     }
     
     private string signUrl(string data) const @trusted
@@ -325,6 +398,285 @@ final class CdnManager
         
         // RFC 7231 HTTP date format (RFC 822/1123 format)
         return expiry.toISOExtString();
+    }
+    
+    /// Execute generic HTTP request with headers
+    private Result!(ubyte[], BuildError) executeHttpRequest(
+        string method,
+        string url,
+        string body_,
+        string[string] headers
+    ) @trusted
+    {
+        import std.socket : Socket, TcpSocket, InternetAddress, SocketShutdown, SocketOptionLevel, SocketOption;
+        import std.datetime : seconds;
+        import std.uri : decode;
+        import std.string : indexOf, toLower;
+        
+        // Parse URL
+        auto urlParts = parseHttpUrl(url);
+        if (urlParts.host.length == 0)
+        {
+            auto error = new GenericError("Invalid URL: " ~ url, ErrorCode.ConfigError);
+            return Err!(ubyte[], BuildError)(error);
+        }
+        
+        try
+        {
+            // Create socket and connect
+            auto addr = new InternetAddress(urlParts.host, urlParts.port);
+            auto socket = new TcpSocket();
+            socket.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, 30.seconds);
+            socket.setOption(SocketOptionLevel.SOCKET, SocketOption.SNDTIMEO, 30.seconds);
+            socket.connect(addr);
+            scope(exit) { socket.shutdown(SocketShutdown.BOTH); socket.close(); }
+            
+            // Build HTTP request
+            immutable requestStr = buildHttpRequestString(method, urlParts.path, urlParts.host, body_, headers);
+            
+            // Send request
+            immutable sent = socket.send(requestStr);
+            if (sent != requestStr.length)
+            {
+                auto error = new NetworkError("Failed to send complete request", ErrorCode.NetworkError);
+                return Err!(ubyte[], BuildError)(error);
+            }
+            
+            // Receive response
+            ubyte[] responseData;
+            ubyte[4096] buffer;
+            while (true)
+            {
+                auto received = socket.receive(buffer);
+                if (received <= 0)
+                    break;
+                responseData ~= buffer[0 .. received];
+                
+                // Check if we've received complete response (simple heuristic)
+                if (responseData.length >= 4 && 
+                    responseData[$ - 4 .. $] == ['\r', '\n', '\r', '\n'])
+                    break;
+            }
+            
+            // Parse HTTP response
+            auto response = parseHttpResponse(responseData);
+            
+            if (response.statusCode >= 200 && response.statusCode < 300)
+                return Ok!(ubyte[], BuildError)(cast(ubyte[])response.body_);
+            else
+            {
+                auto error = new NetworkError(
+                    format("HTTP error %d: %s", response.statusCode, response.body_),
+                    ErrorCode.NetworkError
+                );
+                return Err!(ubyte[], BuildError)(error);
+            }
+        }
+        catch (Exception e)
+        {
+            auto error = new NetworkError("HTTP request failed: " ~ e.msg, ErrorCode.NetworkError);
+            return Err!(ubyte[], BuildError)(error);
+        }
+    }
+    
+    /// Execute AWS request with Signature Version 4
+    private Result!(ubyte[], BuildError) executeAwsRequest(
+        string method,
+        string url,
+        string body_,
+        string accessKey,
+        string secretKey
+    ) @trusted
+    {
+        import std.digest.sha : sha256Of, SHA256;
+        import std.digest.hmac : hmac;
+        import std.datetime.systime : Clock, UTC;
+        import std.string : toLower;
+        
+        // AWS Signature Version 4 signing
+        immutable timestamp = Clock.currTime(UTC()).toISOExtString()[0 .. 16].replace(":", "").replace("-", "");
+        immutable date = timestamp[0 .. 8];
+        
+        string[string] headers = [
+            "Content-Type": "application/json",
+            "X-Amz-Date": timestamp,
+            "Host": "cloudfront.amazonaws.com"
+        ];
+        
+        // Compute canonical request
+        immutable payloadHash = sha256Of(cast(ubyte[])body_).toHexString().toLower();
+        immutable canonicalRequest = format("%s\n%s\n\n%s\n\n%s\n%s",
+            method,
+            "/2020-05-31/distribution/" ~ config.distributionId ~ "/invalidation",
+            "content-type:application/json\nhost:cloudfront.amazonaws.com\nx-amz-date:" ~ timestamp,
+            "content-type;host;x-amz-date",
+            payloadHash
+        );
+        
+        // Compute string to sign
+        immutable canonicalHash = sha256Of(cast(ubyte[])canonicalRequest).toHexString().toLower();
+        immutable stringToSign = format("AWS4-HMAC-SHA256\n%s\n%s/us-east-1/cloudfront/aws4_request\n%s",
+            timestamp, date, canonicalHash);
+        
+        // Compute signature
+        auto kDate = hmac!SHA256(cast(ubyte[])("AWS4" ~ secretKey), cast(ubyte[])date);
+        auto kRegion = hmac!SHA256(kDate, cast(ubyte[])"us-east-1");
+        auto kService = hmac!SHA256(kRegion, cast(ubyte[])"cloudfront");
+        auto kSigning = hmac!SHA256(kService, cast(ubyte[])"aws4_request");
+        auto signature = hmac!SHA256(kSigning, cast(ubyte[])stringToSign);
+        
+        // Add authorization header
+        headers["Authorization"] = format(
+            "AWS4-HMAC-SHA256 Credential=%s/%s/us-east-1/cloudfront/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=%s",
+            accessKey, date, signature.toHexString().toLower()
+        );
+        
+        return executeHttpRequest(method, url, body_, headers);
+    }
+    
+    /// Parse HTTP URL into components
+    private struct HttpUrlParts
+    {
+        string host;
+        ushort port;
+        string path;
+    }
+    
+    private HttpUrlParts parseHttpUrl(string url) pure @safe
+    {
+        import std.string : indexOf, startsWith;
+        
+        HttpUrlParts parts;
+        parts.port = 80;
+        
+        string remaining = url;
+        
+        // Strip protocol
+        if (remaining.startsWith("https://"))
+        {
+            remaining = remaining[8 .. $];
+            parts.port = 443;
+        }
+        else if (remaining.startsWith("http://"))
+        {
+            remaining = remaining[7 .. $];
+        }
+        
+        // Extract host and path
+        immutable slashPos = remaining.indexOf('/');
+        if (slashPos >= 0)
+        {
+            parts.host = remaining[0 .. slashPos];
+            parts.path = remaining[slashPos .. $];
+        }
+        else
+        {
+            parts.host = remaining;
+            parts.path = "/";
+        }
+        
+        // Extract port if specified
+        immutable colonPos = parts.host.indexOf(':');
+        if (colonPos >= 0)
+        {
+            parts.port = to!ushort(parts.host[colonPos + 1 .. $]);
+            parts.host = parts.host[0 .. colonPos];
+        }
+        
+        return parts;
+    }
+    
+    /// Build HTTP request string
+    private string buildHttpRequestString(
+        string method,
+        string path,
+        string host,
+        string body_,
+        string[string] headers
+    ) pure @safe
+    {
+        import std.array : Appender;
+        
+        Appender!string req;
+        
+        // Request line
+        req ~= method;
+        req ~= " ";
+        req ~= path;
+        req ~= " HTTP/1.1\r\n";
+        
+        // Host header
+        req ~= "Host: ";
+        req ~= host;
+        req ~= "\r\n";
+        
+        // Custom headers
+        foreach (name, value; headers)
+        {
+            req ~= name;
+            req ~= ": ";
+            req ~= value;
+            req ~= "\r\n";
+        }
+        
+        // Content-Length if body present
+        if (body_.length > 0)
+        {
+            req ~= "Content-Length: ";
+            req ~= body_.length.to!string;
+            req ~= "\r\n";
+        }
+        
+        // End headers
+        req ~= "\r\n";
+        
+        // Body
+        if (body_.length > 0)
+            req ~= body_;
+        
+        return req.data;
+    }
+    
+    /// Parse HTTP response
+    private struct HttpResponse
+    {
+        int statusCode;
+        string body_;
+    }
+    
+    private HttpResponse parseHttpResponse(const ubyte[] data) pure @safe
+    {
+        import std.string : indexOf, lineSplitter;
+        import std.algorithm : splitter;
+        import std.array : array;
+        
+        HttpResponse response;
+        response.statusCode = 500;
+        
+        immutable dataStr = cast(string)data;
+        
+        // Find end of headers
+        immutable headersEnd = dataStr.indexOf("\r\n\r\n");
+        if (headersEnd < 0)
+            return response;
+        
+        // Parse status line
+        immutable firstLine = dataStr.lineSplitter().front;
+        auto parts = firstLine.splitter(' ').array;
+        if (parts.length >= 2)
+        {
+            try
+            {
+                response.statusCode = parts[1].to!int;
+            }
+            catch (Exception) {}
+        }
+        
+        // Extract body
+        if (headersEnd + 4 < dataStr.length)
+            response.body_ = dataStr[headersEnd + 4 .. $];
+        
+        return response;
     }
 }
 

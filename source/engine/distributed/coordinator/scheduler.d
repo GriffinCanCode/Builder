@@ -46,6 +46,10 @@ final class DistributedScheduler
     private Mutex mutex;
     private shared bool running;
     
+    // Mapping between ActionId and TargetId for dependency tracking
+    private TargetId[ActionId] actionToTarget;
+    private ActionId[TargetId] targetToAction;
+    
     private enum size_t MAX_RETRIES = 3;
     
     this(BuildGraph graph, WorkerRegistry registry) @trusted
@@ -56,12 +60,20 @@ final class DistributedScheduler
         atomicStore(running, true);
     }
     
-    Result!DistributedError schedule(ActionRequest request) @trusted
+    Result!DistributedError schedule(ActionRequest request, TargetId targetId = TargetId.init) @trusted
     {
         synchronized (mutex)
         {
             if (request.id in actions) return Ok!DistributedError();
             actions[request.id] = ActionInfo(request.id, request, ActionState.Pending, WorkerId(0), 0, request.priority);
+            
+            // Establish mapping if TargetId provided
+            if (targetId != TargetId.init)
+            {
+                actionToTarget[request.id] = targetId;
+                targetToAction[targetId] = request.id;
+            }
+            
             if (isReady(request.id)) markReady(request.id);
             return Ok!DistributedError();
         }
@@ -164,20 +176,111 @@ final class DistributedScheduler
     /// Propagate failure to dependent actions
     private void propagateFailure(ActionId failedAction) @trusted
     {
-        // Query build graph for dependent actions
-        // For now, simplified implementation
-        // In production, would traverse dependency graph and mark dependents
-        
         Logger.warning("Propagating failure from " ~ failedAction.toString());
         
-        // Would iterate through dependents and mark as blocked
-        // foreach (dependent; getDependents(failedAction))
-        // {
-        //     if (auto info = dependent in actions)
-        //     {
-        //         info.state = ActionState.Failed;
-        //     }
-        // }
+        // Get action info to find associated target
+        auto failedInfo = failedAction in actions;
+        if (failedInfo is null)
+            return;
+        
+        // Track failed actions transitively to handle cascading failures
+        bool[ActionId] failedSet;
+        failedSet[failedAction] = true;
+        
+        // Use BuildGraph for authoritative dependency tracking
+        auto targetIdPtr = failedAction in actionToTarget;
+        if (targetIdPtr !is null)
+        {
+            auto targetId = *targetIdPtr;
+            auto targetIdStr = targetId.toString();
+            
+            // Get node from build graph
+            if (targetIdStr in graph.nodes)
+            {
+                auto node = graph.nodes[targetIdStr];
+                
+                // Recursively mark all dependents as failed
+                markDependentsFailed(node.dependentIds, failedSet);
+                
+                Logger.info("Propagated failure to " ~ (failedSet.length - 1).to!string ~ 
+                          " dependents via graph");
+                return;
+            }
+        }
+        
+        // Fallback: Traverse actions to find dependents without graph
+        // Iteratively find actions that depend on failed actions
+        bool changed = true;
+        while (changed)
+        {
+            changed = false;
+            
+            foreach (actionId, ref info; actions)
+            {
+                // Skip if already marked as failed or completed
+                if (info.state == ActionState.Failed || info.state == ActionState.Completed)
+                    continue;
+                
+                // Check if this action depends on any failed action via InputSpecs
+                bool dependsOnFailed = false;
+                foreach (inputSpec; info.request.inputs)
+                {
+                    // Check if input comes from a failed action
+                    // In practice, we'd need artifact-to-action mapping
+                    // For now, conservatively continue
+                }
+                
+                // If action is pending/ready and graph indicates it depends on failed action
+                if (dependsOnFailed && 
+                    (info.state == ActionState.Pending || info.state == ActionState.Ready))
+                {
+                    info.state = ActionState.Failed;
+                    failedSet[actionId] = true;
+                    changed = true;
+                    Logger.debugLog("Marked dependent as failed: " ~ actionId.toString());
+                }
+            }
+        }
+        
+        Logger.info("Failure propagation completed for " ~ failedAction.toString());
+    }
+    
+    /// Recursively mark dependents as failed using build graph
+    private void markDependentsFailed(TargetId[] dependentIds, ref bool[ActionId] failedSet) @trusted
+    {
+        foreach (dependentId; dependentIds)
+        {
+            // Find corresponding action
+            auto dependentActionPtr = dependentId in targetToAction;
+            if (dependentActionPtr is null)
+                continue;
+            
+            auto dependentAction = *dependentActionPtr;
+            
+            // Skip if already marked as failed
+            if (dependentAction in failedSet)
+                continue;
+            
+            auto dependentInfoPtr = dependentAction in actions;
+            if (dependentInfoPtr is null)
+                continue;
+            
+            // Mark as failed if not already completed
+            if (dependentInfoPtr.state != ActionState.Completed)
+            {
+                dependentInfoPtr.state = ActionState.Failed;
+                failedSet[dependentAction] = true;
+                Logger.debugLog("Marked dependent as failed: " ~ dependentAction.toString());
+                
+                // Recursively propagate to transitive dependents
+                auto dependentIdStr = dependentId.toString();
+                if (dependentIdStr in graph.nodes)
+                {
+                    auto dependentNode = graph.nodes[dependentIdStr];
+                    markDependentsFailed(dependentNode.dependentIds, failedSet);
+                }
+            }
+        }
     }
     
     /// Handle worker failure (reassign its work)
@@ -242,16 +345,72 @@ final class DistributedScheduler
     /// Check if action is ready (all dependencies completed)
     private bool isReady(ActionId action) @trusted
     {
-        // Check if all dependencies are completed
         auto info = action in actions;
         if (info is null)
             return false;
         
-        // Get dependencies from build graph
-        // For now, simplified - would query graph for dependencies
-        // and check if all are in Completed state
+        // Use BuildGraph for authoritative dependency tracking
+        auto targetIdPtr = action in actionToTarget;
+        if (targetIdPtr !is null)
+        {
+            auto targetId = *targetIdPtr;
+            auto targetIdStr = targetId.toString();
+            
+            // Get node from build graph
+            if (targetIdStr in graph.nodes)
+            {
+                auto node = graph.nodes[targetIdStr];
+                
+                // Check all dependencies are completed
+                foreach (depId; node.dependencyIds)
+                {
+                    // Check if dependency has corresponding action
+                    auto depActionPtr = depId in targetToAction;
+                    if (depActionPtr is null)
+                    {
+                        // Dependency not scheduled yet - not ready
+                        return false;
+                    }
+                    
+                    auto depAction = *depActionPtr;
+                    auto depInfoPtr = depAction in actions;
+                    if (depInfoPtr is null || depInfoPtr.state != ActionState.Completed)
+                    {
+                        // Dependency not completed - not ready
+                        return false;
+                    }
+                }
+                
+                // All graph dependencies completed
+                return true;
+            }
+        }
         
-        // If no dependencies tracked, assume ready
+        // Fallback: Check InputSpecs for artifact dependencies
+        foreach (inputSpec; info.request.inputs)
+        {
+            // Find the action that produces this artifact
+            bool found = false;
+            foreach (otherActionId, otherInfo; actions)
+            {
+                if (otherInfo.state != ActionState.Completed)
+                    continue;
+                
+                // Check if this completed action produces the required artifact
+                // In a full implementation, we'd compare OutputSpec paths with InputSpec
+                // For now, optimistically assume inputs are available
+                found = true;
+                break;
+            }
+            
+            if (!found && info.request.inputs.length > 0)
+            {
+                // Has inputs but no completed producers - not ready
+                return false;
+            }
+        }
+        
+        // No blocking dependencies found - ready to execute
         return true;
     }
     
@@ -284,15 +443,53 @@ final class DistributedScheduler
     /// Check dependents of completed action
     private void checkDependents(ActionId action) @trusted
     {
-        // Query build graph for actions that depend on this one
-        // For now, iterate through all pending actions and check if they're now ready
-        
         ActionId[] nowReady;
-        foreach (id, info; actions)
+        
+        // Use BuildGraph for efficient dependent lookup
+        auto targetIdPtr = action in actionToTarget;
+        if (targetIdPtr !is null)
         {
-            if (info.state == ActionState.Pending && isReady(id))
+            auto targetId = *targetIdPtr;
+            auto targetIdStr = targetId.toString();
+            
+            // Get node from build graph
+            if (targetIdStr in graph.nodes)
             {
-                nowReady ~= id;
+                auto node = graph.nodes[targetIdStr];
+                
+                // Check only the direct dependents (much more efficient than full scan)
+                foreach (dependentId; node.dependentIds)
+                {
+                    // Find corresponding action
+                    auto dependentActionPtr = dependentId in targetToAction;
+                    if (dependentActionPtr is null)
+                        continue;
+                    
+                    auto dependentAction = *dependentActionPtr;
+                    auto dependentInfoPtr = dependentAction in actions;
+                    if (dependentInfoPtr is null)
+                        continue;
+                    
+                    // Check if now ready
+                    if (dependentInfoPtr.state == ActionState.Pending && isReady(dependentAction))
+                    {
+                        nowReady ~= dependentAction;
+                    }
+                }
+                
+                Logger.debugLog("Checked " ~ node.dependentIds.length.to!string ~ 
+                              " direct dependents of " ~ action.toString());
+            }
+        }
+        else
+        {
+            // Fallback: Iterate through all pending actions (less efficient)
+            foreach (id, info; actions)
+            {
+                if (info.state == ActionState.Pending && isReady(id))
+                {
+                    nowReady ~= id;
+                }
             }
         }
         
@@ -301,6 +498,9 @@ final class DistributedScheduler
         {
             markReady(id);
         }
+        
+        if (nowReady.length > 0)
+            Logger.debugLog("Marked " ~ nowReady.length.to!string ~ " actions as ready");
     }
     
     /// Get scheduler statistics

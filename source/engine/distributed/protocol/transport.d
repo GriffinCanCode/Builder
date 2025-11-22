@@ -81,7 +81,7 @@ final class HttpTransport : Transport
             // Create envelope
             auto envelope = Envelope!T(WorkerId(0), recipient, message);
             
-            // Serialize (simplified - would use proper serialization)
+            // Serialize message using binary protocol
             auto data = serializeMessage(envelope);
             
             // Send with length prefix
@@ -156,6 +156,9 @@ final class HttpTransport : Transport
     
     /// Check if connected
     bool isConnected() @trusted => socket !is null && socket.isAlive;
+    
+    /// Get underlying socket for direct operations
+    Socket getSocket() @trusted => socket;
     
     /// Close connection
     void close() @trusted
@@ -283,8 +286,9 @@ final class HttpTransport : Transport
             {
                 if (payloadType != 1)
                     return Err!(Envelope!T, DistributedError)(new NetworkError("Type mismatch: expected ActionRequest"));
-                // ActionRequest deserialization is complex, return error for now
-                return Err!(Envelope!T, DistributedError)(new NetworkError("ActionRequest deserialization not yet implemented"));
+                auto result = ActionRequest.deserialize(payloadData);
+                if (result.isErr) return Err!(Envelope!T, DistributedError)(result.unwrapErr());
+                envelope.payload = result.unwrap();
             }
             else static if (is(T == ActionResult))
             {
@@ -589,8 +593,10 @@ final class HttpTransport : Transport
             
             if (resp.hasWork && data.length > 17)
             {
-                // ActionRequest deserialization would go here
-                // For now, just leave as default
+                auto actionResult = ActionRequest.deserialize(data[17 .. $]);
+                if (actionResult.isErr)
+                    return Err!(StealResponse, DistributedError)(actionResult.unwrapErr());
+                resp.action = actionResult.unwrap();
             }
             
             return Ok!(StealResponse, DistributedError)(resp);
