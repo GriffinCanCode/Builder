@@ -10,6 +10,7 @@ import core.atomic;
 import engine.graph : BuildGraph, BuildNode;
 import engine.distributed.protocol.protocol;
 import engine.distributed.coordinator.registry;
+import infrastructure.config.schema.schema : TargetId;
 import infrastructure.errors;
 import infrastructure.utils.logging.logger;
 
@@ -67,7 +68,6 @@ final class DistributedScheduler
             if (request.id in actions) return Ok!DistributedError();
             actions[request.id] = ActionInfo(request.id, request, ActionState.Pending, WorkerId(0), 0, request.priority);
             
-            // Establish mapping if TargetId provided
             if (targetId != TargetId.init)
             {
                 actionToTarget[request.id] = targetId;
@@ -84,8 +84,7 @@ final class DistributedScheduler
     {
         synchronized (mutex)
         {
-            if (readyQueue.empty)
-                return Err!(ActionRequest, DistributedError)(new DistributedError("No ready actions"));
+            if (readyQueue.empty) return Err!(ActionRequest, DistributedError)(new DistributedError("No ready actions"));
             
             auto actionId = readyQueue.front;
             readyQueue.removeFront();
@@ -140,33 +139,19 @@ final class DistributedScheduler
             if (auto info = action in actions)
             {
                 registry.markFailed(info.assignedWorker, action);
+                Logger.warning("Action failed: " ~ action.toString() ~ " (attempt " ~ (info.retries + 1).to!string ~ "/" ~ MAX_RETRIES.to!string ~ "): " ~ error);
                 
-                Logger.warning("Action failed: " ~ action.toString() ~ 
-                             " (attempt " ~ (info.retries + 1).to!string ~ "/" ~ MAX_RETRIES.to!string ~ 
-                             "): " ~ error);
-                
-                // Retry logic with backoff
                 if (info.retries < MAX_RETRIES)
                 {
                     info.retries++;
                     info.state = ActionState.Ready;
-                    
-                    // Priority-based retry placement
-                    // Higher priority = more aggressive retry (front of queue)
-                    if (info.priority >= Priority.High)
-                        readyQueue.insertFront(action);
-                    else
-                        readyQueue.insertBack(action);
-                    
+                    (info.priority >= Priority.High) ? readyQueue.insertFront(action) : readyQueue.insertBack(action);
                     Logger.info("Action queued for retry: " ~ action.toString());
                 }
                 else
                 {
                     info.state = ActionState.Failed;
-                    Logger.error("Action failed permanently after " ~ MAX_RETRIES.to!string ~ 
-                               " attempts: " ~ action.toString());
-                    
-                    // Mark dependent actions as blocked/failed
+                    Logger.error("Action failed permanently after " ~ MAX_RETRIES.to!string ~ " attempts: " ~ action.toString());
                     propagateFailure(action);
                 }
             }
@@ -178,61 +163,36 @@ final class DistributedScheduler
     {
         Logger.warning("Propagating failure from " ~ failedAction.toString());
         
-        // Get action info to find associated target
         auto failedInfo = failedAction in actions;
-        if (failedInfo is null)
-            return;
+        if (failedInfo is null) return;
         
-        // Track failed actions transitively to handle cascading failures
         bool[ActionId] failedSet;
         failedSet[failedAction] = true;
         
-        // Use BuildGraph for authoritative dependency tracking
-        auto targetIdPtr = failedAction in actionToTarget;
-        if (targetIdPtr !is null)
+        if (auto targetIdPtr = failedAction in actionToTarget)
         {
-            auto targetId = *targetIdPtr;
-            auto targetIdStr = targetId.toString();
-            
-            // Get node from build graph
+            auto targetIdStr = targetIdPtr.toString();
             if (targetIdStr in graph.nodes)
             {
-                auto node = graph.nodes[targetIdStr];
-                
-                // Recursively mark all dependents as failed
-                markDependentsFailed(node.dependentIds, failedSet);
-                
-                Logger.info("Propagated failure to " ~ (failedSet.length - 1).to!string ~ 
-                          " dependents via graph");
+                markDependentsFailed(graph.nodes[targetIdStr].dependentIds, failedSet);
+                Logger.info("Propagated failure to " ~ (failedSet.length - 1).to!string ~ " dependents via graph");
                 return;
             }
         }
         
         // Fallback: Traverse actions to find dependents without graph
-        // Iteratively find actions that depend on failed actions
         bool changed = true;
         while (changed)
         {
             changed = false;
-            
             foreach (actionId, ref info; actions)
             {
-                // Skip if already marked as failed or completed
-                if (info.state == ActionState.Failed || info.state == ActionState.Completed)
-                    continue;
+                if (info.state == ActionState.Failed || info.state == ActionState.Completed) continue;
                 
-                // Check if this action depends on any failed action via InputSpecs
                 bool dependsOnFailed = false;
-                foreach (inputSpec; info.request.inputs)
-                {
-                    // Check if input comes from a failed action
-                    // In practice, we'd need artifact-to-action mapping
-                    // For now, conservatively continue
-                }
+                foreach (inputSpec; info.request.inputs) {} // In practice, we'd need artifact-to-action mapping
                 
-                // If action is pending/ready and graph indicates it depends on failed action
-                if (dependsOnFailed && 
-                    (info.state == ActionState.Pending || info.state == ActionState.Ready))
+                if (dependsOnFailed && (info.state == ActionState.Pending || info.state == ActionState.Ready))
                 {
                     info.state = ActionState.Failed;
                     failedSet[actionId] = true;
@@ -250,95 +210,58 @@ final class DistributedScheduler
     {
         foreach (dependentId; dependentIds)
         {
-            // Find corresponding action
             auto dependentActionPtr = dependentId in targetToAction;
-            if (dependentActionPtr is null)
-                continue;
+            if (dependentActionPtr is null || *dependentActionPtr in failedSet) continue;
             
             auto dependentAction = *dependentActionPtr;
-            
-            // Skip if already marked as failed
-            if (dependentAction in failedSet)
-                continue;
-            
             auto dependentInfoPtr = dependentAction in actions;
-            if (dependentInfoPtr is null)
-                continue;
+            if (dependentInfoPtr is null) continue;
             
-            // Mark as failed if not already completed
             if (dependentInfoPtr.state != ActionState.Completed)
             {
                 dependentInfoPtr.state = ActionState.Failed;
                 failedSet[dependentAction] = true;
                 Logger.debugLog("Marked dependent as failed: " ~ dependentAction.toString());
                 
-                // Recursively propagate to transitive dependents
                 auto dependentIdStr = dependentId.toString();
                 if (dependentIdStr in graph.nodes)
-                {
-                    auto dependentNode = graph.nodes[dependentIdStr];
-                    markDependentsFailed(dependentNode.dependentIds, failedSet);
-                }
+                    markDependentsFailed(graph.nodes[dependentIdStr].dependentIds, failedSet);
             }
         }
     }
     
-    /// Handle worker failure (reassign its work)
-    /// Uses priority-aware reassignment to maintain critical path
+    /// Handle worker failure (reassign its work); Uses priority-aware reassignment to maintain critical path
     void onWorkerFailure(WorkerId worker) @trusted
     {
         synchronized (mutex)
         {
             auto inProgress = registry.inProgressActions(worker);
-            
-            // Track failed actions by priority for intelligent reassignment
             ActionId[][Priority] byPriority;
             
             foreach (actionId; inProgress)
             {
                 if (auto info = actionId in actions)
                 {
-                    // Reset to ready state for reassignment
                     info.state = ActionState.Ready;
                     info.assignedWorker = WorkerId(0);
-                    
-                    // Increment retry count
                     info.retries++;
-                    
-                    // Group by priority for front-of-queue insertion
                     byPriority[info.priority] ~= actionId;
                 }
             }
             
-            // Insert into queue with priority order
             // Critical and High priority work goes to front
             if (auto critical = Priority.Critical in byPriority)
-            {
-                foreach (actionId; *critical)
-                    readyQueue.insertFront(actionId);
-            }
-            
+                foreach (actionId; *critical) readyQueue.insertFront(actionId);
             if (auto high = Priority.High in byPriority)
-            {
-                foreach (actionId; *high)
-                    readyQueue.insertFront(actionId);
-            }
+                foreach (actionId; *high) readyQueue.insertFront(actionId);
             
             // Normal and Low priority work goes to back
             if (auto normal = Priority.Normal in byPriority)
-            {
-                foreach (actionId; *normal)
-                    readyQueue.insertBack(actionId);
-            }
-            
+                foreach (actionId; *normal) readyQueue.insertBack(actionId);
             if (auto low = Priority.Low in byPriority)
-            {
-                foreach (actionId; *low)
-                    readyQueue.insertBack(actionId);
-            }
+                foreach (actionId; *low) readyQueue.insertBack(actionId);
             
-            Logger.info("Reassigned " ~ inProgress.length.to!string ~ 
-                       " actions from failed worker " ~ worker.toString());
+            Logger.info("Reassigned " ~ inProgress.length.to!string ~ " actions from failed worker " ~ worker.toString());
         }
     }
     
@@ -346,42 +269,22 @@ final class DistributedScheduler
     private bool isReady(ActionId action) @trusted
     {
         auto info = action in actions;
-        if (info is null)
-            return false;
+        if (info is null) return false;
         
-        // Use BuildGraph for authoritative dependency tracking
-        auto targetIdPtr = action in actionToTarget;
-        if (targetIdPtr !is null)
+        if (auto targetIdPtr = action in actionToTarget)
         {
-            auto targetId = *targetIdPtr;
-            auto targetIdStr = targetId.toString();
-            
-            // Get node from build graph
+            auto targetIdStr = targetIdPtr.toString();
             if (targetIdStr in graph.nodes)
             {
                 auto node = graph.nodes[targetIdStr];
-                
-                // Check all dependencies are completed
                 foreach (depId; node.dependencyIds)
                 {
-                    // Check if dependency has corresponding action
                     auto depActionPtr = depId in targetToAction;
-                    if (depActionPtr is null)
-                    {
-                        // Dependency not scheduled yet - not ready
-                        return false;
-                    }
+                    if (depActionPtr is null) return false;
                     
-                    auto depAction = *depActionPtr;
-                    auto depInfoPtr = depAction in actions;
-                    if (depInfoPtr is null || depInfoPtr.state != ActionState.Completed)
-                    {
-                        // Dependency not completed - not ready
-                        return false;
-                    }
+                    auto depInfoPtr = *depActionPtr in actions;
+                    if (depInfoPtr is null || depInfoPtr.state != ActionState.Completed) return false;
                 }
-                
-                // All graph dependencies completed
                 return true;
             }
         }
@@ -389,28 +292,16 @@ final class DistributedScheduler
         // Fallback: Check InputSpecs for artifact dependencies
         foreach (inputSpec; info.request.inputs)
         {
-            // Find the action that produces this artifact
             bool found = false;
             foreach (otherActionId, otherInfo; actions)
             {
-                if (otherInfo.state != ActionState.Completed)
-                    continue;
-                
-                // Check if this completed action produces the required artifact
-                // In a full implementation, we'd compare OutputSpec paths with InputSpec
-                // For now, optimistically assume inputs are available
+                if (otherInfo.state != ActionState.Completed) continue;
+                // In a full implementation, we'd compare OutputSpec paths with InputSpec; for now, optimistically assume inputs are available
                 found = true;
                 break;
             }
-            
-            if (!found && info.request.inputs.length > 0)
-            {
-                // Has inputs but no completed producers - not ready
-                return false;
-            }
+            if (!found && info.request.inputs.length > 0) return false;
         }
-        
-        // No blocking dependencies found - ready to execute
         return true;
     }
     
@@ -420,23 +311,8 @@ final class DistributedScheduler
         if (auto info = action in actions)
         {
             info.state = ActionState.Ready;
-            
-            // Priority-aware insertion
-            if (readyQueue.empty)
-            {
-                readyQueue.insertBack(action);
-            }
-            else
-            {
-                // High priority actions go to front, low priority to back
-                if (info.priority >= Priority.High)
-                    readyQueue.insertFront(action);
-                else
-                    readyQueue.insertBack(action);
-            }
-            
-            Logger.debugLog("Action marked ready: " ~ action.toString() ~ 
-                          " (priority: " ~ info.priority.to!string ~ ")");
+            (readyQueue.empty || info.priority >= Priority.High) ? readyQueue.insertFront(action) : readyQueue.insertBack(action);
+            Logger.debugLog("Action marked ready: " ~ action.toString() ~ " (priority: " ~ info.priority.to!string ~ ")");
         }
     }
     
@@ -445,62 +321,35 @@ final class DistributedScheduler
     {
         ActionId[] nowReady;
         
-        // Use BuildGraph for efficient dependent lookup
-        auto targetIdPtr = action in actionToTarget;
-        if (targetIdPtr !is null)
+        if (auto targetIdPtr = action in actionToTarget)
         {
-            auto targetId = *targetIdPtr;
-            auto targetIdStr = targetId.toString();
-            
-            // Get node from build graph
+            auto targetIdStr = targetIdPtr.toString();
             if (targetIdStr in graph.nodes)
             {
                 auto node = graph.nodes[targetIdStr];
-                
-                // Check only the direct dependents (much more efficient than full scan)
                 foreach (dependentId; node.dependentIds)
                 {
-                    // Find corresponding action
                     auto dependentActionPtr = dependentId in targetToAction;
-                    if (dependentActionPtr is null)
-                        continue;
+                    if (dependentActionPtr is null) continue;
                     
                     auto dependentAction = *dependentActionPtr;
                     auto dependentInfoPtr = dependentAction in actions;
-                    if (dependentInfoPtr is null)
-                        continue;
+                    if (dependentInfoPtr is null) continue;
                     
-                    // Check if now ready
                     if (dependentInfoPtr.state == ActionState.Pending && isReady(dependentAction))
-                    {
                         nowReady ~= dependentAction;
-                    }
                 }
-                
-                Logger.debugLog("Checked " ~ node.dependentIds.length.to!string ~ 
-                              " direct dependents of " ~ action.toString());
+                Logger.debugLog("Checked " ~ node.dependentIds.length.to!string ~ " direct dependents of " ~ action.toString());
             }
         }
         else
         {
-            // Fallback: Iterate through all pending actions (less efficient)
             foreach (id, info; actions)
-            {
-                if (info.state == ActionState.Pending && isReady(id))
-                {
-                    nowReady ~= id;
-                }
-            }
+                if (info.state == ActionState.Pending && isReady(id)) nowReady ~= id;
         }
         
-        // Mark newly ready actions
-        foreach (id; nowReady)
-        {
-            markReady(id);
-        }
-        
-        if (nowReady.length > 0)
-            Logger.debugLog("Marked " ~ nowReady.length.to!string ~ " actions as ready");
+        foreach (id; nowReady) markReady(id);
+        if (nowReady.length > 0) Logger.debugLog("Marked " ~ nowReady.length.to!string ~ " actions as ready");
     }
     
     /// Get scheduler statistics

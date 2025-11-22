@@ -1,6 +1,7 @@
 module engine.distributed.coordinator.health;
 
 import std.datetime : Duration, Clock, SysTime, seconds, msecs, hnsecs;
+import core.time : dur;
 import std.algorithm : min, max, filter, map, sort;
 import std.array : array;
 import std.math : exp, log10;
@@ -102,12 +103,10 @@ final class HealthMonitor
     /// Start health monitoring
     Result!DistributedError start() @trusted
     {
-        if (atomicLoad(running))
-            return Result!DistributedError.err(new DistributedError("Health monitor already running"));
+        if (atomicLoad(running)) return Result!DistributedError.err(new DistributedError("Health monitor already running"));
         
         atomicStore(running, true);
-        monitorThread = new Thread(&monitorLoop);
-        monitorThread.start();
+        (monitorThread = new Thread(&monitorLoop)).start();
         Logger.info("Health monitor started");
         return Ok!DistributedError();
     }
@@ -116,13 +115,7 @@ final class HealthMonitor
     void stop() @trusted
     {
         atomicStore(running, false);
-        
-        if (monitorThread !is null)
-        {
-            monitorThread.join();
-            monitorThread = null;
-        }
-        
+        if (monitorThread !is null) { monitorThread.join(); monitorThread = null; }
         Logger.info("Health monitor stopped");
     }
     
@@ -131,52 +124,27 @@ final class HealthMonitor
     {
         synchronized (mutex)
         {
-            // Update registry
             registry.updateHeartbeat(worker, hb);
-            
-            // Update health tracking
-            if (worker !in health)
-                health[worker] = WorkerHealth.init;
+            if (worker !in health) health[worker] = WorkerHealth.init;
             
             auto h = &health[worker];
             h.id = worker;
             h.lastHealthy = Clock.currTime;
             h.consecutiveFailures = 0;
             
-            // Calculate average response time (exponential moving average)
             immutable elapsed = Clock.currTime - hb.timestamp;
-            if (h.avgResponseTime == Duration.zero)
-                h.avgResponseTime = elapsed;
-            else
-            {
-                // Use total hnsecs (100-nanosecond intervals) for calculation
-                immutable avgHnsecs = cast(long)(h.avgResponseTime.total!"hnsecs" * 0.9 + elapsed.total!"hnsecs" * 0.1);
-                h.avgResponseTime = avgHnsecs.hnsecs;
-            }
+            h.avgResponseTime = (h.avgResponseTime == Duration.zero) ? elapsed : 
+                dur!"hnsecs"(cast(long)(h.avgResponseTime.total!"hnsecs" * 0.9 + elapsed.total!"hnsecs" * 0.1));
             
-            // Check for degraded performance
             if (hb.metrics.cpuUsage > degradedCpuThreshold)
-            {
-                transitionState(worker, HealthState.Degraded, 
-                              "High CPU usage: " ~ hb.metrics.cpuUsage.to!string);
-            }
+                transitionState(worker, HealthState.Degraded, "High CPU usage: " ~ hb.metrics.cpuUsage.to!string);
             else if (hb.metrics.memoryUsage > degradedMemThreshold)
-            {
-                transitionState(worker, HealthState.Degraded,
-                              "High memory usage: " ~ hb.metrics.memoryUsage.to!string);
-            }
+                transitionState(worker, HealthState.Degraded, "High memory usage: " ~ hb.metrics.memoryUsage.to!string);
             else if (h.avgResponseTime > degradedThreshold)
-            {
-                transitionState(worker, HealthState.Degraded,
-                              "High latency: " ~ h.avgResponseTime.toString());
-            }
+                transitionState(worker, HealthState.Degraded, "High latency: " ~ h.avgResponseTime.toString());
             else if (h.state == HealthState.Degraded || h.state == HealthState.Recovering)
-            {
-                // Recovery to healthy
                 transitionState(worker, HealthState.Healthy, "Metrics normalized");
-            }
             
-            // Adapt heartbeat interval based on worker state
             updateAdaptiveInterval(worker, hb);
         }
         
@@ -188,31 +156,18 @@ final class HealthMonitor
     void checkHealth() @trusted
     {
         immutable now = Clock.currTime;
-        auto workers = registry.allWorkers();
-        
-        foreach (worker; workers)
+        foreach (worker; registry.allWorkers())
         {
             synchronized (mutex)
             {
-                if (worker.id !in health)
-                    health[worker.id] = WorkerHealth.init;
-                
+                if (worker.id !in health) health[worker.id] = WorkerHealth.init;
                 auto h = &health[worker.id];
                 immutable elapsed = now - worker.lastSeen;
                 
-                // Check for timeout
-                if (elapsed > heartbeatTimeout)
-                {
-                    handleWorkerTimeout(worker.id, h, elapsed);
-                }
-                // Check for recovery attempt
-                else if (h.shouldAttemptRecovery(now))
-                {
-                    attemptRecovery(worker.id, h);
-                }
+                if (elapsed > heartbeatTimeout) handleWorkerTimeout(worker.id, h, elapsed);
+                else if (h.shouldAttemptRecovery(now)) attemptRecovery(worker.id, h);
             }
         }
-        
         atomicOp!"+="(totalChecks, 1);
     }
     
@@ -286,15 +241,8 @@ final class HealthMonitor
     {
         while (atomicLoad(running))
         {
-            try
-            {
-                checkHealth();
-                Thread.sleep(heartbeatInterval);
-            }
-            catch (Exception e)
-            {
-                Logger.error("Health check failed: " ~ e.msg);
-            }
+            try { checkHealth(); Thread.sleep(heartbeatInterval); }
+            catch (Exception e) { Logger.error("Health check failed: " ~ e.msg); }
         }
     }
     
@@ -304,48 +252,27 @@ final class HealthMonitor
         h.consecutiveFailures++;
         h.totalFailures++;
         h.lastFailed = Clock.currTime;
-        
         atomicOp!"+="(failedChecks, 1);
         
-        Logger.warning("Worker timeout: " ~ worker.toString() ~ 
-                      " (elapsed: " ~ elapsed.toString() ~ 
-                      ", failures: " ~ h.consecutiveFailures.to!string ~ ")");
+        Logger.warning("Worker timeout: " ~ worker.toString() ~ " (elapsed: " ~ elapsed.toString() ~ ", failures: " ~ h.consecutiveFailures.to!string ~ ")");
         
-        // State transitions based on failure count
         if (h.consecutiveFailures >= failureThreshold)
         {
-            // Circuit breaker opens
-            transitionState(worker, HealthState.Failed, 
-                          "Consecutive failures: " ~ h.consecutiveFailures.to!string);
-            
-            // Mark worker as failed in registry
+            transitionState(worker, HealthState.Failed, "Consecutive failures: " ~ h.consecutiveFailures.to!string);
             registry.markWorkerFailed(worker);
-            
-            // Reassign its work
             scheduler.onWorkerFailure(worker);
         }
         else if (h.consecutiveFailures >= failureThreshold / 2)
-        {
-            transitionState(worker, HealthState.Failing,
-                          "Intermittent failures detected");
-        }
+            transitionState(worker, HealthState.Failing, "Intermittent failures detected");
     }
     
     /// Attempt to recover failed worker
     void attemptRecovery(WorkerId worker, WorkerHealth* h) @trusted
     {
         h.recoveryAttempts++;
-        
-        Logger.info("Attempting recovery for worker " ~ worker.toString() ~ 
-                   " (attempt " ~ h.recoveryAttempts.to!string ~ ")");
-        
-        // Transition to recovering state (circuit half-open)
-        transitionState(worker, HealthState.Recovering,
-                      "Recovery attempt " ~ h.recoveryAttempts.to!string);
-        
-        // Send test heartbeat request
-        // If worker responds, it will call onHeartBeat and transition to Healthy
-        // If it doesn't respond, next timeout will transition back to Failed
+        Logger.info("Attempting recovery for worker " ~ worker.toString() ~ " (attempt " ~ h.recoveryAttempts.to!string ~ ")");
+        transitionState(worker, HealthState.Recovering, "Recovery attempt " ~ h.recoveryAttempts.to!string);
+        // If worker responds, it will call onHeartBeat and transition to Healthy; if not, next timeout will transition back to Failed
     }
     
     /// Transition worker to new health state
@@ -357,15 +284,8 @@ final class HealthMonitor
             if (oldState != newState)
             {
                 h.state = newState;
-                
-                Logger.info("Worker " ~ worker.toString() ~ 
-                          " health transition: " ~ oldState.to!string ~ 
-                          " -> " ~ newState.to!string ~ 
-                          " (" ~ reason ~ ")");
-                
-                // Reset recovery attempts on successful recovery
-                if (newState == HealthState.Healthy)
-                    h.recoveryAttempts = 0;
+                Logger.info("Worker " ~ worker.toString() ~ " health transition: " ~ oldState.to!string ~ " -> " ~ newState.to!string ~ " (" ~ reason ~ ")");
+                if (newState == HealthState.Healthy) h.recoveryAttempts = 0;
             }
         }
     }
@@ -373,19 +293,13 @@ final class HealthMonitor
     void updateAdaptiveInterval(WorkerId worker, HeartBeat hb) @trusted
     {
         immutable load = hb.metrics.cpuUsage * 0.7 + hb.metrics.memoryUsage * 0.3;
-        adaptiveIntervals[worker] = load > 0.8 ? heartbeatInterval * 2 : 
-                                    load < 0.3 ? heartbeatInterval / 2 : heartbeatInterval;
+        adaptiveIntervals[worker] = load > 0.8 ? heartbeatInterval * 2 : load < 0.3 ? heartbeatInterval / 2 : heartbeatInterval;
     }
     
-    Duration getAdaptiveInterval(WorkerId worker) @trusted
-    {
-        return (worker in adaptiveIntervals) ? atomicLoad(adaptiveIntervals[worker]) : heartbeatInterval;
-    }
+    Duration getAdaptiveInterval(WorkerId worker) @trusted => (worker in adaptiveIntervals) ? atomicLoad(adaptiveIntervals[worker]) : heartbeatInterval;
 }
 
-/// Failure detector using phi-accrual algorithm
-/// More sophisticated than simple timeout
-/// Reference: "The φ Accrual Failure Detector" (Hayashibara et al.)
+/// Failure detector using phi-accrual algorithm (more sophisticated than simple timeout); Reference: "The φ Accrual Failure Detector" (Hayashibara et al.)
 struct PhiAccrualDetector
 {
     private double[] intervalHistory;  // Recent inter-arrival times
@@ -399,36 +313,23 @@ struct PhiAccrualDetector
         if (lastHeartbeat != SysTime.init)
         {
             immutable interval = (now - lastHeartbeat).total!"msecs";
-            
-            // Add to history (circular buffer)
-            if (intervalHistory.length >= windowSize)
-                intervalHistory = intervalHistory[1 .. $];
-            
+            if (intervalHistory.length >= windowSize) intervalHistory = intervalHistory[1 .. $];
             intervalHistory ~= cast(double)interval;
         }
-        
         lastHeartbeat = now;
     }
     
     /// Calculate phi (suspicion level)
     double phi(SysTime now) const @safe
     {
-        if (intervalHistory.length < 2)
-            return 0.0;
-        
-        // Calculate mean and standard deviation
+        if (intervalHistory.length < 2) return 0.0;
         immutable mean = calculateMean(intervalHistory);
         immutable stddev = calculateStdDev(intervalHistory, mean);
-        
-        // Time since last heartbeat
         immutable timeSince = (now - lastHeartbeat).total!"msecs";
-        
-        // Calculate phi
-        immutable p = probabilityOfLater(timeSince, mean, stddev);
-        return -log10(p);
+        return -log10(probabilityOfLater(timeSince, mean, stddev));
     }
     
-    bool isSuspected(SysTime now) const @safe { return phi(now) > threshold; }
+    bool isSuspected(SysTime now) const @safe => phi(now) > threshold;
     
     private:
     
@@ -442,16 +343,9 @@ struct PhiAccrualDetector
     
     static double calculateStdDev(const double[] values, double mean) pure @safe nothrow
     {
-        if (values.length <= 1)
-            return 0.0;
-        
+        if (values.length <= 1) return 0.0;
         double sumSq = 0.0;
-        foreach (v; values)
-        {
-            immutable diff = v - mean;
-            sumSq += diff * diff;
-        }
-        
+        foreach (v; values) { immutable diff = v - mean; sumSq += diff * diff; }
         import std.math : sqrt;
         return sqrt(sumSq / (values.length - 1));
     }
@@ -459,35 +353,18 @@ struct PhiAccrualDetector
     static double probabilityOfLater(double time, double mean, double stddev) pure @safe nothrow
     {
         import std.math : sqrt, exp, PI;
-        
-        if (stddev == 0.0)
-            return time > mean ? 0.01 : 0.99;
-        
-        // Normal distribution CDF approximation
+        if (stddev == 0.0) return time > mean ? 0.01 : 0.99;
         immutable z = (time - mean) / stddev;
         return 0.5 * (1.0 + erf(z / sqrt(2.0)));
     }
     
-    // Error function approximation
+    // Error function approximation (Abramowitz and Stegun)
     static double erf(double x) pure @safe nothrow
     {
         import std.math : abs, sqrt, PI;
-        
-        // Abramowitz and Stegun approximation
-        immutable a1 =  0.254829592;
-        immutable a2 = -0.284496736;
-        immutable a3 =  1.421413741;
-        immutable a4 = -1.453152027;
-        immutable a5 =  1.061405429;
-        immutable p  =  0.3275911;
-        
-        immutable sign = x < 0 ? -1.0 : 1.0;
-        immutable absX = abs(x);
-        
-        immutable t = 1.0 / (1.0 + p * absX);
-        immutable y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * 
-                      exp(-absX * absX);
-        
+        immutable a1 =  0.254829592, a2 = -0.284496736, a3 =  1.421413741, a4 = -1.453152027, a5 =  1.061405429, p  =  0.3275911;
+        immutable sign = x < 0 ? -1.0 : 1.0, absX = abs(x), t = 1.0 / (1.0 + p * absX);
+        immutable y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-absX * absX);
         return sign * y;
     }
 }

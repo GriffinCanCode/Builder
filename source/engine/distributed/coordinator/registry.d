@@ -51,17 +51,8 @@ final class WorkerRegistry
     {
         synchronized (mutex)
         {
-            immutable id = WorkerId(nextWorkerId++);
-            immutable now = Clock.currTime;
-            
-            WorkerInfo info;
-            info.id = id;
-            info.address = address;
-            info.state = WorkerState.Idle;
-            info.registered = now;
-            info.lastSeen = now;
-            
-            workers[id] = info;
+            immutable id = WorkerId(nextWorkerId++), now = Clock.currTime;
+            workers[id] = WorkerInfo(id, address, WorkerState.Idle, SystemMetrics.init, now, now, [], 0, 0, Duration.zero);
             return Ok!(WorkerId, DistributedError)(id);
         }
     }
@@ -80,14 +71,11 @@ final class WorkerRegistry
     /// Update worker heartbeat
     void updateHeartbeat(WorkerId id, HeartBeat hb) @trusted
     {
-        synchronized (mutex)
+        synchronized (mutex) if (auto worker = id in workers)
         {
-            if (auto worker = id in workers)
-            {
-                worker.state = hb.state;
-                worker.metrics = hb.metrics;
-                worker.lastSeen = Clock.currTime;
-            }
+            worker.state = hb.state;
+            worker.metrics = hb.metrics;
+            worker.lastSeen = Clock.currTime;
         }
     }
     
@@ -119,58 +107,22 @@ final class WorkerRegistry
     {
         synchronized (mutex)
         {
-            // 1. Filter healthy workers
-            auto healthy = workers.values
-                .filter!(w => w.healthy(heartbeatTimeout))
-                .array;
+            auto healthy = workers.values.filter!(w => w.healthy(heartbeatTimeout)).array;
+            if (healthy.empty) return Err!(WorkerId, DistributedError)(new WorkerError("No healthy workers available"));
             
-            if (healthy.empty)
-                return Err!(WorkerId, DistributedError)(
-                    new WorkerError("No healthy workers available"));
+            auto capable = healthy.filter!(w => canMeetCapabilities(w, caps)).array;
+            if (capable.empty) return Err!(WorkerId, DistributedError)(new WorkerError("No capable workers available"));
             
-            // 2. Filter by capabilities - check if worker can meet resource requirements
-            auto capable = healthy
-                .filter!(w => canMeetCapabilities(w, caps))
-                .array;
-            
-            if (capable.empty)
-                return Err!(WorkerId, DistributedError)(
-                    new WorkerError("No capable workers available"));
-            
-            // 3. Select least loaded
-            auto selected = capable.minElement!"a.load()";
-            
-            return Ok!(WorkerId, DistributedError)(selected.id);
+            return Ok!(WorkerId, DistributedError)(capable.minElement!"a.load()".id);
         }
     }
     
     /// Check if worker can meet the required capabilities
     private bool canMeetCapabilities(in WorkerInfo worker, in Capabilities caps) const pure @safe
     {
-        // Check memory constraints
-        // If action requires specific memory and worker is already heavily loaded, skip
-        if (caps.maxMemory > 0)
-        {
-            // Worker should have headroom for memory-intensive tasks
-            if (worker.metrics.memoryUsage > 0.85)
-                return false;
-        }
-        
-        // Check CPU constraints
-        // If worker is CPU-bound and action has CPU requirements, prefer less loaded workers
-        if (caps.maxCpu > 0)
-        {
-            // Skip heavily loaded workers for CPU-intensive tasks
-            if (worker.metrics.cpuUsage > 0.90)
-                return false;
-        }
-        
-        // Check disk space for tasks that may write large outputs
-        // Ensure worker has sufficient disk space
-        if (worker.metrics.diskUsage > 0.95)
-            return false;
-        
-        // All capability checks passed
+        if (caps.maxMemory > 0 && worker.metrics.memoryUsage > 0.85) return false;
+        if (caps.maxCpu > 0 && worker.metrics.cpuUsage > 0.90) return false;
+        if (worker.metrics.diskUsage > 0.95) return false;
         return true;
     }
     
@@ -186,59 +138,59 @@ final class WorkerRegistry
     /// Mark action as completed on worker
     void markCompleted(WorkerId id, ActionId action, Duration duration) @trusted
     {
-        synchronized (mutex)
+        synchronized (mutex) if (auto worker = id in workers)
         {
-            if (auto worker = id in workers)
-            {
-                import std.algorithm : remove;
-                worker.inProgress = worker.inProgress.remove!(a => a == action);
-                worker.completed++;
-                worker.totalExecutionTime += duration;
-                if (worker.inProgress.empty) worker.state = WorkerState.Idle;
-            }
+            import std.algorithm : remove;
+            worker.inProgress = worker.inProgress.remove!(a => a == action);
+            worker.completed++;
+            worker.totalExecutionTime += duration;
+            if (worker.inProgress.empty) worker.state = WorkerState.Idle;
         }
     }
     
     /// Mark action as failed on worker
     void markFailed(WorkerId id, ActionId action) @trusted
     {
-        synchronized (mutex)
+        synchronized (mutex) if (auto worker = id in workers)
         {
-            if (auto worker = id in workers)
-            {
-                import std.algorithm : remove;
-                worker.inProgress = worker.inProgress.remove!(a => a == action);
-                worker.failed++;
-                if (worker.inProgress.empty) worker.state = WorkerState.Idle;
-            }
+            import std.algorithm : remove;
+            worker.inProgress = worker.inProgress.remove!(a => a == action);
+            worker.failed++;
+            if (worker.inProgress.empty) worker.state = WorkerState.Idle;
         }
     }
     
     void markWorkerFailed(WorkerId id) @trusted
     {
-        synchronized (mutex) if (auto worker = id in workers) worker.state = WorkerState.Failed;
+        synchronized (mutex)
+        {
+            if (auto worker = id in workers) worker.state = WorkerState.Failed;
+        }
     }
     
     ActionId[] inProgressActions(WorkerId id) @trusted
     {
-        synchronized (mutex) return (id in workers) ? workers[id].inProgress.dup : [];
+        synchronized (mutex)
+            return (id in workers) ? workers[id].inProgress.dup : [];
     }
     
     size_t count() @trusted
     {
-        synchronized (mutex) return workers.length;
+        synchronized (mutex)
+            return workers.length;
     }
     
     size_t healthyCount() @trusted
     {
         import std.range : walkLength;
-        synchronized (mutex) return workers.values.filter!(w => w.healthy(heartbeatTimeout)).walkLength;
+        synchronized (mutex)
+            return workers.values.filter!(w => w.healthy(heartbeatTimeout)).walkLength;
     }
     
     bool hasIdleWorkers() @trusted
     {
-        synchronized (mutex) return !workers.values
-            .filter!(w => w.state == WorkerState.Idle && w.healthy(heartbeatTimeout)).empty;
+        synchronized (mutex)
+            return !workers.values.filter!(w => w.state == WorkerState.Idle && w.healthy(heartbeatTimeout)).empty;
     }
     
     /// Get worker load statistics (for monitoring)
@@ -283,8 +235,7 @@ final class WorkerRegistry
         }
     }
     
-    /// Get least utilized workers for scale-down operations
-    /// Returns workers sorted by utilization (least utilized first)
+    /// Get least utilized workers for scale-down operations (returns workers sorted by utilization, preferring: lower load, higher failure rate, recently joined)
     WorkerId[] getLeastUtilizedWorkers(size_t count) @trusted
     {
         synchronized (mutex)
@@ -292,19 +243,9 @@ final class WorkerRegistry
             import std.algorithm : sort;
             import std.range : take;
             
-            // Get all healthy workers with no in-progress actions
-            auto available = workers.values
-                .filter!(w => w.healthy(heartbeatTimeout) && w.inProgress.empty)
-                .array;
+            auto available = workers.values.filter!(w => w.healthy(heartbeatTimeout) && w.inProgress.empty).array;
+            if (available.empty) return [];
             
-            if (available.empty)
-                return [];
-            
-            // Sort by utilization (load + completion rate + age)
-            // Prefer workers with:
-            // - Lower current load
-            // - Higher failure rate (problematic workers)
-            // - Recently joined (newer workers preferred for drain)
             available.sort!((a, b) {
                 immutable aUtil = a.load() + (a.failed > 0 ? a.failed / cast(float)(a.completed + 1) : 0);
                 immutable bUtil = b.load() + (b.failed > 0 ? b.failed / cast(float)(b.completed + 1) : 0);
@@ -320,10 +261,7 @@ final class WorkerRegistry
     {
         synchronized (mutex)
         {
-            if (auto worker = id in workers)
-            {
-                worker.state = WorkerState.Draining;
-            }
+            if (auto worker = id in workers) worker.state = WorkerState.Draining;
         }
     }
     
@@ -332,8 +270,7 @@ final class WorkerRegistry
     {
         synchronized (mutex)
         {
-            if (auto worker = id in workers)
-                return worker.inProgress.empty;
+            if (auto worker = id in workers) return worker.inProgress.empty;
             return true;
         }
     }

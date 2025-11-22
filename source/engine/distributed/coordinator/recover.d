@@ -64,36 +64,22 @@ final class CoordinatorRecovery
     Result!DistributedError handleWorkerFailure(WorkerId worker, string reason) @trusted
     {
         atomicOp!"+="(totalFailures, 1);
-        
         Logger.warning("Handling worker failure: " ~ worker.toString() ~ " (" ~ reason ~ ")");
         
         synchronized (mutex)
         {
-            // Get in-progress actions from failed worker
             auto inProgressActions = registry.inProgressActions(worker);
-            
             if (inProgressActions.length == 0)
             {
                 Logger.info("No work to reassign from " ~ worker.toString());
                 return Ok!DistributedError();
             }
             
-            Logger.info("Reassigning " ~ inProgressActions.length.to!string ~ 
-                       " actions from " ~ worker.toString());
+            Logger.info("Reassigning " ~ inProgressActions.length.to!string ~ " actions from " ~ worker.toString());
+            foreach (action; inProgressActions) reassignmentQueue.insertBack(action);
             
-            // Add to reassignment queue (high priority)
-            foreach (action; inProgressActions)
-            {
-                reassignmentQueue.insertBack(action);
-            }
-            
-            // Notify scheduler of worker failure
             scheduler.onWorkerFailure(worker);
-            
-            // Add worker to blacklist
             blacklistWorker(worker, reason);
-            
-            // Attempt immediate reassignment
             return reassignActions();
         }
     }
@@ -108,23 +94,16 @@ final class CoordinatorRecovery
                 auto action = reassignmentQueue.front;
                 reassignmentQueue.removeFront();
                 
-                // Select best available worker
                 auto workerResult = selectWorkerForReassignment(action);
                 if (workerResult.isErr)
                 {
-                    // No workers available - put back in queue
                     reassignmentQueue.insertFront(action);
                     atomicOp!"+="(failedReassignments, 1);
-                    
                     Logger.warning("No workers available for reassignment");
-                    return Result!DistributedError.err(
-                        new DistributedError("No available workers for reassignment"));
+                    return Result!DistributedError.err(new DistributedError("No available workers for reassignment"));
                 }
                 
-                auto worker = workerResult.unwrap();
-                
-                // Reassign action
-                auto assignResult = scheduler.assign(action, worker);
+                auto assignResult = scheduler.assign(action, workerResult.unwrap());
                 if (assignResult.isErr)
                 {
                     atomicOp!"+="(failedReassignments, 1);
@@ -133,9 +112,8 @@ final class CoordinatorRecovery
                 }
                 
                 atomicOp!"+="(successfulReassignments, 1);
-                Logger.info("Reassigned action " ~ action.toString() ~ " to worker " ~ worker.toString());
+                Logger.info("Reassigned action " ~ action.toString() ~ " to worker " ~ workerResult.unwrap().toString());
             }
-            
             return Ok!DistributedError();
         }
     }
@@ -146,11 +124,7 @@ final class CoordinatorRecovery
         {
             if (auto entry = worker in blacklist)
             {
-                if (entry.shouldRetry(Clock.currTime))
-                {
-                    removeFromBlacklist(worker);
-                    return false;
-                }
+                if (entry.shouldRetry(Clock.currTime)) { removeFromBlacklist(worker); return false; }
                 return true;
             }
             return false;
@@ -169,7 +143,8 @@ final class CoordinatorRecovery
     
     size_t pendingReassignments() @trusted
     {
-        synchronized (mutex) return walkLength(reassignmentQueue[]);
+        synchronized (mutex)
+            return walkLength(reassignmentQueue[]);
     }
     
     /// Get recovery statistics
@@ -186,22 +161,14 @@ final class CoordinatorRecovery
     RecoveryStats getStats() @trusted
     {
         RecoveryStats stats;
-        
         stats.totalFailures = atomicLoad(totalFailures);
         stats.successfulReassignments = atomicLoad(successfulReassignments);
         stats.failedReassignments = atomicLoad(failedReassignments);
         stats.blacklistedWorkers = atomicLoad(blacklistedWorkers);
-        
-        synchronized (mutex)
-        {
-            stats.pendingReassignments = walkLength(reassignmentQueue[]);
-        }
+        synchronized (mutex) { stats.pendingReassignments = walkLength(reassignmentQueue[]); }
         
         immutable total = stats.successfulReassignments + stats.failedReassignments;
-        if (total > 0)
-            stats.reassignmentSuccessRate = 
-                cast(float)stats.successfulReassignments / cast(float)total;
-        
+        if (total > 0) stats.reassignmentSuccessRate = cast(float)stats.successfulReassignments / cast(float)total;
         return stats;
     }
     
@@ -220,33 +187,16 @@ final class CoordinatorRecovery
     {
         if (auto entry = worker in blacklist)
         {
-            // Worker already blacklisted - extend duration
             entry.failureCount++;
             entry.lastFailure = Clock.currTime;
-            
-            // Exponential backoff
             immutable backoffSeconds = 1 << min(entry.failureCount, 8);
-            immutable duration = min(
-                seconds(backoffSeconds),
-                maxBlacklistDuration
-            );
+            immutable duration = min(seconds(backoffSeconds), maxBlacklistDuration);
             entry.nextRetryTime = Clock.currTime + duration;
-            
-            Logger.warning("Worker blacklist extended: " ~ worker.toString() ~ 
-                         " (failures: " ~ entry.failureCount.to!string ~ 
-                         ", next retry: " ~ backoffSeconds.to!string ~ "s)");
+            Logger.warning("Worker blacklist extended: " ~ worker.toString() ~ " (failures: " ~ entry.failureCount.to!string ~ ", next retry: " ~ backoffSeconds.to!string ~ "s)");
         }
         else
         {
-            // First failure - add to blacklist
-            blacklist[worker] = WorkerBlacklist(
-                worker,
-                reason,
-                Clock.currTime,
-                Clock.currTime + 5.seconds,  // Initial 5 second backoff
-                1
-            );
-            
+            blacklist[worker] = WorkerBlacklist(worker, reason, Clock.currTime, Clock.currTime + 5.seconds, 1);
             atomicOp!"+="(blacklistedWorkers, 1);
             Logger.info("Worker blacklisted: " ~ worker.toString() ~ " (reason: " ~ reason ~ ")");
         }
@@ -255,28 +205,15 @@ final class CoordinatorRecovery
     /// Select worker for reassignment based on strategy
     Result!(WorkerId, DistributedError) selectWorkerForReassignment(ActionId action) @trusted
     {
-        // Get healthy, non-blacklisted workers
-        auto candidates = registry.healthyWorkers()
-            .filter!(w => !isBlacklisted(w.id))
-            .array;
-        
-        if (candidates.length == 0)
-            return Err!(WorkerId, DistributedError)(
-                new WorkerError("No healthy workers available"));
+        auto candidates = registry.healthyWorkers().filter!(w => !isBlacklisted(w.id)).array;
+        if (candidates.length == 0) return Err!(WorkerId, DistributedError)(new WorkerError("No healthy workers available"));
         
         final switch (strategy)
         {
-            case ReassignStrategy.RoundRobin:
-                return selectRoundRobin(candidates);
-            
-            case ReassignStrategy.LeastLoaded:
-                return selectLeastLoaded(candidates);
-            
-            case ReassignStrategy.Affinity:
-                return selectAffinity(action, candidates);
-            
-            case ReassignStrategy.Priority:
-                return selectPriority(action, candidates);
+            case ReassignStrategy.RoundRobin: return selectRoundRobin(candidates);
+            case ReassignStrategy.LeastLoaded: return selectLeastLoaded(candidates);
+            case ReassignStrategy.Affinity: return selectAffinity(action, candidates);
+            case ReassignStrategy.Priority: return selectPriority(action, candidates);
         }
     }
     
@@ -284,91 +221,48 @@ final class CoordinatorRecovery
     Result!(WorkerId, DistributedError) selectRoundRobin(WorkerInfo[] candidates) @trusted
     {
         static size_t nextIndex = 0;
-        immutable idx = nextIndex % candidates.length;
-        nextIndex++;
-        return Ok!(WorkerId, DistributedError)(candidates[idx].id);
+        return Ok!(WorkerId, DistributedError)(candidates[(nextIndex++) % candidates.length].id);
     }
     
     /// Select least loaded worker
     Result!(WorkerId, DistributedError) selectLeastLoaded(WorkerInfo[] candidates) @trusted
     {
         import std.algorithm : minElement;
-        auto selected = candidates.minElement!"a.load()";
-        return Ok!(WorkerId, DistributedError)(selected.id);
+        return Ok!(WorkerId, DistributedError)(candidates.minElement!"a.load()".id);
     }
     
-    /// Select worker with affinity (locality)
-    Result!(WorkerId, DistributedError) selectAffinity(
-        ActionId action,
-        WorkerInfo[] candidates) @trusted
-    {
-        // For now, just select least loaded
-        // In future, could track which worker has related artifacts cached
-        return selectLeastLoaded(candidates);
-    }
+    /// Select worker with affinity (locality); in future, could track which worker has related artifacts cached
+    Result!(WorkerId, DistributedError) selectAffinity(ActionId action, WorkerInfo[] candidates) @trusted => selectLeastLoaded(candidates);
     
-    /// Select worker prioritizing health and capacity
-    Result!(WorkerId, DistributedError) selectPriority(
-        ActionId action,
-        WorkerInfo[] candidates) @trusted
+    /// Select worker prioritizing health and capacity (score based on: health state, load, and recent completion rate)
+    Result!(WorkerId, DistributedError) selectPriority(ActionId action, WorkerInfo[] candidates) @trusted
     {
         import std.algorithm : maxElement;
         
-        // Score each worker based on:
-        // - Health state (prefer healthy over degraded)
-        // - Load (prefer less loaded)
-        // - Recent completion rate (prefer successful workers)
-        
-        struct ScoredWorker
-        {
-            WorkerId id;
-            float score;
-        }
-        
+        struct ScoredWorker { WorkerId id; float score; }
         ScoredWorker[] scored;
         scored.reserve(candidates.length);
         
         foreach (worker; candidates)
         {
             float score = 0.0f;
-            
-            // Health score (0-100)
             auto health = healthMonitor.getWorkerHealth(worker.id);
             final switch (health)
             {
-                case HealthState.Healthy:
-                    score += 100.0f;
-                    break;
-                case HealthState.Degraded:
-                    score += 50.0f;
-                    break;
-                case HealthState.Failing:
-                    score += 25.0f;
-                    break;
-                case HealthState.Failed:
-                    score += 0.0f;
-                    break;
-                case HealthState.Recovering:
-                    score += 40.0f;
-                    break;
+                case HealthState.Healthy: score += 100.0f; break;
+                case HealthState.Degraded: score += 50.0f; break;
+                case HealthState.Failing: score += 25.0f; break;
+                case HealthState.Failed: score += 0.0f; break;
+                case HealthState.Recovering: score += 40.0f; break;
             }
             
-            // Load score (0-50) - less load = higher score
             score += (1.0f - worker.load()) * 50.0f;
-            
-            // Success rate score (0-50)
             immutable total = worker.completed + worker.failed;
-            if (total > 0)
-            {
-                immutable successRate = cast(float)worker.completed / cast(float)total;
-                score += successRate * 50.0f;
-            }
-            
+            if (total > 0) score += (cast(float)worker.completed / cast(float)total) * 50.0f;
             scored ~= ScoredWorker(worker.id, score);
         }
         
-        auto best = scored.maxElement!"a.score";
-        return Ok!(WorkerId, DistributedError)(best.id);
+        return Ok!(WorkerId, DistributedError)(scored.maxElement!"a.score".id);
     }
 }
 
@@ -408,12 +302,7 @@ final class ReassignmentManager
         synchronized (mutex)
         {
             batchQueue ~= action;
-            
-            // Process batch if full
-            if (batchQueue.length >= batchSize)
-            {
-                processBatch();
-            }
+            if (batchQueue.length >= batchSize) processBatch();
         }
     }
     
@@ -422,10 +311,7 @@ final class ReassignmentManager
     {
         synchronized (mutex)
         {
-            if (batchQueue.length > 0)
-            {
-                processBatch();
-            }
+            if (batchQueue.length > 0) processBatch();
         }
     }
     
@@ -434,22 +320,10 @@ final class ReassignmentManager
     /// Process batch of reassignments
     void processBatch() @trusted
     {
-        if (batchQueue.length == 0)
-            return;
-        
+        if (batchQueue.length == 0) return;
         Logger.info("Processing reassignment batch: " ~ batchQueue.length.to!string ~ " actions");
-        
-        // Group actions by priority
         ActionId[][Priority] byPriority;
-        
-        // For now, simplified - just reassign in order
-        foreach (action; batchQueue)
-        {
-            // Would get priority from scheduler
-            // byPriority[priority] ~= action;
-        }
-        
-        // Clear batch
+        foreach (action; batchQueue) {} // Would get priority from scheduler: byPriority[priority] ~= action;
         batchQueue.length = 0;
     }
 }

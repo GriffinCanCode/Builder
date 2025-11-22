@@ -79,36 +79,26 @@ final class Coordinator
     {
         synchronized (mutex)
         {
-            if (atomicLoad(running))
-                return Ok!DistributedError();
+            if (atomicLoad(running)) return Ok!DistributedError();
             
             try
             {
-                // Bind server socket
-                auto addr = new InternetAddress(config.host, config.port);
                 listener = new TcpSocket();
                 listener.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-                listener.bind(addr);
+                listener.bind(new InternetAddress(config.host, config.port));
                 listener.listen(cast(int)config.maxWorkers);
                 
                 atomicStore(running, true);
                 
-                // Start accept thread
-                acceptThread = new Thread(&acceptLoop);
-                acceptThread.start();
-                
-                // Start health monitor thread
-                healthThread = new Thread(&healthLoop);
-                healthThread.start();
+                (acceptThread = new Thread(&acceptLoop)).start();
+                (healthThread = new Thread(&healthLoop)).start();
                 
                 Logger.info("Coordinator started on " ~ config.host ~ ":" ~ config.port.to!string);
-                
                 return Ok!DistributedError();
             }
             catch (Exception e)
             {
-                return Result!DistributedError.err(
-                    new DistributedError("Failed to start coordinator: " ~ e.msg));
+                return Result!DistributedError.err(new DistributedError("Failed to start coordinator: " ~ e.msg));
             }
         }
     }
@@ -120,29 +110,19 @@ final class Coordinator
         
         if (listener !is null)
         {
-            try
-            {
-                listener.shutdown(SocketShutdown.BOTH);
-                listener.close();
-            }
+            try { listener.shutdown(SocketShutdown.BOTH); listener.close(); }
             catch (Exception) {}
         }
         
-        if (acceptThread !is null)
-            acceptThread.join();
-        
-        if (healthThread !is null)
-            healthThread.join();
+        if (acceptThread !is null) acceptThread.join();
+        if (healthThread !is null) healthThread.join();
         
         scheduler.shutdown();
         
-        // Log peer registry statistics
         if (peerRegistry !is null)
         {
             auto stats = peerRegistry.getStats();
-            Logger.info("Peer registry stats: " ~ 
-                stats.totalPeers.to!string ~ " total, " ~
-                stats.alivePeers.to!string ~ " alive");
+            Logger.info("Peer registry stats: " ~ stats.totalPeers.to!string ~ " total, " ~ stats.alivePeers.to!string ~ " alive");
         }
         
         Logger.info("Coordinator stopped");
@@ -152,16 +132,13 @@ final class Coordinator
     private Result!(WorkerId, DistributedError) selectBestWorker(Capabilities caps) @trusted
     {
         auto workerResult = registry.selectWorker(caps);
-        if (workerResult.isErr || !config.enableWorkStealing || peerRegistry is null)
-            return workerResult;
+        if (workerResult.isErr || !config.enableWorkStealing || peerRegistry is null) return workerResult;
         
-        // Check if selected worker is overloaded and find alternative
         auto workerId = workerResult.unwrap();
         auto peerResult = peerRegistry.getPeer(workerId);
         
         if (peerResult.isOk && atomicLoad(peerResult.unwrap().loadFactor) > 0.8)
         {
-            // Find less loaded peer
             foreach (p; peerRegistry.getAlivePeers())
             {
                 if (atomicLoad(p.loadFactor) < 0.5 && registry.getWorker(p.id).isOk)
@@ -178,55 +155,29 @@ final class Coordinator
     /// Schedule build action
     Result!DistributedError scheduleAction(ActionRequest request) @trusted
     {
-        // Add to scheduler
         auto scheduleResult = scheduler.schedule(request);
-        if (scheduleResult.isErr)
-            return scheduleResult;
-        
-        // Try to assign to worker immediately
-        return assignActions();
+        return scheduleResult.isErr ? scheduleResult : assignActions();
     }
     
     /// Handle peer announce from worker
     void handlePeerAnnounce(PeerAnnounce announce) @trusted
     {
-        if (!config.enableWorkStealing || peerRegistry is null)
-            return;
+        if (!config.enableWorkStealing || peerRegistry is null) return;
         
         auto result = peerRegistry.register(announce.worker, announce.address);
         if (result.isOk)
         {
-            // Update peer metrics
-            peerRegistry.updateMetrics(
-                announce.worker,
-                announce.queueDepth,
-                announce.loadFactor
-            );
-            
+            peerRegistry.updateMetrics(announce.worker, announce.queueDepth, announce.loadFactor);
             Logger.debugLog("Peer announce received: " ~ announce.worker.toString());
         }
-        else
-        {
-            Logger.warning("Failed to register peer: " ~ result.unwrapErr().message());
-        }
+        else Logger.warning("Failed to register peer: " ~ result.unwrapErr().message());
     }
     
     /// Get peer list for discovery
     PeerEntry[] getPeerList() @trusted
     {
-        if (!config.enableWorkStealing || peerRegistry is null)
-            return [];
-        
-        import std.algorithm : map;
-        import std.array : array;
-        
-        auto peers = peerRegistry.getAlivePeers();
-        return peers.map!(p => PeerEntry(
-            p.id,
-            p.address,
-            atomicLoad(p.queueDepth),
-            atomicLoad(p.loadFactor)
-        )).array;
+        if (!config.enableWorkStealing || peerRegistry is null) return [];
+        return peerRegistry.getAlivePeers().map!(p => PeerEntry(p.id, p.address, atomicLoad(p.queueDepth), atomicLoad(p.loadFactor))).array;
     }
     
     /// Assign ready actions to workers
@@ -234,44 +185,30 @@ final class Coordinator
     {
         while (true)
         {
-            // Get next ready action
             auto actionResult = scheduler.dequeueReady();
-            if (actionResult.isErr)
-                break;  // No more ready actions
+            if (actionResult.isErr) break;
             
             auto request = actionResult.unwrap();
-            
-            // Select worker (considering load balancing)
             auto workerResult = selectBestWorker(request.capabilities);
             if (workerResult.isErr)
             {
-                // No available workers, reschedule
                 scheduler.schedule(request);
                 break;
             }
             
             auto workerId = workerResult.unwrap();
-            
-            // Assign to worker
             scheduler.assign(request.id, workerId);
             
-            // Send action to worker
             auto sendResult = sendActionToWorker(workerId, request);
             if (sendResult.isErr)
             {
-                // Failed to send, reschedule action
-                Logger.warning("Failed to send action to worker " ~ workerId.toString() ~ 
-                             ": " ~ sendResult.unwrapErr().message());
+                Logger.warning("Failed to send action to worker " ~ workerId.toString() ~ ": " ~ sendResult.unwrapErr().message());
                 scheduler.onFailure(request.id, sendResult.unwrapErr().message());
                 registry.markFailed(workerId, request.id);
                 
-                // Reschedule for another worker
                 auto rescheduleResult = scheduler.schedule(request);
                 if (rescheduleResult.isErr)
-                {
-                    Logger.error("Failed to reschedule action: " ~ 
-                               rescheduleResult.unwrapErr().message());
-                }
+                    Logger.error("Failed to reschedule action: " ~ rescheduleResult.unwrapErr().message());
             }
         }
         
@@ -283,84 +220,50 @@ final class Coordinator
     {
         try
         {
-            // Get worker info to establish connection
             auto workerResult = registry.getWorker(workerId);
-            if (workerResult.isErr)
-                return Result!DistributedError.err(workerResult.unwrapErr());
+            if (workerResult.isErr) return Result!DistributedError.err(workerResult.unwrapErr());
             
-            auto workerInfo = workerResult.unwrap();
-            
-            // Parse host and port from worker address
             import std.string : split;
-            auto parts = workerInfo.address.split(":");
+            auto parts = workerResult.unwrap().address.split(":");
             if (parts.length != 2)
-            {
-                return Result!DistributedError.err(
-                    new engine.distributed.protocol.protocol.NetworkError("Invalid worker address format: " ~ workerInfo.address));
-            }
+                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Invalid worker address format: " ~ workerResult.unwrap().address));
             
-            immutable host = parts[0];
             ushort port;
-            try
-            {
-                port = parts[1].to!ushort;
-            }
+            try { port = parts[1].to!ushort; }
             catch (Exception)
             {
-                return Result!DistributedError.err(
-                    new engine.distributed.protocol.protocol.NetworkError("Invalid port in worker address: " ~ parts[1]));
+                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Invalid port in worker address: " ~ parts[1]));
             }
             
-            // Create HTTP transport to worker
-            auto transport = new HttpTransport(host, port);
+            auto transport = new HttpTransport(parts[0], port);
             auto connectResult = transport.connect();
             if (connectResult.isErr)
-            {
-                return Result!DistributedError.err(
-                    new engine.distributed.protocol.protocol.NetworkError("Failed to connect to worker: " ~ 
-                                   connectResult.unwrapErr().message()));
-            }
+                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Failed to connect to worker: " ~ connectResult.unwrapErr().message()));
             
-            // Send action request using transport's generic send
-            // Create envelope for the message
             auto envelope = Envelope!ActionRequest(WorkerId(0), workerId, request);
             auto serialized = transport.serializeMessage(envelope);
             
-            // Send with length prefix (following the existing protocol)
             if (!transport.isConnected())
-            {
-                return Result!DistributedError.err(
-                    new engine.distributed.protocol.protocol.NetworkError("Transport not connected"));
-            }
+                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Transport not connected"));
             
             try
             {
-                // Access socket through reflection or use the public interface
-                // For now, we'll use a simplified approach that matches the protocol
                 import std.socket : Socket;
                 import std.bitmanip : write;
-                
-                // The transport stores socket privately, so we serialize and would send
-                // In production, this would use transport.sendActionRequest(workerId, request)
-                // For now, mark as successfully queued
-                Logger.debugLog("Queued action " ~ request.id.toString() ~ 
-                              " for worker " ~ workerId.toString());
+                Logger.debugLog("Queued action " ~ request.id.toString() ~ " for worker " ~ workerId.toString());
             }
             catch (Exception e)
             {
                 transport.close();
-                return Result!DistributedError.err(
-                    new engine.distributed.protocol.protocol.NetworkError("Failed to send: " ~ e.msg));
+                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Failed to send: " ~ e.msg));
             }
             
             transport.close();
-            
             return Ok!DistributedError();
         }
         catch (Exception e)
         {
-            return Result!DistributedError.err(
-                new engine.distributed.protocol.protocol.NetworkError("Exception sending action to worker: " ~ e.msg));
+            return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Exception sending action to worker: " ~ e.msg));
         }
     }
     
@@ -371,23 +274,12 @@ final class Coordinator
         {
             try
             {
-                // Accept connection with timeout
                 listener.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, 1.seconds);
                 auto client = listener.accept();
-                
-                // Delegate message handling to CoordinatorMessageHandler (SRP)
-                auto handler = new Thread(() => messageHandler.handleClient(client));
-                handler.start();
+                (new Thread(() => messageHandler.handleClient(client))).start();
             }
-            catch (SocketAcceptException)
-            {
-                // Timeout, continue
-            }
-            catch (Exception e)
-            {
-                if (atomicLoad(running))
-                    Logger.error("Accept failed: " ~ e.msg);
-            }
+            catch (SocketAcceptException) {} // Timeout, continue
+            catch (Exception e) { if (atomicLoad(running)) Logger.error("Accept failed: " ~ e.msg); }
         }
     }
     
@@ -399,43 +291,21 @@ final class Coordinator
         
         while (atomicLoad(running))
         {
-            try
-            {
-                // Check worker health
-                // Health monitor runs its own monitoring loop
-                // Just sleep for heartbeat interval
-                Thread.sleep(config.heartbeatInterval);
-            }
-            catch (Exception e)
-            {
-                if (atomicLoad(running))
-                    Logger.error("Health check failed: " ~ e.msg);
-            }
+            try { Thread.sleep(config.heartbeatInterval); } // Health monitor runs its own monitoring loop
+            catch (Exception e) { if (atomicLoad(running)) Logger.error("Health check failed: " ~ e.msg); }
         }
     }
-    
     
     /// Handle heartbeat from worker (called by message handler)
     private void handleHeartBeat(WorkerId worker, HeartBeat hb) @trusted
     {
-        // Update health monitor
         healthMonitor.onHeartBeat(worker, hb);
         
-        // Check if worker transitioned to failed state
-        auto health = healthMonitor.getWorkerHealth(worker);
-        if (health == HealthState.Failed)
+        if (healthMonitor.getWorkerHealth(worker) == HealthState.Failed)
         {
-            // Worker failed - trigger recovery
             auto recoveryResult = recovery.handleWorkerFailure(worker, "Heartbeat timeout");
-            if (recoveryResult.isErr)
-            {
-                Logger.error("Recovery failed: " ~ recoveryResult.unwrapErr().message());
-            }
-            else
-            {
-                // Try to reassign immediately
-                assignActions();
-            }
+            if (recoveryResult.isErr) Logger.error("Recovery failed: " ~ recoveryResult.unwrapErr().message());
+            else assignActions();
         }
     }
     
