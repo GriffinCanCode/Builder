@@ -438,6 +438,98 @@ struct DistributedConfig
     }
 }
 
+/// Economics configuration
+struct EconomicsConfig
+{
+    bool enabled = false;                   // Enable cost optimization
+    float budgetUSD = float.infinity;       // Budget constraint (USD)
+    float timeLimit = float.infinity;       // Time constraint (seconds)
+    string optimize = "balanced";           // Optimization mode: cost, time, balanced
+    string provider = "aws";                // Cloud provider: aws, gcp, azure, local
+    string pricingTier = "ondemand";        // Pricing tier: spot, ondemand, reserved, premium
+    
+    /// Load from environment variables
+    static EconomicsConfig fromEnvironment() @safe
+    {
+        import std.process : environment;
+        import std.conv : to;
+        import std.string : toLower;
+        
+        EconomicsConfig config;
+        
+        immutable enabled = environment.get("BUILDER_COST_OPTIMIZATION", "");
+        config.enabled = (enabled == "1" || enabled == "true");
+        
+        immutable budget = environment.get("BUILDER_BUDGET", "");
+        if (budget.length > 0)
+        {
+            try { config.budgetUSD = budget.to!float; }
+            catch (Exception) {}
+        }
+        
+        immutable timeLimit = environment.get("BUILDER_TIME_LIMIT", "");
+        if (timeLimit.length > 0)
+        {
+            try { config.timeLimit = timeLimit.to!float; }
+            catch (Exception) {}
+        }
+        
+        config.optimize = environment.get("BUILDER_OPTIMIZE", "balanced").toLower;
+        config.provider = environment.get("BUILDER_CLOUD_PROVIDER", "aws").toLower;
+        config.pricingTier = environment.get("BUILDER_PRICING_TIER", "ondemand").toLower;
+        
+        return config;
+    }
+}
+
+/// Determinism configuration
+struct DeterminismOptions
+{
+    bool enabled = false;               // Enable determinism enforcement
+    bool strictMode = false;            // Fail on non-determinism
+    uint verifyIterations = 1;          // Number of verification runs
+    ulong fixedTimestamp = 1640995200;  // Fixed timestamp (2022-01-01)
+    uint prngSeed = 42;                 // PRNG seed
+    bool normalizeTimestamps = true;    // Normalize file timestamps
+    bool deterministicThreading = false; // Force single-threaded
+    
+    /// Load from environment variables
+    static DeterminismOptions fromEnvironment() @safe
+    {
+        import std.process : environment;
+        import std.conv : to;
+        
+        DeterminismOptions config;
+        
+        immutable enabled = environment.get("BUILDER_DETERMINISM", "");
+        config.enabled = (enabled == "1" || enabled == "true" || enabled == "strict");
+        config.strictMode = (enabled == "strict");
+        
+        immutable iterations = environment.get("BUILDER_VERIFY_ITERATIONS", "");
+        if (iterations.length > 0)
+        {
+            try { config.verifyIterations = iterations.to!uint; }
+            catch (Exception) {}
+        }
+        
+        immutable timestamp = environment.get("BUILD_TIMESTAMP", "");
+        if (timestamp.length > 0)
+        {
+            try { config.fixedTimestamp = timestamp.to!ulong; }
+            catch (Exception) {}
+        }
+        
+        immutable seed = environment.get("RANDOM_SEED", "");
+        if (seed.length > 0)
+        {
+            try { config.prngSeed = seed.to!uint; }
+            catch (Exception) {}
+        }
+        
+        return config;
+    }
+}
+
 /// Build options
 struct BuildOptions
 {
@@ -448,6 +540,8 @@ struct BuildOptions
     string cacheDir = ".builder-cache";
     string outputDir = "bin";
     DistributedConfig distributed;
+    EconomicsConfig economics;
+    DeterminismOptions determinism;
 }
 
 /// Language-specific build result

@@ -1,0 +1,49 @@
+// Deterministic Build Example
+// Demonstrates Builder's determinism enforcement beyond hermeticity
+
+target("demo-app") {
+    type: executable;
+    language: c;
+    sources: ["main.c"];
+    
+    // Enable determinism enforcement
+    determinism: {
+        enabled: true;
+        strict: false;  // Warn but don't fail
+        verify_iterations: 3;  // Verify across 3 builds
+        fixed_timestamp: 1640995200;  // 2022-01-01 00:00:00 UTC
+        prng_seed: 42;
+    };
+    
+    // Compiler flags for determinism
+    flags: [
+        "-frandom-seed=42",
+        "-ffile-prefix-map=$(pwd)=.",
+        "-fdebug-prefix-map=$(pwd)=."
+    ];
+    
+    env: {
+        "SOURCE_DATE_EPOCH": "1640995200"
+    };
+}
+
+target("non-deterministic-app") {
+    type: executable;
+    language: c;
+    sources: ["non_deterministic.c"];
+    
+    // Deliberately non-deterministic for comparison
+    determinism: {
+        enabled: false;
+    };
+}
+
+target("verify-determinism") {
+    type: custom;
+    
+    // Custom verification command
+    command: "builder verify //demo-app:demo-app --iterations=5";
+    
+    deps: ["//demo-app:demo-app"];
+}
+

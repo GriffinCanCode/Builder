@@ -111,6 +111,11 @@ struct ActionEntry
     SysTime lastAccess;                 // Last access time (LRU)
     string executionHash;               // Hash of execution context
     bool success;                       // Whether action succeeded
+    
+    // Determinism tracking
+    bool isDeterministic = false;       // Verified deterministic?
+    string verificationHash;            // Hash for determinism verification
+    uint determinismVerifications = 0;  // Number of successful verifications
 }
 
 /// High-performance action-level cache with incremental builds
