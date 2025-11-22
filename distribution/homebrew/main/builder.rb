@@ -2,7 +2,7 @@ class Builder < Formula
   desc "High-performance build system for mixed-language monorepos"
   homepage "https://github.com/GriffinCanCode/Builder"
   url "https://github.com/GriffinCanCode/Builder/archive/refs/tags/v1.0.6.tar.gz"
-  sha256 "PLACEHOLDER_SHA256"
+  sha256 "00be5a007a9b6b33c572e544426598cdf4c63c7dca875c9bdd2e1d6d7edfb7ad"
   license "MIT"
   head "https://github.com/GriffinCanCode/Builder.git", branch: "master"
 
