@@ -192,7 +192,7 @@ struct TlsSession
         while (offset < N)
         {
             // A(i) = HMAC_hash(secret, A(i-1))
-            A = hmac!Hash(secret, A);
+            A = hmac!Hash(secret, A)[].dup;
             
             // HMAC_hash(secret, A(i) + seed)
             auto combined = A ~ seed;

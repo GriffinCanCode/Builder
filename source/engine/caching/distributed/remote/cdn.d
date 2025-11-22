@@ -505,7 +505,7 @@ final class CdnManager
         ];
         
         // Compute canonical request
-        immutable payloadHash = sha256Of(cast(ubyte[])body_).toHexString().toLower();
+        immutable payloadHash = sha256Of(cast(ubyte[])body_).toHexString().toLower().idup;
         immutable canonicalRequest = format("%s\n%s\n\n%s\n\n%s\n%s",
             method,
             "/2020-05-31/distribution/" ~ config.distributionId ~ "/invalidation",
@@ -515,16 +515,16 @@ final class CdnManager
         );
         
         // Compute string to sign
-        immutable canonicalHash = sha256Of(cast(ubyte[])canonicalRequest).toHexString().toLower();
+        immutable canonicalHash = sha256Of(cast(ubyte[])canonicalRequest).toHexString().toLower().idup;
         immutable stringToSign = format("AWS4-HMAC-SHA256\n%s\n%s/us-east-1/cloudfront/aws4_request\n%s",
             timestamp, date, canonicalHash);
         
         // Compute signature
         auto kDate = hmac!SHA256(cast(ubyte[])("AWS4" ~ secretKey), cast(ubyte[])date);
-        auto kRegion = hmac!SHA256(kDate, cast(ubyte[])"us-east-1");
-        auto kService = hmac!SHA256(kRegion, cast(ubyte[])"cloudfront");
-        auto kSigning = hmac!SHA256(kService, cast(ubyte[])"aws4_request");
-        auto signature = hmac!SHA256(kSigning, cast(ubyte[])stringToSign);
+        auto kRegion = hmac!SHA256(kDate[], cast(ubyte[])"us-east-1");
+        auto kService = hmac!SHA256(kRegion[], cast(ubyte[])"cloudfront");
+        auto kSigning = hmac!SHA256(kService[], cast(ubyte[])"aws4_request");
+        auto signature = hmac!SHA256(kSigning[], cast(ubyte[])stringToSign);
         
         // Add authorization header
         headers["Authorization"] = format(

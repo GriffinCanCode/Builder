@@ -368,8 +368,20 @@ class CSharpHandler : BaseLanguageHandler
         
         Logger.info("Using " ~ testRunner.name() ~ " test runner");
         
+        // Convert TestConfig to the format expected by test runners
+        import languages.dotnet.csharp.config.test : TestConfig;
+        TestConfig testConfig;
+        testConfig.enabled = csConfig.test.enabled;
+        testConfig.framework = csConfig.test.framework;
+        testConfig.filter = csConfig.test.filter;
+        testConfig.resultsDirectory = csConfig.test.resultsDirectory;
+        testConfig.logger = csConfig.test.logger;
+        testConfig.collectCoverage = csConfig.test.coverage;
+        testConfig.coverageFormat = csConfig.test.coverageTool;
+        testConfig.minCoverage = cast(int)csConfig.test.minCoverage;
+        
         // Run tests
-        auto testResult = testRunner.runTests(target.sources, csConfig.test, config.root);
+        auto testResult = testRunner.runTests(target.sources, testConfig, config.root);
         
         if (!testResult.success)
         {
