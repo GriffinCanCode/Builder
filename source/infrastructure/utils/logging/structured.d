@@ -589,30 +589,6 @@ struct LogError
     }
 }
 
-/// Global structured logger instance
-private StructuredLogger globalStructuredLogger;
-
-/// Get global structured logger
-StructuredLogger getStructuredLogger() @system
-{
-    if (globalStructuredLogger is null)
-    {
-        // Initialize with debug level if verbose mode
-        import std.process : environment;
-        
-        auto verbose = environment.get("BUILDER_VERBOSE", "0");
-        auto minLevel = (verbose == "1" || verbose == "true") ? LogLevel.Debug : LogLevel.Info;
-        
-        globalStructuredLogger = new StructuredLogger(minLevel);
-    }
-    return globalStructuredLogger;
-}
-
-/// Set custom structured logger
-void setStructuredLogger(StructuredLogger logger) @system
-{
-    globalStructuredLogger = logger;
-}
 
 /// Convenience function for scoped logging context
 struct ScopedLogContext

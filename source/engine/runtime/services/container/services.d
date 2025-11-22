@@ -161,7 +161,6 @@ final class BuildServices
         auto verbose = environment.get("BUILDER_VERBOSE", "0");
         auto minLevel = (verbose == "1" || verbose == "true") ? LogLevel.Debug : LogLevel.Info;
         this._structuredLogger = new StructuredLogger(minLevel);
-        setStructuredLogger(this._structuredLogger);
         
         // Initialize distributed tracing (ENABLED BY DEFAULT)
         // Set BUILDER_TRACING_ENABLED=0 to disable
@@ -183,7 +182,6 @@ final class BuildServices
             }
             
             this._tracer = new Tracer(exporter);
-            setTracer(this._tracer);
             this._structuredLogger.debug_("Distributed tracing enabled (default)", [
                 "exporter": exporterType,
                 "output": (exporterType == "console") ? "console" : outputFile,
@@ -195,7 +193,6 @@ final class BuildServices
             // Create disabled tracer (user explicitly disabled)
             this._tracer = new Tracer(null);
             this._tracer.setEnabled(false);
-            setTracer(this._tracer);
             
             this._structuredLogger.debug_("Distributed tracing disabled by user");
         }
@@ -284,7 +281,7 @@ final class BuildServices
         size_t maxParallelism = 0,
         bool enableCheckpoints = true,
         bool enableRetries = true,
-        bool useWorkStealing = true)
+        bool useWorkStealing = false)
     {
         import engine.runtime.core.engine;
         import engine.runtime.services;

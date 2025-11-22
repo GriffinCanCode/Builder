@@ -677,24 +677,4 @@ struct TraceError
     }
 }
 
-/// Global tracer instance
-private Tracer globalTracer;
-
-/// Get global tracer
-Tracer getTracer() @system
-{
-    if (globalTracer is null)
-    {
-        // Initialize with Jaeger exporter by default
-        auto exporter = new JaegerSpanExporter();
-        globalTracer = new Tracer(exporter);
-    }
-    return globalTracer;
-}
-
-/// Set custom tracer
-void setTracer(Tracer tracer) @system
-{
-    globalTracer = tracer;
-}
 

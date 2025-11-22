@@ -24,16 +24,18 @@ struct HermeticAuditLogger
 {
     private string auditLogPath;
     private bool enabled;
+    private StructuredLogger logger;  // Injected logger (null if not available)
     
-    /// Create audit logger
-    static HermeticAuditLogger create(string logPath = "") @safe
+    /// Create audit logger with optional structured logger
+    static HermeticAuditLogger create(string logPath = "", StructuredLogger logger = null) @safe
     {
-        HermeticAuditLogger logger;
+        HermeticAuditLogger auditLogger;
+        auditLogger.logger = logger;
         
         if (logPath.length > 0)
         {
-            logger.auditLogPath = logPath;
-            logger.enabled = true;
+            auditLogger.auditLogPath = logPath;
+            auditLogger.enabled = true;
             
             // Ensure directory exists
             try
@@ -46,10 +48,10 @@ struct HermeticAuditLogger
         }
         else
         {
-            logger.enabled = false;
+            auditLogger.enabled = false;
         }
         
-        return logger;
+        return auditLogger;
     }
     
     /// Log a sandbox violation
@@ -60,14 +62,16 @@ struct HermeticAuditLogger
         
         try
         {
-            // Log to structured logger
-            auto logger = getStructuredLogger();
-            string[string] fields;
-            fields["violation.type"] = violation.violationType;
-            fields["violation.path"] = violation.attemptedPath;
-            fields["violation.command"] = violation.command;
-            fields["violation.pid"] = violation.pid;
-            logger.log(LogLevel.Warning, "Sandbox violation detected", fields);
+            // Log to structured logger if available
+            if (logger !is null)
+            {
+                string[string] fields;
+                fields["violation.type"] = violation.violationType;
+                fields["violation.path"] = violation.attemptedPath;
+                fields["violation.command"] = violation.command;
+                fields["violation.pid"] = violation.pid;
+                logger.log(LogLevel.Warning, "Sandbox violation detected", fields);
+            }
             
             // Log to audit file
             if (auditLogPath.length > 0)
@@ -179,33 +183,6 @@ struct HermeticAuditLogger
     }
 }
 
-/// Global audit logger instance
-private HermeticAuditLogger _globalAuditLogger;
-private bool _globalAuditLoggerInitialized = false;
-
-/// Get or create global audit logger
-HermeticAuditLogger getAuditLogger() @trusted
-{
-    if (!_globalAuditLoggerInitialized)
-    {
-        import std.file : tempDir;
-        import std.path : buildPath;
-        
-        // Default audit log path
-        immutable auditPath = buildPath(tempDir(), "builder-hermetic-audit.jsonl");
-        _globalAuditLogger = HermeticAuditLogger.create(auditPath);
-        _globalAuditLoggerInitialized = true;
-    }
-    
-    return _globalAuditLogger;
-}
-
-/// Set global audit logger
-void setAuditLogger(HermeticAuditLogger logger) @safe
-{
-    _globalAuditLogger = logger;
-    _globalAuditLoggerInitialized = true;
-}
 
 @safe unittest
 {

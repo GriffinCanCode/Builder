@@ -18,7 +18,7 @@ alias ActionRecorder = void delegate(ActionId actionId, string[] inputs, string[
 alias DependencyRecorder = void delegate(string sourceFile, string[] dependencies);
 
 /// Build context with action-level caching and incremental compilation support
-/// Extended to include SIMD capabilities for hardware-accelerated operations
+/// Extended to include SIMD capabilities and observability (tracer, logger)
 struct BuildContext
 {
     Target target;
@@ -27,6 +27,8 @@ struct BuildContext
     DependencyRecorder depRecorder;  // Optional dependency recorder
     SIMDCapabilities simd;           // SIMD capabilities (null if not available)
     bool incrementalEnabled;         // Whether incremental compilation is enabled
+    Tracer tracer;                   // Distributed tracer (null if not available)
+    StructuredLogger logger;         // Structured logger (null if not available)
     
     /// Record an action for fine-grained caching
     void recordAction(ActionId actionId, string[] inputs, string[] outputs, string[string] metadata, bool success)
@@ -111,17 +113,18 @@ abstract class BaseLanguageHandler : LanguageHandler
     /// - Invalid target: handler validates and returns error Result
     Result!(string, BuildError) buildWithContext(BuildContext context) @system
     {
-        // Get global tracer and structured logger (safe operations)
-        auto tracer = getTracer();
-        auto logger = getStructuredLogger();
+        // Use tracer and logger from context (dependency injection)
+        auto tracer = context.tracer;
+        auto logger = context.logger;
         
-        // Create span for language handler execution
-        auto handlerSpan = tracer.startSpan("language-handler", SpanKind.Internal);
+        // Create span for language handler execution (if tracer available)
+        Span handlerSpan = tracer !is null ? tracer.startSpan("language-handler", SpanKind.Internal) : null;
         
         // Ensure span is finished
-        scope(exit) tracer.finishSpan(handlerSpan);;
+        if (handlerSpan !is null)
+            scope(exit) tracer.finishSpan(handlerSpan);
         
-        () @system {
+        if (handlerSpan !is null) {
             handlerSpan.setAttribute("handler.language", context.target.language.to!string);
             handlerSpan.setAttribute("handler.target", context.target.name);
             handlerSpan.setAttribute("handler.type", context.target.type.to!string);
@@ -138,10 +141,10 @@ abstract class BaseLanguageHandler : LanguageHandler
             
             if (result.success)
             {
-                () @system { 
+                if (handlerSpan !is null) {
                     handlerSpan.setStatus(SpanStatus.Ok);
                     handlerSpan.setAttribute("build.success", "true");
-                }();
+                }
                 
                 return Ok!(string, BuildError)(result.outputHash);
             }
@@ -161,10 +164,10 @@ abstract class BaseLanguageHandler : LanguageHandler
                 error.addSuggestion("Verify source files have no syntax errors");
                 error.addSuggestion("Try building manually to reproduce the issue");
                 
-                () @system {
+                if (handlerSpan !is null) {
                     handlerSpan.recordException(new Exception(result.error));
                     handlerSpan.setStatus(SpanStatus.Error, result.error);
-                }();
+                }
                 
                 return Err!(string, BuildError)(error);
             }
@@ -185,10 +188,10 @@ abstract class BaseLanguageHandler : LanguageHandler
             error.addSuggestion("Ensure all required tools and dependencies are available");
             error.addSuggestion("Run with --verbose for more detailed output");
             
-            () @system {
+            if (handlerSpan !is null) {
                 handlerSpan.recordException(e);
                 handlerSpan.setStatus(SpanStatus.Error, e.msg);
-            }();
+            }
             
             return Err!(string, BuildError)(error);
         }

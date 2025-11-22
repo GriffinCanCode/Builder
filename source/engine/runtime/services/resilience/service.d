@@ -181,9 +181,9 @@ final class ResilienceService : IResilienceService
 /// Null resilience service for testing/disabled resilience
 final class NullResilienceService : IResilienceService
 {
-    private __gshared SystemError nullError;
+    private SystemError nullError;
     
-    shared static this()
+    this()
     {
         nullError = new SystemError("Null resilience service", ErrorCode.UnknownError);
     }

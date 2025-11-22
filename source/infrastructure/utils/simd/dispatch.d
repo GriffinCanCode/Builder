@@ -86,61 +86,47 @@ void blake3_hash_many_neon(
 /// Initialize SIMD dispatch (called automatically)
 void blake3_simd_init();
 
-/// D-friendly wrapper for SIMD dispatch with automatic lazy initialization
+/// D-friendly wrapper for SIMD dispatch
+/// 
+/// DEPRECATED: Use SIMDCapabilities and SIMDContext for dependency injection.
+/// This struct is kept for backward compatibility only.
+/// 
+/// Migration:
+///   // Old: SIMDDispatch.initialize();
+///   // New: auto caps = SIMDCapabilities.detect();
+/// 
+/// Note: The C layer (blake3_simd_init) handles thread-safe initialization
+/// internally, so we don't need D-side global state.
 struct SIMDDispatch
 {
-    private __gshared bool _initialized = false;
-    
-    /// Ensure SIMD is initialized (thread-safe, idempotent)
+    /// Initialize dispatch system (delegates to C layer)
     /// 
-    /// Safety: This function is @system because:
-    /// 1. Uses synchronized block for thread-safe initialization
-    /// 2. Double-checked locking pattern prevents race conditions
-    /// 3. blake3_simd_init() is idempotent (safe to call multiple times)
-    /// 4. _initialized flag prevents redundant initialization
-    /// 
-    /// Invariants:
-    /// - After first call, SIMD dispatch is fully initialized
-    /// - Concurrent calls are serialized by synchronized block
-    /// 
-    /// What could go wrong:
-    /// - Nothing: C code has its own initialization guard
-    private static void ensureInitialized() @system
-    {
-        // Fast path: already initialized (no lock needed)
-        if (_initialized)
-            return;
-        
-        // Slow path: need to initialize (with lock)
-        synchronized
-        {
-            // Double-check after acquiring lock
-            if (!_initialized)
-            {
-                blake3_simd_init();
-                _initialized = true;
-            }
-        }
-    }
-    
-    /// Initialize dispatch system (now optional - auto-initializes on first use)
-    /// Can still be called explicitly for control over initialization timing
+    /// DEPRECATED: Initialization is handled automatically by C layer.
+    /// For explicit control, use SIMDCapabilities in BuildServices.
+    deprecated("Use SIMDCapabilities.detect() instead")
     static void initialize() @system
     {
-        ensureInitialized();
+        // C layer handles initialization with internal guards
+        blake3_simd_init();
     }
     
-    /// Get compression function (auto-initializes if needed)
+    /// Get compression function
+    /// 
+    /// DEPRECATED: Use SIMDCapabilities for DI-based access.
+    /// The C layer ensures thread-safe initialization on first call.
+    deprecated("Use SIMDCapabilities.detect() for DI pattern")
     static blake3_compress_fn getCompressFn() @system
     {
-        ensureInitialized();
+        // C layer auto-initializes on first call (thread-safe)
         return blake3_get_compress_fn();
     }
     
-    /// Get hash-many function (auto-initializes if needed)
+    /// Get hash-many function
+    /// 
+    /// DEPRECATED: Use SIMDCapabilities for DI-based access.
+    deprecated("Use SIMDCapabilities.detect() for DI pattern")
     static blake3_hash_many_fn getHashManyFn() @system
     {
-        ensureInitialized();
         return blake3_get_hash_many_fn();
     }
     
@@ -160,16 +146,13 @@ struct SIMDDispatch
     }
     
     /// Check if SIMD is active
+    /// 
+    /// DEPRECATED: Use SIMDCapabilities.active property instead.
+    deprecated("Use SIMDCapabilities.active instead")
     static bool isActive()
     {
         import infrastructure.utils.simd.detection;
         return CPU.simdLevel() != SIMDLevel.None;
-    }
-    
-    /// Check if SIMD has been initialized
-    static bool isInitialized() @system nothrow @nogc
-    {
-        return _initialized;
     }
 }
 

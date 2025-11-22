@@ -1,8 +1,8 @@
 module engine.runtime.services.observability.service;
 
 import frontend.cli.events.events;
-import infrastructure.telemetry.distributed.tracing : Tracer, Span, SpanKind, SpanStatus, getTracer, setTracer;
-import infrastructure.utils.logging.structured : StructuredLogger, LogLevel, getStructuredLogger, setStructuredLogger;
+import infrastructure.telemetry.distributed.tracing : Tracer, Span, SpanKind, SpanStatus;
+import infrastructure.utils.logging.structured : StructuredLogger, LogLevel;
 import infrastructure.errors;
 
 /// Observability service interface
@@ -47,6 +47,12 @@ interface IObservabilityService
     
     /// Set span attribute
     void setSpanAttribute(Span span, string key, string value);
+    
+    /// Get tracer for direct access (for passing to BuildContext)
+    @property Tracer tracer();
+    
+    /// Get structured logger for direct access (for passing to BuildContext)
+    @property StructuredLogger logger();
 }
 
 /// Concrete observability service implementation
@@ -60,16 +66,10 @@ final class ObservabilityService : IObservabilityService
          Tracer tracer = null,
          StructuredLogger structuredLogger = null)
     {
-        // Use provided or get globals
+        // Use provided dependencies (no global fallbacks)
         this.eventPublisher = eventPublisher;
-        this.tracer = tracer is null ? getTracer() : tracer;
-        this.structuredLogger = structuredLogger is null ? getStructuredLogger() : structuredLogger;
-        
-        // Set as globals if provided
-        if (tracer !is null)
-            setTracer(tracer);
-        if (structuredLogger !is null)
-            setStructuredLogger(structuredLogger);
+        this.tracer = tracer;
+        this.structuredLogger = structuredLogger;
     }
     
     void publishEvent(BuildEvent event) @trusted
@@ -142,6 +142,16 @@ final class ObservabilityService : IObservabilityService
     {
         span.setAttribute(key, value);
     }
+    
+    @property Tracer tracer() @trusted
+    {
+        return this.tracer;
+    }
+    
+    @property StructuredLogger logger() @trusted
+    {
+        return this.structuredLogger;
+    }
 }
 
 /// Null observability service for testing/disabled observability
@@ -169,6 +179,8 @@ final class NullObservabilityService : IObservabilityService
         void recordException(Span span, Exception e) { }
         void addSpanEvent(Span span, string name, string[string] attributes = null) { }
         void setSpanAttribute(Span span, string key, string value) { }
+        @property Tracer tracer() { return null; }
+        @property StructuredLogger logger() { return null; }
     }
 }
 

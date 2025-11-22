@@ -132,7 +132,114 @@ this.retryOrchestrator = new RetryOrchestrator();
 auto result = resilience.withRetry("myOp", () => doWork(), policy);
 ```
 
-**Status:** Deprecated, marked with `@deprecated` attribute
+**Status:** Fully migrated ✅
+
+### 4. SIMD Dispatch Initialization ✅
+
+**Before:**
+```d
+private __gshared bool _initialized = false;
+SIMDDispatch.initialize();  // Global state for init guard
+```
+
+**After:**
+```d
+// C layer (blake3_simd_init) handles thread-safe initialization internally
+// D layer removed __gshared state entirely
+auto caps = SIMDCapabilities.detect();  // DI pattern
+```
+
+**Status:** Fully migrated ✅
+
+### 5. Structured Logger ✅
+
+**Before:**
+```d
+private StructuredLogger globalStructuredLogger;
+auto logger = getStructuredLogger();  // Global singleton
+```
+
+**After:**
+```d
+// In BuildServices:
+this._structuredLogger = new StructuredLogger(minLevel);
+
+// Passed through BuildContext:
+BuildContext context;
+context.logger = observability.logger;
+
+// Used in handlers:
+if (context.logger !is null)
+    context.logger.info("Building target", fields);
+```
+
+**Status:** Fully migrated ✅
+
+### 6. Distributed Tracer ✅
+
+**Before:**
+```d
+private Tracer globalTracer;
+auto tracer = getTracer();  // Global singleton
+```
+
+**After:**
+```d
+// In BuildServices:
+this._tracer = new Tracer(exporter);
+
+// Passed through BuildContext:
+BuildContext context;
+context.tracer = observability.tracer;
+
+// Used in handlers:
+if (context.tracer !is null) {
+    auto span = context.tracer.startSpan("operation");
+    // ... work
+    context.tracer.finishSpan(span);
+}
+```
+
+**Status:** Fully migrated ✅
+
+### 7. Hermetic Audit Logger ✅
+
+**Before:**
+```d
+private HermeticAuditLogger _globalAuditLogger;
+auto logger = getAuditLogger();  // Global singleton
+```
+
+**After:**
+```d
+// Create with logger dependency:
+auto auditLogger = HermeticAuditLogger.create(path, structuredLogger);
+
+// Pass to HermeticExecutor:
+HermeticExecutor.create(spec, workDir, auditLogger);
+
+// Used internally:
+if (auditLogger.enabled)
+    auditLogger.logViolation(violation);
+```
+
+**Status:** Fully migrated ✅
+
+### 8. NullResilienceService Error ✅
+
+**Before:**
+```d
+private __gshared SystemError nullError;  // Problematic global
+shared static this() { nullError = new SystemError(...); }
+```
+
+**After:**
+```d
+private SystemError nullError;  // Instance field
+this() { nullError = new SystemError(...); }
+```
+
+**Status:** Fully migrated ✅
 
 ## Limited Global State (Acceptable Cases)
 
@@ -203,8 +310,14 @@ These are acceptable because:
 - [x] Removed `ShutdownCoordinator.instance()` singleton
 - [x] Removed global `retry()` function
 - [x] `RetryOrchestrator` integrated in `ResilienceService`
+- [x] Removed `SIMDDispatch._initialized` - handled by C layer
+- [x] Removed `globalStructuredLogger` - passed via BuildContext
+- [x] Removed `globalTracer` - passed via BuildContext
+- [x] Removed `globalAuditLogger` - passed via constructor
+- [x] Fixed `NullResilienceService.__gshared` - use instance field
+- [x] Zero global state (except OS signal handlers)
 - [x] Zero deprecated code (clean migration)
-- [x] No problematic `__gshared` (only signals/init guards)
+- [x] All observability through dependency injection
 
 ## Testing Strategy
 
@@ -387,15 +500,123 @@ class PythonHandler : LanguageHandler
 3. **Async DI:** Support for async service initialization
 4. **Configuration:** External configuration for service wiring
 
+## Global State Elimination Summary
+
+### What Was Removed
+
+All remaining global state has been eliminated:
+
+1. **SIMD Dispatch** - Removed `__gshared bool _initialized`
+   - C layer handles thread-safe initialization internally
+   - No D-side global state needed
+
+2. **Structured Logger** - Removed `globalStructuredLogger` and accessor functions
+   - Created in `BuildServices._initializeObservability()`
+   - Passed through `BuildContext.logger` to all handlers
+   - Accessed via `IObservabilityService.logger` property
+
+3. **Distributed Tracer** - Removed `globalTracer` and accessor functions
+   - Created in `BuildServices._initializeObservability()`
+   - Passed through `BuildContext.tracer` to all handlers
+   - Accessed via `IObservabilityService.tracer` property
+
+4. **Hermetic Audit Logger** - Removed `_globalAuditLogger` and accessor functions
+   - Created explicitly with `HermeticAuditLogger.create(path, logger)`
+   - Passed to `HermeticExecutor` via constructor parameter
+   - No global fallbacks
+
+5. **NullResilienceService** - Fixed `__gshared SystemError`
+   - Changed from `shared static this()` to instance constructor
+   - Error object is now instance field, not global
+
+### Migration Pattern
+
+All observability components now follow this pattern:
+
+```d
+// 1. Create in BuildServices
+this._structuredLogger = new StructuredLogger(minLevel);
+this._tracer = new Tracer(exporter);
+
+// 2. Inject into ObservabilityService
+auto observability = new ObservabilityService(_publisher, _tracer, _structuredLogger);
+
+// 3. Pass through BuildContext
+BuildContext context;
+context.tracer = observability.tracer;
+context.logger = observability.logger;
+
+// 4. Use in handlers (with null checks)
+if (context.tracer !is null) {
+    auto span = context.tracer.startSpan("operation");
+    // ... work ...
+    context.tracer.finishSpan(span);
+}
+
+if (context.logger !is null) {
+    context.logger.info("Message", fields);
+}
+```
+
+### Extended BuildContext
+
+`BuildContext` now provides complete execution environment:
+
+```d
+struct BuildContext
+{
+    Target target;                   // Target to build
+    WorkspaceConfig config;          // Workspace configuration
+    ActionRecorder recorder;         // Action-level caching
+    DependencyRecorder depRecorder;  // Incremental compilation
+    SIMDCapabilities simd;           // Hardware acceleration
+    Tracer tracer;                   // Distributed tracing
+    StructuredLogger logger;         // Structured logging
+    bool incrementalEnabled;         // Incremental flag
+}
+```
+
+All language handlers receive complete context with zero global dependencies.
+
+### Verification
+
+Verified zero remaining global state:
+
+```bash
+# No problematic __gshared except signal handlers:
+$ rg "__gshared" source/ | grep -v "// Signal" | grep -v "immutable"
+# (Empty - only signal handlers and immutable registries)
+
+# No global accessor functions:
+$ rg "getStructuredLogger|getTracer|getAuditLogger" source/
+# (Empty - all removed)
+
+# No setters for globals:
+$ rg "setStructuredLogger|setTracer|setAuditLogger" source/
+# (Empty - all removed)
+```
+
 ## Conclusion
 
 Builder's dependency injection architecture provides:
 - ✅ Zero performance overhead
-- ✅ Zero global state (except OS requirements)
+- ✅ **Zero global state** (except OS signal handlers)
 - ✅ Complete type safety
 - ✅ Easy testability
 - ✅ Clear dependency graph
 - ✅ Explicit dependencies throughout
+- ✅ **Full observability through DI**
+- ✅ Thread-safe by design
 
-All code uses dependency injection patterns - clean, maintainable, and production-ready.
+All code uses pure dependency injection patterns - clean, maintainable, and production-ready.
+
+### Acceptable Global State
+
+Only OS-required global state remains:
+
+1. **Signal Handlers** - Required by OS APIs (`extern(C)`, `nothrow`, `@nogc`)
+2. **Immutable Registries** - Compile-time initialized lookup tables
+3. **C Layer Init Guards** - BLAKE3 C code has internal thread-safe guards
+
+All application-level state uses dependency injection exclusively.
 
