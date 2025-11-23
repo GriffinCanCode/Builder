@@ -15,6 +15,7 @@ Builder advances the state of build systems through novel architectural approach
 | Hermetic Builds | ✅ Production | Linux/macOS/Windows sandboxing |
 | LSP Implementation | ✅ Production | VS Code extension available |
 | Multi-Level Caching | ✅ Production | 3 tiers (target, action, remote/distributed) |
+| AST-Level Incremental | ✅ Production | Symbol-level dependency tracking, class/function granularity |
 | Query Language | ✅ Production | Bazel-compatible bldrquery |
 | Build System Migration | ✅ Production | 11 systems supported |
 | Tier 1 DSL | ✅ Production | Variables, loops, conditionals, 30+ built-ins |

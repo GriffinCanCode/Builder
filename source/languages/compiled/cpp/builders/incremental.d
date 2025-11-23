@@ -15,23 +15,29 @@ import languages.compiled.cpp.analysis.incremental;
 import infrastructure.config.schema.schema;
 import infrastructure.analysis.targets.types;
 import engine.compilation.incremental.engine;
+import engine.compilation.incremental.ast_engine;
 import engine.caching.incremental.dependency;
+import engine.caching.incremental.ast_dependency;
 import engine.caching.actions.action;
+import infrastructure.analysis.ast.parser;
 import infrastructure.utils.files.hash;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
 
-/// Incremental C++ builder with module-level dependency tracking
-/// Only recompiles files affected by header changes
+/// Incremental C++ builder with AST-level dependency tracking
+/// Only recompiles files/symbols affected by changes
 class IncrementalCppBuilder : BaseCppBuilder
 {
     private const(Toolchain)* toolchain;
     private ActionCache actionCache;
     private DependencyCache depCache;
+    private ASTDependencyCache astCache;
     private IncrementalEngine incEngine;
+    private HybridIncrementalEngine astEngine;
     private CppDependencyAnalyzer analyzer;
+    private bool useASTLevel;
     
-    this(CppConfig config, ActionCache actionCache = null, DependencyCache depCache = null)
+    this(CppConfig config, ActionCache actionCache = null, DependencyCache depCache = null, bool enableASTLevel = true)
     {
         super(config);
         
@@ -94,11 +100,24 @@ class IncrementalCppBuilder : BaseCppBuilder
             this.depCache = depCache;
         }
         
-        // Initialize incremental engine
+        // Initialize AST cache
+        this.astCache = new ASTDependencyCache(".builder-cache/ast-incremental/cpp");
+        
+        // Initialize incremental engines
         this.incEngine = new IncrementalEngine(this.depCache, this.actionCache);
+        
+        auto astIncEngine = new ASTIncrementalEngine(this.astCache, this.depCache, this.actionCache);
+        this.astEngine = new HybridIncrementalEngine(astIncEngine, enableASTLevel);
+        this.useASTLevel = enableASTLevel;
         
         // Initialize dependency analyzer
         this.analyzer = new CppDependencyAnalyzer(config.includeDirs);
+        
+        // Initialize AST parsers
+        initializeASTParsers();
+        
+        if (enableASTLevel)
+            Logger.info("AST-level incremental compilation enabled for C++");
     }
     
     override CppCompileResult build(
@@ -246,27 +265,69 @@ class IncrementalCppBuilder : BaseCppBuilder
         baseMetadata["flags"] = flags.join(" ");
         baseMetadata["isCpp"] = isCpp.to!string;
         
-        // Determine rebuild set using incremental engine
-        auto rebuildResult = incEngine.determineRebuildSet(
-            sources,
-            [],  // Changed files detected by file watching or user
-            (file) {
-                ActionId actionId;
-                actionId.targetId = target.name;
-                actionId.type = ActionType.Compile;
-                actionId.subId = baseName(file);
-                actionId.inputHash = FastHash.hashFile(file);
-                return actionId;
-            },
-            (file) => baseMetadata
-        );
+        // Detect changed files (simplified - would integrate with file watching)
+        string[] changedFiles;
+        foreach (source; sources)
+        {
+            auto depResult = depCache.getDependencies(source);
+            if (depResult.isErr || !depResult.unwrap().isValid())
+                changedFiles ~= source;
+        }
         
-        Logger.info("Incremental: " ~ rebuildResult.compiledFiles.to!string ~ 
-                   " files to compile, " ~ rebuildResult.cachedFiles_.to!string ~ 
-                   " cached (" ~ rebuildResult.reductionRate.to!string[0..min(5, $)] ~ "%)");
+        // Try AST-level analysis first if enabled
+        string[] filesToCompile;
+        if (useASTLevel && changedFiles.length > 0)
+        {
+            Logger.debugLog("Attempting AST-level incremental analysis...");
+            auto astAnalysisResult = astEngine.analyzeChanges(sources, changedFiles);
+            
+            if (astAnalysisResult.isOk)
+            {
+                auto astAnalysis = astAnalysisResult.unwrap();
+                filesToCompile = astAnalysis.filesToRebuild.dup;
+                
+                Logger.info("AST-level granularity: " ~ 
+                          astAnalysis.granularity.to!string[0..min(5, $)] ~ "% of symbols changed");
+                
+                // Log symbol-level rebuild info
+                foreach (file, symbols; astAnalysis.symbolsToRecompile)
+                {
+                    Logger.debugLog("  " ~ baseName(file) ~ ": " ~ symbols);
+                }
+            }
+            else
+            {
+                Logger.warning("AST-level analysis failed, falling back to file-level: " ~
+                             astAnalysisResult.unwrapErr().message());
+                filesToCompile = changedFiles.dup;
+            }
+        }
+        else
+        {
+            // Use traditional file-level incremental compilation
+            auto rebuildResult = incEngine.determineRebuildSet(
+                sources,
+                changedFiles,
+                (file) {
+                    ActionId actionId;
+                    actionId.targetId = target.name;
+                    actionId.type = ActionType.Compile;
+                    actionId.subId = baseName(file);
+                    actionId.inputHash = FastHash.hashFile(file);
+                    return actionId;
+                },
+                (file) => baseMetadata
+            );
+            
+            filesToCompile = rebuildResult.filesToCompile.dup;
+            
+            Logger.info("Incremental: " ~ rebuildResult.compiledFiles.to!string ~ 
+                       " files to compile, " ~ rebuildResult.cachedFiles_.to!string ~ 
+                       " cached (" ~ rebuildResult.reductionRate.to!string[0..min(5, $)] ~ "%)");
+        }
         
         // Compile only necessary files
-        foreach (source; rebuildResult.filesToCompile)
+        foreach (source; filesToCompile)
         {
             auto compileResult = compileOneFile(
                 source, compiler, flags, objDir, target, baseMetadata
@@ -286,14 +347,17 @@ class IncrementalCppBuilder : BaseCppBuilder
             result.hadWarnings = result.hadWarnings || compileResult.hadWarnings;
         }
         
-        // Add cached object files
-        foreach (cachedFile; rebuildResult.cachedFiles)
+        // Add cached object files (files not in rebuild list)
+        foreach (source; sources)
         {
-            string objFile = buildPath(objDir, baseName(cachedFile).stripExtension ~ ".o");
-            if (exists(objFile))
+            if (!filesToCompile.canFind(source))
             {
-                result.objects ~= objFile;
-                Logger.debugLog("  [Using Cached] " ~ objFile);
+                string objFile = buildPath(objDir, baseName(source).stripExtension ~ ".o");
+                if (exists(objFile))
+                {
+                    result.objects ~= objFile;
+                    Logger.debugLog("  [Using Cached] " ~ objFile);
+                }
             }
         }
         
