@@ -21,8 +21,11 @@ interface BuildError
     /// Get error context chain
     const(ErrorContext)[] contexts() const;
     
-    /// Check if error is recoverable
+    /// Check if error is recoverable (transient)
     bool recoverable() const pure nothrow;
+    
+    /// Get recoverability classification
+    Recoverability recoverability() const pure nothrow;
     
     /// Get full formatted error string
     string toString() const;
@@ -65,6 +68,11 @@ abstract class BaseBuildError : BuildError
     bool recoverable() const pure nothrow
     {
         return isRecoverable(_code);
+    }
+    
+    Recoverability recoverability() const pure nothrow
+    {
+        return recoverabilityOf(_code);
     }
     
     /// Get strongly-typed suggestions for this specific error instance

@@ -20,6 +20,21 @@ enum ErrorCategory
     Config      // Configuration/Validation errors
 }
 
+/// Recoverability classification for error handling strategies
+enum Recoverability
+{
+    /// Fatal errors - cannot be recovered, must fail the build
+    Fatal,
+    
+    /// Transient errors - temporary failures that can be retried
+    /// Examples: network timeouts, cache unavailable, process timeout
+    Transient,
+    
+    /// User errors - incorrect configuration or usage
+    /// Examples: invalid syntax, missing file, unknown target
+    User
+}
+
 /// Specific error codes for programmatic handling
 enum ErrorCode
 {
@@ -215,27 +230,88 @@ ErrorCategory categoryOf(ErrorCode code) pure nothrow @nogc
     return idx < categories.length ? categories[idx] : ErrorCategory.Internal;
 }
 
-/// Check if error is recoverable using optimized set lookup
+/// Get recoverability classification for error code
+Recoverability recoverabilityOf(ErrorCode code) pure nothrow @nogc
+{
+    static immutable Recoverability[ErrorCode] recoverabilityMap = [
+        // Transient errors (can be retried)
+        ErrorCode.BuildTimeout: Recoverability.Transient,
+        ErrorCode.CacheLoadFailed: Recoverability.Transient,
+        ErrorCode.CacheEvictionFailed: Recoverability.Transient,
+        ErrorCode.CacheTimeout: Recoverability.Transient,
+        ErrorCode.NetworkError: Recoverability.Transient,
+        ErrorCode.ProcessTimeout: Recoverability.Transient,
+        ErrorCode.CoordinatorTimeout: Recoverability.Transient,
+        ErrorCode.WorkerTimeout: Recoverability.Transient,
+        ErrorCode.ArtifactTransferFailed: Recoverability.Transient,
+        ErrorCode.PluginTimeout: Recoverability.Transient,
+        ErrorCode.LSPTimeout: Recoverability.Transient,
+        ErrorCode.WatcherCrashed: Recoverability.Transient,
+        ErrorCode.FileWatchFailed: Recoverability.Transient,
+        ErrorCode.RepositoryFetchFailed: Recoverability.Transient,
+        ErrorCode.CacheWriteFailed: Recoverability.Transient,
+        ErrorCode.CacheDeleteFailed: Recoverability.Transient,
+        ErrorCode.CacheInUse: Recoverability.Transient,
+        ErrorCode.RepositoryTimeout: Recoverability.Transient,
+        
+        // User errors (invalid usage or configuration)
+        ErrorCode.ParseFailed: Recoverability.User,
+        ErrorCode.InvalidJson: Recoverability.User,
+        ErrorCode.InvalidBuildFile: Recoverability.User,
+        ErrorCode.MissingField: Recoverability.User,
+        ErrorCode.InvalidFieldValue: Recoverability.User,
+        ErrorCode.InvalidGlob: Recoverability.User,
+        ErrorCode.InvalidConfiguration: Recoverability.User,
+        ErrorCode.TargetNotFound: Recoverability.User,
+        ErrorCode.HandlerNotFound: Recoverability.User,
+        ErrorCode.FileNotFound: Recoverability.User,
+        ErrorCode.DirectoryNotFound: Recoverability.User,
+        ErrorCode.PermissionDenied: Recoverability.User,
+        ErrorCode.CircularDependency: Recoverability.User,
+        ErrorCode.MissingDependency: Recoverability.User,
+        ErrorCode.InvalidImport: Recoverability.User,
+        ErrorCode.SyntaxError: Recoverability.User,
+        ErrorCode.UnsupportedLanguage: Recoverability.User,
+        ErrorCode.MissingCompiler: Recoverability.User,
+        ErrorCode.InvalidWorkspace: Recoverability.User,
+        ErrorCode.InvalidTarget: Recoverability.User,
+        ErrorCode.InvalidInput: Recoverability.User,
+        ErrorCode.SchemaValidationFailed: Recoverability.User,
+        ErrorCode.RequiredFieldMissing: Recoverability.User,
+        ErrorCode.DuplicateTarget: Recoverability.User,
+        ErrorCode.ConfigConflict: Recoverability.User,
+        ErrorCode.CacheDisabled: Recoverability.User,
+        ErrorCode.CacheUnauthorized: Recoverability.User,
+        ErrorCode.CacheTooLarge: Recoverability.User,
+        ErrorCode.PluginNotFound: Recoverability.User,
+        ErrorCode.PluginVersionMismatch: Recoverability.User,
+        ErrorCode.PluginCapabilityMissing: Recoverability.User,
+        ErrorCode.ToolNotFound: Recoverability.User,
+        ErrorCode.IncompatibleVersion: Recoverability.User,
+        ErrorCode.LSPInvalidRequest: Recoverability.User,
+        ErrorCode.LSPInvalidParams: Recoverability.User,
+        ErrorCode.LSPDocumentNotFound: Recoverability.User,
+        ErrorCode.LSPInvalidPosition: Recoverability.User,
+        ErrorCode.LSPWorkspaceNotInitialized: Recoverability.User,
+        ErrorCode.WatcherNotSupported: Recoverability.User,
+        ErrorCode.TooManyWatchTargets: Recoverability.User,
+        ErrorCode.DeprecatedField: Recoverability.User,
+        ErrorCode.RepositoryNotFound: Recoverability.User,
+        ErrorCode.RepositoryInvalid: Recoverability.User,
+        ErrorCode.RepositoryAlreadyAdded: Recoverability.User,
+        ErrorCode.CoordinatorNotFound: Recoverability.User,
+        
+        // All other errors are Fatal by default
+    ];
+    
+    auto result = code in recoverabilityMap;
+    return result ? *result : Recoverability.Fatal;
+}
+
+/// Check if error is recoverable (transient, can be retried)
 bool isRecoverable(ErrorCode code) pure nothrow @nogc
 {
-    // Recoverable errors are rare, so use a set for O(1) lookup
-    static immutable bool[ErrorCode] recoverableSet = [
-        ErrorCode.BuildTimeout: true,
-        ErrorCode.CacheLoadFailed: true,
-        ErrorCode.CacheEvictionFailed: true,
-        ErrorCode.CacheTimeout: true,
-        ErrorCode.NetworkError: true,
-        ErrorCode.ProcessTimeout: true,
-        ErrorCode.CoordinatorTimeout: true,
-        ErrorCode.WorkerTimeout: true,
-        ErrorCode.ArtifactTransferFailed: true,
-        ErrorCode.PluginTimeout: true,
-        ErrorCode.LSPTimeout: true,
-        ErrorCode.WatcherCrashed: true,
-        ErrorCode.FileWatchFailed: true,
-        ErrorCode.RepositoryFetchFailed: true
-    ];
-    return (code in recoverableSet) !is null;
+    return recoverabilityOf(code) == Recoverability.Transient;
 }
 
 /// Get human-readable error message template using optimized lookup
@@ -371,5 +447,187 @@ string messageTemplate(ErrorCode code) pure nothrow
     ];
     auto msg = code in messages;
     return msg ? *msg : "Unknown error";
+}
+
+/// Error registry entry with comprehensive error information
+struct ErrorRegistryEntry
+{
+    ErrorCode code;
+    ErrorCategory category;
+    Recoverability recoverability;
+    string message;
+    string[] defaultSuggestions;
+    string docsUrl;
+}
+
+/// Central error registry - single source of truth for all error metadata
+immutable ErrorRegistryEntry[ErrorCode] errorRegistry;
+
+/// Initialize error registry at module initialization
+shared static this()
+{
+    errorRegistry = [
+        // Build errors (1000-1999) - Fatal
+        ErrorCode.BuildFailed: ErrorRegistryEntry(
+            ErrorCode.BuildFailed,
+            ErrorCategory.Build,
+            Recoverability.Fatal,
+            "Build failed",
+            ["Review build output above for specific errors", "Run with verbose output: builder build --verbose"],
+            "docs/user-guides/examples.md"
+        ),
+        ErrorCode.BuildTimeout: ErrorRegistryEntry(
+            ErrorCode.BuildTimeout,
+            ErrorCategory.Build,
+            Recoverability.Transient,
+            "Build timed out",
+            ["Increase timeout in Builderfile", "Check for infinite loops or hanging processes"],
+            "docs/architecture/overview.md"
+        ),
+        ErrorCode.BuildCancelled: ErrorRegistryEntry(
+            ErrorCode.BuildCancelled,
+            ErrorCategory.Build,
+            Recoverability.Fatal,
+            "Build was cancelled",
+            ["Retry the build"],
+            ""
+        ),
+        ErrorCode.TargetNotFound: ErrorRegistryEntry(
+            ErrorCode.TargetNotFound,
+            ErrorCategory.Build,
+            Recoverability.User,
+            "Target not found",
+            ["Check target name spelling", "List all targets: builder list", "View available targets: builder graph"],
+            "docs/user-guides/examples.md"
+        ),
+        ErrorCode.HandlerNotFound: ErrorRegistryEntry(
+            ErrorCode.HandlerNotFound,
+            ErrorCategory.Build,
+            Recoverability.User,
+            "Language handler not found",
+            ["Check if language is supported", "Verify 'language' field spelling", "See supported languages in docs"],
+            "docs/features/languages.md"
+        ),
+        ErrorCode.OutputMissing: ErrorRegistryEntry(
+            ErrorCode.OutputMissing,
+            ErrorCategory.Build,
+            Recoverability.Fatal,
+            "Expected output not found",
+            ["Check build script produces required outputs", "Verify output paths in Builderfile"],
+            "docs/user-guides/examples.md"
+        ),
+        
+        // Parse errors (2000-2999) - User
+        ErrorCode.ParseFailed: ErrorRegistryEntry(
+            ErrorCode.ParseFailed,
+            ErrorCategory.Parse,
+            Recoverability.User,
+            "Failed to parse configuration",
+            ["Check file syntax", "Validate JSON/configuration format"],
+            "docs/user-guides/examples.md"
+        ),
+        ErrorCode.InvalidJson: ErrorRegistryEntry(
+            ErrorCode.InvalidJson,
+            ErrorCategory.Parse,
+            Recoverability.User,
+            "Invalid JSON syntax",
+            ["Check for missing commas or quotes", "Validate with jsonlint"],
+            "docs/user-guides/examples.md"
+        ),
+        ErrorCode.InvalidBuildFile: ErrorRegistryEntry(
+            ErrorCode.InvalidBuildFile,
+            ErrorCategory.Parse,
+            Recoverability.User,
+            "Invalid Builderfile",
+            ["Check Builderfile syntax", "Review examples in docs"],
+            "docs/user-guides/examples.md"
+        ),
+        
+        // Cache errors (4000-4999) - Mixed
+        ErrorCode.CacheLoadFailed: ErrorRegistryEntry(
+            ErrorCode.CacheLoadFailed,
+            ErrorCategory.Cache,
+            Recoverability.Transient,
+            "Failed to load cache",
+            ["Clear cache: builder clean", "Check cache permissions", "Verify network connectivity for remote cache"],
+            "docs/features/caching.md"
+        ),
+        ErrorCode.NetworkError: ErrorRegistryEntry(
+            ErrorCode.NetworkError,
+            ErrorCategory.System,
+            Recoverability.Transient,
+            "Network communication error",
+            ["Check network connectivity", "Verify firewall settings", "Check remote service status"],
+            "docs/features/remotecache.md"
+        ),
+        
+        // Repository errors (4500-4599)
+        ErrorCode.RepositoryError: ErrorRegistryEntry(
+            ErrorCode.RepositoryError,
+            ErrorCategory.Cache,
+            Recoverability.Fatal,
+            "Repository operation failed",
+            ["Check repository configuration", "Verify repository URL"],
+            "docs/features/repository-rules.md"
+        ),
+        
+        // Plugin errors (13000-13999)
+        ErrorCode.PluginError: ErrorRegistryEntry(
+            ErrorCode.PluginError,
+            ErrorCategory.Plugin,
+            Recoverability.Fatal,
+            "Plugin error",
+            ["List plugins: builder plugin list", "Refresh registry: builder plugin refresh"],
+            "docs/architecture/plugins.md"
+        ),
+        
+        // LSP errors (14000-14999)
+        ErrorCode.LSPError: ErrorRegistryEntry(
+            ErrorCode.LSPError,
+            ErrorCategory.LSP,
+            Recoverability.Fatal,
+            "LSP error",
+            ["Restart LSP server", "Check editor LSP logs"],
+            "docs/user-guides/lsp.md"
+        ),
+        
+        // Watch errors (15000-15999)
+        ErrorCode.WatchError: ErrorRegistryEntry(
+            ErrorCode.WatchError,
+            ErrorCategory.Watch,
+            Recoverability.Fatal,
+            "Watch mode error",
+            ["Try manual rebuild: builder build", "Check watch configuration"],
+            "docs/user-guides/watch.md"
+        ),
+        
+        // Config errors (16000-16999)
+        ErrorCode.ConfigError: ErrorRegistryEntry(
+            ErrorCode.ConfigError,
+            ErrorCategory.Config,
+            Recoverability.User,
+            "Configuration error",
+            ["Check configuration syntax", "Validate with: builder check"],
+            "docs/architecture/dsl.md"
+        ),
+    ];
+}
+
+/// Look up error metadata in registry
+ErrorRegistryEntry lookupError(ErrorCode code) pure nothrow
+{
+    auto entry = code in errorRegistry;
+    if (entry)
+        return cast(ErrorRegistryEntry)*entry;
+    
+    // Fallback for errors not in registry
+    return ErrorRegistryEntry(
+        code,
+        categoryOf(code),
+        recoverabilityOf(code),
+        messageTemplate(code),
+        [],
+        ""
+    );
 }
 

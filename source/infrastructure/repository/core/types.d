@@ -117,15 +117,5 @@ final class RepositoryError : BaseBuildError
     {
         super(code, message);
     }
-    
-    override ErrorCategory category() const pure nothrow
-    {
-        return ErrorCategory.Config;
-    }
-    
-    override bool recoverable() const pure nothrow
-    {
-        return false;
-    }
 }
 

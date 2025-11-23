@@ -153,9 +153,6 @@ class EconomicsError : BaseBuildError
         addContext(ErrorContext("file", file));
         addContext(ErrorContext("line", line.to!string));
     }
-    
-    override ErrorCategory category() const pure nothrow => ErrorCategory.Config;
-    override bool recoverable() const pure nothrow => true;
 }
 
 /// Helper: Format duration for display

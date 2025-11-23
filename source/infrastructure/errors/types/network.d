@@ -17,16 +17,6 @@ final class NetworkError : BaseBuildError
         addContext(ErrorContext("line", line.to!string));
     }
     
-    override ErrorCategory category() const pure nothrow
-    {
-        return ErrorCategory.System;
-    }
-    
-    override bool recoverable() const pure nothrow
-    {
-        return false;
-    }
-    
     /// Add host information
     NetworkError withHost(string host, ushort port) return @system
     {

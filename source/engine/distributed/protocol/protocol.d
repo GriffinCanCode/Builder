@@ -7,6 +7,9 @@ import std.bitmanip : write, read;
 import std.string : toLower;
 import infrastructure.errors;
 
+// Re-export NetworkError from infrastructure.errors for backward compatibility
+public import infrastructure.errors.types.network : NetworkError;
+
 /// Protocol version for compatibility checking
 enum ProtocolVersion : ubyte
 {
@@ -558,7 +561,7 @@ struct Envelope(T)
     }
 }
 
-/// Distributed build errors
+/// Distributed build error - base class for distributed system errors
 class DistributedError : BaseBuildError
 {
     this(string message, string file = __FILE__, size_t line = __LINE__) @trusted
@@ -568,14 +571,11 @@ class DistributedError : BaseBuildError
         addContext(ErrorContext("line", line.to!string));
     }
     
-    override ErrorCategory category() const pure nothrow
+    this(ErrorCode code, string message, string file = __FILE__, size_t line = __LINE__) @trusted
     {
-        return ErrorCategory.System;
-    }
-    
-    override bool recoverable() const pure nothrow
-    {
-        return false;
+        super(code, message);
+        addContext(ErrorContext("file", file));
+        addContext(ErrorContext("line", line.to!string));
     }
 }
 
@@ -583,19 +583,12 @@ class DistributedError : BaseBuildError
 class ExecutionError : DistributedError
 {
     this(string message, string file = __FILE__, size_t line = __LINE__) @safe =>
-        super("Execution failed: " ~ message, file, line);
-}
-
-/// Network errors (connection, timeout, etc.)
-class NetworkError : DistributedError
-{
-    this(string message, string file = __FILE__, size_t line = __LINE__) @safe =>
-        super("Network error: " ~ message, file, line);
+        super(ErrorCode.SandboxError, "Execution failed: " ~ message, file, line);
 }
 
 /// Worker errors (unavailable, failed, etc.)
 class WorkerError : DistributedError
 {
     this(string message, string file = __FILE__, size_t line = __LINE__) @safe =>
-        super("Worker error: " ~ message, file, line);
+        super(ErrorCode.WorkerFailed, "Worker error: " ~ message, file, line);
 }
