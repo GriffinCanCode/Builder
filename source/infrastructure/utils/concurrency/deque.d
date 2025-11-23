@@ -332,3 +332,453 @@ unittest
     writeln("\x1b[32m  ✓ Growth\x1b[0m");
 }
 
+// ==================== PROPERTY-BASED TESTS ====================
+
+/// Property-based test utilities for concurrent testing
+private class PropertyTestTask
+{
+    int id;
+    shared static size_t nextId;
+    
+    this(int taskId) { this.id = taskId; }
+    
+    static PropertyTestTask create()
+    {
+        import core.atomic : atomicOp;
+        auto taskId = atomicOp!"+="(nextId, 1);
+        return new PropertyTestTask(cast(int)taskId);
+    }
+}
+
+/// Execution trace for verifying properties
+private class ExecutionTrace
+{
+    private shared size_t totalPushes;
+    private shared size_t successfulPops;
+    private shared size_t successfulSteals;
+    private shared int[int] taskExecutions;  // taskId -> execution count
+    
+    void recordPush(int taskId)
+    {
+        atomicOp!"+="(totalPushes, 1);
+    }
+    
+    void recordPop(int taskId)
+    {
+        atomicOp!"+="(successfulPops, 1);
+        recordExecution(taskId);
+    }
+    
+    void recordSteal(int taskId)
+    {
+        atomicOp!"+="(successfulSteals, 1);
+        recordExecution(taskId);
+    }
+    
+    private void recordExecution(int taskId)
+    {
+        synchronized
+        {
+            if (taskId in taskExecutions)
+                atomicOp!"+="(taskExecutions[taskId], 1);
+            else
+                taskExecutions[taskId] = 1;
+        }
+    }
+    
+    bool verifyNoDoubleExecution() const
+    {
+        foreach (taskId, count; taskExecutions)
+        {
+            if (count > 1)
+                return false;
+        }
+        return true;
+    }
+    
+    bool verifyNoLostTasks(size_t remainingInQueue) const
+    {
+        size_t executed = atomicLoad(successfulPops) + atomicLoad(successfulSteals);
+        size_t pushed = atomicLoad(totalPushes);
+        return (executed + remainingInQueue) == pushed;
+    }
+    
+    size_t totalExecuted() const
+    {
+        return atomicLoad(successfulPops) + atomicLoad(successfulSteals);
+    }
+}
+
+unittest
+{
+    import std.stdio;
+    import std.random : Random, unpredictableSeed, uniform;
+    import core.thread;
+    
+    writeln("\x1b[36m[TEST]\x1b[0m utils.concurrency.deque - Property: No lost tasks (random ops)");
+    
+    auto deque = WorkStealingDeque!PropertyTestTask(16);
+    auto trace = new ExecutionTrace();
+    auto rng = Random(unpredictableSeed);
+    
+    const iterations = 500;
+    
+    foreach (i; 0 .. iterations)
+    {
+        auto op = uniform(0, 10, rng);
+        
+        if (op < 6)  // 60% push
+        {
+            auto task = PropertyTestTask.create();
+            deque.push(task);
+            trace.recordPush(task.id);
+        }
+        else if (op < 9)  // 30% pop
+        {
+            auto task = deque.pop();
+            if (task !is null)
+                trace.recordPop(task.id);
+        }
+        else  // 10% steal
+        {
+            auto task = deque.steal();
+            if (task !is null)
+                trace.recordSteal(task.id);
+        }
+    }
+    
+    // Drain remaining
+    size_t remaining = 0;
+    while (!deque.empty())
+    {
+        auto task = deque.pop();
+        if (task !is null)
+        {
+            remaining++;
+            trace.recordPop(task.id);
+        }
+    }
+    
+    assert(trace.verifyNoDoubleExecution(), "No task should be executed twice");
+    assert(trace.verifyNoLostTasks(0), "All tasks should be accounted for");
+    
+    writeln("\x1b[32m  ✓ No lost tasks with random operations\x1b[0m");
+}
+
+unittest
+{
+    import std.stdio;
+    import core.thread;
+    
+    writeln("\x1b[36m[TEST]\x1b[0m utils.concurrency.deque - Property: No double execution (concurrent)");
+    
+    auto deque = WorkStealingDeque!PropertyTestTask(64);
+    auto trace = new ExecutionTrace();
+    
+    shared bool running = true;
+    const numStealers = 4;
+    const opsPerThread = 250;
+    
+    // Owner thread: push and pop
+    auto ownerThread = new Thread({
+        import std.random : Random, unpredictableSeed, uniform;
+        auto rng = Random(unpredictableSeed + 1);
+        
+        foreach (i; 0 .. opsPerThread)
+        {
+            if (uniform(0, 10, rng) < 7)  // 70% push
+            {
+                auto task = PropertyTestTask.create();
+                deque.push(task);
+                trace.recordPush(task.id);
+            }
+            else
+            {
+                auto task = deque.pop();
+                if (task !is null)
+                    trace.recordPop(task.id);
+            }
+            
+            if (i % 50 == 0)
+                Thread.sleep(1.usecs);
+        }
+        
+        atomicStore(running, false);
+    });
+    
+    // Stealer threads
+    Thread[] stealerThreads;
+    foreach (stealerId; 0 .. numStealers)
+    {
+        stealerThreads ~= new Thread({
+            import core.time : usecs;
+            
+            while (atomicLoad(running) || !deque.empty())
+            {
+                auto task = deque.steal();
+                if (task !is null)
+                    trace.recordSteal(task.id);
+                
+                import std.random : uniform;
+                Thread.sleep(uniform(1, 5).usecs);
+            }
+        });
+    }
+    
+    // Start and join all threads
+    ownerThread.start();
+    foreach (t; stealerThreads)
+        t.start();
+    
+    ownerThread.join();
+    foreach (t; stealerThreads)
+        t.join();
+    
+    // Drain any remaining
+    while (!deque.empty())
+    {
+        auto task = deque.pop();
+        if (task !is null)
+            trace.recordPop(task.id);
+    }
+    
+    assert(trace.verifyNoDoubleExecution(), "No task should be executed twice in concurrent scenario");
+    assert(trace.verifyNoLostTasks(0), "All tasks should be accounted for in concurrent scenario");
+    
+    writeln("\x1b[32m  ✓ No double execution in concurrent scenario\x1b[0m");
+}
+
+unittest
+{
+    import std.stdio;
+    import core.thread;
+    
+    writeln("\x1b[36m[TEST]\x1b[0m utils.concurrency.deque - Property: Race on last element");
+    
+    const iterations = 50;
+    size_t ownerWins = 0;
+    size_t stealerWins = 0;
+    size_t bothLose = 0;
+    
+    foreach (i; 0 .. iterations)
+    {
+        auto deque = WorkStealingDeque!PropertyTestTask(4);
+        
+        // Push single task
+        auto task = new PropertyTestTask(i);
+        deque.push(task);
+        
+        shared PropertyTestTask ownerResult = null;
+        shared PropertyTestTask stealerResult = null;
+        
+        // Owner pops
+        auto ownerThread = new Thread({
+            auto t = deque.pop();
+            atomicStore(ownerResult, cast(shared)t);
+        });
+        
+        // Stealer steals
+        auto stealerThread = new Thread({
+            auto t = deque.steal();
+            atomicStore(stealerResult, cast(shared)t);
+        });
+        
+        ownerThread.start();
+        stealerThread.start();
+        ownerThread.join();
+        stealerThread.join();
+        
+        auto owner = cast(PropertyTestTask)atomicLoad(ownerResult);
+        auto stealer = cast(PropertyTestTask)atomicLoad(stealerResult);
+        
+        // Exactly one should win OR both lose
+        assert(!(owner !is null && stealer !is null), "Both cannot get the task");
+        
+        if (owner !is null && stealer is null)
+            ownerWins++;
+        else if (owner is null && stealer !is null)
+            stealerWins++;
+        else
+            bothLose++;
+    }
+    
+    assert(ownerWins + stealerWins + bothLose == iterations, "All races accounted for");
+    
+    writeln("\x1b[32m  ✓ Race on last element handled correctly (owner: ", ownerWins, 
+           ", stealer: ", stealerWins, ", both lose: ", bothLose, ")\x1b[0m");
+}
+
+unittest
+{
+    import std.stdio;
+    import core.thread;
+    import core.time : msecs, usecs;
+    
+    writeln("\x1b[36m[TEST]\x1b[0m utils.concurrency.deque - Property: High contention stress");
+    
+    auto deque = WorkStealingDeque!PropertyTestTask(128);
+    auto trace = new ExecutionTrace();
+    
+    shared bool running = true;
+    const numStealers = 6;
+    const duration = 50.msecs;
+    
+    import std.datetime.stopwatch : MonoTime;
+    auto startTime = MonoTime.currTime;
+    
+    // Aggressive owner
+    auto ownerThread = new Thread({
+        import std.random : Random, unpredictableSeed, uniform;
+        auto rng = Random(unpredictableSeed + 2);
+        
+        while (MonoTime.currTime - startTime < duration)
+        {
+            if (uniform(0, 10, rng) < 6)
+            {
+                auto task = PropertyTestTask.create();
+                deque.push(task);
+                trace.recordPush(task.id);
+            }
+            else
+            {
+                auto task = deque.pop();
+                if (task !is null)
+                    trace.recordPop(task.id);
+            }
+        }
+        
+        atomicStore(running, false);
+    });
+    
+    // Aggressive stealers
+    Thread[] stealerThreads;
+    foreach (stealerId; 0 .. numStealers)
+    {
+        stealerThreads ~= new Thread({
+            while (atomicLoad(running))
+            {
+                auto task = deque.steal();
+                if (task !is null)
+                    trace.recordSteal(task.id);
+            }
+        });
+    }
+    
+    ownerThread.start();
+    foreach (t; stealerThreads)
+        t.start();
+    
+    ownerThread.join();
+    foreach (t; stealerThreads)
+        t.join();
+    
+    // Drain
+    while (!deque.empty())
+    {
+        auto task = deque.pop();
+        if (task !is null)
+            trace.recordPop(task.id);
+    }
+    
+    assert(trace.verifyNoDoubleExecution(), "High contention: no double execution");
+    assert(trace.verifyNoLostTasks(0), "High contention: no lost tasks");
+    
+    writeln("\x1b[32m  ✓ High contention stress test passed (", 
+           trace.totalExecuted(), " tasks)\x1b[0m");
+}
+
+unittest
+{
+    import std.stdio;
+    import core.thread;
+    
+    writeln("\x1b[36m[TEST]\x1b[0m utils.concurrency.deque - Property: Growth under contention");
+    
+    auto deque = WorkStealingDeque!PropertyTestTask(4);  // Start small
+    auto trace = new ExecutionTrace();
+    
+    const numTasks = 500;
+    const numStealers = 3;
+    shared size_t pushesCompleted = 0;
+    
+    // Owner pushes many (triggers growth)
+    auto ownerThread = new Thread({
+        foreach (i; 0 .. numTasks)
+        {
+            auto task = PropertyTestTask.create();
+            deque.push(task);
+            trace.recordPush(task.id);
+            atomicOp!"+="(pushesCompleted, 1);
+            
+            if (i % 50 == 0)
+                Thread.yield();
+        }
+    });
+    
+    // Stealers continuously steal
+    Thread[] stealerThreads;
+    foreach (stealerId; 0 .. numStealers)
+    {
+        stealerThreads ~= new Thread({
+            import core.time : usecs;
+            
+            while (atomicLoad(pushesCompleted) < numTasks || !deque.empty())
+            {
+                auto task = deque.steal();
+                if (task !is null)
+                    trace.recordSteal(task.id);
+                else
+                    Thread.sleep(1.usecs);
+            }
+        });
+    }
+    
+    ownerThread.start();
+    foreach (t; stealerThreads)
+        t.start();
+    
+    ownerThread.join();
+    foreach (t; stealerThreads)
+        t.join();
+    
+    // Drain
+    while (!deque.empty())
+    {
+        auto task = deque.pop();
+        if (task !is null)
+            trace.recordPop(task.id);
+    }
+    
+    assert(deque.capacity() > 4, "Deque should have grown");
+    assert(trace.verifyNoDoubleExecution(), "Growth: no double execution");
+    assert(trace.verifyNoLostTasks(0), "Growth: no lost tasks");
+    
+    writeln("\x1b[32m  ✓ Growth under contention (capacity: ", deque.capacity(), ")\x1b[0m");
+}
+
+unittest
+{
+    import std.stdio;
+    
+    writeln("\x1b[36m[TEST]\x1b[0m utils.concurrency.deque - Property: FIFO/LIFO ordering");
+    
+    auto deque = WorkStealingDeque!PropertyTestTask(32);
+    
+    // Push tasks 1-5
+    foreach (id; 1 .. 6)
+        deque.push(new PropertyTestTask(id));
+    
+    // Owner pop: LIFO (should get 5)
+    auto task1 = deque.pop();
+    assert(task1 !is null && task1.id == 5, "Owner pop should be LIFO");
+    
+    // Stealer: FIFO (should get 1, 2)
+    auto task2 = deque.steal();
+    assert(task2 !is null && task2.id == 1, "Stealer should be FIFO");
+    
+    auto task3 = deque.steal();
+    assert(task3 !is null && task3.id == 2, "Stealer should be FIFO");
+    
+    writeln("\x1b[32m  ✓ FIFO/LIFO ordering verified\x1b[0m");
+}
+
