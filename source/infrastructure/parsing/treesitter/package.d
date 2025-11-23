@@ -18,4 +18,5 @@ public import infrastructure.parsing.treesitter.config;
 public import infrastructure.parsing.treesitter.parser;
 public import infrastructure.parsing.treesitter.registry;
 public import infrastructure.parsing.treesitter.loader;
+public import infrastructure.parsing.treesitter.deps;
 

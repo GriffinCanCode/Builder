@@ -1,5 +1,8 @@
 module infrastructure.parsing.treesitter.registry;
 
+import std.algorithm;
+import std.array;
+import std.conv;
 import infrastructure.parsing.treesitter.bindings;
 import infrastructure.parsing.treesitter.config;
 import infrastructure.parsing.treesitter.parser;
@@ -31,14 +34,15 @@ final class TreeSitterRegistry {
     
     /// Register a language grammar
     /// Grammar loading functions should be extern(C) and return const(TSLanguage)*
-    void registerGrammar(
+    void registerGrammar(T)(
         string languageId,
-        const(TSLanguage)* function() @system nothrow @nogc grammarLoader,
+        T grammarLoader,
         LanguageConfig config
-    ) @system {
+    ) @system if (is(typeof(grammarLoader()) == const(TSLanguage)*)) {
         GrammarEntry entry;
         entry.config = config;
         entry.loaded = false;
+        entry.grammar = grammarLoader();
         
         // Lazy load - only load grammar when first parser is created
         grammars[languageId] = entry;
@@ -93,25 +97,48 @@ void registerTreeSitterParsers() @system {
     auto tsRegistry = TreeSitterRegistry.instance();
     auto astRegistry = ASTParserRegistry.instance();
     
-    // For each language with a config, register if grammar is available
-    foreach (langId; LanguageConfigs.available()) {
-        auto config = LanguageConfigs.get(langId);
-        if (!config)
-            continue;
-        
-        // Check if grammar loader is available (would be set by language modules)
-        // For now, we just register the configs
-        // Grammar loading will be added in Phase 2
-        
-        Logger.debugLog("Tree-sitter config available for: " ~ langId);
+    // Check tree-sitter installation
+    import infrastructure.parsing.treesitter.deps;
+    if (!TreeSitterDeps.isInstalled()) {
+        Logger.warning("Tree-sitter library not found - falling back to file-level tracking");
+        Logger.debugLog("Run: source/infrastructure/parsing/treesitter/setup.sh to install");
+    } else {
+        Logger.debugLog("Tree-sitter library found");
     }
     
-    Logger.info("Tree-sitter parser registry initialized");
+    // Initialize language configs
+    LanguageConfigs.initialize();
+    
+    // Load grammar modules (which register themselves via static constructors)
+    try {
+        import infrastructure.parsing.treesitter.grammars;
+        initializeGrammars();
+    } catch (Exception e) {
+        Logger.debugLog("Some grammars not available: " ~ e.msg);
+    }
+    
+    // Log available configs (even if grammars aren't loaded yet)
+    auto available = LanguageConfigs.available();
+    Logger.info("Tree-sitter configs available for " ~ 
+               available.length.to!string ~ " languages");
+    
+    // Check which grammars are actually loaded
+    auto supportedLangs = tsRegistry.supportedLanguages();
+    if (supportedLangs.length > 0) {
+        Logger.info("Tree-sitter grammars loaded for: " ~ 
+                   supportedLangs.join(", "));
+    } else {
+        Logger.info("No tree-sitter grammars loaded (using stub implementation)");
+        Logger.info("To enable AST parsing, see: source/infrastructure/parsing/treesitter/README.md");
+    }
 }
 
 /// Grammar loader function type
 /// Each language module should provide this
 alias GrammarLoader = extern(C) const(TSLanguage)* function() @system nothrow @nogc;
+
+/// Alternative: Non-extern(C) wrapper for grammar loaders
+alias GrammarLoaderWrapper = const(TSLanguage)* function() @system nothrow @nogc;
 
 /// Macro for declaring grammar loaders
 /// Usage: mixin(DefineGrammarLoader!("python", "tree_sitter_python"));
