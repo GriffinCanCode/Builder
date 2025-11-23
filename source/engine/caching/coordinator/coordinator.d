@@ -10,7 +10,7 @@ import engine.caching.incremental.dependency : DependencyCache;
 import engine.caching.incremental.filter : IncrementalFilter;
 import engine.caching.distributed.remote.client : RemoteCacheClient;
 import engine.caching.distributed.remote.protocol : RemoteCacheConfig;
-import engine.caching.storage : ContentAddressableStorage, CacheGarbageCollector;
+import engine.caching.storage : ContentAddressableStorage, CacheGarbageCollector, SourceRepository, SourceTracker, SourceRef, SourceRefSet;
 import engine.caching.events;
 import frontend.cli.events.events : EventPublisher;
 import infrastructure.errors;
@@ -32,6 +32,8 @@ final class CacheCoordinator
     private RemoteCacheClient remoteCache;
     private ContentAddressableStorage cas;
     private CacheGarbageCollector gc;
+    private SourceRepository sourceRepo;
+    private SourceTracker sourceTracker;
     private EventPublisher publisher;
     private Mutex coordinatorMutex;
     private CoordinatorConfig config;
@@ -48,6 +50,12 @@ final class CacheCoordinator
         
         // Initialize content-addressable storage
         this.cas = new ContentAddressableStorage(cacheDir ~ "/blobs");
+        
+        // Initialize source repository (content-addressed sources)
+        this.sourceRepo = new SourceRepository(cas, cacheDir ~ "/sources");
+        
+        // Initialize source tracker
+        this.sourceTracker = new SourceTracker(sourceRepo);
         
         // Initialize target cache
         auto targetConfig = CacheConfig.fromEnvironment();
@@ -164,6 +172,7 @@ final class CacheCoordinator
         {
             targetCache.flush();
             actionCache.flush();
+            sourceRepo.flush();
         }
     }
     
@@ -206,6 +215,13 @@ final class CacheCoordinator
         size_t remoteHits;
         size_t remoteMisses;
         float remoteHitRate;
+        
+        // Source repository stats
+        size_t sourcesStored;
+        size_t sourceDeduplicationHits;
+        ulong sourceBytes;
+        ulong sourceBytesSaved;
+        float sourceDeduplicationRatio;
     }
     
     CacheCoordinatorStats getStats() @system
@@ -240,6 +256,14 @@ final class CacheCoordinator
                 stats.remoteMisses = remoteStats.misses;
                 stats.remoteHitRate = remoteStats.hitRate;
             }
+            
+            // Source repository stats
+            auto sourceStats = sourceRepo.getStats();
+            stats.sourcesStored = sourceStats.sourcesStored;
+            stats.sourceDeduplicationHits = sourceStats.deduplicationHits;
+            stats.sourceBytes = sourceStats.bytesStored;
+            stats.sourceBytesSaved = sourceStats.bytesSaved;
+            stats.sourceDeduplicationRatio = sourceStats.deduplicationRatio;
             
             return stats;
         }
@@ -391,6 +415,85 @@ final class CacheCoordinator
     IncrementalFilter getFilter() @system
     {
         return filter;
+    }
+    
+    /// Get source repository
+    SourceRepository getSourceRepository() @system
+    {
+        return sourceRepo;
+    }
+    
+    /// Get source tracker
+    SourceTracker getSourceTracker() @system
+    {
+        return sourceTracker;
+    }
+    
+    /// Store sources in CAS and return references
+    Result!(SourceRefSet, BuildError) storeSources(const(string)[] paths) @system
+    {
+        auto timer = StopWatch(AutoStart.yes);
+        
+        synchronized (coordinatorMutex)
+        {
+            auto result = sourceTracker.trackBatch(paths);
+            
+            if (result.isOk)
+            {
+                immutable refSet = result.unwrap();
+                immutable duration = timer.peek();
+                
+                // Emit telemetry event
+                if (publisher !is null)
+                {
+                    try
+                    {
+                        import std.format : format;
+                        immutable msg = format("Stored %d sources (%d bytes) in CAS",
+                            refSet.length, refSet.totalSize);
+                        // Could emit custom SourceStorageEvent here if needed
+                    }
+                    catch (Exception) {}
+                }
+            }
+            
+            return result;
+        }
+    }
+    
+    /// Materialize sources from CAS to workspace
+    Result!BuildError materializeSources(SourceRefSet refSet) @system
+    {
+        synchronized (coordinatorMutex)
+        {
+            return sourceRepo.materializeBatch(refSet);
+        }
+    }
+    
+    /// Detect changed sources and update CAS
+    Result!(SourceTracker.ChangedFile[], BuildError) detectSourceChanges(const(string)[] paths) @system
+    {
+        synchronized (coordinatorMutex)
+        {
+            auto result = sourceTracker.detectChanges(paths);
+            
+            if (result.isOk)
+            {
+                immutable changes = result.unwrap();
+                if (changes.length > 0 && publisher !is null)
+                {
+                    try
+                    {
+                        import std.format : format;
+                        immutable msg = format("%d source file(s) changed", changes.length);
+                        // Could emit SourceChangeEvent here
+                    }
+                    catch (Exception) {}
+                }
+            }
+            
+            return result;
+        }
     }
 }
 
