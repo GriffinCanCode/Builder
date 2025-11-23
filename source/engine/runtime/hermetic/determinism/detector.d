@@ -164,10 +164,11 @@ struct NonDeterminismDetector
         
         auto name = baseName(executable).toLower();
         
-        if (name.canFind("gcc") || name.canFind("g++"))
-            return CompilerType.GCC;
+        // Check clang first since "clang++" contains "g++"
         if (name.canFind("clang"))
             return CompilerType.Clang;
+        if (name.canFind("gcc") || name.canFind("g++"))
+            return CompilerType.GCC;
         if (name == "dmd")
             return CompilerType.DMD;
         if (name == "ldc" || name == "ldc2")

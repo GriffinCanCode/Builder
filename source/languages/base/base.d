@@ -130,7 +130,7 @@ abstract class BaseLanguageHandler : LanguageHandler
             handlerSpan.setAttribute("handler.type", context.target.type.to!string);
             handlerSpan.setAttribute("handler.incremental", context.incrementalEnabled.to!string);
             handlerSpan.setAttribute("handler.simd", context.hasSIMD().to!string);
-        }();
+        }
         
         try
         {

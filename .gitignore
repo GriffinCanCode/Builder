@@ -23,6 +23,8 @@ bin/
 nimcache/
 Thumbs.db
 *.a
+*.dylib
+/*.dylib.DSYM
 
 # Test artifacts
 test_glob/

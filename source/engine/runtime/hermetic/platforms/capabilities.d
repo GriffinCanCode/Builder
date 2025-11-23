@@ -285,7 +285,7 @@ bool platformCanMonitorResources() @trusted
     }
 }
 
-@safe unittest
+@system unittest
 {
     // Test thread-safety of capability caching
     import std.parallelism : parallel;
