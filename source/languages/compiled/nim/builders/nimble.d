@@ -165,7 +165,8 @@ class NimbleBuilder : NimBuilder
         
         if (res.status != 0)
         {
-            Logger.error("Dependency installation failed: " ~ res.output);
+            Logger.error("Dependency installation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

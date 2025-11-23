@@ -616,7 +616,8 @@ class ElixirHandler : BaseLanguageHandler
             auto depsRes = execute([mixCmd, "deps.get"], null, Config.none, size_t.max, projectRoot);
             if (depsRes.status != 0)
             {
-                Logger.error("Failed to fetch dependencies: " ~ depsRes.output);
+                Logger.error("Failed to fetch dependencies");
+                Logger.error("  Output: " ~ depsRes.output);
                 return false;
             }
         }
@@ -639,7 +640,8 @@ class ElixirHandler : BaseLanguageHandler
             auto compRes = execute([mixCmd, "deps.compile"], null, Config.none, size_t.max, projectRoot);
             if (compRes.status != 0)
             {
-                Logger.error("Failed to compile dependencies: " ~ compRes.output);
+                Logger.error("Failed to compile dependencies");
+                Logger.error("  Output: " ~ compRes.output);
                 return false;
             }
         }

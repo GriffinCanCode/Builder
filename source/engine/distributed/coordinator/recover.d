@@ -13,6 +13,7 @@ import engine.distributed.coordinator.registry;
 import engine.distributed.coordinator.scheduler;
 import engine.distributed.coordinator.health;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 
 /// Work reassignment strategy
@@ -107,7 +108,8 @@ final class CoordinatorRecovery
                 if (assignResult.isErr)
                 {
                     atomicOp!"+="(failedReassignments, 1);
-                    Logger.error("Failed to reassign action: " ~ assignResult.unwrapErr().message());
+                    Logger.error("Failed to reassign action");
+                    Logger.error(formatError(assignResult.unwrapErr()));
                     return assignResult;
                 }
                 

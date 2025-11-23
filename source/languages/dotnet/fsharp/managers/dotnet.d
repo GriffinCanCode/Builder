@@ -32,7 +32,8 @@ struct DotnetOps
         
         if (res.status != 0)
         {
-            Logger.error("dotnet build failed: " ~ res.output);
+            Logger.error("dotnet build failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -51,7 +52,8 @@ struct DotnetOps
         
         if (res.status != 0)
         {
-            Logger.error("dotnet restore failed: " ~ res.output);
+            Logger.error("dotnet restore failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -70,7 +72,8 @@ struct DotnetOps
         
         if (res.status != 0)
         {
-            Logger.error("dotnet clean failed: " ~ res.output);
+            Logger.error("dotnet clean failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -92,7 +95,8 @@ struct DotnetOps
         
         if (res.status != 0)
         {
-            Logger.error("dotnet test failed: " ~ res.output);
+            Logger.error("dotnet test failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -122,7 +126,8 @@ struct DotnetOps
         
         if (res.status != 0)
         {
-            Logger.error("dotnet publish failed: " ~ res.output);
+            Logger.error("dotnet publish failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -144,7 +149,8 @@ struct DotnetOps
         
         if (res.status != 0)
         {
-            Logger.error("dotnet pack failed: " ~ res.output);
+            Logger.error("dotnet pack failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

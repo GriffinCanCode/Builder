@@ -44,7 +44,8 @@ class NimbleManager
         
         if (res.status != 0)
         {
-            Logger.error("Dependency installation failed: " ~ res.output);
+            Logger.error("Dependency installation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -66,7 +67,8 @@ class NimbleManager
         
         if (res.status != 0)
         {
-            Logger.error("Dependency update failed: " ~ res.output);
+            Logger.error("Dependency update failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -97,7 +99,8 @@ class NimbleManager
         
         if (res.status != 0)
         {
-            Logger.error("Package installation failed: " ~ res.output);
+            Logger.error("Package installation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -172,7 +175,8 @@ class NimbleManager
         
         if (res.status != 0)
         {
-            Logger.error("Package uninstallation failed: " ~ res.output);
+            Logger.error("Package uninstallation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -196,7 +200,8 @@ class NimbleManager
         
         if (res.status != 0)
         {
-            Logger.error("Package initialization failed: " ~ res.output);
+            Logger.error("Package initialization failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

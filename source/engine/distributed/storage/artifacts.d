@@ -9,6 +9,7 @@ import std.datetime : Duration, seconds;
 import std.conv : to;
 import engine.distributed.protocol.protocol : ArtifactId, InputSpec;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 import infrastructure.utils.crypto.blake3 : Blake3;
 
@@ -105,7 +106,8 @@ final class ArtifactStore
             }
             else
             {
-                Logger.error("Failed to fetch from remote: " ~ remoteResult.unwrapErr().message());
+                Logger.error("Failed to fetch from remote");
+                Logger.error(formatError(remoteResult.unwrapErr()));
             }
         }
         

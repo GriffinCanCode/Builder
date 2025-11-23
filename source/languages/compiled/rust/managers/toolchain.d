@@ -136,7 +136,8 @@ class Rustup
         }
         else
         {
-            Logger.error("Failed to install toolchain: " ~ res.output);
+            Logger.error("Failed to install toolchain");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
     }
@@ -196,7 +197,8 @@ class Rustup
         }
         else
         {
-            Logger.error("Failed to install target: " ~ res.output);
+            Logger.error("Failed to install target");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
     }
@@ -260,7 +262,8 @@ class Rustup
         }
         else
         {
-            Logger.error("Failed to install component: " ~ res.output);
+            Logger.error("Failed to install component");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
     }

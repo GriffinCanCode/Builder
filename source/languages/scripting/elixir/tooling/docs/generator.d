@@ -32,7 +32,8 @@ class DocGenerator
         
         if (res.status != 0)
         {
-            Logger.error("Documentation generation failed: " ~ res.output);
+            Logger.error("Documentation generation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -61,7 +62,8 @@ class DocGenerator
         
         if (res.status != 0)
         {
-            Logger.error("Hex docs build failed: " ~ res.output);
+            Logger.error("Hex docs build failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

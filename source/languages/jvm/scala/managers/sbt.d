@@ -150,7 +150,8 @@ class SbtOps
         
         if (result.status != 0)
         {
-            Logger.error("sbt compilation failed: " ~ result.output);
+            Logger.error("sbt compilation failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -170,7 +171,8 @@ class SbtOps
         
         if (result.status != 0)
         {
-            Logger.error("sbt packaging failed: " ~ result.output);
+            Logger.error("sbt packaging failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -186,7 +188,8 @@ class SbtOps
         
         if (result.status != 0)
         {
-            Logger.error("sbt tests failed: " ~ result.output);
+            Logger.error("sbt tests failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -212,7 +215,8 @@ class SbtOps
         
         if (result.status != 0)
         {
-            Logger.error("sbt update failed: " ~ result.output);
+            Logger.error("sbt update failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -228,7 +232,8 @@ class SbtOps
         
         if (result.status != 0)
         {
-            Logger.error("sbt assembly failed: " ~ result.output);
+            Logger.error("sbt assembly failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

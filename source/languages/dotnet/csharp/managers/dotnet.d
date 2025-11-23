@@ -76,7 +76,8 @@ struct DotNetOps
         
         if (result.status != 0)
         {
-            Logger.error("dotnet build failed: " ~ result.output);
+            Logger.error("dotnet build failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -169,7 +170,8 @@ struct DotNetOps
         
         if (result.status != 0)
         {
-            Logger.error("dotnet publish failed: " ~ result.output);
+            Logger.error("dotnet publish failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -220,7 +222,8 @@ struct DotNetOps
         
         if (result.status != 0)
         {
-            Logger.error("dotnet test failed: " ~ result.output);
+            Logger.error("dotnet test failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -246,7 +249,8 @@ struct DotNetOps
         
         if (result.status != 0)
         {
-            Logger.error("dotnet run failed: " ~ result.output);
+            Logger.error("dotnet run failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -301,7 +305,8 @@ struct DotNetOps
         
         if (result.status != 0)
         {
-            Logger.error("dotnet pack failed: " ~ result.output);
+            Logger.error("dotnet pack failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

@@ -24,7 +24,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket install failed: " ~ res.output);
+            Logger.error("Paket install failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -38,7 +39,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket restore failed: " ~ res.output);
+            Logger.error("Paket restore failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -60,7 +62,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket update failed: " ~ res.output);
+            Logger.error("Paket update failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -82,7 +85,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket add failed: " ~ res.output);
+            Logger.error("Paket add failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -101,7 +105,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket remove failed: " ~ res.output);
+            Logger.error("Paket remove failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -115,7 +120,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket init failed: " ~ res.output);
+            Logger.error("Paket init failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -134,7 +140,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket convert failed: " ~ res.output);
+            Logger.error("Paket convert failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -148,7 +155,8 @@ struct PaketOps
         
         if (res.status != 0)
         {
-            Logger.error("Paket generate-load-scripts failed: " ~ res.output);
+            Logger.error("Paket generate-load-scripts failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

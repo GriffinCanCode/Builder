@@ -82,7 +82,8 @@ class VirtualEnv
         
         if (res.status != 0)
         {
-            Logger.error("Failed to create venv: " ~ res.output);
+            Logger.error("Failed to create venv");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -114,7 +115,8 @@ class VirtualEnv
         
         if (res.status != 0)
         {
-            Logger.error("Failed to create virtualenv: " ~ res.output);
+            Logger.error("Failed to create virtualenv");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -141,7 +143,8 @@ class VirtualEnv
         
         if (res.status != 0)
         {
-            Logger.error("Failed to create conda env: " ~ res.output);
+            Logger.error("Failed to create conda env");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -390,7 +393,8 @@ class VirtualEnv
         
         if (res.status != 0)
         {
-            Logger.error("Failed to create poetry venv: " ~ res.output);
+            Logger.error("Failed to create poetry venv");
+            Logger.error("  Output: " ~ res.output);
             return "";
         }
         

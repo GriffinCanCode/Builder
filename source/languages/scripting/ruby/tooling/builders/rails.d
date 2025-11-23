@@ -133,7 +133,8 @@ class RailsBuilder : Builder
         
         if (res.status != 0)
         {
-            Logger.error("Migration failed: " ~ res.output);
+            Logger.error("Migration failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -148,7 +149,8 @@ class RailsBuilder : Builder
         
         if (res.status != 0)
         {
-            Logger.error("Database seeding failed: " ~ res.output);
+            Logger.error("Database seeding failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -163,7 +165,8 @@ class RailsBuilder : Builder
         
         if (res.status != 0)
         {
-            Logger.error("Asset precompilation failed: " ~ res.output);
+            Logger.error("Asset precompilation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -180,7 +183,8 @@ class RailsBuilder : Builder
         
         if (res.status != 0)
         {
-            Logger.error("Rails validation failed: " ~ res.output);
+            Logger.error("Rails validation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

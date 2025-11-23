@@ -29,7 +29,8 @@ struct NuGetOps
         
         if (res.status != 0)
         {
-            Logger.error("NuGet restore failed: " ~ res.output);
+            Logger.error("NuGet restore failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -51,7 +52,8 @@ struct NuGetOps
         
         if (res.status != 0)
         {
-            Logger.error("NuGet install failed: " ~ res.output);
+            Logger.error("NuGet install failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -65,7 +67,8 @@ struct NuGetOps
         
         if (res.status != 0)
         {
-            Logger.error("NuGet remove failed: " ~ res.output);
+            Logger.error("NuGet remove failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

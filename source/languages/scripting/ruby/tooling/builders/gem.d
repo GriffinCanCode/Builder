@@ -136,7 +136,8 @@ class GemBuilder : Builder
         
         if (res.status != 0)
         {
-            Logger.error("Gem build failed: " ~ res.output);
+            Logger.error("Gem build failed");
+            Logger.error("  Output: " ~ res.output);
             return "";
         }
         

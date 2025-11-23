@@ -9,6 +9,7 @@ import languages.base.base;
 import engine.runtime.services;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 
 /// Discovery-aware executor extension
 /// Handles execution of discoverable actions and graph extension
@@ -136,7 +137,10 @@ struct DiscoveryCoordinator
                 observability.logInfo("Discovery phase complete", ["discovered_nodes": discoveredNodes.length.to!string]);
             }
             else
-                Logger.error("Failed to apply discoveries: " ~ applyResult.unwrapErr().message());
+            {
+                Logger.error("Failed to apply discoveries");
+                Logger.error(formatError(applyResult.unwrapErr()));
+            }
         }
         
         return discoveredNodes;

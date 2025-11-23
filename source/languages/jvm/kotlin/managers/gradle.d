@@ -207,7 +207,8 @@ class GradleOps
         
         if (result.status != 0)
         {
-            Logger.error("Gradle build failed: " ~ result.output);
+            Logger.error("Gradle build failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -225,7 +226,8 @@ class GradleOps
         
         if (result.status != 0)
         {
-            Logger.error("Kotlin compilation failed: " ~ result.output);
+            Logger.error("Kotlin compilation failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -243,7 +245,8 @@ class GradleOps
         
         if (result.status != 0)
         {
-            Logger.error("Kotlin tests failed: " ~ result.output);
+            Logger.error("Kotlin tests failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

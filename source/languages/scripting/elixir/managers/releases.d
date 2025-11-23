@@ -41,7 +41,8 @@ class MixReleaseBuilder : ReleaseBuilder
         auto res = execute(cmd);
         if (res.status != 0)
         {
-            Logger.error("Release build failed: " ~ res.output);
+            Logger.error("Release build failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -73,7 +74,8 @@ class DistilleryBuilder : ReleaseBuilder
         auto res = execute(cmd);
         if (res.status != 0)
         {
-            Logger.error("Distillery release failed: " ~ res.output);
+            Logger.error("Distillery release failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -102,7 +104,8 @@ class BurritoBuilder : ReleaseBuilder
         auto res = execute([mixCmd, "release"]);
         if (res.status != 0)
         {
-            Logger.error("Burrito release failed: " ~ res.output);
+            Logger.error("Burrito release failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -136,7 +139,8 @@ class BakewareBuilder : ReleaseBuilder
         auto res = execute([mixCmd, "release"]);
         if (res.status != 0)
         {
-            Logger.error("Bakeware build failed: " ~ res.output);
+            Logger.error("Bakeware build failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

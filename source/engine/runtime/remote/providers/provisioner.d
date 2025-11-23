@@ -4,6 +4,7 @@ import std.datetime : Duration;
 import engine.distributed.protocol.protocol : WorkerId;
 import engine.runtime.remote.providers.base : CloudProvider;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 
 /// Worker provisioner - single responsibility: provision and deprovision workers
@@ -52,7 +53,8 @@ final class WorkerProvisioner
         }
         else
         {
-            Logger.error("Failed to provision worker: " ~ result.unwrapErr().message());
+            Logger.error("Failed to provision worker");
+            Logger.error(formatError(result.unwrapErr()));
         }
         
         return result;
@@ -109,7 +111,8 @@ final class WorkerProvisioner
         }
         else
         {
-            Logger.error("Failed to deprovision worker: " ~ result.unwrapErr().message());
+            Logger.error("Failed to deprovision worker");
+            Logger.error(formatError(result.unwrapErr()));
         }
         
         return result;

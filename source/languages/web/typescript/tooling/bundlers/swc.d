@@ -140,7 +140,8 @@ class SWCBundler : TSBundler
         
         if (res.status != 0)
         {
-            Logger.error("SWC compilation failed for " ~ source ~ ": " ~ res.output);
+            Logger.error("SWC compilation failed for " ~ source);
+            Logger.error("  Output: " ~ res.output);
             return "";
         }
         

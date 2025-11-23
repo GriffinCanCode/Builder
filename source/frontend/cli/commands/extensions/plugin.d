@@ -9,6 +9,7 @@ import std.conv : to;
 import std.process : execute, executeShell;
 import infrastructure.plugins;
 import infrastructure.utils.logging.logger;
+import infrastructure.errors.formatting.format : formatError = format;
 import frontend.cli.control.terminal;
 import frontend.cli.display.format;
 
@@ -201,7 +202,8 @@ struct PluginCommand {
     private static void showPluginInfo(string name) @system {
         auto getResult = registry.get(name);
         if (getResult.isErr) {
-            Logger.error(getResult.unwrapErr().message);
+            Logger.error("Failed to get plugin");
+            Logger.error(formatError(getResult.unwrapErr()));
             return;
         }
         
@@ -324,7 +326,7 @@ struct PluginCommand {
         
         if (findResult.isErr) {
             terminal.writeln(formatter.red("✗") ~ " Plugin not found");
-            Logger.error(findResult.unwrapErr().message);
+            Logger.error(formatError(findResult.unwrapErr()));
             return;
         }
         
@@ -340,7 +342,7 @@ struct PluginCommand {
         
         if (infoResult.isErr) {
             terminal.writeln(formatter.red("✗") ~ " Failed to query plugin");
-            Logger.error(infoResult.unwrapErr().message);
+            Logger.error(formatError(infoResult.unwrapErr()));
             return;
         }
         
@@ -357,7 +359,7 @@ struct PluginCommand {
         
         if (validateResult.isErr) {
             terminal.writeln(formatter.red("✗") ~ " Validation failed");
-            Logger.error(validateResult.unwrapErr().message);
+            Logger.error(formatError(validateResult.unwrapErr()));
             return;
         }
         
@@ -373,7 +375,8 @@ struct PluginCommand {
         auto refreshResult = registry.refresh();
         
         if (refreshResult.isErr) {
-            Logger.error("Failed to refresh: " ~ refreshResult.unwrapErr().message);
+            Logger.error("Failed to refresh");
+            Logger.error(formatError(refreshResult.unwrapErr()));
             return;
         }
         
@@ -413,7 +416,8 @@ struct PluginCommand {
         auto result = TemplateGenerator.create(name, lang);
         
         if (result.isErr) {
-            Logger.error("Failed to create template: " ~ result.unwrapErr().message);
+            Logger.error("Failed to create template");
+            Logger.error(formatError(result.unwrapErr()));
             return;
         }
         

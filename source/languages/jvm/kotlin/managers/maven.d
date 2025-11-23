@@ -134,7 +134,8 @@ class MavenOps
         
         if (result.status != 0)
         {
-            Logger.error("Maven build failed: " ~ result.output);
+            Logger.error("Maven build failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -154,7 +155,8 @@ class MavenOps
         
         if (result.status != 0)
         {
-            Logger.error("Maven package failed: " ~ result.output);
+            Logger.error("Maven package failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

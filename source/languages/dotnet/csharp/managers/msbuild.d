@@ -84,7 +84,8 @@ struct MSBuildOps
         
         if (result.status != 0)
         {
-            Logger.error("MSBuild failed: " ~ result.output);
+            Logger.error("MSBuild failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -145,7 +146,8 @@ struct MSBuildOps
         
         if (result.status != 0)
         {
-            Logger.error("MSBuild rebuild failed: " ~ result.output);
+            Logger.error("MSBuild rebuild failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

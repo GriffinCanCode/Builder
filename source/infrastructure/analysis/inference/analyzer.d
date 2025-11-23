@@ -127,7 +127,8 @@ class DependencyAnalyzer
                 auto addResult = graph.addTarget(target);
                 if (addResult.isErr)
                 {
-                    Logger.error("Failed to add target: " ~ format(addResult.unwrapErr()));
+                    Logger.error("Failed to add target");
+                    Logger.error(format(addResult.unwrapErr()));
                 }
             }
         }

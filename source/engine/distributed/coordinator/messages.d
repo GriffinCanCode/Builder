@@ -7,6 +7,7 @@ import engine.distributed.protocol.transport : HttpTransport;
 import engine.distributed.coordinator.registry : WorkerRegistry;
 import engine.distributed.coordinator.scheduler : DistributedScheduler;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 
 /// Coordinator message handler - single responsibility: handle incoming messages
@@ -65,11 +66,19 @@ final class CoordinatorMessageHandler
             if (client.receive(data) != length) return;
             
             auto regResult = deserializeRegistration(data);
-            if (regResult.isErr) { Logger.error("Failed to deserialize registration: " ~ regResult.unwrapErr().message()); return; }
+            if (regResult.isErr) { 
+                Logger.error("Failed to deserialize registration");
+                Logger.error(formatError(regResult.unwrapErr())); 
+                return; 
+            }
             
             auto registration = regResult.unwrap();
             auto workerIdResult = registry.register(registration.address);
-            if (workerIdResult.isErr) { Logger.error("Failed to register worker: " ~ workerIdResult.unwrapErr().message()); return; }
+            if (workerIdResult.isErr) { 
+                Logger.error("Failed to register worker");
+                Logger.error(formatError(workerIdResult.unwrapErr())); 
+                return; 
+            }
             
             auto workerId = workerIdResult.unwrap();
             ubyte[8] idBytes;

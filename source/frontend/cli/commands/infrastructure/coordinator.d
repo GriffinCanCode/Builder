@@ -47,7 +47,8 @@ int coordinatorCommand(string[] args)
     auto startResult = coordinator.start();
     if (startResult.isErr)
     {
-        Logger.error("Failed to start coordinator: " ~ format(startResult.unwrapErr()));
+        Logger.error("Failed to start coordinator");
+        Logger.error(formatError(startResult.unwrapErr()));
         return 1;
     }
     

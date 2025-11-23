@@ -215,7 +215,8 @@ class GradleOps
         
         if (result.status != 0)
         {
-            Logger.error("Gradle build failed: " ~ result.output);
+            Logger.error("Gradle build failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -245,7 +246,8 @@ class GradleOps
         
         if (result.status != 0)
         {
-            Logger.error("Gradle compilation failed: " ~ result.output);
+            Logger.error("Gradle compilation failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -263,7 +265,8 @@ class GradleOps
         
         if (result.status != 0)
         {
-            Logger.error("Gradle tests failed: " ~ result.output);
+            Logger.error("Gradle tests failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

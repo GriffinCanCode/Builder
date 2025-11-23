@@ -246,7 +246,8 @@ class DocGenerator
         
         if (res.status != 0)
         {
-            Logger.error("YARD documentation generation failed: " ~ res.output);
+            Logger.error("YARD documentation generation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -283,7 +284,8 @@ class DocGenerator
         
         if (res.status != 0)
         {
-            Logger.error("RDoc documentation generation failed: " ~ res.output);
+            Logger.error("RDoc documentation generation failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

@@ -12,6 +12,7 @@ import std.uri : encode;
 import std.json : JSONValue, JSONType;
 import std.uuid : randomUUID;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 
 /// CDN configuration
@@ -253,7 +254,8 @@ final class CdnManager
         
         if (httpResult.isErr)
         {
-            Logger.error("CloudFront purge failed: " ~ httpResult.unwrapErr().message());
+            Logger.error("CloudFront purge failed");
+            Logger.error(formatError(httpResult.unwrapErr()));
             return Result!BuildError.err(httpResult.unwrapErr());
         }
         
@@ -292,7 +294,8 @@ final class CdnManager
         
         if (httpResult.isErr)
         {
-            Logger.error("Cloudflare purge failed: " ~ httpResult.unwrapErr().message());
+            Logger.error("Cloudflare purge failed");
+            Logger.error(formatError(httpResult.unwrapErr()));
             return Result!BuildError.err(httpResult.unwrapErr());
         }
         
@@ -345,7 +348,8 @@ final class CdnManager
         
         if (httpResult.isErr)
         {
-            Logger.error("Fastly purge failed: " ~ httpResult.unwrapErr().message());
+            Logger.error("Fastly purge failed");
+            Logger.error(formatError(httpResult.unwrapErr()));
             return Result!BuildError.err(httpResult.unwrapErr());
         }
         

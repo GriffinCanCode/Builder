@@ -186,7 +186,8 @@ class TSESBuildBundler : TSBundler
         
         if (res.status != 0)
         {
-            Logger.error("esbuild bundling failed: " ~ res.output);
+            Logger.error("esbuild bundling failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -235,7 +236,8 @@ class TSESBuildBundler : TSBundler
             
             if (res.status != 0)
             {
-                Logger.error("esbuild compilation failed for " ~ source ~ ": " ~ res.output);
+                Logger.error("esbuild compilation failed for " ~ source);
+                Logger.error("  Output: " ~ res.output);
                 return [];
             }
             

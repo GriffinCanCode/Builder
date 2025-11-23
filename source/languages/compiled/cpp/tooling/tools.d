@@ -304,7 +304,8 @@ class ClangFormat
             
             if (res.status != 0)
             {
-                Logger.error("Failed to format " ~ source ~ ": " ~ res.output);
+                Logger.error("Failed to format " ~ source);
+                Logger.error("  Output: " ~ res.output);
                 return false;
             }
         }
@@ -496,7 +497,8 @@ class CoverageTool
             auto res = execute(["gcov", gcda]);
             if (res.status != 0)
             {
-                Logger.error("gcov failed: " ~ res.output);
+                Logger.error("gcov failed");
+                Logger.error("  Output: " ~ res.output);
                 return false;
             }
         }
@@ -518,7 +520,8 @@ class CoverageTool
         auto res = execute(["lcov", "--capture", "--directory", ".", "--output-file", infoFile]);
         if (res.status != 0)
         {
-            Logger.error("lcov failed: " ~ res.output);
+            Logger.error("lcov failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -530,7 +533,8 @@ class CoverageTool
             res = execute(["genhtml", infoFile, "--output-directory", htmlDir]);
             if (res.status != 0)
             {
-                Logger.error("genhtml failed: " ~ res.output);
+                Logger.error("genhtml failed");
+                Logger.error("  Output: " ~ res.output);
                 return false;
             }
             

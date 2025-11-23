@@ -40,6 +40,7 @@ struct QueryCommand
         auto formatResult = parseOutputFormat(outputFormat);
         if (formatResult.isErr)
         {
+            Logger.error("Invalid query format");
             Logger.error(formatResult.unwrapErr());
             return;
         }
@@ -63,7 +64,8 @@ struct QueryCommand
         if (graphResult.isErr)
         {
             import infrastructure.errors.formatting.format : errorFormat = format;
-            Logger.error("Failed to analyze dependencies: " ~ errorFormat(graphResult.unwrapErr()));
+            Logger.error("Failed to analyze dependencies");
+            Logger.error(errorFormat(graphResult.unwrapErr()));
             return;
         }
         auto graph = graphResult.unwrap();
@@ -72,7 +74,8 @@ struct QueryCommand
         auto queryResult = executeQuery(queryExpression, graph);
         if (queryResult.isErr)
         {
-            Logger.error("Query error: " ~ queryResult.unwrapErr());
+            Logger.error("Query error");
+            Logger.error(queryResult.unwrapErr());
             showQueryHelp();
             return;
         }

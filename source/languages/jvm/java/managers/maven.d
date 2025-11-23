@@ -236,7 +236,8 @@ class MavenOps
         
         if (result.status != 0)
         {
-            Logger.error("Maven dependency installation failed: " ~ result.output);
+            Logger.error("Maven dependency installation failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -270,7 +271,8 @@ class MavenOps
         
         if (result.status != 0)
         {
-            Logger.error("Maven compilation failed: " ~ result.output);
+            Logger.error("Maven compilation failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -292,7 +294,8 @@ class MavenOps
         
         if (result.status != 0)
         {
-            Logger.error("Maven packaging failed: " ~ result.output);
+            Logger.error("Maven packaging failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -310,7 +313,8 @@ class MavenOps
         
         if (result.status != 0)
         {
-            Logger.error("Maven tests failed: " ~ result.output);
+            Logger.error("Maven tests failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

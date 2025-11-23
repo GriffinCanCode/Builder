@@ -11,6 +11,7 @@ import infrastructure.utils.concurrency.deque : WorkStealingDeque;
 import engine.distributed.worker.peers;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 
 /// Worker communication handler - manages coordinator and peer communication
 struct WorkerCommunication
@@ -25,7 +26,8 @@ struct WorkerCommunication
             
             if (sendResult.isErr)
             {
-                Logger.error("Heartbeat send failed: " ~ sendResult.unwrapErr().message());
+                Logger.error("Heartbeat send failed");
+                Logger.error(formatError(sendResult.unwrapErr()));
                 if (auto http = cast(HttpTransport)coordinatorTransport)
                 {
                     http.close();
@@ -173,7 +175,11 @@ struct WorkerCommunication
                 Logger.error("Socket not available or disconnected");
                 auto reconnectResult = http.connect();
                 if (reconnectResult.isErr)
-                { Logger.error("Failed to reconnect: " ~ reconnectResult.unwrapErr().message()); return; }
+                { 
+                    Logger.error("Failed to reconnect");
+                    Logger.error(formatError(reconnectResult.unwrapErr())); 
+                    return; 
+                }
                 socket = http.getSocket();
                 if (socket is null) { Logger.error("Socket still not available after reconnect"); return; }
             }

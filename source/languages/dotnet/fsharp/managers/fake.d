@@ -34,7 +34,8 @@ struct FAKEOps
         
         if (res.status != 0)
         {
-            Logger.error("FAKE build failed: " ~ res.output);
+            Logger.error("FAKE build failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -48,7 +49,8 @@ struct FAKEOps
         
         if (res.status != 0)
         {
-            Logger.error("FAKE init failed: " ~ res.output);
+            Logger.error("FAKE init failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -97,7 +99,8 @@ struct FAKEOps
         
         if (res.status != 0)
         {
-            Logger.error("FAKE tool restore failed: " ~ res.output);
+            Logger.error("FAKE tool restore failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

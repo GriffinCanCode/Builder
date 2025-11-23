@@ -5,6 +5,7 @@ import std.conv : to;
 import std.algorithm : min;
 import infrastructure.telemetry;
 import infrastructure.utils.logging.logger;
+import infrastructure.errors.formatting.format : formatError = format;
 
 /// Telemetry command - display build analytics and insights
 struct TelemetryCommand
@@ -56,7 +57,8 @@ struct TelemetryCommand
         
         if (reportResult.isErr)
         {
-            Logger.error("Failed to analyze telemetry: " ~ reportResult.unwrapErr().toString());
+            Logger.error("Failed to analyze telemetry");
+            Logger.error(reportResult.unwrapErr().message);
             return;
         }
         
@@ -65,7 +67,8 @@ struct TelemetryCommand
         
         if (summaryResult.isErr)
         {
-            Logger.error("Failed to generate summary: " ~ summaryResult.unwrapErr().toString());
+            Logger.error("Failed to generate summary");
+            Logger.error(summaryResult.unwrapErr().message);
             return;
         }
         
@@ -97,7 +100,8 @@ struct TelemetryCommand
         auto recentResult = storage.getRecent(count);
         if (recentResult.isErr)
         {
-            Logger.error("Failed to load recent builds: " ~ recentResult.unwrapErr().toString());
+            Logger.error("Failed to load recent builds");
+            Logger.error(recentResult.unwrapErr().message);
             return;
         }
         
@@ -169,7 +173,8 @@ struct TelemetryCommand
             }
             else
             {
-                Logger.error("Failed to export JSON: " ~ jsonResult.unwrapErr().toString());
+                Logger.error("Failed to export JSON");
+                Logger.error(jsonResult.unwrapErr().message);
             }
         }
         else if (format == "csv")
@@ -181,7 +186,8 @@ struct TelemetryCommand
             }
             else
             {
-                Logger.error("Failed to export CSV: " ~ csvResult.unwrapErr().toString());
+                Logger.error("Failed to export CSV");
+                Logger.error(csvResult.unwrapErr().message);
             }
         }
         else
@@ -197,7 +203,8 @@ struct TelemetryCommand
         auto result = storage.clear();
         if (result.isErr)
         {
-            Logger.error("Failed to clear telemetry: " ~ result.unwrapErr().toString());
+            Logger.error("Failed to clear telemetry");
+            Logger.error(result.unwrapErr().message);
             return;
         }
         

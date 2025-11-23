@@ -34,7 +34,8 @@ class MillOps
         
         if (result.status != 0)
         {
-            Logger.error("Mill compilation failed: " ~ result.output);
+            Logger.error("Mill compilation failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -56,7 +57,8 @@ class MillOps
         
         if (result.status != 0)
         {
-            Logger.error("Mill tests failed: " ~ result.output);
+            Logger.error("Mill tests failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         
@@ -87,7 +89,8 @@ class MillOps
         
         if (result.status != 0)
         {
-            Logger.error("Mill assembly failed: " ~ result.output);
+            Logger.error("Mill assembly failed");
+            Logger.error("  Output: " ~ result.output);
             return false;
         }
         

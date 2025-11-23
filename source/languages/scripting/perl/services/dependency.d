@@ -142,7 +142,8 @@ final class PerlDependencyService : IPerlDependencyService
             
             if (!success)
             {
-                Logger.error("Failed to install " ~ modSpec ~ ": " ~ res.output);
+                Logger.error("Failed to install " ~ modSpec);
+                Logger.error("  Output: " ~ res.output);
             }
         }
         catch (Exception e)

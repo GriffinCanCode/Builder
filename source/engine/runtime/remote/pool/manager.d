@@ -15,6 +15,7 @@ import engine.runtime.remote.pool.scaling.predictor : LoadPredictor;
 import engine.runtime.remote.providers;
 import engine.runtime.remote.providers.provisioner : WorkerProvisioner;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 
 /// Worker pool manager with dynamic scaling
@@ -271,7 +272,8 @@ final class WorkerPool
             auto result = drainWorkers(toRemove);
             if (result.isErr)
             {
-                Logger.error("Failed to drain workers: " ~ result.unwrapErr().message());
+                Logger.error("Failed to drain workers");
+                Logger.error(formatError(result.unwrapErr()));
             }
             
             lastScaleDown = now;
@@ -342,7 +344,8 @@ final class WorkerPool
         auto result = provisioner.deprovisionBatch(workersToDrain);
         if (result.isErr)
         {
-            Logger.error("Failed to deprovision workers: " ~ result.unwrapErr().message());
+            Logger.error("Failed to deprovision workers");
+            Logger.error(formatError(result.unwrapErr()));
             return result;
         }
         
@@ -377,7 +380,8 @@ final class WorkerPool
                 auto result = scale(desired);
                 if (result.isErr)
                 {
-                    Logger.error("Scaling failed: " ~ result.unwrapErr().message());
+                    Logger.error("Scaling failed");
+                    Logger.error(formatError(result.unwrapErr()));
                 }
                 
                 // Sleep until next check

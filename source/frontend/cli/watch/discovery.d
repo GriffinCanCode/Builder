@@ -10,6 +10,7 @@ import engine.graph;
 import infrastructure.config.schema.schema;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 
 /// Re-discovery statistics
 struct RediscoveryStats
@@ -140,7 +141,8 @@ class WatchModeWithDiscovery
         auto rediscoveryResult = tracker.checkForRediscovery(changedFiles);
         if (rediscoveryResult.isErr)
         {
-            Logger.error("Failed to check for re-discovery: " ~ rediscoveryResult.unwrapErr());
+            Logger.error("Failed to check for re-discovery");
+            Logger.error(formatError(rediscoveryResult.unwrapErr()));
             return;
         }
         
@@ -156,7 +158,10 @@ class WatchModeWithDiscovery
             // Execute full re-discovery workflow
             auto result = executeRediscovery(targetsNeedingRediscovery);
             if (result.isErr)
-                Logger.error("Re-discovery failed: " ~ result.unwrapErr());
+            {
+                Logger.error("Re-discovery failed");
+                Logger.error(formatError(result.unwrapErr()));
+            }
             else
             {
                 auto stats = result.unwrap();

@@ -376,7 +376,8 @@ class JavaHandler : BaseLanguageHandler
         if (!testResult.success)
         {
             result.error = testResult.error;
-            Logger.error("Tests failed: " ~ testResult.error);
+            Logger.error("Tests failed");
+            Logger.error("  Error: " ~ testResult.error);
             
             if (testResult.failed > 0)
             {

@@ -19,6 +19,7 @@ import engine.distributed.coordinator.messages : CoordinatorMessageHandler;
 import engine.distributed.protocol.transport;
 import engine.distributed.worker.peers : PeerRegistry;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
 
 /// Coordinator configuration
@@ -208,7 +209,10 @@ final class Coordinator
                 
                 auto rescheduleResult = scheduler.schedule(request);
                 if (rescheduleResult.isErr)
-                    Logger.error("Failed to reschedule action: " ~ rescheduleResult.unwrapErr().message());
+                {
+                    Logger.error("Failed to reschedule action");
+                    Logger.error(formatError(rescheduleResult.unwrapErr()));
+                }
             }
         }
         
@@ -304,7 +308,11 @@ final class Coordinator
         if (healthMonitor.getWorkerHealth(worker) == HealthState.Failed)
         {
             auto recoveryResult = recovery.handleWorkerFailure(worker, "Heartbeat timeout");
-            if (recoveryResult.isErr) Logger.error("Recovery failed: " ~ recoveryResult.unwrapErr().message());
+            if (recoveryResult.isErr) 
+            {
+                Logger.error("Recovery failed");
+                Logger.error(formatError(recoveryResult.unwrapErr()));
+            }
             else assignActions();
         }
     }

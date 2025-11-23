@@ -40,7 +40,8 @@ class HexManager
         auto validateRes = execute([mixCmd, "hex.build", "--unpack"]);
         if (validateRes.status != 0)
         {
-            Logger.error("Package validation failed: " ~ validateRes.output);
+            Logger.error("Package validation failed");
+            Logger.error("  Output: " ~ validateRes.output);
             return false;
         }
         
@@ -48,7 +49,8 @@ class HexManager
         auto buildRes = execute([mixCmd, "hex.build"]);
         if (buildRes.status != 0)
         {
-            Logger.error("Package build failed: " ~ buildRes.output);
+            Logger.error("Package build failed");
+            Logger.error("  Output: " ~ buildRes.output);
             return false;
         }
         
@@ -69,7 +71,8 @@ class HexManager
         auto res = execute(cmd);
         if (res.status != 0)
         {
-            Logger.error("Package publish failed: " ~ res.output);
+            Logger.error("Package publish failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

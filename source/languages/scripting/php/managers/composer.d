@@ -298,7 +298,8 @@ class ComposerTool
         
         if (res.status != 0)
         {
-            Logger.error("Composer install failed: " ~ res.output);
+            Logger.error("Composer install failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -321,7 +322,8 @@ class ComposerTool
         
         if (res.status != 0)
         {
-            Logger.error("Composer update failed: " ~ res.output);
+            Logger.error("Composer update failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         
@@ -348,7 +350,8 @@ class ComposerTool
         
         if (res.status != 0)
         {
-            Logger.error("Composer dump-autoload failed: " ~ res.output);
+            Logger.error("Composer dump-autoload failed");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
         

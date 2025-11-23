@@ -409,7 +409,8 @@ class SwiftHandler : BaseLanguageHandler
         }
         else
         {
-            Logger.error("Failed to resolve dependencies: " ~ res.output);
+            Logger.error("Failed to resolve dependencies");
+            Logger.error("  Output: " ~ res.output);
             return false;
         }
     }

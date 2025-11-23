@@ -12,6 +12,7 @@ import engine.distributed.protocol.messages;
 import engine.distributed.storage.artifacts;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.crypto.blake3 : Blake3;
 
 /// Worker executor - handles action execution
@@ -43,7 +44,8 @@ struct WorkerExecutor
                 auto fetchResult = artifactStore.fetch(inputSpec);
                 if (fetchResult.isErr)
                 {
-                    Logger.error("Failed to fetch input artifact " ~ inputSpec.id.toString() ~ ": " ~ fetchResult.unwrapErr().message());
+                    Logger.error("Failed to fetch input artifact " ~ inputSpec.id.toString());
+                    Logger.error(formatError(fetchResult.unwrapErr()));
                     reportFailure(request.id, "Input artifact fetch failed: " ~ inputSpec.path, startTime, sendResultCallback);
                     return;
                 }
@@ -55,7 +57,8 @@ struct WorkerExecutor
             auto envResult = createSandbox(enableSandboxing).prepare(request, inputs);
             if (envResult.isErr)
             {
-                Logger.error("Sandbox preparation failed: " ~ envResult.unwrapErr().message());
+                Logger.error("Sandbox preparation failed");
+                Logger.error(formatError(envResult.unwrapErr()));
                 reportFailure(request.id, "Sandbox preparation failed", startTime, sendResultCallback);
                 return;
             }
@@ -67,7 +70,8 @@ struct WorkerExecutor
             auto execResult = sandboxEnv.execute(request.command, request.env, request.timeout);
             if (execResult.isErr)
             {
-                Logger.error("Execution failed: " ~ execResult.unwrapErr().message());
+                Logger.error("Execution failed");
+                Logger.error(formatError(execResult.unwrapErr()));
                 reportFailure(request.id, "Execution failed", startTime, sendResultCallback);
                 return;
             }
@@ -122,7 +126,8 @@ struct WorkerExecutor
                 auto uploadResult = artifactStore.upload(artifactId, outputData);
                 if (uploadResult.isErr)
                 {
-                    Logger.error("Failed to upload output artifact " ~ artifactId.toString() ~ ": " ~ uploadResult.unwrapErr().message());
+                    Logger.error("Failed to upload output artifact " ~ artifactId.toString());
+                    Logger.error(formatError(uploadResult.unwrapErr()));
                     reportFailure(request.id, "Output artifact upload failed: " ~ outputSpec.path, startTime, sendResultCallback);
                     return;
                 }
