@@ -488,8 +488,11 @@ struct EconomicsConfig
 struct DeterminismOptions
 {
     bool enabled = false;               // Enable determinism enforcement
-    bool strictMode = false;            // Fail on non-determinism
-    uint verifyIterations = 1;          // Number of verification runs
+    bool verifyAutomatic = false;       // Automatic two-build comparison
+    uint verifyIterations = 2;          // Number of builds to compare
+    bool strictMode = false;            // Fail build on non-determinism
+    string verifyStrategy = "hash";     // Verification strategy: hash, bitwise, fuzzy, structural
+    string outputDir = ".builder-verify"; // Verification output directory
     ulong fixedTimestamp = 1640995200;  // Fixed timestamp (2022-01-01)
     uint prngSeed = 42;                 // PRNG seed
     bool normalizeTimestamps = true;    // Normalize file timestamps

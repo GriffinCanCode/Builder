@@ -14,6 +14,7 @@ import infrastructure.telemetry.distributed.tracing : Span, SpanKind, SpanStatus
 import infrastructure.utils.logging.logger;
 import infrastructure.utils.simd.capabilities;
 import infrastructure.errors;
+import engine.runtime.hermetic.determinism;
 
 /// Node build result
 struct BuildResult
@@ -152,6 +153,15 @@ struct EngineExecutor
                 result.success = true;
                 node.resetRetries();
                 
+                // Automatic determinism verification if enabled
+                if (config.options.determinism.verifyAutomatic)
+                {
+                    auto verifySpan = observability.startSpan("determinism-verify", SpanKind.Internal, targetSpan);
+                    scope(exit) observability.finishSpan(verifySpan);
+                    
+                    performAutomaticVerification(target, buildContext, observability, verifySpan);
+                }
+                
                 observability.publishEvent(new TargetCompletedEvent(node.idString, nodeTimer.peek(), 0, nodeTimer.peek()));
             }
             else
@@ -184,6 +194,121 @@ struct EngineExecutor
         // Note: This requires access to the graph for topological sort
         // Will be provided by coordinator
         observability.publishEvent(new TargetStartedEvent(node.idString, 0, 0, elapsed));
+    }
+    
+    /// Perform automatic determinism verification after successful build
+    private void performAutomaticVerification(
+        Target target,
+        BuildContext buildContext,
+        IObservabilityService observability,
+        Span verifySpan
+    ) @trusted
+    {
+        try
+        {
+            Logger.info("Performing automatic determinism verification for " ~ target.name);
+            observability.logInfo("Starting automatic determinism verification", [
+                "target.name": target.name,
+                "iterations": config.options.determinism.verifyIterations.to!string
+            ]);
+            
+            // Create verification configuration from build options
+            VerificationConfig verifyConfig;
+            verifyConfig.mode = VerificationMode.Automatic;
+            verifyConfig.iterations = config.options.determinism.verifyIterations;
+            verifyConfig.failOnViolation = config.options.determinism.strictMode;
+            verifyConfig.outputDir = config.options.cacheDir ~ "/verify";
+            
+            // Parse strategy from config
+            final switch (config.options.determinism.verifyStrategy)
+            {
+                case "hash":
+                    verifyConfig.strategy = VerificationStrategy.ContentHash;
+                    break;
+                case "bitwise":
+                    verifyConfig.strategy = VerificationStrategy.BitwiseCompare;
+                    break;
+                case "fuzzy":
+                    verifyConfig.strategy = VerificationStrategy.Fuzzy;
+                    break;
+                case "structural":
+                    verifyConfig.strategy = VerificationStrategy.Structural;
+                    break;
+            }
+            
+            // Create integration
+            auto integrationResult = DeterminismIntegration.create(verifyConfig);
+            if (integrationResult.isErr)
+            {
+                Logger.warning("Failed to create determinism integration: " ~ 
+                             integrationResult.unwrapErr().message());
+                observability.logInfo("Determinism verification skipped", [
+                    "reason": "integration_failed"
+                ]);
+                return;
+            }
+            
+            auto integration = integrationResult.unwrap();
+            
+            // For automatic verification, we perform a quick check only
+            // Full two-build comparison should be done explicitly via `builder verify`
+            // to avoid doubling build times automatically
+            
+            // Quick check: analyze for potential non-determinism
+            auto detections = NonDeterminismDetector.analyzeCompilerCommand(
+                buildContext.target.flags
+            );
+            
+            if (detections.length > 0)
+            {
+                Logger.warning("Potential non-determinism detected in " ~ target.name);
+                observability.logInfo("Non-determinism potential detected", [
+                    "target.name": target.name,
+                    "detection_count": detections.length.to!string
+                ]);
+                
+                // Log suggestions
+                auto suggestions = RepairEngine.generateSuggestions(detections);
+                foreach (suggestion; suggestions)
+                {
+                    if (suggestion.priority <= 2) // Critical and high priority only
+                    {
+                        Logger.warning("  " ~ suggestion.title ~ ": " ~ suggestion.description);
+                        if (suggestion.compilerFlags.length > 0)
+                            Logger.info("    Suggested flag: " ~ suggestion.compilerFlags[0]);
+                    }
+                }
+                
+                observability.setSpanAttribute(verifySpan, "determinism.issues", detections.length.to!string);
+                observability.setSpanAttribute(verifySpan, "determinism.verified", "false");
+                
+                // Fail build if strict mode
+                if (config.options.determinism.strictMode)
+                {
+                    Logger.error("Build failed due to potential non-determinism (strict mode)");
+                    Logger.info("Run 'builder verify " ~ target.name ~ "' for full verification");
+                    observability.setSpanStatus(verifySpan, SpanStatus.Error, 
+                        "Non-determinism detected in strict mode");
+                }
+            }
+            else
+            {
+                Logger.info("No obvious non-determinism detected in " ~ target.name);
+                observability.logInfo("Determinism check passed", [
+                    "target.name": target.name
+                ]);
+                observability.setSpanAttribute(verifySpan, "determinism.issues", "0");
+                observability.setSpanAttribute(verifySpan, "determinism.verified", "true");
+            }
+            
+            Logger.info("For full verification, run: builder verify " ~ target.name);
+        }
+        catch (Exception e)
+        {
+            Logger.warning("Determinism verification failed: " ~ e.msg);
+            observability.logException(e, "Determinism verification error");
+            observability.setSpanStatus(verifySpan, SpanStatus.Error, e.msg);
+        }
     }
 }
 

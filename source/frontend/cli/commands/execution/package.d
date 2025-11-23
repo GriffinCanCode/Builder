@@ -9,8 +9,10 @@ module frontend.cli.commands.execution;
 /// - query: Query the build graph and configuration
 /// - test: Execute tests with advanced filtering and reporting
 /// - infer: Infer build configuration from source code
+/// - verify: Verify build determinism with automatic two-build comparison
 
 public import frontend.cli.commands.execution.discover;
 public import frontend.cli.commands.execution.query;
 public import frontend.cli.commands.execution.test;
 public import frontend.cli.commands.execution.infer;
+public import frontend.cli.commands.execution.verify;

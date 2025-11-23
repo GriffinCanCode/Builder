@@ -1,108 +1,62 @@
 module engine.runtime.hermetic.determinism.repair;
 
-import std.algorithm : canFind, map, filter;
-import std.array : array;
+import std.algorithm : sort, uniq, map;
+import std.array : array, join;
 import std.conv : to;
-import std.string : format;
-import std.range : empty;
+import std.format : format;
+import std.string : indexOf;
 import engine.runtime.hermetic.determinism.detector;
 import engine.runtime.hermetic.determinism.enforcer;
 
-/// Repair suggestion priority
-enum RepairPriority
-{
-    Critical,   // Must fix for determinism
-    High,       // Strongly recommended
-    Medium,     // Recommended
-    Low         // Optional optimization
-}
-
-/// Repair action type
-enum RepairActionType
-{
-    AddCompilerFlag,
-    RemoveCompilerFlag,
-    SetEnvironmentVariable,
-    ModifyBuildScript,
-    UpgradeToolchain,
-    DisableFeature
-}
-
-/// Specific repair action
-struct RepairAction
-{
-    RepairActionType type;
-    string target;          // What to modify (flag, var name, etc.)
-    string value;           // New value or flag to add
-    string description;     // Human-readable description
-    RepairPriority priority;
-    
-    /// Format as command-line suggestion
-    string toCommandLine() @safe const
-    {
-        final switch (type)
-        {
-            case RepairActionType.AddCompilerFlag:
-                return "Add compiler flag: " ~ value;
-            
-            case RepairActionType.RemoveCompilerFlag:
-                return "Remove compiler flag: " ~ target;
-            
-            case RepairActionType.SetEnvironmentVariable:
-                return "export " ~ target ~ "=" ~ value;
-            
-            case RepairActionType.ModifyBuildScript:
-                return "Modify build script: " ~ description;
-            
-            case RepairActionType.UpgradeToolchain:
-                return "Upgrade toolchain: " ~ description;
-            
-            case RepairActionType.DisableFeature:
-                return "Disable feature: " ~ target;
-        }
-    }
-}
-
-/// Complete repair suggestion with actions and explanation
+/// Repair suggestion for non-determinism
 struct RepairSuggestion
 {
-    NonDeterminismSource source;
-    string problem;
-    RepairAction[] actions;
-    string explanation;
-    string[] references;     // URLs to documentation
-    RepairPriority priority;
+    int priority;                 // 1=critical, 2=high, 3=medium, 4=low
+    string title;                // Short title
+    string description;          // Detailed description
+    string[] compilerFlags;      // Compiler flags to add
+    string[] envVars;            // Environment variables to set
+    string[] builderfileChanges; // Changes to Builderfile
+    string[] references;         // Documentation links
     
-    /// Get formatted suggestion for display
-    string format() @safe const
+    /// Format as human-readable string with ANSI colors
+    string format() const @safe
     {
-        import std.array : Appender;
+        import std.string : join;
         
-        Appender!string result;
+        string result;
         
-        // Header
-        result ~= "\n";
-        result ~= prioritySymbol() ~ " ";
-        result ~= problem;
-        result ~= "\n\n";
+        // Priority icon
+        string icon = getPriorityIcon(priority);
+        result ~= icon ~ " " ~ getPriorityLabel(priority) ~ ": " ~ title ~ "\n\n";
         
-        // Explanation
-        if (!explanation.empty)
+        // Description
+        result ~= "  " ~ description ~ "\n\n";
+        
+        // Compiler flags
+        if (compilerFlags.length > 0)
         {
-            result ~= "  " ~ explanation ~ "\n\n";
+            result ~= "  Compiler flags to add:\n";
+            foreach (flag; compilerFlags)
+                result ~= "    " ~ flag ~ "\n";
+            result ~= "\n";
         }
         
-        // Actions
-        if (actions.length > 0)
+        // Environment variables
+        if (envVars.length > 0)
         {
-            result ~= "  Suggested fixes:\n";
-            foreach (i, action; actions)
-            {
-                result ~= "    " ~ (i + 1).to!string ~ ". " ~ 
-                    action.toCommandLine() ~ "\n";
-                if (!action.description.empty)
-                    result ~= "       " ~ action.description ~ "\n";
-            }
+            result ~= "  Environment variables to set:\n";
+            foreach (envVar; envVars)
+                result ~= "    export " ~ envVar ~ "\n";
+            result ~= "\n";
+        }
+        
+        // Builderfile changes
+        if (builderfileChanges.length > 0)
+        {
+            result ~= "  Builderfile changes:\n";
+            foreach (change; builderfileChanges)
+                result ~= "    " ~ change ~ "\n";
             result ~= "\n";
         }
         
@@ -111,52 +65,195 @@ struct RepairSuggestion
         {
             result ~= "  References:\n";
             foreach (ref_; references)
-            {
                 result ~= "    • " ~ ref_ ~ "\n";
-            }
         }
         
-        return result.data;
+        return result;
     }
     
-    private string prioritySymbol() @safe const pure nothrow
+    private:
+    
+    static string getPriorityIcon(int priority) pure @safe nothrow
     {
-        final switch (priority)
+        switch (priority)
         {
-            case RepairPriority.Critical: return "🔴";
-            case RepairPriority.High:     return "🟠";
-            case RepairPriority.Medium:   return "🟡";
-            case RepairPriority.Low:      return "🟢";
+            case 1: return "🔴";
+            case 2: return "🟠";
+            case 3: return "🟡";
+            case 4: return "🔵";
+            default: return "⚪";
+        }
+    }
+    
+    static string getPriorityLabel(int priority) pure @safe nothrow
+    {
+        switch (priority)
+        {
+            case 1: return "CRITICAL";
+            case 2: return "HIGH";
+            case 3: return "MEDIUM";
+            case 4: return "LOW";
+            default: return "INFO";
         }
     }
 }
 
-/// Repair suggestion engine
-/// 
-/// Analyzes detection results and generates actionable repair suggestions
-/// with specific compiler flags, environment variables, and build script
-/// modifications needed to achieve determinism.
+/// Repair plan for determinism issues
+struct RepairPlan
+{
+    RepairSuggestion[] suggestions;
+    int totalIssues;
+    int criticalIssues;
+    
+    /// Format as complete repair plan
+    string format() const @safe
+    {
+        string result;
+        
+        result ~= "╔══════════════════════════════════════════════════════════════╗\n";
+        result ~= "║        Determinism Repair Plan                               ║\n";
+        result ~= "╚══════════════════════════════════════════════════════════════╝\n\n";
+        
+        result ~= .format("Found %d issues (%d critical)\n\n", totalIssues, criticalIssues);
+        
+        foreach (i, suggestion; suggestions)
+        {
+            result ~= .format("Issue %d/%d:\n", i + 1, suggestions.length);
+            result ~= suggestion.format();
+            result ~= "\n" ~ "─".repeat(60).array.to!string ~ "\n\n";
+        }
+        
+        result ~= "Next steps:\n";
+        result ~= "  1. Apply the suggested compiler flags to your build\n";
+        result ~= "  2. Set the environment variables before building\n";
+        result ~= "  3. Update your Builderfile with the recommended changes\n";
+        result ~= "  4. Run `builder verify-determinism <target>` to verify\n";
+        
+        return result;
+    }
+}
+
+/// Repair engine for generating fix suggestions
 struct RepairEngine
 {
-    /// Generate repair suggestions from detection results
-    static RepairSuggestion[] generateSuggestions(
-        DetectionResult[] detections
-    ) @safe
+    /// Generate repair suggestions from detections
+    static RepairSuggestion[] generateSuggestions(Detection[] detections) @safe
     {
         RepairSuggestion[] suggestions;
         
         foreach (detection; detections)
         {
-            auto suggestion = generateSuggestion(detection);
-            if (suggestion.actions.length > 0)
-                suggestions ~= suggestion;
+            RepairSuggestion suggestion;
+            suggestion.priority = detection.priority;
+            suggestion.description = detection.description;
+            suggestion.compilerFlags = detection.compilerFlags;
+            suggestion.envVars = detection.envVars;
+            suggestion.references = detection.references;
+            
+            // Generate title based on source
+            final switch (detection.source)
+            {
+                case NonDeterminismSource.Timestamp:
+                    suggestion.title = "Timestamp Embedding";
+                    break;
+                case NonDeterminismSource.RandomValue:
+                    suggestion.title = "Random Values";
+                    break;
+                case NonDeterminismSource.ThreadScheduling:
+                    suggestion.title = "Thread Scheduling";
+                    break;
+                case NonDeterminismSource.BuildPath:
+                    suggestion.title = "Build Path Leakage";
+                    break;
+                case NonDeterminismSource.CompilerNonDet:
+                    suggestion.title = "Compiler Non-Determinism";
+                    break;
+                case NonDeterminismSource.FileOrdering:
+                    suggestion.title = "File System Ordering";
+                    break;
+                case NonDeterminismSource.PointerAddress:
+                    suggestion.title = "Pointer Addresses";
+                    break;
+                case NonDeterminismSource.Unknown:
+                    suggestion.title = "Unknown Source";
+                    break;
+            }
+            
+            suggestions ~= suggestion;
         }
         
         return suggestions;
     }
     
-    /// Generate repair suggestions from violations
-    static RepairSuggestion[] generateFromViolations(
+    /// Generate complete repair plan
+    static RepairPlan generateRepairPlan(
+        Detection[] detections,
+        DeterminismViolation[] violations
+    ) @safe
+    {
+        RepairPlan plan;
+        
+        // Generate suggestions from detections
+        auto detectionSuggestions = generateSuggestions(detections);
+        
+        // Generate suggestions from violations
+        auto violationSuggestions = generateSuggestionsFromViolations(violations);
+        
+        // Combine and deduplicate
+        plan.suggestions = (detectionSuggestions ~ violationSuggestions)
+            .sort!((a, b) => a.priority < b.priority)
+            .array;
+        
+        plan.totalIssues = cast(int)plan.suggestions.length;
+        plan.criticalIssues = cast(int)plan.suggestions
+            .map!(s => s.priority == 1 ? 1 : 0)
+            .sum;
+        
+        return plan;
+    }
+    
+    /// Generate consolidated compiler flags
+    static string[] generateConsolidatedFlags(Detection[] detections) @safe
+    {
+        return detections
+            .map!(d => d.compilerFlags)
+            .join
+            .sort
+            .uniq
+            .array;
+    }
+    
+    /// Generate consolidated environment variables
+    static string[string] generateConsolidatedEnvVars(Detection[] detections) @safe
+    {
+        string[string] envVars;
+        
+        foreach (detection; detections)
+        {
+            foreach (envVar; detection.envVars)
+            {
+                // Parse KEY=VALUE format
+                auto eqIndex = envVar.indexOf('=');
+                if (eqIndex > 0)
+                {
+                    auto key = envVar[0..eqIndex];
+                    auto value = envVar[eqIndex+1..$];
+                    envVars[key] = value;
+                }
+                else
+                {
+                    envVars[envVar] = "";
+                }
+            }
+        }
+        
+        return envVars;
+    }
+    
+    private:
+    
+    /// Generate suggestions from violations
+    static RepairSuggestion[] generateSuggestionsFromViolations(
         DeterminismViolation[] violations
     ) @safe
     {
@@ -164,221 +261,52 @@ struct RepairEngine
         
         foreach (violation; violations)
         {
-            auto suggestion = generateFromViolation(violation);
+            RepairSuggestion suggestion;
+            suggestion.title = violation.source;
+            suggestion.description = violation.description;
+            suggestion.priority = 2;
+            
+            // Parse suggestion for actionable items
+            if (violation.suggestion.length > 0)
+            {
+                suggestion.builderfileChanges = [violation.suggestion];
+            }
+            
             suggestions ~= suggestion;
         }
         
         return suggestions;
     }
+}
+
+/// Helper for std.algorithm.sum
+private auto sum(R)(R range)
+{
+    int total = 0;
+    foreach (item; range)
+        total += item;
+    return total;
+}
+
+/// Helper for repeat (simple implementation)
+private struct Repeat
+{
+    string str;
+    size_t count;
     
-    /// Generate comprehensive repair plan
-    static string generateRepairPlan(
-        DetectionResult[] detections,
-        DeterminismViolation[] violations
-    ) @safe
+    auto array() const
     {
-        import std.array : Appender;
-        
-        Appender!string plan;
-        
-        plan ~= "═══════════════════════════════════════════════════════════\n";
-        plan ~= "           DETERMINISTIC BUILD REPAIR PLAN\n";
-        plan ~= "═══════════════════════════════════════════════════════════\n\n";
-        
-        // Generate suggestions from detections
-        auto detectionSuggestions = generateSuggestions(detections);
-        
-        // Generate suggestions from violations
-        auto violationSuggestions = generateFromViolations(violations);
-        
-        // Combine and sort by priority
-        import std.algorithm : sort;
-        auto allSuggestions = detectionSuggestions ~ violationSuggestions;
-        allSuggestions.sort!((a, b) => a.priority < b.priority);
-        
-        if (allSuggestions.length == 0)
-        {
-            plan ~= "✓ No issues detected. Build appears deterministic.\n";
-            return plan.data;
-        }
-        
-        plan ~= "Found " ~ allSuggestions.length.to!string ~ " potential issues:\n\n";
-        
-        // Group by priority
-        foreach (priority; [RepairPriority.Critical, RepairPriority.High, 
-                           RepairPriority.Medium, RepairPriority.Low])
-        {
-            auto group = allSuggestions.filter!(s => s.priority == priority).array;
-            if (group.length == 0)
-                continue;
-            
-            plan ~= "───────────────────────────────────────────────────────────\n";
-            plan ~= priorityLabel(priority) ~ " (" ~ group.length.to!string ~ " issues)\n";
-            plan ~= "───────────────────────────────────────────────────────────\n";
-            
-            foreach (suggestion; group)
-            {
-                plan ~= suggestion.format();
-            }
-        }
-        
-        plan ~= "\n═══════════════════════════════════════════════════════════\n";
-        plan ~= "Apply these fixes and rebuild to verify determinism.\n";
-        plan ~= "═══════════════════════════════════════════════════════════\n";
-        
-        return plan.data;
+        import std.array : appender;
+        auto result = appender!string;
+        foreach (_; 0..count)
+            result ~= str;
+        return result[];
     }
-    
-    private:
-    
-    /// Generate suggestion from single detection
-    static RepairSuggestion generateSuggestion(DetectionResult detection) @safe
-    {
-        RepairSuggestion suggestion;
-        suggestion.source = detection.source;
-        suggestion.problem = detection.description;
-        suggestion.explanation = detection.explanation;
-        
-        // Add compiler flag actions
-        foreach (flag; detection.compilerFlags)
-        {
-            RepairAction action;
-            action.type = RepairActionType.AddCompilerFlag;
-            action.value = flag;
-            action.description = "Add to compiler command";
-            action.priority = RepairPriority.High;
-            suggestion.actions ~= action;
-        }
-        
-        // Add environment variable actions
-        foreach (env; detection.envVars)
-        {
-            import std.string : split;
-            auto parts = env.split("=");
-            if (parts.length == 2)
-            {
-                RepairAction action;
-                action.type = RepairActionType.SetEnvironmentVariable;
-                action.target = parts[0];
-                action.value = parts[1];
-                action.description = "Set before build";
-                action.priority = RepairPriority.High;
-                suggestion.actions ~= action;
-            }
-        }
-        
-        // Set overall priority
-        suggestion.priority = determinePriority(detection.source);
-        
-        // Add references
-        suggestion.references = getReferences(detection.source);
-        
-        return suggestion;
-    }
-    
-    /// Generate suggestion from violation
-    static RepairSuggestion generateFromViolation(
-        DeterminismViolation violation
-    ) @safe
-    {
-        RepairSuggestion suggestion;
-        suggestion.problem = violation.description;
-        suggestion.explanation = violation.suggestion;
-        suggestion.priority = RepairPriority.High;
-        
-        // Add action based on violation source
-        if (violation.source == "output_mismatch")
-        {
-            RepairAction action;
-            action.type = RepairActionType.SetEnvironmentVariable;
-            action.target = "BUILDER_DETERMINISM";
-            action.value = "strict";
-            action.description = "Enable strict determinism mode";
-            action.priority = RepairPriority.Critical;
-            suggestion.actions ~= action;
-        }
-        
-        return suggestion;
-    }
-    
-    /// Determine priority based on source
-    static RepairPriority determinePriority(NonDeterminismSource source) @safe pure nothrow
-    {
-        final switch (source)
-        {
-            case NonDeterminismSource.Timestamp:
-                return RepairPriority.High;
-            
-            case NonDeterminismSource.RandomValue:
-                return RepairPriority.Critical;
-            
-            case NonDeterminismSource.ThreadScheduling:
-                return RepairPriority.High;
-            
-            case NonDeterminismSource.CompilerVersion:
-                return RepairPriority.Medium;
-            
-            case NonDeterminismSource.FileOrdering:
-                return RepairPriority.Medium;
-            
-            case NonDeterminismSource.PointerAddress:
-                return RepairPriority.High;
-            
-            case NonDeterminismSource.ASLR:
-                return RepairPriority.Low;
-            
-            case NonDeterminismSource.BuildPath:
-                return RepairPriority.High;
-            
-            case NonDeterminismSource.Unknown:
-                return RepairPriority.Low;
-        }
-    }
-    
-    /// Get documentation references for source
-    static string[] getReferences(NonDeterminismSource source) @safe pure nothrow
-    {
-        final switch (source)
-        {
-            case NonDeterminismSource.Timestamp:
-                return [
-                    "https://reproducible-builds.org/docs/timestamps/",
-                    "https://gcc.gnu.org/onlinedocs/gcc/Environment-Variables.html"
-                ];
-            
-            case NonDeterminismSource.RandomValue:
-                return [
-                    "https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html",
-                    "https://reproducible-builds.org/docs/randomness/"
-                ];
-            
-            case NonDeterminismSource.BuildPath:
-                return [
-                    "https://reproducible-builds.org/docs/build-path/",
-                    "https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html"
-                ];
-            
-            case NonDeterminismSource.ThreadScheduling:
-            case NonDeterminismSource.CompilerVersion:
-            case NonDeterminismSource.FileOrdering:
-            case NonDeterminismSource.PointerAddress:
-            case NonDeterminismSource.ASLR:
-            case NonDeterminismSource.Unknown:
-                return ["https://reproducible-builds.org/"];
-        }
-    }
-    
-    /// Get priority label
-    static string priorityLabel(RepairPriority priority) @safe pure nothrow
-    {
-        final switch (priority)
-        {
-            case RepairPriority.Critical: return "🔴 CRITICAL";
-            case RepairPriority.High:     return "🟠 HIGH PRIORITY";
-            case RepairPriority.Medium:   return "🟡 MEDIUM PRIORITY";
-            case RepairPriority.Low:      return "🟢 LOW PRIORITY";
-        }
-    }
+}
+
+private auto repeat(string str, size_t count)
+{
+    return Repeat(str, count);
 }
 
 @safe unittest
@@ -388,23 +316,25 @@ struct RepairEngine
     writeln("Testing repair engine...");
     
     // Create test detection
-    DetectionResult detection;
+    Detection detection;
     detection.source = NonDeterminismSource.RandomValue;
-    detection.description = "Missing -frandom-seed flag";
+    detection.description = "Test detection";
     detection.compilerFlags = ["-frandom-seed=42"];
-    detection.explanation = "GCC uses random seeds";
+    detection.priority = 1;
     
-    // Generate suggestion
+    // Generate suggestions
     auto suggestions = RepairEngine.generateSuggestions([detection]);
     assert(suggestions.length == 1);
-    assert(suggestions[0].actions.length == 1);
-    assert(suggestions[0].actions[0].value == "-frandom-seed=42");
+    assert(suggestions[0].title == "Random Values");
+    assert(suggestions[0].compilerFlags.length == 1);
     
     // Generate repair plan
-    auto plan = RepairEngine.generateRepairPlan([detection], []);
-    assert(plan.canFind("REPAIR PLAN"));
-    assert(plan.canFind("-frandom-seed=42"));
+    DeterminismViolation violation;
+    violation.source = "test";
+    violation.description = "Test violation";
+    
+    auto plan = RepairEngine.generateRepairPlan([detection], [violation]);
+    assert(plan.suggestions.length == 2);
     
     writeln("✓ Repair engine tests passed");
 }
-

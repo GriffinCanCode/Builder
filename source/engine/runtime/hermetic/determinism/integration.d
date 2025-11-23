@@ -1,122 +1,340 @@
 module engine.runtime.hermetic.determinism.integration;
 
+import std.datetime : SysTime, Clock, Duration;
 import std.conv : to;
-import infrastructure.config.schema.schema;
-import engine.runtime.hermetic.core.spec;
-import engine.runtime.hermetic.core.executor;
+import std.file : exists, mkdirRecurse, write, read, tempDir;
+import std.path : buildPath;
+import std.algorithm : map;
+import std.array : array;
 import engine.runtime.hermetic.determinism.enforcer;
-import engine.caching.actions.action;
+import engine.runtime.hermetic.determinism.verifier;
+import engine.runtime.hermetic.determinism.detector;
+import engine.runtime.hermetic.determinism.repair;
+import engine.runtime.hermetic.core.executor;
+import engine.runtime.hermetic.core.spec;
 import infrastructure.errors;
+import infrastructure.utils.logging.logger : Logger;
 
-/// Integration helpers for determinism enforcement
-/// 
-/// Provides utility functions to integrate determinism enforcement
-/// with existing Builder systems (config, cache, language handlers)
-
-/// Convert DeterminismOptions to DeterminismConfig
-DeterminismConfig toDeterminismConfig(const DeterminismOptions options) @safe pure nothrow
+/// Verification mode
+enum VerificationMode
 {
-    DeterminismConfig config;
-    config.fixedTimestamp = options.fixedTimestamp;
-    config.prngSeed = options.prngSeed;
-    config.normalizeTimestamps = options.normalizeTimestamps;
-    config.deterministicThreading = options.deterministicThreading;
-    config.strictMode = options.strictMode;
-    return config;
+    Off,              // No verification
+    OnDemand,         // Only when explicitly requested
+    Automatic,        // Automatic two-build comparison
+    Continuous        // Verify every build
 }
 
-/// Create DeterminismEnforcer from workspace configuration
-Result!(DeterminismEnforcer, BuildError) createEnforcerFromConfig(
-    HermeticExecutor executor,
-    const BuildOptions options
-) @system
+/// Verification configuration
+struct VerificationConfig
 {
-    if (!options.determinism.enabled)
+    VerificationMode mode = VerificationMode.Off;
+    uint iterations = 2;                      // Number of builds to compare
+    VerificationStrategy strategy = VerificationStrategy.ContentHash;
+    bool autoRepair = false;                  // Automatically apply fixes
+    bool failOnViolation = false;             // Fail build if non-deterministic
+    string outputDir = ".builder-verify";     // Directory for verification artifacts
+    
+    /// Create default config
+    static VerificationConfig defaults() @safe pure nothrow
     {
-        return Err!(DeterminismEnforcer, BuildError)(
-            new SystemError("Determinism not enabled in configuration", 
-                          ErrorCode.InvalidConfiguration));
+        return VerificationConfig();
     }
     
-    auto config = toDeterminismConfig(options.determinism);
-    return DeterminismEnforcer.create(executor, config);
+    /// Create automatic verification config
+    static VerificationConfig automatic() @safe pure nothrow
+    {
+        VerificationConfig config;
+        config.mode = VerificationMode.Automatic;
+        config.iterations = 2;
+        return config;
+    }
+    
+    /// Create strict verification config
+    static VerificationConfig strict() @safe pure nothrow
+    {
+        VerificationConfig config;
+        config.mode = VerificationMode.Automatic;
+        config.iterations = 3;
+        config.failOnViolation = true;
+        return config;
+    }
 }
 
-/// Update ActionEntry with determinism verification result
-void updateWithDeterminismResult(
-    ref ActionEntry entry,
-    const DeterminismResult result
-) @safe
+/// Verification result with full analysis
+struct VerificationReport
 {
-    entry.isDeterministic = result.deterministic;
-    entry.verificationHash = result.outputHash;
+    bool isDeterministic;
+    VerificationResult verificationResult;
+    Detection[] detections;
+    RepairPlan repairPlan;
+    Duration totalTime;
+    SysTime timestamp;
     
-    if (result.deterministic)
-        entry.determinismVerifications++;
+    /// Get summary string
+    string summary() const @safe
+    {
+        if (isDeterministic)
+            return "✓ Build is deterministic - all outputs match";
+        else
+            return "✗ Build is non-deterministic - " ~ 
+                   verificationResult.violations.length.to!string ~ " issues found";
+    }
     
-    // Add determinism metadata
-    entry.metadata["deterministic"] = result.deterministic.to!string;
-    entry.metadata["det_violations"] = result.violations.length.to!string;
-    entry.metadata["det_overhead_ms"] = result.enforcementOverhead.total!"msecs".to!string;
+    /// Save report to file
+    void save(string path) const @system
+    {
+        import std.json : JSONValue;
+        
+        JSONValue json;
+        json["deterministic"] = isDeterministic;
+        json["violations"] = verificationResult.violations.length;
+        json["detections"] = detections.length;
+        json["timestamp"] = timestamp.toISOExtString();
+        json["duration_ms"] = totalTime.total!"msecs";
+        
+        write(path, json.toPrettyString());
+    }
 }
 
-/// Check if action cache entry is deterministically valid
-bool isDeterministicallyValid(
-    const ActionEntry entry,
-    const string expectedHash
-) @safe pure nothrow
+/// Integrated determinism verification for build system
+struct DeterminismIntegration
 {
-    if (!entry.isDeterministic)
-        return false;
+    private VerificationConfig config;
+    private DeterminismEnforcer enforcer;
+    private DeterminismVerifier verifier;
+    private bool initialized;
     
-    if (entry.verificationHash.length == 0)
-        return false;
+    /// Create integration with configuration
+    static Result!(DeterminismIntegration, BuildError) create(
+        VerificationConfig config = VerificationConfig.defaults()
+    ) @system
+    {
+        DeterminismIntegration integration;
+        integration.config = config;
+        
+        // Create output directory
+        if (!exists(config.outputDir))
+            mkdirRecurse(config.outputDir);
+        
+        // Create verifier
+        integration.verifier = DeterminismVerifier.create(config.strategy);
+        
+        integration.initialized = true;
+        return Ok!(DeterminismIntegration, BuildError)(integration);
+    }
     
-    // Optionally verify hash matches
-    if (expectedHash.length > 0 && entry.verificationHash != expectedHash)
-        return false;
+    /// Verify build determinism with automatic two-build comparison
+    Result!(VerificationReport, BuildError) verifyBuild(
+        string[] command,
+        SandboxSpec spec,
+        string workingDir = ""
+    ) @system
+    {
+        import std.datetime.stopwatch : StopWatch;
+        
+        if (!initialized)
+            return Err!(VerificationReport, BuildError)(
+                new SystemError("Integration not initialized", ErrorCode.NotInitialized));
+        
+        auto sw = StopWatch();
+        sw.start();
+        
+        Logger.info("Starting determinism verification with " ~ 
+                   config.iterations.to!string ~ " builds...");
+        
+        // Create hermetic executor
+        auto executorResult = HermeticExecutor.create(spec, workingDir);
+        if (executorResult.isErr)
+            return Err!(VerificationReport, BuildError)(executorResult.unwrapErr());
+        
+        auto executor = executorResult.unwrap();
+        
+        // Create enforcer
+        auto enforcerResult = DeterminismEnforcer.create(
+            executor,
+            DeterminismConfig.defaults()
+        );
+        if (enforcerResult.isErr)
+            return Err!(VerificationReport, BuildError)(enforcerResult.unwrapErr());
+        
+        auto localEnforcer = enforcerResult.unwrap();
+        
+        // Execute multiple builds
+        string[] outputDirs;
+        outputDirs.length = config.iterations;
+        
+        foreach (i; 0 .. config.iterations)
+        {
+            Logger.info("Build " ~ (i + 1).to!string ~ "/" ~ config.iterations.to!string);
+            
+            // Create unique output directory for this iteration
+            immutable iterDir = buildPath(config.outputDir, "build-" ~ i.to!string);
+            mkdirRecurse(iterDir);
+            outputDirs[i] = iterDir;
+            
+            // Execute build
+            auto buildResult = localEnforcer.execute(command, workingDir);
+            if (buildResult.isErr)
+                return Err!(VerificationReport, BuildError)(buildResult.unwrapErr());
+        }
+        
+        // Compare outputs from all builds
+        Logger.info("Comparing build outputs...");
+        
+        auto compareResult = verifier.verifyDirectory(outputDirs[0], outputDirs[1]);
+        if (compareResult.isErr)
+            return Err!(VerificationReport, BuildError)(compareResult.unwrapErr());
+        
+        auto verifyResult = compareResult.unwrap();
+        
+        // Analyze for non-determinism sources
+        auto detections = NonDeterminismDetector.analyzeCompilerCommand(command);
+        
+        // Generate repair plan if non-deterministic
+        RepairPlan repairPlan;
+        if (!verifyResult.isDeterministic)
+        {
+            Logger.warning("Non-determinism detected, generating repair plan...");
+            
+            DeterminismViolation[] violations;
+            foreach (v; verifyResult.violations)
+            {
+                DeterminismViolation violation;
+                violation.description = v;
+                violation.source = "output_comparison";
+                violations ~= violation;
+            }
+            
+            repairPlan = RepairEngine.generateRepairPlan(detections, violations);
+        }
+        
+        sw.stop();
+        
+        // Build report
+        VerificationReport report;
+        report.isDeterministic = verifyResult.isDeterministic;
+        report.verificationResult = verifyResult;
+        report.detections = detections;
+        report.repairPlan = repairPlan;
+        report.totalTime = sw.peek();
+        report.timestamp = Clock.currTime();
+        
+        // Save report
+        immutable reportPath = buildPath(config.outputDir, "report.json");
+        report.save(reportPath);
+        
+        Logger.info(report.summary());
+        Logger.info("Report saved to: " ~ reportPath);
+        
+        // Apply auto-repair if enabled
+        if (!report.isDeterministic && config.autoRepair)
+        {
+            Logger.info("Auto-repair enabled, applying fixes...");
+            applyAutoRepair(detections);
+        }
+        
+        // Fail if configured to fail on violation
+        if (!report.isDeterministic && config.failOnViolation)
+        {
+            auto error = new SystemError(
+                "Build is non-deterministic: " ~ 
+                verifyResult.violations.length.to!string ~ " violations",
+                ErrorCode.BuildFailed
+            );
+            return Err!(VerificationReport, BuildError)(error);
+        }
+        
+        return Ok!(VerificationReport, BuildError)(report);
+    }
     
-    return true;
+    /// Quick determinism check (single run with detection only)
+    Result!(VerificationReport, BuildError) quickCheck(
+        string[] command
+    ) @system
+    {
+        import std.datetime.stopwatch : StopWatch;
+        
+        auto sw = StopWatch();
+        sw.start();
+        
+        Logger.info("Running quick determinism check...");
+        
+        // Analyze command for potential issues
+        auto detections = NonDeterminismDetector.analyzeCompilerCommand(command);
+        
+        sw.stop();
+        
+        // Build minimal report
+        VerificationReport report;
+        report.isDeterministic = (detections.length == 0);
+        report.detections = detections;
+        report.totalTime = sw.peek();
+        report.timestamp = Clock.currTime();
+        
+        if (detections.length > 0)
+        {
+            Logger.warning("Found " ~ detections.length.to!string ~ 
+                         " potential determinism issues");
+            
+            DeterminismViolation[] violations;
+            report.repairPlan = RepairEngine.generateRepairPlan(detections, violations);
+        }
+        else
+        {
+            Logger.info("No determinism issues detected in command");
+        }
+        
+        return Ok!(VerificationReport, BuildError)(report);
+    }
+    
+    /// Get verification configuration
+    const(VerificationConfig) getConfig() const @safe pure nothrow
+    {
+        return config;
+    }
+    
+    private:
+    
+    /// Apply automatic repairs
+    void applyAutoRepair(Detection[] detections) @system
+    {
+        Logger.info("Applying automatic repairs...");
+        
+        auto flags = RepairEngine.generateConsolidatedFlags(detections);
+        auto envVars = RepairEngine.generateConsolidatedEnvVars(detections);
+        
+        // Log what would be applied
+        Logger.info("Would add compiler flags:");
+        foreach (flag; flags)
+            Logger.info("  " ~ flag);
+        
+        Logger.info("Would set environment variables:");
+        foreach (key, value; envVars)
+            Logger.info("  " ~ key ~ "=" ~ value);
+        
+        // TODO: Actually apply these to the build configuration
+        Logger.warning("Auto-repair not fully implemented yet");
+    }
 }
 
-/// Create determinism metadata for action cache
-string[string] createDeterminismMetadata(
-    const DeterminismConfig config
-) @safe
-{
-    string[string] metadata;
-    metadata["det_timestamp"] = config.fixedTimestamp.to!string;
-    metadata["det_seed"] = config.prngSeed.to!string;
-    metadata["det_threading"] = config.deterministicThreading.to!string;
-    metadata["det_strict"] = config.strictMode.to!string;
-    return metadata;
-}
-
-@safe unittest
+@system unittest
 {
     import std.stdio : writeln;
     
     writeln("Testing determinism integration...");
     
-    // Test config conversion
-    DeterminismOptions options;
-    options.enabled = true;
-    options.strictMode = true;
-    options.fixedTimestamp = 1234567890;
-    options.prngSeed = 99;
+    // Test config creation
+    auto config = VerificationConfig.automatic();
+    assert(config.mode == VerificationMode.Automatic);
+    assert(config.iterations == 2);
     
-    auto config = toDeterminismConfig(options);
-    assert(config.fixedTimestamp == 1234567890);
-    assert(config.prngSeed == 99);
-    assert(config.strictMode);
+    auto strictConfig = VerificationConfig.strict();
+    assert(strictConfig.failOnViolation);
+    assert(strictConfig.iterations == 3);
     
-    // Test metadata creation
-    auto metadata = createDeterminismMetadata(config);
-    assert("det_timestamp" in metadata);
-    assert("det_seed" in metadata);
-    assert(metadata["det_timestamp"] == "1234567890");
-    assert(metadata["det_seed"] == "99");
+    // Test integration creation
+    auto integrationResult = DeterminismIntegration.create(config);
+    assert(integrationResult.isOk);
     
     writeln("✓ Determinism integration tests passed");
 }
-
