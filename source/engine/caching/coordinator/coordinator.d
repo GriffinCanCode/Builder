@@ -23,6 +23,7 @@ import infrastructure.utils.logging.logger;
 /// - Content-addressable storage with deduplication
 /// - Automatic garbage collection
 /// - Event emission for telemetry integration
+/// - Batch validation
 final class CacheCoordinator
 {
     private BuildCache targetCache;
@@ -73,10 +74,7 @@ final class CacheCoordinator
         
         // Initialize remote cache if configured
         auto remoteConfig = RemoteCacheConfig.fromEnvironment();
-        if (remoteConfig.enabled())
-        {
-            this.remoteCache = new RemoteCacheClient(remoteConfig);
-        }
+        if (remoteConfig.enabled()) this.remoteCache = new RemoteCacheClient(remoteConfig);
         
         // Initialize garbage collector
         this.gc = new CacheGarbageCollector(cas, publisher);
@@ -97,12 +95,8 @@ final class CacheCoordinator
         // Check remote cache if available
         if (remoteCache !is null)
         {
-            auto contentHash = computeContentHash(targetId, sources, deps);
-            auto hasResult = remoteCache.has(contentHash);
-            if (contentHash.length > 0 && hasResult.match(
-                (bool ok) => ok,
-                (BuildError err) => false
-            ))
+            immutable contentHash = computeContentHash(targetId, sources, deps);
+            if (contentHash.length && remoteCache.has(contentHash).match((bool ok) => ok, (BuildError _) => false))
             {
                 emitEvent!CacheHitEvent(targetId, 0, timer.peek(), true);
                 return true;
@@ -113,13 +107,82 @@ final class CacheCoordinator
         return false;
     }
     
+    /// Batch validate multiple targets in parallel - validates multiple targets concurrently using work-stealing scheduler - returns results indexed by target ID
+    BatchValidationResult batchValidate(const(TargetValidationRequest)[] requests) @system
+    {
+        auto timer = StopWatch(AutoStart.yes);
+        
+        if (requests.length == 0) return BatchValidationResult.init;
+        
+        // Single target optimization - avoid parallel overhead
+        if (requests.length == 1)
+        {
+            auto req = requests[0];
+            auto cached = isCached(req.targetId, req.sources, req.deps);
+            return BatchValidationResult(
+                [req.targetId: TargetValidationResult(req.targetId, cached, false)],
+                1, cached ? 1 : 0, 0, timer.peek(), timer.peek()
+            );
+        }
+        
+        // Parallel validation with work-stealing for optimal load balancing
+        import infrastructure.utils.concurrency.parallel : ParallelExecutor;
+        import std.typecons : tuple;
+        
+        // Convert to mutable array for parallel processing
+        TargetValidationRequest[] mutableRequests;
+        mutableRequests.reserve(requests.length);
+        foreach (req; requests)
+            mutableRequests ~= TargetValidationRequest(req.targetId, req.sources.dup, req.deps.dup);
+        
+        auto results = ParallelExecutor.mapWorkStealing(
+            mutableRequests,
+            (TargetValidationRequest req) @system {
+                // Check local cache first
+                if (targetCache.isCached(req.targetId, req.sources, req.deps))
+                    return tuple(req.targetId, true, false);
+                
+                // Check remote cache if available
+                if (remoteCache !is null)
+                {
+                    auto contentHash = computeContentHash(req.targetId, req.sources, req.deps);
+                    if (contentHash.length && remoteCache.has(contentHash).match((bool ok) => ok, (BuildError _) => false))
+                        return tuple(req.targetId, true, true);
+                }
+                
+                return tuple(req.targetId, false, false);
+            }
+        );
+        
+        // Aggregate results
+        BatchValidationResult batchResult = { totalTargets: requests.length };
+        
+        foreach (r; results)
+        {
+            auto targetId = r[0];
+            auto cached = r[1];
+            auto fromRemote = r[2];
+            
+            batchResult.results[targetId] = TargetValidationResult(targetId, cached, fromRemote);
+            
+            if (cached)
+            {
+                batchResult.cachedTargets++;
+                if (fromRemote) batchResult.remoteCachedTargets++;
+                emitEvent!CacheHitEvent(targetId, 0, dur!"msecs"(0), fromRemote);
+            }
+            else
+                emitEvent!CacheMissEvent(targetId, dur!"msecs"(0));
+        }
+        
+        batchResult.duration = timer.peek();
+        batchResult.averageTimePerTarget = batchResult.duration / requests.length;
+        
+        return batchResult;
+    }
+    
     /// Update cache after successful build
-    void update(
-        string targetId,
-        const(string)[] sources,
-        const(string)[] deps,
-        string outputHash
-    ) @system
+    void update(string targetId, const(string)[] sources, const(string)[] deps, string outputHash) @system
     {
         auto timer = StopWatch(AutoStart.yes);
         
@@ -138,32 +201,84 @@ final class CacheCoordinator
     }
     
     /// Check if action is cached
-    bool isActionCached(
-        ActionId actionId,
-        const(string)[] inputs,
-        const(string[string]) metadata
-    ) @system
+    bool isActionCached(ActionId actionId, const(string)[] inputs, const(string[string]) metadata) @system
     {
         auto timer = StopWatch(AutoStart.yes);
         immutable cached = actionCache.isCached(actionId, inputs, metadata);
-        immutable actionIdStr = actionId.toString();
-        immutable eventType = cached ? CacheEventType.ActionHit : CacheEventType.ActionMiss;
-        
-        emitEvent!ActionCacheEvent(eventType, actionIdStr, actionId.targetId, timer.peek());
+        emitEvent!ActionCacheEvent(
+            cached ? CacheEventType.ActionHit : CacheEventType.ActionMiss,
+            actionId.toString(), actionId.targetId, timer.peek()
+        );
         return cached;
     }
     
-    /// Record action result
-    void recordAction(
-        ActionId actionId,
-        const(string)[] inputs,
-        const(string)[] outputs,
-        const(string[string]) metadata,
-        bool success
-    ) @system
+    /// Batch validate multiple actions in parallel for improved throughput - similar speedup gains as batch target validation
+    BatchActionValidationResult batchValidateActions(const(ActionValidationRequest)[] requests) @system
     {
-        actionCache.update(actionId, inputs, outputs, metadata, success);
+        auto timer = StopWatch(AutoStart.yes);
+        
+        if (requests.length == 0) return BatchActionValidationResult.init;
+        
+        // Single action optimization
+        if (requests.length == 1)
+        {
+            auto req = requests[0];
+            auto cached = actionCache.isCached(req.actionId, req.inputs, req.metadata);
+            return BatchActionValidationResult(
+                [req.actionId.toString(): ActionValidationResult(req.actionId, cached)],
+                1, cached ? 1 : 0, timer.peek(), timer.peek()
+            );
+        }
+        
+        // Parallel validation
+        import infrastructure.utils.concurrency.parallel : ParallelExecutor;
+        import std.typecons : tuple;
+        
+        // Convert to mutable array for parallel processing
+        ActionValidationRequest[] mutableRequests;
+        mutableRequests.reserve(requests.length);
+        foreach (req; requests)
+        {
+            string[string] mutableMetadata;
+            foreach (k, v; req.metadata)
+                mutableMetadata[k] = v;
+            mutableRequests ~= ActionValidationRequest(req.actionId, req.inputs.dup, mutableMetadata);
+        }
+        
+        auto results = ParallelExecutor.mapWorkStealing(
+            mutableRequests,
+            (ActionValidationRequest req) @system =>
+                tuple(req.actionId, actionCache.isCached(req.actionId, req.inputs, req.metadata))
+        );
+        
+        // Aggregate results
+        BatchActionValidationResult batchResult = { totalActions: requests.length };
+        
+        foreach (r; results)
+        {
+            auto actionId = r[0];
+            auto cached = r[1];
+            
+            batchResult.results[actionId.toString()] = ActionValidationResult(actionId, cached);
+            if (cached) batchResult.cachedActions++;
+            
+            // Emit events
+            emitEvent!ActionCacheEvent(
+                cached ? CacheEventType.ActionHit : CacheEventType.ActionMiss,
+                actionId.toString(), actionId.targetId, dur!"msecs"(0)
+            );
+        }
+        
+        batchResult.duration = timer.peek();
+        batchResult.averageTimePerAction = batchResult.duration / requests.length;
+        
+        return batchResult;
     }
+    
+    /// Record action result
+    void recordAction(ActionId actionId, const(string)[] inputs, const(string)[] outputs,
+                     const(string[string]) metadata, bool success) @system
+        => actionCache.update(actionId, inputs, outputs, metadata, success);
     
     /// Flush all caches to disk
     void flush() @system
@@ -188,14 +303,10 @@ final class CacheCoordinator
     
     /// Run garbage collection
     Result!(size_t, BuildError) runGC() @system
-    {
-        auto gcResult = gc.collect(targetCache, actionCache);
-        if (gcResult.isErr)
-            return Err!(size_t, BuildError)(gcResult.unwrapErr());
-        
-        auto result = gcResult.unwrap();
-        return Ok!(size_t, BuildError)(result.bytesFreed);
-    }
+        => gc.collect(targetCache, actionCache).match(
+            (result) => Ok!(size_t, BuildError)(result.bytesFreed),
+            (err) => Err!(size_t, BuildError)(err)
+        );
     
     /// Get unified cache statistics
     struct CacheCoordinatorStats
@@ -228,28 +339,37 @@ final class CacheCoordinator
     {
         synchronized (coordinatorMutex)
         {
-            CacheCoordinatorStats stats;
-            
-            // Target cache stats
             auto targetStats = targetCache.getStats();
-            stats.targetCacheEntries = targetStats.totalEntries;
-            stats.targetCacheSize = targetStats.totalSize;
-            stats.targetHitRate = targetStats.metadataHitRate;
-            
-            // Action cache stats
             auto actionStats = actionCache.getStats();
-            stats.actionCacheEntries = actionStats.totalEntries;
-            stats.actionCacheSize = actionStats.totalSize;
-            stats.actionHitRate = actionStats.hitRate;
-            
-            // CAS stats
             auto casStats = cas.getStats();
-            stats.uniqueBlobs = casStats.uniqueBlobs;
-            stats.totalBlobSize = casStats.totalSize;
-            stats.deduplicationRatio = casStats.deduplicationRatio;
+            auto sourceStats = sourceRepo.getStats();
+            
+            CacheCoordinatorStats stats = {
+                // Target cache stats
+                targetCacheEntries: targetStats.totalEntries,
+                targetCacheSize: targetStats.totalSize,
+                targetHitRate: targetStats.metadataHitRate,
+                
+                // Action cache stats
+                actionCacheEntries: actionStats.totalEntries,
+                actionCacheSize: actionStats.totalSize,
+                actionHitRate: actionStats.hitRate,
+                
+                // CAS stats
+                uniqueBlobs: casStats.uniqueBlobs,
+                totalBlobSize: casStats.totalSize,
+                deduplicationRatio: casStats.deduplicationRatio,
+                
+                // Source repository stats
+                sourcesStored: sourceStats.sourcesStored,
+                sourceDeduplicationHits: sourceStats.deduplicationHits,
+                sourceBytes: sourceStats.bytesStored,
+                sourceBytesSaved: sourceStats.bytesSaved,
+                sourceDeduplicationRatio: sourceStats.deduplicationRatio
+            };
             
             // Remote cache stats
-            if (remoteCache !is null)
+            if (remoteCache)
             {
                 auto remoteStats = remoteCache.getStats();
                 stats.remoteHits = remoteStats.hits;
@@ -257,41 +377,26 @@ final class CacheCoordinator
                 stats.remoteHitRate = remoteStats.hitRate;
             }
             
-            // Source repository stats
-            auto sourceStats = sourceRepo.getStats();
-            stats.sourcesStored = sourceStats.sourcesStored;
-            stats.sourceDeduplicationHits = sourceStats.deduplicationHits;
-            stats.sourceBytes = sourceStats.bytesStored;
-            stats.sourceBytesSaved = sourceStats.bytesSaved;
-            stats.sourceDeduplicationRatio = sourceStats.deduplicationRatio;
-            
             return stats;
         }
     }
     
     /// Push artifact to remote cache (runs asynchronously)
-    private void pushToRemote(
-        string targetId,
-        const(string)[] sources,
-        const(string)[] deps,
-        string outputHash
-    ) @system nothrow
+    private void pushToRemote(string targetId, const(string)[] sources, const(string)[] deps, string outputHash) @system nothrow
     {
         auto timer = StopWatch(AutoStart.yes);
         
         try
         {
-            auto contentHash = computeContentHash(targetId, sources, deps);
-            if (contentHash.length == 0) return;
+            immutable contentHash = computeContentHash(targetId, sources, deps);
+            if (!contentHash.length) return;
             
             auto metadata = serializeCacheMetadata(targetId, sources, deps, outputHash);
             auto pushResult = remoteCache.put(contentHash, metadata);
             
-            emitEvent!RemoteCacheEvent(CacheEventType.RemotePush, targetId, 
-                                       metadata.length, timer.peek(), pushResult.isOk);
+            emitEvent!RemoteCacheEvent(CacheEventType.RemotePush, targetId, metadata.length, timer.peek(), pushResult.isOk);
             
-            if (pushResult.isErr)
-                Logger.debugLog("Remote push failed: " ~ pushResult.unwrapErr().message);
+            if (pushResult.isErr) Logger.debugLog("Remote push failed: " ~ pushResult.unwrapErr().message);
         }
         catch (Exception e)
         {
@@ -300,161 +405,102 @@ final class CacheCoordinator
     }
     
     /// Compute content hash for remote cache key
-    private string computeContentHash(
-        string targetId,
-        const(string)[] sources,
-        const(string)[] deps
-    ) @system nothrow
+    private string computeContentHash(string targetId, const(string)[] sources, const(string)[] deps) @system nothrow
     {
         try
         {
             import std.digest.sha : SHA256, toHexString;
             import infrastructure.utils.files.hash : FastHash;
             import std.file : exists;
+            import std.algorithm : filter, each;
             
             SHA256 hash;
             hash.start();
-            
             hash.put(cast(ubyte[])targetId);
             
-            foreach (source; sources)
-            {
-                if (exists(source))
-                {
-                    auto sourceHash = FastHash.hashFile(source);
-                    hash.put(cast(ubyte[])sourceHash);
-                }
-            }
-            
-            foreach (dep; deps)
-                hash.put(cast(ubyte[])dep);
+            sources.filter!exists.each!(s => hash.put(cast(ubyte[])FastHash.hashFile(s)));
+            deps.each!(d => hash.put(cast(ubyte[])d));
             
             return toHexString(hash.finish()).to!string;
         }
-        catch (Exception)
-        {
-            return "";
-        }
+        catch (Exception) { return ""; }
     }
     
     /// Serialize cache metadata for remote storage
-    private ubyte[] serializeCacheMetadata(
-        string targetId,
-        const(string)[] sources,
-        const(string)[] deps,
-        string outputHash
-    ) @system nothrow
+    private ubyte[] serializeCacheMetadata(string targetId, const(string)[] sources, const(string)[] deps, string outputHash) @system nothrow
     {
+        void writeString(ref ubyte[] buf, string s)
+        {
+            import std.bitmanip : write;
+            auto bytes = cast(const(ubyte)[])s;
+            buf.write!uint(cast(uint)bytes.length, buf.length);
+            buf ~= bytes;
+        }
+        
         try
         {
             import std.bitmanip : write;
-            import std.utf : toUTF8;
+            import std.algorithm : each;
             
             ubyte[] buffer;
             buffer.reserve(1024);
+            buffer.write!ubyte(1, buffer.length); // Version
             
-            // Version
-            buffer.write!ubyte(1, buffer.length);
+            writeString(buffer, targetId);
             
-            // Target ID
-            immutable tidBytes = targetId.toUTF8();
-            buffer.write!uint(cast(uint)tidBytes.length, buffer.length);
-            buffer ~= tidBytes;
-            
-            // Sources count
             buffer.write!uint(cast(uint)sources.length, buffer.length);
-            foreach (source; sources)
-            {
-                immutable srcBytes = source.toUTF8();
-                buffer.write!uint(cast(uint)srcBytes.length, buffer.length);
-                buffer ~= srcBytes;
-            }
+            sources.each!(s => writeString(buffer, s));
             
-            // Deps count
             buffer.write!uint(cast(uint)deps.length, buffer.length);
-            foreach (dep; deps)
-            {
-                immutable depBytes = dep.toUTF8();
-                buffer.write!uint(cast(uint)depBytes.length, buffer.length);
-                buffer ~= depBytes;
-            }
+            deps.each!(d => writeString(buffer, d));
             
-            // Output hash
-            immutable hashBytes = outputHash.toUTF8();
-            buffer.write!uint(cast(uint)hashBytes.length, buffer.length);
-            buffer ~= hashBytes;
+            writeString(buffer, outputHash);
             
             return buffer;
         }
-        catch (Exception)
-        {
-            return new ubyte[0];
-        }
+        catch (Exception) { return []; }
     }
     
     // Event emission helper
     private void emitEvent(T, Args...)(Args args) nothrow
     {
-        if (publisher is null) return;
-        try { publisher.publish(new T(args)); } catch (Exception) {}
+        if (publisher) try { publisher.publish(new T(args)); } catch (Exception) {}
     }
     
     /// Get action cache
-    ActionCache getActionCache() @system
-    {
-        return actionCache;
-    }
+    ActionCache getActionCache() @system => actionCache;
     
     /// Get dependency cache
-    DependencyCache getDependencyCache() @system
-    {
-        return depCache;
-    }
+    DependencyCache getDependencyCache() @system => depCache;
     
     /// Get incremental filter
-    IncrementalFilter getFilter() @system
-    {
-        return filter;
-    }
+    IncrementalFilter getFilter() @system => filter;
     
     /// Get source repository
-    SourceRepository getSourceRepository() @system
-    {
-        return sourceRepo;
-    }
+    SourceRepository getSourceRepository() @system => sourceRepo;
     
     /// Get source tracker
-    SourceTracker getSourceTracker() @system
-    {
-        return sourceTracker;
-    }
+    SourceTracker getSourceTracker() @system => sourceTracker;
     
     /// Store sources in CAS and return references
     Result!(SourceRefSet, BuildError) storeSources(const(string)[] paths) @system
     {
         auto timer = StopWatch(AutoStart.yes);
-        
         synchronized (coordinatorMutex)
         {
             auto result = sourceTracker.trackBatch(paths);
             
-            if (result.isOk)
+            // Emit telemetry event
+            if (result.isOk && publisher !is null)
             {
-                auto refSet = result.unwrap();
-                immutable duration = timer.peek();
-                
-                // Emit telemetry event
-                if (publisher !is null)
+                try
                 {
-                    try
-                    {
-                        import std.format : format;
-                        immutable msg = format("Stored %d sources (%d bytes) in CAS",
-                            refSet.length, refSet.totalSize);
-                        // Could emit custom SourceStorageEvent here if needed
-                    }
-                    catch (Exception) {}
+                    import std.format : format;
+                    auto refSet = result.unwrap();
+                    immutable msg = format("Stored %d sources (%d bytes) in CAS", refSet.length, refSet.totalSize);
+                    // Could emit custom SourceStorageEvent here if needed
                 }
+                catch (Exception) {}
             }
             
             return result;
@@ -464,10 +510,7 @@ final class CacheCoordinator
     /// Materialize sources from CAS to workspace
     Result!BuildError materializeSources(SourceRefSet refSet) @system
     {
-        synchronized (coordinatorMutex)
-        {
-            return sourceRepo.materializeBatch(refSet);
-        }
+        synchronized (coordinatorMutex) return sourceRepo.materializeBatch(refSet);
     }
     
     /// Detect changed sources and update CAS
@@ -477,10 +520,11 @@ final class CacheCoordinator
         {
             auto result = sourceTracker.detectChanges(paths);
             
-            if (result.isOk)
+            // Emit telemetry event
+            if (result.isOk && publisher !is null)
             {
                 auto changes = result.unwrap();
-                if (changes.length > 0 && publisher !is null)
+                if (changes.length > 0)
                 {
                     try
                     {
@@ -495,6 +539,70 @@ final class CacheCoordinator
             return result;
         }
     }
+}
+
+/// Target validation request for batch operations
+struct TargetValidationRequest
+{
+    string targetId;
+    string[] sources;
+    string[] deps;
+}
+
+/// Result of validating a single target
+struct TargetValidationResult
+{
+    string targetId;
+    bool cached;           // Whether target is cached
+    bool fromRemote;       // Whether cache hit came from remote
+}
+
+/// Batch validation results with statistics
+struct BatchValidationResult
+{
+    TargetValidationResult[string] results;  // Results indexed by targetId
+    size_t totalTargets;
+    size_t cachedTargets;
+    size_t remoteCachedTargets;
+    Duration duration;
+    Duration averageTimePerTarget;
+    
+    /// Calculate cache hit rate
+    float hitRate() const pure nothrow @safe
+        => totalTargets ? (cast(float)cachedTargets / totalTargets) * 100.0 : 0.0;
+    
+    /// Calculate remote cache hit rate
+    float remoteHitRate() const pure nothrow @safe
+        => cachedTargets ? (cast(float)remoteCachedTargets / cachedTargets) * 100.0 : 0.0;
+}
+
+/// Action validation request for batch operations
+struct ActionValidationRequest
+{
+    ActionId actionId;
+    string[] inputs;
+    string[string] metadata;
+}
+
+/// Result of validating a single action
+struct ActionValidationResult
+{
+    ActionId actionId;
+    bool cached;
+}
+
+/// Batch action validation results with statistics
+struct BatchActionValidationResult
+{
+    ActionValidationResult[string] results;  // Results indexed by actionId string
+    size_t totalActions;
+    size_t cachedActions;
+    Duration duration;
+    Duration averageTimePerAction;
+    
+    /// Calculate cache hit rate
+    float hitRate() const pure nothrow @safe
+        => totalActions ? (cast(float)cachedActions / totalActions) * 100.0 : 0.0;
 }
 
 /// Coordinator configuration
