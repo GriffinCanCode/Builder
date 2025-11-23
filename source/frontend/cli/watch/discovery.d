@@ -142,7 +142,7 @@ class WatchModeWithDiscovery
         if (rediscoveryResult.isErr)
         {
             Logger.error("Failed to check for re-discovery");
-            Logger.error(formatError(rediscoveryResult.unwrapErr()));
+            Logger.error(rediscoveryResult.unwrapErr());
             return;
         }
         
@@ -160,7 +160,7 @@ class WatchModeWithDiscovery
             if (result.isErr)
             {
                 Logger.error("Re-discovery failed");
-                Logger.error(formatError(result.unwrapErr()));
+                Logger.error(result.unwrapErr());
             }
             else
             {

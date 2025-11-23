@@ -183,12 +183,13 @@ struct VerifyCommand
         auto graph = graphResult.unwrap();
         
         // Find target
-        auto target = graph.findTarget(targetSpec);
-        if (target is null)
+        auto targetNode = targetSpec in graph.nodes;
+        if (targetNode is null)
         {
             writeln(formatter.formatError("Target not found: " ~ targetSpec));
             return 1;
         }
+        auto target = &targetNode.target;
         
         // Get build command (simplified - would need to get from language handler)
         string[] command = ["echo", "placeholder"];
@@ -375,7 +376,7 @@ struct VerifyCommand
         // File comparison details
         if (!report.isDeterministic && report.verificationResult.comparisons.length > 0)
         {
-            formatter.printSection("File Differences");
+            writeln(formatter.section("File Differences"));
             writeln();
             
             foreach (comp; report.verificationResult.comparisons)

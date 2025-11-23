@@ -80,6 +80,7 @@ enum ErrorCode
     FileNotFound = 5000,
     FileReadFailed,
     FileWriteFailed,
+    FileDeleteFailed,
     DirectoryNotFound,
     PermissionDenied,
     
@@ -284,6 +285,7 @@ string messageTemplate(ErrorCode code) pure nothrow
         ErrorCode.FileNotFound: "File not found",
         ErrorCode.FileReadFailed: "Failed to read file",
         ErrorCode.FileWriteFailed: "Failed to write file",
+        ErrorCode.FileDeleteFailed: "Failed to delete file",
         ErrorCode.DirectoryNotFound: "Directory not found",
         ErrorCode.PermissionDenied: "Permission denied",
         ErrorCode.GraphCycle: "Dependency cycle detected",

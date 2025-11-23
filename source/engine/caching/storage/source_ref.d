@@ -23,7 +23,7 @@ struct SourceRef
                     new IOError(path, "Source file not found", ErrorCode.FileNotFound)
                 );
             
-            immutable content = cast(ubyte[])read(path);
+            auto content = cast(ubyte[])read(path);
             immutable hash = FastHash.hashBytes(content);
             
             SourceRef ref_;
@@ -103,7 +103,7 @@ struct SourceRefSet
     }
     
     /// Get source by path
-    SourceRef* getByPath(string path) pure @safe nothrow
+    SourceRef* getByPath(string path) pure @trusted nothrow
     {
         if (auto hashPtr = path in pathToHash)
         {
@@ -117,7 +117,7 @@ struct SourceRefSet
     }
     
     /// Get source by hash
-    SourceRef* getByHash(string hash) pure @safe nothrow
+    SourceRef* getByHash(string hash) pure @trusted nothrow
     {
         foreach (ref source; sources)
         {

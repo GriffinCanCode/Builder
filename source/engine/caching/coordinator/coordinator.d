@@ -440,7 +440,7 @@ final class CacheCoordinator
             
             if (result.isOk)
             {
-                immutable refSet = result.unwrap();
+                auto refSet = result.unwrap();
                 immutable duration = timer.peek();
                 
                 // Emit telemetry event
@@ -479,7 +479,7 @@ final class CacheCoordinator
             
             if (result.isOk)
             {
-                immutable changes = result.unwrap();
+                auto changes = result.unwrap();
                 if (changes.length > 0 && publisher !is null)
                 {
                     try

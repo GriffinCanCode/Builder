@@ -97,11 +97,11 @@ final class SourceTracker
                     continue;
                 
                 // Check if file changed
-                auto changeResult = changeTracker.hasChanged(path);
+                auto changeResult = changeTracker.checkChange(path);
                 if (changeResult.isErr)
                     continue;
                 
-                if (!changeResult.unwrap())
+                if (!changeResult.unwrap().hasChanged)
                     continue;
                 
                 // Get old hash

@@ -7,6 +7,7 @@ import engine.graph : BuildGraph;
 import engine.distributed.coordinator : Coordinator, CoordinatorConfig;
 import infrastructure.utils.logging.logger;
 import infrastructure.errors;
+import infrastructure.errors.formatting.format : formatError = format;
 
 /// Start distributed build coordinator
 int coordinatorCommand(string[] args)

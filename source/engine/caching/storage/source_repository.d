@@ -1,7 +1,7 @@
 module engine.caching.storage.source_repository;
 
-import std.file : exists, read, write, mkdirRecurse, dirName;
-import std.path : buildPath;
+import std.file : exists, read, write, mkdirRecurse;
+import std.path : buildPath, dirName;
 import std.algorithm : map, filter;
 import std.array : array;
 import std.conv : to;
@@ -70,7 +70,7 @@ final class SourceRepository
             // Read and store in CAS
             try
             {
-                immutable content = cast(ubyte[])read(path);
+                auto content = cast(ubyte[])read(path);
                 auto putResult = cas.putBlob(content);
                 
                 if (putResult.isErr)
@@ -146,7 +146,7 @@ final class SourceRepository
                 if (fetchResult.isErr)
                     return Result!BuildError.err(fetchResult.unwrapErr());
                 
-                immutable content = fetchResult.unwrap();
+                auto content = fetchResult.unwrap();
                 
                 // Ensure target directory exists
                 immutable dir = dirName(targetPath);
@@ -375,20 +375,25 @@ private final class SourceTrackingIndex
         try
         {
             import std.bitmanip : read;
+            import std.file : readFile = read;
             
-            auto data = cast(ubyte[])read(indexPath);
+            auto data = cast(ubyte[])readFile(indexPath);
             if (data.length < 4)
                 return;
             
             size_t offset = 0;
             
             // Version
-            immutable version_ = data.read!uint(&offset);
+            auto range = data[offset..$];
+            immutable version_ = read!uint(range);
+            offset += uint.sizeof;
             if (version_ != 1)
                 return;
             
             // Entry count
-            immutable count = data.read!uint(&offset);
+            range = data[offset..$];
+            immutable count = read!uint(range);
+            offset += uint.sizeof;
             
             // Read entries
             foreach (_; 0 .. count)
@@ -396,7 +401,9 @@ private final class SourceTrackingIndex
                 if (offset + 8 > data.length)
                     break;
                 
-                immutable pathLen = data.read!uint(&offset);
+                range = data[offset..$];
+                immutable pathLen = read!uint(range);
+                offset += uint.sizeof;
                 if (offset + pathLen > data.length)
                     break;
                 
@@ -406,7 +413,9 @@ private final class SourceTrackingIndex
                 if (offset + 4 > data.length)
                     break;
                 
-                immutable hashLen = data.read!uint(&offset);
+                range = data[offset..$];
+                immutable hashLen = read!uint(range);
+                offset += uint.sizeof;
                 if (offset + hashLen > data.length)
                     break;
                 
@@ -450,11 +459,13 @@ private final class SourceTrackingIndex
             }
             
             // Ensure directory exists
+            import std.file : writeFile = write;
+            
             immutable dir = dirName(indexPath);
             if (!exists(dir))
                 mkdirRecurse(dir);
             
-            write(indexPath, buffer);
+            writeFile(indexPath, buffer);
             dirty = false;
         }
         catch (Exception) {}
