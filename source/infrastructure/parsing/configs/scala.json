@@ -1,0 +1,34 @@
+{
+  "language": {
+    "id": "scala",
+    "display": "Scala",
+    "extensions": [".scala", ".sc"],
+    "grammar": "tree-sitter-scala"
+  },
+  "node_types": {
+    "class_definition": "Class",
+    "object_definition": "Class",
+    "trait_definition": "Class",
+    "function_definition": "Function",
+    "val_definition": "Field",
+    "var_definition": "Field"
+  },
+  "imports": {
+    "node_types": ["import_declaration"],
+    "patterns": {
+      "import_declaration": "path"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "generic_type"]
+  }
+}
+

@@ -1,0 +1,38 @@
+{
+  "language": {
+    "id": "rust",
+    "display": "Rust",
+    "extensions": [".rs"],
+    "grammar": "tree-sitter-rust"
+  },
+  "node_types": {
+    "struct_item": "Struct",
+    "enum_item": "Enum",
+    "function_item": "Function",
+    "impl_item": "Class",
+    "trait_item": "Class",
+    "mod_item": "Namespace",
+    "const_item": "Variable",
+    "static_item": "Variable",
+    "type_item": "Typedef"
+  },
+  "imports": {
+    "node_types": ["use_declaration"],
+    "patterns": {
+      "use_declaration": "argument"
+    }
+  },
+  "skip_nodes": ["line_comment", "block_comment"],
+  "visibility": {
+    "default": "private",
+    "modifiers": {
+      "public": ["pub"],
+      "private": []
+    },
+    "modifier_nodes": ["visibility_modifier"]
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "generic_type", "scoped_type_identifier"]
+  }
+}
+

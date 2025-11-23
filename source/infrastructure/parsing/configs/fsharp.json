@@ -1,0 +1,31 @@
+{
+  "language": {
+    "id": "fsharp",
+    "display": "F#",
+    "extensions": [".fs", ".fsi", ".fsx"],
+    "grammar": "tree-sitter-fsharp"
+  },
+  "node_types": {
+    "function_or_value_defn": "Function",
+    "type_defn": "Typedef",
+    "module_defn": "Namespace"
+  },
+  "imports": {
+    "node_types": ["open_decl"],
+    "patterns": {
+      "open_decl": "long_ident"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "internal"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["long_ident", "type_name"]
+  }
+}
+

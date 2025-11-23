@@ -1,0 +1,30 @@
+{
+  "language": {
+    "id": "elixir",
+    "display": "Elixir",
+    "extensions": [".ex", ".exs"],
+    "grammar": "tree-sitter-elixir"
+  },
+  "node_types": {
+    "call": "Function",
+    "defmodule": "Namespace",
+    "defstruct": "Struct"
+  },
+  "imports": {
+    "node_types": ["call"],
+    "patterns": {
+      "call": "target"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "patterns": {
+      "private": "^_.*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["alias", "atom"]
+  }
+}
+

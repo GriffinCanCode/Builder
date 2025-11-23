@@ -1,0 +1,36 @@
+{
+  "language": {
+    "id": "java",
+    "display": "Java",
+    "extensions": [".java"],
+    "grammar": "tree-sitter-java"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "interface_declaration": "Class",
+    "enum_declaration": "Enum",
+    "method_declaration": "Method",
+    "constructor_declaration": "Method",
+    "field_declaration": "Field",
+    "package_declaration": "Namespace"
+  },
+  "imports": {
+    "node_types": ["import_declaration"],
+    "patterns": {
+      "import_declaration": "name"
+    }
+  },
+  "skip_nodes": ["line_comment", "block_comment"],
+  "visibility": {
+    "default": "package",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected"]
+    },
+    "modifier_nodes": ["modifiers"]
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "generic_type"]
+  }
+}
+

@@ -1,0 +1,29 @@
+{
+  "language": {
+    "id": "perl",
+    "display": "Perl",
+    "extensions": [".pl", ".pm", ".t"],
+    "grammar": "tree-sitter-perl"
+  },
+  "node_types": {
+    "subroutine_declaration_statement": "Function",
+    "package_statement": "Namespace"
+  },
+  "imports": {
+    "node_types": ["use_statement"],
+    "patterns": {
+      "use_statement": "package"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "patterns": {
+      "private": "^_.*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["package"]
+  }
+}
+

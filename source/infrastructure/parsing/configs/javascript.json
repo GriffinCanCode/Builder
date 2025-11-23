@@ -1,0 +1,33 @@
+{
+  "language": {
+    "id": "javascript",
+    "display": "JavaScript",
+    "extensions": [".js", ".jsx", ".mjs", ".cjs"],
+    "grammar": "tree-sitter-javascript"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "function_declaration": "Function",
+    "method_definition": "Method",
+    "arrow_function": "Function",
+    "variable_declaration": "Variable",
+    "lexical_declaration": "Variable"
+  },
+  "imports": {
+    "node_types": ["import_statement"],
+    "patterns": {
+      "import_statement": "source"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["export"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["identifier", "member_expression"]
+  }
+}
+

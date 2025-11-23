@@ -1,0 +1,29 @@
+{
+  "language": {
+    "id": "protobuf",
+    "display": "Protocol Buffers",
+    "extensions": [".proto"],
+    "grammar": "tree-sitter-proto"
+  },
+  "node_types": {
+    "message": "Struct",
+    "enum": "Enum",
+    "service": "Class",
+    "rpc": "Method",
+    "field": "Field"
+  },
+  "imports": {
+    "node_types": ["import"],
+    "patterns": {
+      "import": "string"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public"
+  },
+  "dependencies": {
+    "type_nodes": ["type", "message_or_enum_type"]
+  }
+}
+

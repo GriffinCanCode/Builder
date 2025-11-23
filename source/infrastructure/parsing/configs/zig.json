@@ -1,0 +1,30 @@
+{
+  "language": {
+    "id": "zig",
+    "display": "Zig",
+    "extensions": [".zig"],
+    "grammar": "tree-sitter-zig"
+  },
+  "node_types": {
+    "FnProto": "Function",
+    "VarDecl": "Variable",
+    "ContainerDecl": "Struct"
+  },
+  "imports": {
+    "node_types": ["BUILTINIDENTIFIER"],
+    "patterns": {
+      "BUILTINIDENTIFIER": "import"
+    }
+  },
+  "skip_nodes": ["line_comment"],
+  "visibility": {
+    "default": "private",
+    "modifiers": {
+      "public": ["pub"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["IDENTIFIER"]
+  }
+}
+

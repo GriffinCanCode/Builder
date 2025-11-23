@@ -1,0 +1,34 @@
+{
+  "language": {
+    "id": "kotlin",
+    "display": "Kotlin",
+    "extensions": [".kt", ".kts"],
+    "grammar": "tree-sitter-kotlin"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "object_declaration": "Class",
+    "interface_declaration": "Class",
+    "function_declaration": "Function",
+    "property_declaration": "Field",
+    "enum_class": "Enum"
+  },
+  "imports": {
+    "node_types": ["import_header"],
+    "patterns": {
+      "import_header": "identifier"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected", "internal"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["user_type", "type_identifier"]
+  }
+}
+

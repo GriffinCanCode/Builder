@@ -1,0 +1,36 @@
+{
+  "language": {
+    "id": "go",
+    "display": "Go",
+    "extensions": [".go"],
+    "grammar": "tree-sitter-go"
+  },
+  "node_types": {
+    "type_declaration": "Struct",
+    "type_spec": "Typedef",
+    "struct_type": "Struct",
+    "interface_type": "Class",
+    "function_declaration": "Function",
+    "method_declaration": "Method",
+    "const_declaration": "Variable",
+    "var_declaration": "Variable"
+  },
+  "imports": {
+    "node_types": ["import_declaration", "import_spec"],
+    "patterns": {
+      "import_spec": "path"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "private",
+    "patterns": {
+      "public": "^[A-Z].*",
+      "private": "^[a-z].*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "qualified_type"]
+  }
+}
+

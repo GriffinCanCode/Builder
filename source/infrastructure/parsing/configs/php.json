@@ -1,0 +1,35 @@
+{
+  "language": {
+    "id": "php",
+    "display": "PHP",
+    "extensions": [".php"],
+    "grammar": "tree-sitter-php"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "interface_declaration": "Class",
+    "trait_declaration": "Class",
+    "function_definition": "Function",
+    "method_declaration": "Method",
+    "property_declaration": "Field",
+    "namespace_definition": "Namespace"
+  },
+  "imports": {
+    "node_types": ["namespace_use_declaration"],
+    "patterns": {
+      "namespace_use_declaration": "name"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["named_type", "qualified_name"]
+  }
+}
+

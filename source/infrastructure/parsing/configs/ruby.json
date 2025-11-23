@@ -1,0 +1,33 @@
+{
+  "language": {
+    "id": "ruby",
+    "display": "Ruby",
+    "extensions": [".rb"],
+    "grammar": "tree-sitter-ruby"
+  },
+  "node_types": {
+    "class": "Class",
+    "module": "Namespace",
+    "method": "Method",
+    "singleton_method": "Method",
+    "assignment": "Variable"
+  },
+  "imports": {
+    "node_types": ["call"],
+    "patterns": {
+      "call": "method"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["constant", "scope_resolution"]
+  }
+}
+

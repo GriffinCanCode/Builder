@@ -1,0 +1,27 @@
+{
+  "language": {
+    "id": "elm",
+    "display": "Elm",
+    "extensions": [".elm"],
+    "grammar": "tree-sitter-elm"
+  },
+  "node_types": {
+    "value_declaration": "Function",
+    "type_alias_declaration": "Typedef",
+    "type_declaration": "Struct"
+  },
+  "imports": {
+    "node_types": ["import_clause"],
+    "patterns": {
+      "import_clause": "upper_case_qid"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public"
+  },
+  "dependencies": {
+    "type_nodes": ["upper_case_qid", "type_ref"]
+  }
+}
+

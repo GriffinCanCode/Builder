@@ -1,0 +1,26 @@
+{
+  "language": {
+    "id": "css",
+    "display": "CSS",
+    "extensions": [".css", ".scss", ".sass", ".less"],
+    "grammar": "tree-sitter-css"
+  },
+  "node_types": {
+    "rule_set": "Class",
+    "declaration": "Variable"
+  },
+  "imports": {
+    "node_types": ["import_statement"],
+    "patterns": {
+      "import_statement": "string_value"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public"
+  },
+  "dependencies": {
+    "type_nodes": []
+  }
+}
+

@@ -1,0 +1,29 @@
+{
+  "language": {
+    "id": "r",
+    "display": "R",
+    "extensions": [".r", ".R"],
+    "grammar": "tree-sitter-r"
+  },
+  "node_types": {
+    "function_definition": "Function",
+    "assignment": "Variable"
+  },
+  "imports": {
+    "node_types": ["call"],
+    "patterns": {
+      "call": "function"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "patterns": {
+      "private": "^\\..*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["identifier"]
+  }
+}
+

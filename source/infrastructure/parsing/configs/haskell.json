@@ -1,0 +1,31 @@
+{
+  "language": {
+    "id": "haskell",
+    "display": "Haskell",
+    "extensions": [".hs", ".lhs"],
+    "grammar": "tree-sitter-haskell"
+  },
+  "node_types": {
+    "function": "Function",
+    "type_synonym": "Typedef",
+    "data_type": "Struct",
+    "newtype": "Typedef"
+  },
+  "imports": {
+    "node_types": ["import"],
+    "patterns": {
+      "import": "module"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "patterns": {
+      "private": "^_.*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type", "type_name"]
+  }
+}
+

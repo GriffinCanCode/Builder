@@ -1,0 +1,35 @@
+{
+  "language": {
+    "id": "swift",
+    "display": "Swift",
+    "extensions": [".swift"],
+    "grammar": "tree-sitter-swift"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "struct_declaration": "Struct",
+    "protocol_declaration": "Class",
+    "enum_declaration": "Enum",
+    "function_declaration": "Function",
+    "property_declaration": "Field",
+    "typealias_declaration": "Typedef"
+  },
+  "imports": {
+    "node_types": ["import_declaration"],
+    "patterns": {
+      "import_declaration": "identifier"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "internal",
+    "modifiers": {
+      "public": ["public", "open"],
+      "private": ["private", "fileprivate"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "user_type"]
+  }
+}
+

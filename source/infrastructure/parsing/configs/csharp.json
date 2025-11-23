@@ -1,0 +1,37 @@
+{
+  "language": {
+    "id": "csharp",
+    "display": "C#",
+    "extensions": [".cs"],
+    "grammar": "tree-sitter-c-sharp"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "struct_declaration": "Struct",
+    "interface_declaration": "Class",
+    "enum_declaration": "Enum",
+    "method_declaration": "Method",
+    "constructor_declaration": "Method",
+    "field_declaration": "Field",
+    "property_declaration": "Field",
+    "namespace_declaration": "Namespace"
+  },
+  "imports": {
+    "node_types": ["using_directive"],
+    "patterns": {
+      "using_directive": "name"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "private",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected", "internal"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["identifier", "generic_name", "qualified_name"]
+  }
+}
+

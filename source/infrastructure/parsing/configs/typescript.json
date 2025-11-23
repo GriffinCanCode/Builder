@@ -1,0 +1,35 @@
+{
+  "language": {
+    "id": "typescript",
+    "display": "TypeScript",
+    "extensions": [".ts", ".tsx"],
+    "grammar": "tree-sitter-typescript"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "interface_declaration": "Class",
+    "function_declaration": "Function",
+    "method_definition": "Method",
+    "enum_declaration": "Enum",
+    "type_alias_declaration": "Typedef",
+    "namespace_declaration": "Namespace"
+  },
+  "imports": {
+    "node_types": ["import_statement", "import_clause"],
+    "patterns": {
+      "import_statement": "source"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public", "export"],
+      "private": ["private", "protected"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "generic_type"]
+  }
+}
+

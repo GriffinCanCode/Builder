@@ -1,0 +1,32 @@
+{
+  "language": {
+    "id": "c",
+    "display": "C",
+    "extensions": [".c", ".h"],
+    "grammar": "tree-sitter-c"
+  },
+  "node_types": {
+    "struct_specifier": "Struct",
+    "function_definition": "Function",
+    "declaration": "Variable",
+    "enum_specifier": "Enum",
+    "type_definition": "Typedef"
+  },
+  "imports": {
+    "node_types": ["preproc_include"],
+    "patterns": {
+      "preproc_include": "path"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "private": ["static"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "struct_specifier"]
+  }
+}
+

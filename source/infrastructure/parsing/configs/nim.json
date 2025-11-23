@@ -1,0 +1,31 @@
+{
+  "language": {
+    "id": "nim",
+    "display": "Nim",
+    "extensions": [".nim"],
+    "grammar": "tree-sitter-nim"
+  },
+  "node_types": {
+    "proc_declaration": "Function",
+    "type_section": "Typedef",
+    "var_section": "Variable",
+    "const_section": "Variable"
+  },
+  "imports": {
+    "node_types": ["import_statement"],
+    "patterns": {
+      "import_statement": "module_name"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "private",
+    "patterns": {
+      "public": ".*\\*$"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_expression"]
+  }
+}
+

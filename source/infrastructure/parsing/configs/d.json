@@ -1,0 +1,35 @@
+{
+  "language": {
+    "id": "d",
+    "display": "D",
+    "extensions": [".d"],
+    "grammar": "tree-sitter-d"
+  },
+  "node_types": {
+    "class_declaration": "Class",
+    "struct_declaration": "Struct",
+    "interface_declaration": "Class",
+    "function_declaration": "Function",
+    "enum_declaration": "Enum",
+    "template_declaration": "Template",
+    "module_declaration": "Namespace"
+  },
+  "imports": {
+    "node_types": ["import_declaration"],
+    "patterns": {
+      "import_declaration": "module_fqn"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "modifiers": {
+      "public": ["public", "export"],
+      "private": ["private", "protected", "package"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type", "identifier"]
+  }
+}
+

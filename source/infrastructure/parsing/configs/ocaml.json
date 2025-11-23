@@ -1,0 +1,27 @@
+{
+  "language": {
+    "id": "ocaml",
+    "display": "OCaml",
+    "extensions": [".ml", ".mli"],
+    "grammar": "tree-sitter-ocaml"
+  },
+  "node_types": {
+    "value_definition": "Function",
+    "type_definition": "Typedef",
+    "module_definition": "Namespace"
+  },
+  "imports": {
+    "node_types": ["open_module"],
+    "patterns": {
+      "open_module": "module_path"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public"
+  },
+  "dependencies": {
+    "type_nodes": ["type_constructor", "module_path"]
+  }
+}
+

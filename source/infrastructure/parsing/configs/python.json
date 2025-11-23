@@ -1,0 +1,35 @@
+{
+  "language": {
+    "id": "python",
+    "display": "Python",
+    "extensions": [".py", ".pyi"],
+    "grammar": "tree-sitter-python"
+  },
+  "node_types": {
+    "class_definition": "Class",
+    "function_definition": "Function",
+    "decorated_definition": "Function",
+    "module": "Namespace",
+    "assignment": "Variable"
+  },
+  "imports": {
+    "node_types": ["import_statement", "import_from_statement"],
+    "patterns": {
+      "import_statement": "name",
+      "import_from_statement": "module_name"
+    }
+  },
+  "skip_nodes": ["comment", "string"],
+  "visibility": {
+    "default": "public",
+    "patterns": {
+      "private": "^_[^_].*",
+      "public": "^[^_].*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type", "generic_type"],
+    "member_nodes": ["attribute", "call"]
+  }
+}
+

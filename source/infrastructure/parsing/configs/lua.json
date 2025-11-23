@@ -1,0 +1,30 @@
+{
+  "language": {
+    "id": "lua",
+    "display": "Lua",
+    "extensions": [".lua"],
+    "grammar": "tree-sitter-lua"
+  },
+  "node_types": {
+    "function_declaration": "Function",
+    "function_definition": "Function",
+    "variable_declaration": "Variable"
+  },
+  "imports": {
+    "node_types": ["function_call"],
+    "patterns": {
+      "function_call": "name"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "public",
+    "patterns": {
+      "private": "^_.*"
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["identifier"]
+  }
+}
+

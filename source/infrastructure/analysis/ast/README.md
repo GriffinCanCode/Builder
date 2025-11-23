@@ -24,10 +24,12 @@ IASTParser (interface)
 BaseASTParser (abstract)
     ↑
     |
-    ├── CppASTParser
-    ├── JavaASTParser (future)
-    ├── CSharpASTParser (future)
-    └── TypeScriptASTParser (future)
+    └── TreeSitterParser (universal, 27+ languages)
+        ├── C/C++ via tree-sitter-cpp
+        ├── Python via tree-sitter-python  
+        ├── Java via tree-sitter-java
+        ├── TypeScript via tree-sitter-typescript
+        └── ... 20+ more languages
 ```
 
 ## Usage
@@ -197,6 +199,7 @@ The AST analysis infrastructure integrates with:
 ## See Also
 
 - [AST-Level Incremental Compilation](../../../docs/features/ast-incremental.md)
-- [C++ AST Parser](../../languages/compiled/cpp/analysis/ast_parser.d)
+- [Tree-sitter Integration](../parsing/treesitter/README.md)
 - [AST Dependency Cache](../../engine/caching/incremental/ast_dependency.d)
+- [Language Configurations](../parsing/configs/README.md)
 

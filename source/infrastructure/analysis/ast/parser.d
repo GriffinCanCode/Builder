@@ -153,13 +153,18 @@ void initializeASTParsers() @system
 {
     auto registry = ASTParserRegistry.instance();
     
-    // Register C++ parser
-    import languages.compiled.cpp.analysis.ast_parser;
-    registry.registerParser(new CppASTParser());
-    
-    // Future: Register other language parsers
-    // registry.registerParser(new JavaASTParser());
-    // registry.registerParser(new CSharpASTParser());
-    // registry.registerParser(new TypeScriptASTParser());
+    // Register tree-sitter parsers for all supported languages
+    // Note: Requires tree-sitter grammar libraries to be available
+    // Configs are loaded from JSON files in source/infrastructure/parsing/configs/
+    try {
+        import infrastructure.parsing.treesitter : registerTreeSitterParsers;
+        registerTreeSitterParsers();
+    } catch (Exception e) {
+        import infrastructure.utils.logging.logger;
+        Logger.warning("Tree-sitter parsers not fully available: " ~ e.msg);
+        Logger.info("Falling back to file-level incremental compilation");
+        // Not fatal - AST-level optimization is optional
+        // File-level incremental compilation still works
+    }
 }
 

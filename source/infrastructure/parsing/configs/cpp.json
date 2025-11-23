@@ -1,0 +1,36 @@
+{
+  "language": {
+    "id": "cpp",
+    "display": "C++",
+    "extensions": [".cpp", ".cc", ".cxx", ".c++", ".hpp", ".hxx", ".hh", ".h++"],
+    "grammar": "tree-sitter-cpp"
+  },
+  "node_types": {
+    "class_specifier": "Class",
+    "struct_specifier": "Struct",
+    "function_definition": "Function",
+    "field_declaration": "Method",
+    "namespace_definition": "Namespace",
+    "enum_specifier": "Enum",
+    "template_declaration": "Template",
+    "type_definition": "Typedef"
+  },
+  "imports": {
+    "node_types": ["preproc_include"],
+    "patterns": {
+      "preproc_include": "path"
+    }
+  },
+  "skip_nodes": ["comment"],
+  "visibility": {
+    "default": "private",
+    "modifiers": {
+      "public": ["public"],
+      "private": ["private", "protected"]
+    }
+  },
+  "dependencies": {
+    "type_nodes": ["type_identifier", "template_type", "qualified_identifier"]
+  }
+}
+
