@@ -56,11 +56,11 @@ struct FileAST
     }
     
     /// Find symbol by name
-    const(ASTSymbol)* findSymbol(string symbolName) const @safe
+    const(ASTSymbol)* findSymbol(string symbolName) const @trusted
     {
-        foreach (ref symbol; symbols)
+        foreach (i, ref symbol; symbols)
             if (symbol.name == symbolName)
-                return &symbol;
+                return &symbols[i];
         return null;
     }
     
@@ -69,11 +69,13 @@ struct FileAST
     {
         ASTSymbol[] changed;
         
-        foreach (ref symbol; symbols)
+        foreach (symbol; symbols)
         {
             auto otherSymbol = other.findSymbol(symbol.name);
             if (otherSymbol is null || otherSymbol.contentHash != symbol.contentHash)
-                changed ~= symbol;
+                changed ~= ASTSymbol(symbol.name, symbol.type, symbol.startLine, symbol.endLine,
+                                      symbol.signature, symbol.contentHash, symbol.dependencies.dup,
+                                      symbol.usedTypes.dup, symbol.isPublic);
         }
         
         return changed;
@@ -143,7 +145,22 @@ final class ASTDependencyCache
     {
         synchronized (mutex)
         {
-            astCache[buildNormalizedPath(ast.filePath)] = ast;
+            // Create mutable copy
+            FileAST mutableAst;
+            mutableAst.filePath = ast.filePath;
+            mutableAst.fileHash = ast.fileHash;
+            // Manual copy for symbols
+            mutableAst.symbols = [];
+            foreach (sym; ast.symbols)
+            {
+                mutableAst.symbols ~= ASTSymbol(sym.name, sym.type, sym.startLine, sym.endLine,
+                                                 sym.signature, sym.contentHash, sym.dependencies.dup,
+                                                 sym.usedTypes.dup, sym.isPublic);
+            }
+            mutableAst.includes = ast.includes.dup;
+            mutableAst.timestamp = ast.timestamp;
+            
+            astCache[buildNormalizedPath(mutableAst.filePath)] = mutableAst;
             dirty = true;
             
             Logger.debugLog("Recorded AST for " ~ ast.filePath ~ 
@@ -157,7 +174,16 @@ final class ASTDependencyCache
         synchronized (mutex)
         {
             auto key = buildNormalizedPath(file) ~ "::" ~ symbol;
-            symbolDeps[key] = [dep];
+            // Create mutable copy
+            ASTDependency mutableDep;
+            mutableDep.sourceFile = dep.sourceFile;
+            mutableDep.sourceSymbol = dep.sourceSymbol;
+            mutableDep.dependentFiles = dep.dependentFiles.dup;
+            mutableDep.dependentSymbols = dep.dependentSymbols.dup;
+            // Manual copy for AA
+            foreach (k, v; dep.symbolToFileMap)
+                mutableDep.symbolToFileMap[k] = v;
+            symbolDeps[key] = [mutableDep];
             dirty = true;
         }
     }

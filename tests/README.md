@@ -27,7 +27,12 @@ tests/
 ├── fixtures.d        # Test fixtures (TempDir, MockWorkspace, etc.)
 ├── mocks.d           # Mock objects and spies
 ├── unit/             # Unit tests mirroring source/
+│   └── core/
+│       ├── hermetic.d           # Core hermetic execution tests
+│       ├── hermetic_builds.d    # Comprehensive hermetic build tests
+│       └── hermetic_advanced.d  # Advanced hermetic scenarios
 ├── integration/      # End-to-end integration tests
+│   └── hermetic_real_world.d    # Real-world hermetic build scenarios
 └── bench/            # Performance benchmarks
 ```
 
@@ -140,6 +145,100 @@ unittest
 }
 ```
 
+## Hermetic Build Tests
+
+Comprehensive test coverage for hermetic builds and deterministic execution:
+
+### Unit Tests (`unit/core/`)
+
+#### `hermetic_builds.d` - Core Hermetic Build Testing
+- **Determinism**: Simple C program reproducibility
+- **Isolation**: Network blocking, filesystem constraints
+- **Reproducibility**: Multiple runs with identical outputs
+- **Resource Limits**: Memory, CPU, process limits enforcement
+- **Environment**: Variable isolation and control
+- **Path Remapping**: Debug path handling for determinism
+- **Compiler Detection**: All major compilers (GCC, Clang, Go, Rust, D, etc.)
+- **Non-determinism Detection**: Timestamp and UUID detection
+- **Spec Validation**: Path overlap detection
+- **Set Operations**: PathSet union, intersection, disjoint checks
+- **Language-specific Flags**: Rust, D, Go compiler flag analysis
+- **Multi-file Builds**: Complex project structures
+- **Error Handling**: Invalid configurations
+- **Helper Functions**: forBuild(), forTest() convenience methods
+- **Platform Detection**: Linux, macOS, Windows capability detection
+- **Determinism Config**: Presets and customization
+- **Output Comparison**: Hash-based verification
+
+**Coverage**: 20 test cases covering all hermetic build features
+
+#### `hermetic_advanced.d` - Advanced Scenarios & Edge Cases
+- **Edge Cases**: Empty paths, nested paths, special characters
+- **Resource Limits**: Zero, extreme, and custom limits
+- **Network Policy**: Partial access, localhost, specific hosts
+- **Environment**: Variable overriding, empty values
+- **Determinism**: Custom epochs, strict vs relaxed modes
+- **Path Set Operations**: Union/intersection of many sets
+- **Compiler Detection**: Path variations, version suffixes
+- **Violation Detection**: Multiple non-determinism sources
+- **Fluent API**: Method chaining validation
+- **Performance**: Large path set handling
+- **Timestamp Formats**: Comprehensive format detection
+- **Resource Monitoring**: Interface validation
+
+**Coverage**: 20 test cases for edge cases and advanced features
+
+### Integration Tests (`integration/`)
+
+#### `hermetic_real_world.d` - Real-World Build Scenarios
+- **C Project**: Full build with headers, source files, linking
+- **Go Module**: Go module build with proper GOPATH/GOCACHE
+- **Rust Cargo**: Cargo project with dependencies
+- **D Project**: Dub-based project build
+- **Mixed Language**: C/C++ interop projects
+- **Network Isolation**: Build failure without network
+- **Reproducibility**: Identical runs verification
+- **Large Projects**: Stress testing with 20+ files
+- **Temp Isolation**: Temporary directory constraints
+- **Compiler Flags**: Comprehensive flag analysis across compilers
+
+**Coverage**: 10 integration tests for real-world scenarios
+
+### Running Hermetic Tests
+
+```bash
+# Run all hermetic tests
+dub test -- --filter="hermetic"
+
+# Run specific hermetic test suites
+dub test -- --filter="hermetic_builds"
+dub test -- --filter="hermetic_advanced"
+dub test -- --filter="hermetic_real_world"
+
+# Run with verbose output
+dub test -- --filter="hermetic" --verbose
+```
+
+### Test Coverage Summary
+
+Total hermetic build tests: **50 test cases**
+- Unit tests: 40 (hermetic_builds.d + hermetic_advanced.d)
+- Integration tests: 10 (hermetic_real_world.d)
+
+**Features Tested:**
+- ✅ Hermetic execution isolation
+- ✅ Deterministic builds across runs
+- ✅ Network access control
+- ✅ Filesystem sandboxing
+- ✅ Resource limit enforcement
+- ✅ Environment variable control
+- ✅ Path remapping for reproducibility
+- ✅ Compiler-specific determinism flags
+- ✅ Non-determinism detection
+- ✅ Multi-language support (C, C++, Go, Rust, D)
+- ✅ Real-world build scenarios
+- ✅ Edge cases and error handling
+
 ## Contributing
 
 When adding tests:
@@ -148,4 +247,9 @@ When adding tests:
 3. Place benchmarks in `bench/`
 4. Follow existing patterns
 5. Maintain > 80% coverage
+6. For hermetic tests, ensure:
+   - Test both success and failure cases
+   - Cover all supported platforms where applicable
+   - Include compiler-specific test cases
+   - Test edge cases and boundary conditions
 
