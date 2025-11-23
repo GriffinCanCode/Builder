@@ -410,14 +410,14 @@ struct ValidationResult(T)
     T unwrap() @safe
     {
         if (!_isOk)
-            throw new Exception("Result error: " ~ _error);
+            assert(false, "Result unwrap failed: " ~ _error);
         return _value;
     }
     
     string unwrapErr() @safe const
     {
         if (_isOk)
-            throw new Exception("Result is ok, not an error");
+            assert(false, "Result is ok, not an error");
         return _error;
     }
 }

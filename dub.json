@@ -26,6 +26,11 @@
             "sourceFiles": [
                 "bin/obj/blake3.o",
                 "bin/obj/blake3_dispatch.o",
+                "bin/obj/blake3_avx2.o",
+                "bin/obj/blake3_avx512.o",
+                "bin/obj/blake3_sse2.o",
+                "bin/obj/blake3_sse41.o",
+                "bin/obj/blake3_neon.o",
                 "bin/obj/simd_ops.o",
                 "bin/obj/cpu_detect.o",
                 "bin/obj/ts_loader.o",
@@ -47,6 +52,11 @@
             "sourceFiles": [
                 "bin/obj/blake3.o",
                 "bin/obj/blake3_dispatch.o",
+                "bin/obj/blake3_avx2.o",
+                "bin/obj/blake3_avx512.o",
+                "bin/obj/blake3_sse2.o",
+                "bin/obj/blake3_sse41.o",
+                "bin/obj/blake3_neon.o",
                 "bin/obj/simd_ops.o",
                 "bin/obj/cpu_detect.o",
                 "bin/obj/ts_loader.o",

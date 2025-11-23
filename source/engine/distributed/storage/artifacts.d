@@ -7,7 +7,7 @@ import std.string : toLower;
 import std.socket : Socket, TcpSocket, InternetAddress, SocketShutdown, SocketOptionLevel, SocketOption;
 import std.datetime : Duration, seconds;
 import std.conv : to;
-import engine.distributed.protocol.protocol : ArtifactId, InputSpec;
+import engine.distributed.protocol.protocol : ArtifactId, InputSpec, DistributedError;
 import infrastructure.errors;
 import infrastructure.errors.formatting.format : formatError = format;
 import infrastructure.utils.logging.logger;
@@ -335,7 +335,7 @@ final class ArtifactStore
             immutable headersEnd = responseStr.indexOf("\r\n\r\n");
             if (headersEnd < 0)
             {
-                auto error = new NetworkError("Invalid HTTP response", ErrorCode.NetworkError);
+                auto error = new DistributedError(ErrorCode.NetworkError, "Invalid HTTP response");
                 return Err!(ubyte[], BuildError)(error);
             }
             
@@ -345,7 +345,7 @@ final class ArtifactStore
             auto parts = firstLine.split(' ');
             if (parts.length < 2)
             {
-                auto error = new NetworkError("Invalid HTTP status line", ErrorCode.NetworkError);
+                auto error = new DistributedError(ErrorCode.NetworkError, "Invalid HTTP status line");
                 return Err!(ubyte[], BuildError)(error);
             }
             
@@ -357,9 +357,9 @@ final class ArtifactStore
             }
             else if (statusCode >= 400)
             {
-                auto error = new NetworkError(
-                    "HTTP error: " ~ statusCode.to!string,
-                    ErrorCode.NetworkError
+                auto error = new DistributedError(
+                    ErrorCode.NetworkError,
+                    "HTTP error: " ~ statusCode.to!string
                 );
                 return Err!(ubyte[], BuildError)(error);
             }
@@ -370,7 +370,7 @@ final class ArtifactStore
         }
         catch (Exception e)
         {
-            auto error = new NetworkError("HTTP GET failed: " ~ e.msg, ErrorCode.NetworkError);
+            auto error = new DistributedError(ErrorCode.NetworkError, "HTTP GET failed: " ~ e.msg);
             return Err!(ubyte[], BuildError)(error);
         }
     }
@@ -456,9 +456,9 @@ final class ArtifactStore
                     immutable statusCode = parts[1].to!int;
                     if (statusCode >= 400)
                     {
-                        auto error = new NetworkError(
-                            "HTTP PUT error: " ~ statusCode.to!string,
-                            ErrorCode.NetworkError
+                        auto error = new DistributedError(
+                            ErrorCode.NetworkError,
+                            "HTTP PUT error: " ~ statusCode.to!string
                         );
                         return Result!BuildError.err(error);
                     }
@@ -469,7 +469,7 @@ final class ArtifactStore
         }
         catch (Exception e)
         {
-            auto error = new NetworkError("HTTP PUT failed: " ~ e.msg, ErrorCode.NetworkError);
+            auto error = new DistributedError(ErrorCode.NetworkError, "HTTP PUT failed: " ~ e.msg);
             return Result!BuildError.err(error);
         }
     }

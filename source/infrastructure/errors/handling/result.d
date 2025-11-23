@@ -2,6 +2,7 @@ module infrastructure.errors.handling.result;
 
 import std.traits;
 import std.conv;
+import infrastructure.errors.types.types : internalError;
 
 /// Algebraic result type representing either success (Ok) or failure (Err)
 /// Inspired by Rust's Result<T, E> with D-specific optimizations
@@ -58,14 +59,14 @@ struct Result(T, E)
     /// Unwrap value (throws if error)
     T unwrap() @system
     {
-        if (!_isOk) throw new Exception(formatError());
+        if (!_isOk) assert(false, "Result unwrap failed: " ~ formatError());
         return _value;
     }
     
     /// Unwrap with contextual error message (Rust-style expect)
     T expect(string context) @system
     {
-        if (!_isOk) throw new Exception(formatError(context));
+        if (!_isOk) assert(false, "Result unwrap failed: " ~ formatError(context));
         return _value;
     }
     
@@ -206,19 +207,19 @@ struct Result(E) if (is(E))
     /// Unwrap (throws if error, returns void if ok)
     void unwrap()
     {
-        if (!_isOk) throw new Exception(formatError());
+        if (!_isOk) assert(false, "Result unwrap failed: " ~ formatError());
     }
     
     /// Unwrap with contextual error message (Rust-style expect)
     void expect(string context)
     {
-        if (!_isOk) throw new Exception(formatError(context));
+        if (!_isOk) assert(false, "Result unwrap failed: " ~ formatError(context));
     }
     
     /// Get error (throws if ok)
     E unwrapErr() @system
     {
-        if (_isOk) throw new Exception("Called unwrapErr on an Ok value");
+        if (_isOk) assert(false, "Called unwrapErr on an Ok value");
         return _error;
     }
     

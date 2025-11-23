@@ -126,7 +126,7 @@ final class SchedulingService : ISchedulingService
     void submit(BuildNode node, Priority priority = Priority.Normal) @trusted
     {
         if (!_isActive)
-            throw new Exception("Scheduler not initialized");
+            assert(false, "Scheduler not initialized");
         
         atomicOp!"+="(_totalSubmitted, 1);
         
@@ -135,7 +135,7 @@ final class SchedulingService : ISchedulingService
             case SchedulingMode.ThreadPool:
             case SchedulingMode.Adaptive:
                 if (readyQueue is null || !readyQueue.enqueue(node))
-                    throw new Exception("Failed to enqueue node: " ~ node.idString);
+                    assert(false, "Failed to enqueue node: " ~ node.idString);
                 break;
                 
             case SchedulingMode.WorkStealing:
@@ -169,7 +169,7 @@ final class SchedulingService : ISchedulingService
     BuildResult[] executeBatch(BuildNode[] nodes, BuildResult delegate(BuildNode) @system executor) @trusted
     {
         if (!_isActive)
-            throw new Exception("Scheduler not initialized");
+            assert(false, "Scheduler not initialized");
         
         if (nodes.length == 0)
             return [];

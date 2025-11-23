@@ -54,7 +54,7 @@ final class ResilientProtocolTransport : Transport
         {
             // Convert BuildError back to DistributedError
             return Result!DistributedError.err(
-                new engine.distributed.protocol.protocol.NetworkError("HeartBeat failed: " ~ result.unwrapErr().message())
+                new DistributedError("HeartBeat failed: " ~ result.unwrapErr().message())
             );
         }
         
@@ -80,7 +80,7 @@ final class ResilientProtocolTransport : Transport
         if (result.isErr)
         {
             return Result!DistributedError.err(
-                new engine.distributed.protocol.protocol.NetworkError("StealRequest failed: " ~ result.unwrapErr().message())
+                new DistributedError("StealRequest failed: " ~ result.unwrapErr().message())
             );
         }
         
@@ -106,7 +106,7 @@ final class ResilientProtocolTransport : Transport
         if (result.isErr)
         {
             return Result!DistributedError.err(
-                new engine.distributed.protocol.protocol.NetworkError("StealResponse failed: " ~ result.unwrapErr().message())
+                new DistributedError("StealResponse failed: " ~ result.unwrapErr().message())
             );
         }
         
@@ -131,7 +131,7 @@ final class ResilientProtocolTransport : Transport
         if (result.isErr)
         {
             return Result!(Envelope!StealResponse, DistributedError).err(
-                new engine.distributed.protocol.protocol.NetworkError("receiveStealResponse failed: " ~ result.unwrapErr().message())
+                new DistributedError("receiveStealResponse failed: " ~ result.unwrapErr().message())
             );
         }
         

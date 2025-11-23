@@ -29,7 +29,7 @@ struct MavenKotlinMetadata
     static MavenKotlinMetadata fromFile(string pomFile)
     {
         if (!exists(pomFile))
-            throw new Exception("pom.xml not found at: " ~ pomFile);
+            assert(false, "fileNotFoundError (Kotlin Maven dependency analysis): " ~ pomFile);
         
         string content = readText(pomFile);
         return parsePomXML(content);

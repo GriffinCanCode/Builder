@@ -230,25 +230,25 @@ final class Coordinator
             import std.string : split;
             auto parts = workerResult.unwrap().address.split(":");
             if (parts.length != 2)
-                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Invalid worker address format: " ~ workerResult.unwrap().address));
+                return Result!DistributedError.err(new DistributedError("Invalid worker address format: " ~ workerResult.unwrap().address));
             
             ushort port;
             try { port = parts[1].to!ushort; }
             catch (Exception)
             {
-                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Invalid port in worker address: " ~ parts[1]));
+                return Result!DistributedError.err(new DistributedError("Invalid port in worker address: " ~ parts[1]));
             }
             
             auto transport = new HttpTransport(parts[0], port);
             auto connectResult = transport.connect();
             if (connectResult.isErr)
-                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Failed to connect to worker: " ~ connectResult.unwrapErr().message()));
+                return Result!DistributedError.err(new DistributedError("Failed to connect to worker: " ~ connectResult.unwrapErr().message()));
             
             auto envelope = Envelope!ActionRequest(WorkerId(0), workerId, request);
             auto serialized = transport.serializeMessage(envelope);
             
             if (!transport.isConnected())
-                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Transport not connected"));
+                return Result!DistributedError.err(new DistributedError("Transport not connected"));
             
             try
             {
@@ -259,7 +259,7 @@ final class Coordinator
             catch (Exception e)
             {
                 transport.close();
-                return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Failed to send: " ~ e.msg));
+                return Result!DistributedError.err(new DistributedError("Failed to send: " ~ e.msg));
             }
             
             transport.close();
@@ -267,7 +267,7 @@ final class Coordinator
         }
         catch (Exception e)
         {
-            return Result!DistributedError.err(new engine.distributed.protocol.protocol.NetworkError("Exception sending action to worker: " ~ e.msg));
+            return Result!DistributedError.err(new DistributedError("Exception sending action to worker: " ~ e.msg));
         }
     }
     

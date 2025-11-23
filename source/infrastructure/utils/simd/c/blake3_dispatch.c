@@ -16,40 +16,33 @@ void blake3_simd_init(void) {
     
     simd_level_t level = cpu_get_simd_level();
     
-    /* Select compression function */
-    /* When using D's ImportC, SIMD intrinsic implementations are not available */
-    /* Use portable implementation for all cases */
-    #if defined(__LDC__)
-        g_compress_fn = blake3_compress_portable;
-        g_hash_many_fn = blake3_hash_many_portable;
-    #else
-        switch (level) {
-            case SIMD_LEVEL_AVX512:
-                g_compress_fn = blake3_compress_avx512;
-                g_hash_many_fn = blake3_hash_many_avx512;
-                break;
-            case SIMD_LEVEL_AVX2:
-                g_compress_fn = blake3_compress_avx2;
-                g_hash_many_fn = blake3_hash_many_avx2;
-                break;
-            case SIMD_LEVEL_SSE41:
-                g_compress_fn = blake3_compress_sse41;
-                g_hash_many_fn = blake3_hash_many_portable;
-                break;
-            case SIMD_LEVEL_SSE2:
-                g_compress_fn = blake3_compress_sse2;
-                g_hash_many_fn = blake3_hash_many_portable;
-                break;
-            case SIMD_LEVEL_NEON:
-                g_compress_fn = blake3_compress_neon;
-                g_hash_many_fn = blake3_hash_many_neon;
-                break;
-            default:
-                g_compress_fn = blake3_compress_portable;
-                g_hash_many_fn = blake3_hash_many_portable;
-                break;
-        }
-    #endif
+    /* Select optimal SIMD implementation based on CPU capabilities */
+    switch (level) {
+        case SIMD_LEVEL_AVX512:
+            g_compress_fn = blake3_compress_avx512;
+            g_hash_many_fn = blake3_hash_many_avx512;
+            break;
+        case SIMD_LEVEL_AVX2:
+            g_compress_fn = blake3_compress_avx2;
+            g_hash_many_fn = blake3_hash_many_avx2;
+            break;
+        case SIMD_LEVEL_SSE41:
+            g_compress_fn = blake3_compress_sse41;
+            g_hash_many_fn = blake3_hash_many_portable;
+            break;
+        case SIMD_LEVEL_SSE2:
+            g_compress_fn = blake3_compress_sse2;
+            g_hash_many_fn = blake3_hash_many_portable;
+            break;
+        case SIMD_LEVEL_NEON:
+            g_compress_fn = blake3_compress_neon;
+            g_hash_many_fn = blake3_hash_many_neon;
+            break;
+        default:
+            g_compress_fn = blake3_compress_portable;
+            g_hash_many_fn = blake3_hash_many_portable;
+            break;
+    }
     
     g_initialized = true;
 }
@@ -116,52 +109,3 @@ void blake3_hash_many_portable(
         }
     }
 }
-
-/* Stub implementations for SIMD functions (when using ImportC with LDC) */
-/* These are never called because blake3_simd_init() uses portable versions */
-void blake3_compress_avx2(const uint32_t cv[8], const uint8_t block[64], 
-                          uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {
-    blake3_compress_portable(cv, block, block_len, counter, flags, out);
-}
-
-void blake3_compress_avx512(const uint32_t cv[8], const uint8_t block[64],
-                            uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {
-    blake3_compress_portable(cv, block, block_len, counter, flags, out);
-}
-
-void blake3_compress_sse2(const uint32_t cv[8], const uint8_t block[64],
-                          uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {
-    blake3_compress_portable(cv, block, block_len, counter, flags, out);
-}
-
-void blake3_compress_sse41(const uint32_t cv[8], const uint8_t block[64],
-                           uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {
-    blake3_compress_portable(cv, block, block_len, counter, flags, out);
-}
-
-void blake3_compress_neon(const uint32_t cv[8], const uint8_t block[64],
-                          uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {
-    blake3_compress_portable(cv, block, block_len, counter, flags, out);
-}
-
-void blake3_hash_many_avx2(const uint8_t* const* inputs, size_t num_inputs, size_t blocks,
-                           const uint32_t key[8], uint64_t counter, bool increment_counter,
-                           uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out) {
-    blake3_hash_many_portable(inputs, num_inputs, blocks, key, counter, increment_counter,
-                             flags, flags_start, flags_end, out);
-}
-
-void blake3_hash_many_avx512(const uint8_t* const* inputs, size_t num_inputs, size_t blocks,
-                             const uint32_t key[8], uint64_t counter, bool increment_counter,
-                             uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out) {
-    blake3_hash_many_portable(inputs, num_inputs, blocks, key, counter, increment_counter,
-                             flags, flags_start, flags_end, out);
-}
-
-void blake3_hash_many_neon(const uint8_t* const* inputs, size_t num_inputs, size_t blocks,
-                           const uint32_t key[8], uint64_t counter, bool increment_counter,
-                           uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out) {
-    blake3_hash_many_portable(inputs, num_inputs, blocks, key, counter, increment_counter,
-                             flags, flags_start, flags_end, out);
-}
-

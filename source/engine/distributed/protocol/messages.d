@@ -89,7 +89,7 @@ Result!(WorkerRegistration, DistributedError) deserializeRegistration(const ubyt
 {
     auto result = Codec.deserialize!SerializableWorkerRegistration(cast(ubyte[])data);
     if (result.isErr)
-        return Err!(WorkerRegistration, DistributedError)(new NetworkError("Failed to deserialize registration: " ~ result.unwrapErr()));
+        return Err!(WorkerRegistration, DistributedError)(new DistributedError("Failed to deserialize registration: " ~ result.unwrapErr()));
     
     auto serializable = result.unwrap();
     return Ok!(WorkerRegistration, DistributedError)(WorkerRegistration(
@@ -108,7 +108,7 @@ Result!(WorkRequest, DistributedError) deserializeWorkRequest(const ubyte[] data
 {
     auto result = Codec.deserialize!SerializableWorkRequest(cast(ubyte[])data);
     if (result.isErr)
-        return Err!(WorkRequest, DistributedError)(new NetworkError("Failed to deserialize WorkRequest: " ~ result.unwrapErr()));
+        return Err!(WorkRequest, DistributedError)(new DistributedError("Failed to deserialize WorkRequest: " ~ result.unwrapErr()));
     
     auto serializable = result.unwrap();
     return Ok!(WorkRequest, DistributedError)(WorkRequest(
@@ -126,7 +126,7 @@ Result!(PeerDiscoveryRequest, DistributedError) deserializePeerDiscoveryRequest(
 {
     auto result = Codec.deserialize!SerializablePeerDiscoveryRequest(cast(ubyte[])data);
     if (result.isErr)
-        return Err!(PeerDiscoveryRequest, DistributedError)(new NetworkError("Failed to deserialize PeerDiscoveryRequest: " ~ result.unwrapErr()));
+        return Err!(PeerDiscoveryRequest, DistributedError)(new DistributedError("Failed to deserialize PeerDiscoveryRequest: " ~ result.unwrapErr()));
     
     return Ok!(PeerDiscoveryRequest, DistributedError)(PeerDiscoveryRequest(WorkerId(result.unwrap().workerId)));
 }
@@ -157,7 +157,7 @@ Result!(PeerDiscoveryResponse, DistributedError) deserializePeerDiscoveryRespons
     
     auto result = Codec.deserialize!SerializablePeerDiscoveryResponse(cast(ubyte[])data);
     if (result.isErr)
-        return Err!(PeerDiscoveryResponse, DistributedError)(new NetworkError("Failed to deserialize PeerDiscoveryResponse: " ~ result.unwrapErr()));
+        return Err!(PeerDiscoveryResponse, DistributedError)(new DistributedError("Failed to deserialize PeerDiscoveryResponse: " ~ result.unwrapErr()));
     
     auto peers = result.unwrap().peers.map!(e => PeerEntry(
         WorkerId(e.workerId),
@@ -179,7 +179,7 @@ Result!(PeerAnnounce, DistributedError) deserializePeerAnnounce(const ubyte[] da
 {
     auto result = Codec.deserialize!SerializablePeerAnnounce(cast(ubyte[])data);
     if (result.isErr)
-        return Err!(PeerAnnounce, DistributedError)(new NetworkError("Failed to deserialize PeerAnnounce: " ~ result.unwrapErr()));
+        return Err!(PeerAnnounce, DistributedError)(new DistributedError("Failed to deserialize PeerAnnounce: " ~ result.unwrapErr()));
     
     auto s = result.unwrap();
     return Ok!(PeerAnnounce, DistributedError)(PeerAnnounce(
@@ -197,7 +197,7 @@ Result!(PeerMetricsUpdate, DistributedError) deserializePeerMetricsUpdate(const 
 {
     auto result = Codec.deserialize!SerializablePeerMetricsUpdate(cast(ubyte[])data);
     if (result.isErr)
-        return Err!(PeerMetricsUpdate, DistributedError)(new NetworkError("Failed to deserialize PeerMetricsUpdate: " ~ result.unwrapErr()));
+        return Err!(PeerMetricsUpdate, DistributedError)(new DistributedError("Failed to deserialize PeerMetricsUpdate: " ~ result.unwrapErr()));
     
     auto s = result.unwrap();
     return Ok!(PeerMetricsUpdate, DistributedError)(PeerMetricsUpdate(

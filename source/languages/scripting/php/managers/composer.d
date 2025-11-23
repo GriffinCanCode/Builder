@@ -262,7 +262,7 @@ class ComposerTool
     static ComposerMetadata parseComposerJson(string composerJsonPath)
     {
         if (!exists(composerJsonPath))
-            throw new Exception("composer.json not found: " ~ composerJsonPath);
+            assert(false, "fileNotFoundError (Composer dependency analysis): " ~ composerJsonPath);
         
         try
         {
@@ -272,7 +272,7 @@ class ComposerTool
         }
         catch (Exception e)
         {
-            throw new Exception("Failed to parse composer.json: " ~ e.msg);
+            assert(false, "parseErrorWithContext (" ~ composerJsonPath ~ "): Failed to parse composer.json: " ~ e.msg);
         }
     }
     

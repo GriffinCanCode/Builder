@@ -122,7 +122,7 @@ struct WorkerLifecycle
             if (!socket.isConnected())
             {
                 auto connectResult = cast(HttpTransport)socket;
-                if (connectResult is null) return Err!(WorkerId, DistributedError)(new NetworkError("Invalid transport"));
+                if (connectResult is null) return Err!(WorkerId, DistributedError)(new DistributedError("Invalid transport"));
                 auto connResult = connectResult.connect();
                 if (connResult.isErr) return Err!(WorkerId, DistributedError)(connResult.unwrapErr());
             }
@@ -133,7 +133,7 @@ struct WorkerLifecycle
             
             return Ok!(WorkerId, DistributedError)(WorkerId(uniform!ulong()));
         }
-        catch (Exception e) { return Err!(WorkerId, DistributedError)(new NetworkError("Registration failed: " ~ e.msg)); }
+        catch (Exception e) { return Err!(WorkerId, DistributedError)(new DistributedError("Registration failed: " ~ e.msg)); }
     }
     
     /// Collect system metrics

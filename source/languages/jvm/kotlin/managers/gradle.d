@@ -35,7 +35,7 @@ struct GradleKotlinMetadata
     static GradleKotlinMetadata fromFile(string buildFile)
     {
         if (!exists(buildFile))
-            throw new Exception("Build file not found at: " ~ buildFile);
+            assert(false, "fileNotFoundError (Kotlin Gradle dependency analysis): " ~ buildFile);
         
         string content = readText(buildFile);
         bool isKotlinDSL = buildFile.endsWith(".kts");

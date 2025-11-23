@@ -33,7 +33,7 @@ struct MavenMetadata
     static MavenMetadata fromFile(string pomPath)
     {
         if (!exists(pomPath))
-            throw new Exception("pom.xml not found at: " ~ pomPath);
+            assert(false, "fileNotFoundError (Maven dependency analysis): " ~ pomPath);
         
         string content = readText(pomPath);
         return fromXML(content);

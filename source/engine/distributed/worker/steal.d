@@ -217,7 +217,7 @@ final class StealEngine
                 atomicOp!"+="(metrics.networkErrors, 1);
                 peers.markDead(victimId);
                 return Err!(ActionRequest, DistributedError)(
-                    new NetworkError("Failed to send steal request"));
+                    new DistributedError("Failed to send steal request"));
             }
             
             // Wait for response with timeout
@@ -259,7 +259,7 @@ final class StealEngine
             Logger.error("Steal attempt failed: " ~ e.msg);
             peers.markDead(victimId);
             return Err!(ActionRequest, DistributedError)(
-                new NetworkError("Steal exception: " ~ e.msg));
+                new DistributedError("Steal exception: " ~ e.msg));
         }
     }
 }

@@ -28,7 +28,7 @@ struct SbtMetadata
     static SbtMetadata fromFile(string buildSbtPath)
     {
         if (!exists(buildSbtPath))
-            throw new Exception("build.sbt not found at: " ~ buildSbtPath);
+            assert(false, "fileNotFoundError (Scala SBT dependency analysis): " ~ buildSbtPath);
         
         string content = readText(buildSbtPath);
         return fromContent(content);

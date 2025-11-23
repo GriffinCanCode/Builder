@@ -52,16 +52,32 @@ endif
 ifeq ($(ARCH_ARM),1)
     SIMD_SOURCES = blake3_neon.c
     SIMD_FLAGS_NEON = -march=armv8-a+simd
+    # Also compile x86 SIMD as stubs (for linking compatibility)
+    STUB_SOURCES = blake3_sse2.c blake3_sse41.c blake3_avx2.c blake3_avx512.c
+endif
+
+# x86 platforms: compile ARM as stub
+ifeq ($(ARCH_X86),1)
+    STUB_SOURCES = blake3_neon.c
 endif
 
 # All sources
 ALL_SOURCES = $(SOURCES) $(SIMD_SOURCES)
 OBJECTS = $(ALL_SOURCES:.c=.o)
 
+# Stub objects (compiled without intrinsics)
+ifeq ($(STUB_SOURCES),)
+    STUB_OBJECTS =
+else
+    STUB_OBJECTS = $(STUB_SOURCES:.c=.o)
+endif
+
+ALL_OBJECTS = $(OBJECTS) $(STUB_OBJECTS)
+
 # Build targets
 all: $(LIB_NAME)
 
-$(LIB_NAME): $(OBJECTS)
+$(LIB_NAME): $(ALL_OBJECTS)
 	$(AR) $(ARFLAGS) $@ $^
 	@echo "Built $@ successfully for $(UNAME_S) $(UNAME_M)"
 
@@ -94,6 +110,53 @@ endif
 ifeq ($(ARCH_ARM),1)
 blake3_neon.o: blake3_neon.c blake3_simd.h
 	$(CC) $(CFLAGS) $(SIMD_FLAGS_NEON) -c $< -o $@
+
+# Compile x86 SIMD files as stubs on ARM (no intrinsics, just portable fallback)
+blake3_sse2.o: blake3_sse2.c blake3_simd.h
+	@echo "/* Stub for x86 SSE2 on ARM */" > blake3_sse2_stub.c
+	@echo "#include \"blake3_simd.h\"" >> blake3_sse2_stub.c
+	@echo "void blake3_compress_sse2(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {" >> blake3_sse2_stub.c
+	@echo "    extern void blake3_compress_portable(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]);" >> blake3_sse2_stub.c
+	@echo "    blake3_compress_portable(cv, block, block_len, counter, flags, out);" >> blake3_sse2_stub.c
+	@echo "}" >> blake3_sse2_stub.c
+	$(CC) $(CFLAGS) -c blake3_sse2_stub.c -o $@
+
+blake3_sse41.o: blake3_sse41.c blake3_simd.h
+	@echo "/* Stub for x86 SSE4.1 on ARM */" > blake3_sse41_stub.c
+	@echo "#include \"blake3_simd.h\"" >> blake3_sse41_stub.c
+	@echo "void blake3_compress_sse41(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {" >> blake3_sse41_stub.c
+	@echo "    extern void blake3_compress_portable(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]);" >> blake3_sse41_stub.c
+	@echo "    blake3_compress_portable(cv, block, block_len, counter, flags, out);" >> blake3_sse41_stub.c
+	@echo "}" >> blake3_sse41_stub.c
+	$(CC) $(CFLAGS) -c blake3_sse41_stub.c -o $@
+
+blake3_avx2.o: blake3_avx2.c blake3_simd.h
+	@echo "/* Stub for x86 AVX2 on ARM */" > blake3_avx2_stub.c
+	@echo "#include \"blake3_simd.h\"" >> blake3_avx2_stub.c
+	@echo "#include <stdbool.h>" >> blake3_avx2_stub.c
+	@echo "void blake3_compress_avx2(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {" >> blake3_avx2_stub.c
+	@echo "    extern void blake3_compress_portable(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]);" >> blake3_avx2_stub.c
+	@echo "    blake3_compress_portable(cv, block, block_len, counter, flags, out);" >> blake3_avx2_stub.c
+	@echo "}" >> blake3_avx2_stub.c
+	@echo "void blake3_hash_many_avx2(const uint8_t* const* inputs, size_t num_inputs, size_t blocks, const uint32_t key[8], uint64_t counter, bool increment_counter, uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out) {" >> blake3_avx2_stub.c
+	@echo "    extern void blake3_hash_many_portable(const uint8_t* const* inputs, size_t num_inputs, size_t blocks, const uint32_t key[8], uint64_t counter, bool increment_counter, uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out);" >> blake3_avx2_stub.c
+	@echo "    blake3_hash_many_portable(inputs, num_inputs, blocks, key, counter, increment_counter, flags, flags_start, flags_end, out);" >> blake3_avx2_stub.c
+	@echo "}" >> blake3_avx2_stub.c
+	$(CC) $(CFLAGS) -c blake3_avx2_stub.c -o $@
+
+blake3_avx512.o: blake3_avx512.c blake3_simd.h
+	@echo "/* Stub for x86 AVX512 on ARM */" > blake3_avx512_stub.c
+	@echo "#include \"blake3_simd.h\"" >> blake3_avx512_stub.c
+	@echo "#include <stdbool.h>" >> blake3_avx512_stub.c
+	@echo "void blake3_compress_avx512(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]) {" >> blake3_avx512_stub.c
+	@echo "    extern void blake3_compress_portable(const uint32_t cv[8], const uint8_t block[64], uint8_t block_len, uint64_t counter, uint8_t flags, uint8_t out[64]);" >> blake3_avx512_stub.c
+	@echo "    blake3_compress_portable(cv, block, block_len, counter, flags, out);" >> blake3_avx512_stub.c
+	@echo "}" >> blake3_avx512_stub.c
+	@echo "void blake3_hash_many_avx512(const uint8_t* const* inputs, size_t num_inputs, size_t blocks, const uint32_t key[8], uint64_t counter, bool increment_counter, uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out) {" >> blake3_avx512_stub.c
+	@echo "    extern void blake3_hash_many_portable(const uint8_t* const* inputs, size_t num_inputs, size_t blocks, const uint32_t key[8], uint64_t counter, bool increment_counter, uint8_t flags, uint8_t flags_start, uint8_t flags_end, uint8_t* out);" >> blake3_avx512_stub.c
+	@echo "    blake3_hash_many_portable(inputs, num_inputs, blocks, key, counter, increment_counter, flags, flags_start, flags_end, out);" >> blake3_avx512_stub.c
+	@echo "}" >> blake3_avx512_stub.c
+	$(CC) $(CFLAGS) -c blake3_avx512_stub.c -o $@
 endif
 
 # Optimized build with -march=native
@@ -108,7 +171,7 @@ debug:
 
 # Clean
 clean:
-	rm -f $(OBJECTS) $(LIB_NAME)
+	rm -f $(ALL_OBJECTS) $(LIB_NAME) *_stub.c
 	@echo "Cleaned build artifacts"
 
 # Install
