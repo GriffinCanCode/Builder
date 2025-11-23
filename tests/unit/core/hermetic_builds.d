@@ -59,8 +59,7 @@ int main() {
     
     if (spec.isErr)
     {
-        writeln("  \x1b[33mSkipping\x1b[0m: ", spec.unwrapErr());
-        return;
+        Assert.fail("Failed to create hermetic spec: " ~ spec.unwrapErr());
     }
     
     // Build twice and compare outputs

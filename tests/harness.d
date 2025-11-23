@@ -207,6 +207,12 @@ class TestHarness
 /// Assertion helpers with better error messages
 struct Assert
 {
+    /// Fail immediately with a message
+    static void fail(string message, string file = __FILE__, size_t line = __LINE__)
+    {
+        throw new AssertionError(message, file, line);
+    }
+    
     /// Assert equality with type-safe comparison
     static void equal(T)(T actual, T expected, 
                         string file = __FILE__, size_t line = __LINE__)

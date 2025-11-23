@@ -204,16 +204,14 @@ import tests.harness;
     
     if (spec.isErr)
     {
-        writeln("  Skipping: Failed to create spec: ", spec.unwrapErr());
-        return;
+        Assert.fail("Failed to create spec: " ~ spec.unwrapErr());
     }
     
     // Create executor
     auto executorResult = HermeticExecutor.create(spec.unwrap(), tempWorkDir);
     if (executorResult.isErr)
     {
-        writeln("  Skipping: Failed to create executor: ", executorResult.unwrapErr());
-        return;
+        Assert.fail("Failed to create executor: " ~ executorResult.unwrapErr());
     }
     
     auto executor = executorResult.unwrap();
@@ -223,8 +221,7 @@ import tests.harness;
     
     if (result.isErr)
     {
-        writeln("  Skipping: Execution failed: ", result.unwrapErr());
-        return;
+        Assert.fail("Execution failed: " ~ result.unwrapErr());
     }
     
     auto output = result.unwrap();
@@ -275,15 +272,13 @@ import tests.harness;
     
     if (spec.isErr)
     {
-        writeln("  Skipping: ", spec.unwrapErr());
-        return;
+        Assert.fail("Failed to create spec: " ~ spec.unwrapErr());
     }
     
     auto executorResult = HermeticExecutor.create(spec.unwrap(), tempWorkDir);
     if (executorResult.isErr)
     {
-        writeln("  Skipping: ", executorResult.unwrapErr());
-        return;
+        Assert.fail("Failed to create executor: " ~ executorResult.unwrapErr());
     }
     
     auto executor = executorResult.unwrap();

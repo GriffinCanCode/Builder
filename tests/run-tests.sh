@@ -68,8 +68,21 @@ if [ $? -eq 0 ]; then
     
     if [ -n "$COVERAGE" ]; then
         echo ""
-        echo -e "${CYAN}[INFO]${NC} Coverage report generated"
-        echo "View coverage files in project root (.lst files)"
+        echo -e "${CYAN}[INFO]${NC} Generating coverage reports..."
+        
+        # Generate HTML coverage reports
+        "${SCRIPT_DIR}/generate-coverage-report.sh"
+        
+        # Check coverage thresholds
+        "${SCRIPT_DIR}/check-coverage-thresholds.sh"
+        THRESHOLD_EXIT=$?
+        
+        if [ $THRESHOLD_EXIT -eq 0 ]; then
+            echo -e "${GREEN}✓ Coverage thresholds met${NC}"
+        else
+            echo -e "${RED}✗ Coverage thresholds not met${NC}"
+            exit 1
+        fi
     fi
     
     exit 0
