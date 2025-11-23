@@ -60,6 +60,64 @@ Tests the **actual Builder system** with generated projects:
 - Built Builder binary at `./bin/builder`
 - Sufficient disk space for generated files
 
+### 4. Serialization Benchmark (`serialization_bench.d`)
+
+Performance benchmarks for SIMD-accelerated serialization:
+
+**Test Scenarios:**
+- Small cache entries (10K items)
+- Large build graphs (50K nodes)
+- SIMD array operations (1M integers)
+- Nested structures (complex AST-like nodes)
+
+**Baselines:**
+- JSON serialization (target: 10x faster)
+- Standard binary format (target: 2.5x faster)
+
+**Measures:**
+- Serialize/deserialize speed
+- Data size compression
+- Throughput (ops/sec)
+- Statistical analysis across runs
+
+### 5. Work-Stealing Benchmark (`work_stealing_bench.d`)
+
+Lock-free work-stealing deque performance tests:
+
+**Test Scenarios:**
+- Single-threaded push/pop operations
+- Multi-threaded contention (4 workers)
+- Steal operation latency
+- Load balancing efficiency (8 workers)
+
+**Baselines:**
+- Mutex-protected queue (target: 10x faster under contention)
+
+**Measures:**
+- Push/pop throughput
+- Steal latency (< 100ns target)
+- Load imbalance percentage
+- Per-worker statistics
+
+### 6. Chunking Benchmark (`chunking_bench.d`)
+
+Content-defined chunking (Rabin fingerprinting) benchmarks:
+
+**Test Scenarios:**
+- Chunking speed (100MB files)
+- Deduplication efficiency
+- Incremental updates (1% change)
+- Network transfer simulation (10% modified)
+
+**Baselines:**
+- Fixed-size chunking
+
+**Measures:**
+- Chunking throughput (MB/sec)
+- Bandwidth savings (target: 40-90%)
+- Changed chunk ratio
+- Transfer efficiency
+
 ## Usage
 
 ### Quick Start
@@ -75,7 +133,12 @@ dub run --single scale_benchmark.d
 # 3. Run integration benchmarks (tests real system)
 dub run --single integration_bench.d
 
-# 4. Run target generator standalone
+# 4. Run performance benchmarks
+dub run --single serialization_bench.d
+dub run --single work_stealing_bench.d
+dub run --single chunking_bench.d
+
+# 5. Run target generator standalone
 dub run --single target_generator.d
 ```
 
@@ -240,6 +303,27 @@ SCENARIO 1/4: Real build - 50K targets (clean)
 - **Ideal**: 2.0x time increase (linear scaling)
 - **Good**: 2.0x - 2.5x (near-linear)
 - **Needs Optimization**: >2.8x (sub-linear)
+
+### Serialization Benchmarks
+
+- **vs JSON**: 10-23x faster, 3-4x smaller
+- **vs Binary**: 2.5-4x faster
+- **50K nodes**: < 500ms serialize, < 250ms deserialize
+- **Arrays**: 5-8x speedup with SIMD
+
+### Work-Stealing Benchmarks
+
+- **Single-thread**: 2-5x faster than mutex
+- **Contention**: 5-15x faster under load
+- **Steal latency**: < 100ns per operation
+- **Load balance**: < 10% imbalance
+
+### Chunking Benchmarks
+
+- **Chunking speed**: < 50ms for 100MB
+- **Dedup efficiency**: 25-40% savings
+- **Incremental**: < 5% re-transfer for 1% change
+- **Network savings**: 40-90% bandwidth reduction
 
 ## Generated Project Structure
 
