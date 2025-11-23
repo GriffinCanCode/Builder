@@ -27,11 +27,27 @@ void main(string[] args)
     // SIMD now auto-initializes on first use (see utils.simd.dispatch)
     Logger.initialize();
     
+    // Show SIMD capabilities banner on startup (except for quiet commands)
+    import infrastructure.utils.simd.detection : CPU;
+    immutable bool isQuietCommand = args.length >= 2 && 
+        (args[1] == "version" || args[1] == "help" || args.canFind("--help") || args.canFind("--cpu-info"));
+    immutable bool isVerboseMode = args.canFind("--verbose") || args.canFind("-v") || 
+        args.canFind("--mode=verbose");
+    
+    if (!isQuietCommand) {
+        if (isVerboseMode) {
+            CPU.printBanner();
+        } else {
+            CPU.printCompactBanner();
+        }
+    }
+    
     string command = "build";
     string target = "";
     bool verbose = false;
     bool showGraph = false;
     bool showVersion = false;
+    bool showCpuInfo = false;
     string mode = "auto"; // CLI render mode
     bool watch = false;
     bool clearScreen = true;
@@ -49,6 +65,7 @@ void main(string[] args)
         "graph|g", "Show dependency graph", &showGraph,
         "mode|m", "CLI mode: auto, interactive, plain, verbose, quiet", &mode,
         "version", "Show version information", &showVersion,
+        "cpu-info", "Show detailed CPU and SIMD information", &showCpuInfo,
         "watch|w", "Watch mode - rebuild on file changes", &watch,
         "clear", "Clear screen between builds in watch mode", &clearScreen,
         "debounce", "Debounce delay in milliseconds for watch mode", &debounceMs,
@@ -62,6 +79,12 @@ void main(string[] args)
     {
         writeln("Builder version 1.0.6");
         writeln("High-performance build system for mixed-language monorepos");
+        return;
+    }
+    
+    if (showCpuInfo)
+    {
+        CPU.printBanner();
         return;
     }
     
@@ -166,6 +189,11 @@ void main(string[] args)
                     }
                     QueryCommand.execute(args[2], outputFormat);
                 }
+                break;
+            case "verify":
+            case "verify-determinism":
+                import core.stdc.stdlib : exit;
+                exit(VerifyCommand.execute(args));
                 break;
             case "telemetry":
                 auto subcommand = args.length > 2 ? args[2] : "summary";
