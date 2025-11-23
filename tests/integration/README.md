@@ -296,14 +296,66 @@ When adding new integration tests:
 - Tests are deterministic and reproducible
 - Failure logs are captured for debugging
 
+## Chaos Engineering Tests (NEW)
+
+### Graph Discovery Chaos
+**File:** `graph_discovery_chaos.d`
+- Cycle detection with chaos injection
+- Race conditions in concurrent discovery
+- Explosive graph growth handling
+- Invalid target data validation
+- 8 chaos test scenarios
+
+### Economics Chaos
+**File:** `economics_chaos.d`
+- Real cloud pricing volatility (AWS/GCP/Azure)
+- Price spikes and budget violations
+- Spot instance terminations
+- Invalid cost handling (NaN, Infinity)
+- 9 chaos test scenarios
+
+### Hermetic Cross-Platform
+**File:** `hermetic_crossplatform.d`
+- Linux/macOS/Windows hermetic builds
+- Platform-specific compiler flags
+- Cross-platform reproducibility
+- File system behavior differences
+- 11 cross-platform test scenarios
+
+### Plugin Recovery Chaos
+**File:** `plugin_recovery_chaos.d`
+- Plugin crashes and recovery
+- Timeout and hang detection
+- Invalid JSON/RPC responses
+- Retry logic validation
+- 9 chaos test scenarios
+
+### Distributed Network Chaos
+**File:** `distributed_network_chaos.d`
+- Packet loss and corruption
+- Network partitions (split-brain)
+- Asymmetric failures
+- Bandwidth limitations
+- 10 chaos test scenarios
+
+### Corruption & Worker Killing
+**File:** `corruption_chaos.d`
+- File corruption (content, truncation, deletion)
+- Cache corruption during builds
+- Worker killing (SIGTERM, SIGKILL, OOM)
+- Disk full simulation
+- 7 chaos test scenarios
+
+**Total Chaos Tests:** 58 tests covering 54 distinct fault types
+
+See `CHAOS_TESTING_IMPLEMENTATION.md` for comprehensive documentation.
+
 ## Future Additions
 
 Planned integration tests:
 - [ ] Remote cache integration tests
-- [ ] Plugin system integration
 - [ ] LSP integration tests
 - [ ] Watch mode integration
-- [ ] Security/hermetic build integration
 - [ ] Performance regression detection
 
 ## Support
