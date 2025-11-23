@@ -159,18 +159,14 @@ class JavaScriptHandler : BaseLanguageHandler
             jsConfig.mode = JSBuildMode.Library;
         }
         
-        // Prefer rollup for libraries when bundler is auto
-        // But if user explicitly set bundler to "none", respect that
-        if (jsConfig.bundler == BundlerType.Auto)
+        // If bundler is "none", just validate and copy sources
+        if (jsConfig.bundler == BundlerType.None)
         {
-            jsConfig.bundler = BundlerType.Rollup;
-        }
-        else if (jsConfig.bundler == BundlerType.None)
-        {
-            // For libraries with bundler "none", just validate and copy sources
             return validateOnly(target, config);
         }
         
+        // Let BundlerFactory.createAuto() handle bundler selection for Auto
+        // It has proper fallback logic for when preferred bundlers aren't available
         return bundleTarget(target, config, jsConfig);
     }
     

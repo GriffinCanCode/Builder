@@ -6,7 +6,7 @@ target("lib-esm") {
     sources: ["src/**/*.js"];
     output: "math-utils.esm.js";
     
-    config: {
+    javascript: {
         "mode": "library",
         "bundler": "esbuild",
         "entry": "src/index.js",
@@ -23,7 +23,7 @@ target("lib-cjs") {
     sources: ["src/**/*.js"];
     output: "math-utils.cjs.js";
     
-    config: {
+    javascript: {
         "mode": "library",
         "bundler": "esbuild",
         "entry": "src/index.js",
@@ -40,7 +40,7 @@ target("lib-iife") {
     sources: ["src/**/*.js"];
     output: "math-utils.iife.js";
     
-    config: {
+    javascript: {
         "mode": "library",
         "bundler": "esbuild",
         "entry": "src/index.js",

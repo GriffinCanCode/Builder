@@ -43,7 +43,7 @@ target("csharp-app-aot") {
 
 target("clean") {
     type: custom;
-    sources: [];
+    sources: ["Program.cs"];  // Custom targets need at least one source file
     command: "rm -rf bin/ obj/";
 }
 

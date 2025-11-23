@@ -5,7 +5,7 @@ target("app") {
     sources: ["src/**/*.jsx", "src/**/*.js", "src/**/*.css"];
     output: "bundle.js";
     
-    config: {
+    javascript: {
         "mode": "bundle",
         "bundler": "vite",
         "entry": "src/main.jsx",
@@ -26,7 +26,7 @@ target("lib") {
     sources: ["src/App.jsx"];
     output: "app-lib.js";
     
-    config: {
+    javascript: {
         "mode": "library",
         "bundler": "vite",
         "entry": "src/App.jsx",

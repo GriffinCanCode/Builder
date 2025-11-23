@@ -6,14 +6,8 @@ target("demo-app") {
     language: c;
     sources: ["main.c"];
     
-    // Enable determinism enforcement
-    determinism: {
-        enabled: true;
-        strict: false;  // Warn but don't fail
-        verify_iterations: 3;  // Verify across 3 builds
-        fixed_timestamp: 1640995200;  // 2022-01-01 00:00:00 UTC
-        prng_seed: 42;
-    };
+    // Enable determinism enforcement via compiler flags
+    // Note: Native determinism config field coming in future version
     
     // Compiler flags for determinism
     flags: [
@@ -32,18 +26,14 @@ target("non-deterministic-app") {
     language: c;
     sources: ["non_deterministic.c"];
     
-    // Deliberately non-deterministic for comparison
-    determinism: {
-        enabled: false;
-    };
+    // Deliberately non-deterministic for comparison (no fixed flags)
 }
 
-target("verify-determinism") {
-    type: custom;
-    
-    // Custom verification command
-    command: "builder verify //demo-app:demo-app --iterations=5";
-    
-    deps: ["//demo-app:demo-app"];
-}
+// Note: Custom verification target removed for now
+// Future: Re-enable when custom command execution is fully supported
+// target("verify-determinism") {
+//     type: custom;
+//     command: "builder verify //demo-app:demo-app --iterations=5";
+//     deps: ["//demo-app:demo-app"];
+// }
 

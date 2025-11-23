@@ -1,10 +1,11 @@
 module engine.caching.storage.materialization;
 
-import std.file : exists, mkdirRecurse, remove, dirName;
-import std.path : buildPath, relativePath;
+import std.file : exists, mkdirRecurse, remove;
+import std.path : dirName, buildPath, relativePath;
 import std.algorithm : map, filter, sort;
 import std.array : array;
 import std.datetime.stopwatch : StopWatch, AutoStart;
+import std.datetime : Duration, dur;
 import std.conv : to;
 import core.sync.mutex : Mutex;
 import engine.caching.storage.source_repository : SourceRepository;
@@ -339,10 +340,9 @@ private string formatBytes(ulong bytes) @safe
 }
 
 /// Format duration for human-readable display
-private string formatDuration(import std.datetime : Duration)(Duration duration) @safe
+private string formatDuration(Duration duration) @safe
 {
     import std.format : format;
-    import std.datetime : dur;
     
     if (duration < dur!"seconds"(1))
         return format("%d ms", duration.total!"msecs");

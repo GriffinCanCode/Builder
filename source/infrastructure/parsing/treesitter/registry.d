@@ -109,13 +109,8 @@ void registerTreeSitterParsers() @system {
     // Initialize language configs
     LanguageConfigs.initialize();
     
-    // Load grammar modules (which register themselves via static constructors)
-    try {
-        import infrastructure.parsing.treesitter.grammars;
-        initializeGrammars();
-    } catch (Exception e) {
-        Logger.debugLog("Some grammars not available: " ~ e.msg);
-    }
+    // Grammar modules register themselves via shared static this()
+    // No need to explicitly import/initialize them here
     
     // Log available configs (even if grammars aren't loaded yet)
     auto available = LanguageConfigs.available();
